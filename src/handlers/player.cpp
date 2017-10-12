@@ -479,69 +479,6 @@ Sequence WriterItem::loadSequence() {
     return mHandler->load_sequence();
 }
 
-TestItem::TestItem() : PlaylistItem() {
-    setText("Test");
-}
-
-Sequence TestItem::loadSequence() {
-
-    // static const int double_croche = 1;
-    // static const int croche = 2;
-    static const int noire = 4;
-    // static const int blanche = 8;
-    // static const int ronde = 16;
-
-    Sequence seq;
-    seq.insert_event(Event::tempo(90.), 0, 0);
-    seq.update_clock();
-    const track_t track = 0;
-
-//    const channels_t channels = channels_t::from_bit(1);
-//    for (size_t c=0 ; c < 20 ; c++) {
-//        for (auto fund : {"E2", "B3", "G2", "B3", "E2", "A3", "C#3", "A3"}) {
-//            Note note = Note::from_string(fund);
-////            timestamp_t when_on = seq.last_timestamp();
-////            timestamp_t when_off = when_on + croche * seq.clock().ppqn();
-//            timestamp_t when_on = seq.clock().beat2timestamp(beat);
-//            beat += croche;
-//            timestamp_t when_off = seq.clock().beat2timestamp(beat);
-//            seq.insert_event(Event::note_on(channels, note, 0x50), track, when_on);
-//            seq.insert_event(Event::note_off(channels, note), track, when_off);
-//        }
-//    }
-
-//    size_t c = 0;
-//    for ( ; c < 20 ; c++) {
-////        for (int beat=0 ; beat < ronde ; beat += croche)
-////            seq.insert_event(Event::drum_on(drum_channels, drum_ns::closed_hihat_drum, 0x50), track, seq.clock().beat2timestamp(beat + ronde * c));
-////        for (int beat=0 ; beat < ronde ; beat += blanche)
-////            seq.insert_event(Event::drum_on(drum_channels, drum_ns::bass_1_drum, 0x50), track, seq.clock().beat2timestamp(beat + ronde * c));
-////        for (int beat=noire ; beat < ronde ; beat += blanche)
-////            seq.insert_event(Event::drum_on(drum_channels, drum_ns::snare_1_drum, 0x50), track, seq.clock().beat2timestamp(beat + ronde * c));
-
-//        seq.insert_event(Event::drum_on(drum_channels, drum_ns::metronome_bell_drum, 0x50), track, seq.clock().beat2timestamp(ronde * c));
-//        for (int beat=noire ; beat < ronde ; beat += noire)
-//            seq.insert_event(Event::drum_on(drum_channels, drum_ns::metronome_click_drum, 0x50), track, seq.clock().beat2timestamp(beat + ronde * c));
-//    }
-//    seq.insert_event(Event::end_of_track(), track, seq.clock().beat2timestamp(ronde*c));
-
-//    for (int c=0 ; c < 20 ; c++) {
-//        for (auto fund : {"D3m", "F3M", "C3M", "G2m"}) {
-//            Chord chord(fund);
-//            for (int i=0 ; i<4 ; i++) {
-//                  timestamp_t when = seq.last_timestamp()
-//                 for (Note note : chord.shifts())
-//                     add_note(note, duration, when);
-//            }
-//        }
-//    }
-
-    for (size_t n = 0 ; n < 400 ; n++)
-        seq.insert_event(Event::drum_on(drum_channels, drum_ns::closed_hihat_drum, 0x50), track, seq.clock().beat2timestamp(noire * n));
-
-    return seq;
-}
-
 PlaylistTable::PlaylistTable(QWidget* parent) : QTableWidget(0, 2, parent), mCurrentItem(nullptr) {
 
     setHorizontalHeaderLabels(QStringList() << "Filename" << "Duration");
@@ -581,7 +518,6 @@ PlaylistTable::PlaylistTable(QWidget* parent) : QTableWidget(0, 2, parent), mCur
     connect(discardSelectionAction, &QAction::triggered, this, &PlaylistTable::removeSelection);
     connect(discardAllAction, &QAction::triggered, this, &PlaylistTable::removeAllRows);
 
-    insertItem(new TestItem);
 }
 
 void PlaylistTable::insertItem(PlaylistItem* playlistItem) {

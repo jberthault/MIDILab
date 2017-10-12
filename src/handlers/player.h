@@ -229,15 +229,6 @@ private:
 
 };
 
-class TestItem : public PlaylistItem {
-
-public:
-    explicit TestItem();
-
-    Sequence loadSequence() override;
-
-};
-
 class PlaylistTable : public QTableWidget {
 
     Q_OBJECT

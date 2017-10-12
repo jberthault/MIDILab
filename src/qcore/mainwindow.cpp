@@ -250,7 +250,6 @@ struct ConfigurationPusher {
 // AboutWindow
 // ============
 
-/// @todo include github
 static const QString aboutText =
     "<p><b>MIDILab</b> (version " MIDILAB_VERSION_STRING ")</p>"
     "<p>A versatile MIDI laboratory</p>"
@@ -258,7 +257,7 @@ static const QString aboutText =
     " <li>MIDI controller: connect multiple devices</li>"
     " <li>MIDI player: play files or previous records</li>"
     " <li>MIDI recorder: save your playing sessions (<i>not quite finished</i>)</li>"
-    " <li>MIDI sequencer: make or edit songs (<i>not quite started</i>)</li>"
+    " <li>MIDI editor: make or edit songs (<i>not quite started</i>)</li>"
     " <li>...</li>"
     "</ul>"
     "<p>This program is free software.<br/>"
@@ -269,6 +268,7 @@ static const QString aboutText =
     " <li><a href=\"http://www.fluidsynth.org\">fluidsynth " MIDILAB_FLUIDSYNTH_VERSION_STRING "</a>: SoundFont Synthetizer</li>"
     " <li><a href=\"https://github.com/iconic/open-iconic\">Open Iconic 1.1.1</a>: A great icon set</li>"
     "</ul>"
+    "<p>Source code is available on <a href=\"https://github.com/jberthault/MIDILab\">Github</a></p>"
     "<p>Copyright \u00a9 2017 Julien Berthault<br/>"
     "(<a href=\"mailto:juberthault@gmail.com\">juberthault@gmail.com</a>)</p>"
     "<p><i> " MIDILAB_MODE " " MIDILAB_PLATFORM " " MIDILAB_SIZE " </i></p>";
