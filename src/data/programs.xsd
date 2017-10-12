@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema'>
+
+ <xs:element name='Program'>
+  <xs:complexType mixed='true'>
+   <xs:attribute name='value' type='xs:string' use='required'/>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='Patch'>
+  <xs:complexType>
+   <xs:choice maxOccurs='unbounded'>
+    <xs:element ref='Patch'/>
+    <xs:element ref='Program'/>
+   </xs:choice>
+   <xs:attribute name='name' type='xs:string' use='required'/>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='Patches'>
+  <xs:complexType>
+   <xs:sequence maxOccurs='unbounded'>
+    <xs:element ref='Patch'/>
+   </xs:sequence>
+  </xs:complexType>
+ </xs:element>
+
+</xs:schema>

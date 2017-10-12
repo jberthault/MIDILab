@@ -1,0 +1,13 @@
+<!ELEMENT configuration (flows, windows)>
+<!ELEMENT flows EMPTY>
+<!ELEMENT windows (window)*>
+<!ELEMENT window (window|interface)*>
+<!ELEMENT interface (property)*>
+<!ELEMENT property (#PCDATA)>
+
+<!ATTLIST configuration comments CDATA #IMPLIED>
+<!ATTLIST window layout (horizontal | vertical) #REQUIRED>
+<!ATTLIST window name CDATA #REQUIRED>
+<!ATTLIST interface type CDATA #REQUIRED>
+<!ATTLIST interface name CDATA #REQUIRED>
+<!ATTLIST property key CDATA #REQUIRED>

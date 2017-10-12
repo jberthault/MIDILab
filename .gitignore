@@ -30,3 +30,13 @@
 *.exe
 *.out
 *.app
+
+# Windows data cache
+
+Thumbs.db
+
+
+
+# QtCreator cache
+
+*.user

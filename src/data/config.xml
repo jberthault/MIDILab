@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <handlers>
+        <handler type="PitchWheel" id="pitch" name="Pitch Bend" />
+        <handler type="Piano" id="piano" >
+            <property type="velocity">0x50</property>
+        </handler>
+        <handler type="SoundFont" id="sf" name="SF2" group="sf_group" />
+        <handler type="Player" id="player" name="Player" />
+        <handler type="Transposer" id="transposer" name="Transposer" />
+    </handlers>
+    <connections>
+        <connection tail="piano" head="sf" source="piano" />
+        <connection tail="pitch" head="sf" source="pitch" />
+        <connection tail="player" head="pitch" source="player" />
+        <connection tail="player" head="transposer" source="player" />
+        <connection tail="transposer" head="piano" source="player" />
+        <connection tail="transposer" head="sf" source="player" />
+    </connections>
+    <frames>
+        <frame layout="v" name="Main Window">
+            <view ref="player" />
+            <view ref="transposer" />
+        </frame>
+        <frame layout="h" name="Keyboard" size="1200x180">
+            <view ref="pitch" />
+            <view ref="piano" />
+        </frame>
+        <frame layout="v" name="SoundFont Properties">
+            <view ref="sf" />
+        </frame>
+    </frames>
+</configuration>

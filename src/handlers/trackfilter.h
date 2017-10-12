@@ -1,0 +1,74 @@
+/*
+
+MIDILab | A Versatile MIDI Controller
+Copyright (C) 2017 Julien Berthault
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+*/
+
+#ifndef HANDLERS_METATRACKFILTER_H
+#define HANDLERS_METATRACKFILTER_H
+
+#include "qcore/core.h"
+
+//=============
+// TrackFilter
+//=============
+
+/**
+ * @brief The TrackFilter class
+ *
+ * @todo find a way to delete this handler and embed it
+ * directly in the SequenceReader.
+ * It will save a connection but mainly it will avoid keeping the track in the message
+ *
+ */
+
+class TrackFilter : public Handler {
+
+public:
+    using filter_type = blacklist_t<track_t>;
+
+    static Event enable_all_event();
+    static Event enable_event(track_t track);
+    static Event disable_event(track_t track);
+
+    TrackFilter();
+
+    result_type handle_message(const Message& message) override;
+
+private:
+    void feed_forward(const Message& message); /*!< forward a message after feeding memory */
+    void clean_corrupted(Handler* source, track_t track); /*!< forward a message cleaning corrupted channels */
+
+    filter_type m_filter;
+    std::unordered_map<track_t, Corruption> m_corruption;
+
+};
+
+//=================
+// MetaTrackFilter
+//=================
+
+class MetaTrackFilter : public MetaHandler {
+
+public:
+    MetaTrackFilter(QObject* parent);
+
+    instance_type instantiate(const QString& name, QWidget* parent) override;
+
+};
+
+#endif // HANDLERS_METATRACKFILTER_H

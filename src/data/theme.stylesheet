@@ -1,0 +1,58 @@
+
+QWidget {
+    background-color: #fef3d1;
+}
+
+QTextEdit, QLineEdit, QAbstractSpinBox, QComboBox {
+    background-color: white;
+}
+
+QPushButton {
+    color: white;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #616161, stop: 0.5 #505050, stop: 0.6 #434343, stop:1 #656565);
+    border-radius: 4px;
+    padding : 4px 8px 4px 8px;
+}
+
+QTreeView, QTableView {
+    alternate-background-color: #f3f3f3;
+}
+
+Graph, QTreeView, QTableView {
+    border : none;
+}
+
+Trackbar {
+    qproperty-knobColor: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #616161, stop: 0.5 #505050, stop: 0.6 #434343, stop:1 #656565);
+    qproperty-knobWidth: 3;
+}
+
+HandlerGraphEditor {
+    qproperty-nodeColor : white;
+    qproperty-nodeBackgroundColor : qlineargradient(x1:0, y1:0, x2:1, y2:1, stop: 0 #434343, stop: 1 #a8a8a8);
+    qproperty-nodeAlternateBackgroundColor : qlineargradient(x1:0, y1:0, x2:1, y2:1, stop: 0 #a8a8a8, stop: 1 #434343);
+}
+
+Monitor > QTextEdit {
+    font: 8pt "Courier";
+}
+
+QTabBar::tab, QHeaderView::section, QTableCornerButton::section, QMenuBar {
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop: 0 #616161, stop: 0.5 #505050, stop: 0.6 #434343, stop:1 #656565);
+    color: white;
+    border: 1px solid #6c6c6c;
+}
+
+QTabBar::tab {
+    padding: 3px;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+}
+
+QMenu::item::selected, QMenuBar::item:selected {
+    background: #a8a8a8;
+}
+
+QMenuBar::item:pressed {
+    background: #888888;
+}

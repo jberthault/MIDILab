@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Patches>
+	<Patch name="General MIDI">
+		<Patch name="Pianos">
+			<Program value="0">Acoustic Grand Piano</Program>
+			<Program value="1">Bright Acoustic Piano</Program>
+			<Program value="2">Electric Grand Piano</Program>
+			<Program value="3">Honky-tonk Piano</Program>
+			<Program value="4">Rhodes Piano</Program>
+			<Program value="5">Chorused Piano</Program>
+			<Program value="6">Harpsichord</Program>
+			<Program value="7">Clavinet</Program>
+		</Patch>
+		<Patch name="Tuned Idiophones">
+			<Program value="8">Celesta</Program>
+			<Program value="9">Glockenspiel</Program>
+			<Program value="10">Music Box</Program>
+			<Program value="11">Vibraphone</Program>
+			<Program value="12">Marimba</Program>
+			<Program value="13">Xylophone</Program>
+			<Program value="14">Tubular Bells</Program>
+			<Program value="15">Dulcimer</Program>
+		</Patch>
+		<Patch name="Organs">
+			<Program value="16">Hammond Organ</Program>
+			<Program value="17">Percussive Organ</Program>
+			<Program value="18">Rock Organ</Program>
+			<Program value="19">Church Organ</Program>
+			<Program value="20">Reed Organ</Program>
+			<Program value="21">Accordion</Program>
+			<Program value="22">Harmonica</Program>
+			<Program value="23">Tango Accordion</Program>
+		</Patch>
+		<Patch name="Guitars">
+			<Program value="24">Acoustic Guitar (nylon)</Program>
+			<Program value="25">Acoustic Guitar (steel)</Program>
+			<Program value="26">Electric Guitar (jazz)</Program>
+			<Program value="27">Electric Guitar (clean)</Program>
+			<Program value="28">Electric Guitar (muted)</Program>
+			<Program value="29">Overdriven Guitar</Program>
+			<Program value="30">Distortion Guitar</Program>
+			<Program value="31">Guitar Harmonics</Program>
+		</Patch>
+		<Patch name="Basses">
+			<Program value="32">Acoustic Bass</Program>
+			<Program value="33">Electric Bass (finger)</Program>
+			<Program value="34">Electric Bass (pick)</Program>
+			<Program value="35">Fretless Bass</Program>
+			<Program value="36">Slap Bass 1</Program>
+			<Program value="37">Slap Bass 2</Program>
+			<Program value="38">Synth Bass 1</Program>
+			<Program value="39">Synth Bass 2</Program>
+		</Patch>
+		<Patch name="Strings and Timpani">
+			<Program value="40">Violin</Program>
+			<Program value="41">Viola</Program>
+			<Program value="42">Cello</Program>
+			<Program value="43">Contrabass</Program>
+			<Program value="44">Tremolo Strings</Program>
+			<Program value="45">Pizzicato Strings</Program>
+			<Program value="46">Orchestral Harp</Program>
+			<Program value="47">Timpani</Program>
+		</Patch>
+		<Patch name="Ensemble Strings and Voices">
+			<Program value="48">String Ensemble 1</Program>
+			<Program value="49">String Ensemble 2</Program>
+			<Program value="50">SynthStrings 1</Program>
+			<Program value="51">SynthStrings 2</Program>
+			<Program value="52">Choir Aahs</Program>
+			<Program value="53">Voice Oohs</Program>
+			<Program value="54">Synth Voice</Program>
+			<Program value="55">Orchestra Hit</Program>
+		</Patch>
+		<Patch name="Brass">
+			<Program value="56">Trumpet</Program>
+			<Program value="57">Trombone</Program>
+			<Program value="58">Tuba</Program>
+			<Program value="59">Muted Trumpet</Program>
+			<Program value="60">French Horn</Program>
+			<Program value="61">Brass Section</Program>
+			<Program value="62">Synth Brass 1</Program>
+			<Program value="63">Synth Brass 2</Program>
+		</Patch>
+		<Patch name="Reeds">
+			<Program value="64">Soprano Sax</Program>
+			<Program value="65">Alto Sax</Program>
+			<Program value="66">Tenor Sax</Program>
+			<Program value="67">Baritone Sax</Program>
+			<Program value="68">Oboe</Program>
+			<Program value="69">English Horn</Program>
+			<Program value="70">Bassoon</Program>
+			<Program value="71">Clarinet</Program>
+		</Patch>
+		<Patch name="Pipes">
+			<Program value="72">Piccolo</Program>
+			<Program value="73">Flute</Program>
+			<Program value="74">Recorder</Program>
+			<Program value="75">Pan Flute</Program>
+			<Program value="76">Bottle Blow</Program>
+			<Program value="77">Shaluhachi</Program>
+			<Program value="78">Whistle</Program>
+			<Program value="79">Ocarina</Program>
+		</Patch>
+		<Patch name="Synth Leads">
+			<Program value="80">Lead 1 (square)</Program>
+			<Program value="81">Lead 2 (sawtooth)</Program>
+			<Program value="82">Lead 3 (calliope lead)</Program>
+			<Program value="83">Lead 4 (chiff lead)</Program>
+			<Program value="84">Lead 5 (charang)</Program>
+			<Program value="85">Lead 6 (voice)</Program>
+			<Program value="86">Lead 7 (fifths)</Program>
+			<Program value="87">Lead 8 (bass + lead)</Program>
+		</Patch>
+		<Patch name="Synth Pads">
+			<Program value="88">Pad 1 (new age)</Program>
+			<Program value="89">Pad 2 (warm)</Program>
+			<Program value="90">Pad 3 (polysynth)</Program>
+			<Program value="91">Pad 4 (choir)</Program>
+			<Program value="92">Pad 5 (bowed)</Program>
+			<Program value="93">Pad 6 (metallic)</Program>
+			<Program value="94">Pad 7 (halo)</Program>
+			<Program value="95">Pad 8 (sweep)</Program>
+		</Patch>
+		<Patch name="Musical Effects">
+			<Program value="96">FX 1 (rain)</Program>
+			<Program value="97">FX 2 (soundtrack)</Program>
+			<Program value="98">FX 3 (crystal)</Program>
+			<Program value="99">FX 4 (atmosphere)</Program>
+			<Program value="100">FX 5 (brightness)</Program>
+			<Program value="101">FX 6 (goblins)</Program>
+			<Program value="102">FX 7 (echoes)</Program>
+			<Program value="103">FX 8 (sci-fi)</Program>
+		</Patch>
+		<Patch name="Ethnic">
+			<Program value="104">Sitar</Program>
+			<Program value="105">Banjo</Program>
+			<Program value="106">Shaminsen</Program>
+			<Program value="107">Koto</Program>
+			<Program value="108">Kalimba</Program>
+			<Program value="109">Bagpipe</Program>
+			<Program value="110">Fiddle</Program>
+			<Program value="111">Shanai</Program>
+		</Patch>
+		<Patch name="Percussion">
+			<Program value="112">Tinkle Bell</Program>
+			<Program value="113">Agogo</Program>
+			<Program value="114">Steel Drums</Program>
+			<Program value="115">Woodblock</Program>
+			<Program value="116">Taiko Drum</Program>
+			<Program value="117">Melodic Tom</Program>
+			<Program value="118">Synth Drum</Program>
+			<Program value="119">Reverse Cymbal</Program>
+		</Patch>
+		<Patch name="Sound Effects">
+			<Program value="120">Guitar Fret Noise</Program>
+			<Program value="121">Breath Noise</Program>
+			<Program value="122">Seashore</Program>
+			<Program value="123">Bird Tweet</Program>
+			<Program value="124">Telephone Ring</Program>
+			<Program value="125">Helicopter</Program>
+			<Program value="126">Applause</Program>
+			<Program value="127">Gunshot</Program>
+		</Patch>
+	</Patch>
+	<Patch name="KORG SP 250">
+		<Patch name="Piano 1">
+			<Program value="0">Grand Piano</Program>
+			<Program value="1">Bright Piano</Program>
+			<Program value="2">Mellow Piano</Program>
+		</Patch>
+		<Patch name="Piano 2">
+			<Program value="3">Honky-Tonk</Program>
+			<Program value="4">Detune Piano</Program>
+			<Program value="5">E.Grand Piano</Program>
+		</Patch>
+		<Patch name="E.Piano 1">
+			<Program value="6">Club E.Piano</Program>
+			<Program value="7">Stage E.Piano</Program>
+			<Program value="8">Thin E.Piano</Program>
+		</Patch>
+		<Patch name="E.Piano 2">
+			<Program value="9">80's E.Piano</Program>
+			<Program value="10">Digital E.Piano</Program>
+			<Program value="11">Vintage E.Piano</Program>
+		</Patch>
+		<Patch name="Harpsi/Clav">
+			<Program value="12">Harpsichord</Program>
+			<Program value="13">Clav.</Program>
+			<Program value="14">Wah Clav.</Program>
+		</Patch>
+		<Patch name="Vibes/Guitar">
+			<Program value="15">Vibraphone</Program>
+			<Program value="16">Marimba</Program>
+			<Program value="17">Acoustic Guitar</Program>
+		</Patch>
+		<Patch name="Organ 1">
+			<Program value="18">Jazz Organ 1</Program>
+			<Program value="19">Jazz Organ 2</Program>
+			<Program value="20">Jazz Organ 3</Program>
+		</Patch>
+		<Patch name="Organ 2">
+			<Program value="21">Church Organ 1</Program>
+			<Program value="22">Church Organ 2</Program>
+			<Program value="23">Church Organ 3</Program>
+		</Patch>
+		<Patch name="Strings/Pad">
+			<Program value="24">Slow Strings</Program>
+			<Program value="25">Warm Pad</Program>
+			<Program value="26">Strings</Program>
+		</Patch>
+		<Patch name="Choir">
+			<Program value="27">Choir Hoo</Program>
+			<Program value="28">Choir Doo</Program>
+			<Program value="29">Choir Pad</Program>
+		</Patch>
+	</Patch>
+	<Patch name="Roland RP-101">
+		<Program value="0">Grand Piano</Program>
+		<Program value="1">Slow Strings</Program>
+		<Program value="2">Mellow Piano</Program>
+		<Program value="3">Honky-tonk</Program>
+		<Program value="4">Strings</Program>
+		<Program value="5">Harpsichord</Program>
+		<Program value="6">Choir</Program>
+		<Program value="7">Coupled Harpsichord</Program>
+		<Program value="8">Electric Piano1</Program>
+		<Program value="9">Church Organ 1</Program>
+		<Program value="10">Electric Piano2</Program>
+		<Program value="11">Church Organ 2</Program>
+		<Program value="12">Vibraphone</Program>
+		<Program value="13">Organ Flute</Program>
+		<Program value="14">Piano + Strings</Program>
+		<Program value="15">Piano + Choir</Program>
+		<Program value="16">Rotary Organ</Program>
+	</Patch>
+</Patches>
