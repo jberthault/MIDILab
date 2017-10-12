@@ -2,7 +2,7 @@
 
 A Versatile MIDI Controller, Player, Recorder, Editor ... for Windows &amp; Linux.
 
-<img align="right" width="150" src="https://github.com/jberthault/MIDILab/blob/master/src/data/logo.svg">
+<img align="right" width="150" src="https://github.com/jberthault/MIDILab/blob/master/src/data/logo.png">
 
 This application provides a GUI that lets you:
 - plug multiple devices and tweak them in realtime
@@ -30,7 +30,7 @@ I won't be able to fix every flaw soon.
 ## INSTALL
 
 If you want to give it a try, you may take a look at the prebuilt binaries.
-I will try to update Windows installers for the latest release.
+I will try to update Windows installers for the latest [release](https://github.com/jberthault/MIDILab/releases/).
 
 Unfortunately, for other platforms, you will have to build it from the sources.
 Any help to provide packaging for major Linux distributions is welcome.
