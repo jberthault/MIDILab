@@ -261,16 +261,15 @@ static const QString aboutText =
     " <li>...</li>"
     "</ul>"
     "<p>This program is free software.<br/>"
-    "It is licensed under the <a href=\"https://www.gnu.org/licenses/gpl-3.0.html\">GPL v3</a>.</p>"
+    "It is licensed under the <a href=\"https://www.gnu.org/licenses/gpl-3.0.html\">GPL v3</a>.<br/>"
+    "The project is hosted on <a href=\"https://github.com/jberthault/MIDILab\">Github</a></p>"
     "<p>This project uses:</p>"
     "<ul>"
     " <li>Qt Project: see related About</li>"
     " <li><a href=\"http://www.fluidsynth.org\">fluidsynth " MIDILAB_FLUIDSYNTH_VERSION_STRING "</a>: SoundFont Synthetizer</li>"
     " <li><a href=\"https://github.com/iconic/open-iconic\">Open Iconic 1.1.1</a>: A great icon set</li>"
     "</ul>"
-    "<p>Source code is available on <a href=\"https://github.com/jberthault/MIDILab\">Github</a></p>"
-    "<p>Copyright \u00a9 2017 Julien Berthault<br/>"
-    "(<a href=\"mailto:juberthault@gmail.com\">juberthault@gmail.com</a>)</p>"
+    "<p>Copyright \u00a9 2017 Julien Berthault</p>"
     "<p><i> " MIDILAB_MODE " " MIDILAB_PLATFORM " " MIDILAB_SIZE " </i></p>";
 
 AboutWindow::AboutWindow(QWidget* parent) :

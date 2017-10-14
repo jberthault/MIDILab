@@ -25,7 +25,8 @@ This if the reason why I need feeback to improve the app.
 So let me know if you experience a bug or any incomprehensible behavior.
 
 Please also keep in mind that I develop MIDILab on my spare time.
-I won't be able to fix every flaw soon.
+Fixing flaws is a really time-consuming task.
+Don't expect too much too quickly.
 
 ## INSTALL
 
@@ -52,6 +53,7 @@ Once installed, use `pacman` in order to install the toolchain, CMake, Qt5, Boos
 See [this](https://github.com/orlp/dev-on-windows/wiki/Installing-GCC--&-MSYS2) guide for further information.
 
 On Linux, your favorite package manager should do the job as well.
+Just make sure you install the development version of these packages.
 
 However, I did not try other platforms (e.g. macOS).
 So any feedback would be appreciated.
@@ -67,6 +69,10 @@ make
 
 Moreover, make sure your path contains the runtime dependencies, namely Qt5 and fluidsynth, before launching the application.
 The packages directory contains the dll required at runtime on Windows.
+
+On Linux, fluidsynth will try to start jackd. It implies that it is installed on your system.
+It will provide low-latency audio, but the downside is that the process will reserve your audio output for its own.
+More about jack: [http://jackaudio.org/](http://jackaudio.org/)
 
 ## Quick Start
 

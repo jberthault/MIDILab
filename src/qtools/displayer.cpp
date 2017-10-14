@@ -493,7 +493,6 @@ MultiDisplayer* MultiDisplayer::insertMulti(int position) {
 
 MultiDisplayer* MultiDisplayer::insertDetached(Qt::Orientation orientation) {
     auto displayer = new MultiDisplayer(orientation, nullptr);
-    displayer->setWindowFlag(Qt::Window);
     displayer->setLocked(isLocked());
     displayer->resize(150, 60); /*!< abritrary size when empty */
     connect(this, &MultiDisplayer::lockChanged, displayer, &MultiDisplayer::setLocked);

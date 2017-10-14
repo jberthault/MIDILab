@@ -15,6 +15,9 @@ find_package(Qt5Xml REQUIRED)
 find_package(Qt5XmlPatterns REQUIRED)
 find_package(Boost REQUIRED)
 find_package(FluidSynth)
+if (UNIX)
+    find_package(ALSA REQUIRED)
+endif()
 
 # -----------------
 # target definition
@@ -34,20 +37,20 @@ target_include_directories(${PROJECT_NAME} PUBLIC "src")
 target_link_libraries(${PROJECT_NAME} Boost::boost Qt5::Widgets Qt5::Xml Qt5::XmlPatterns)
 
 if (FluidSynth_FOUND)
-    target_link_libraries(${PROJECT_NAME} ${FluidSynth_LIBRARIES})
-    target_include_directories(${PROJECT_NAME} PUBLIC ${FluidSynth_INCLUDE_DIRS})
+    target_link_libraries(${PROJECT_NAME} FluidSynth::FluidSynth)
     target_compile_definitions(${PROJECT_NAME} PUBLIC "-DMIDILAB_FLUIDSYNTH_VERSION=${FluidSynth_VERSION}")
 endif()
 
 if(UNIX)
-    target_link_libraries(${PROJECT_NAME} asound pthread)
+    target_link_libraries(${PROJECT_NAME} ${ALSA_LIBRARIES} pthread)
+    target_include_directories(${PROJECT_NAME} PUBLIC ${ALSA_INCLUDE_DIRS})
 elseif(WIN32)
     target_sources(${PROJECT_NAME} PUBLIC "src/config.rc")
     set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE ON) # discard terminal
     target_link_libraries(${PROJECT_NAME} WinMM)
 endif()
 
-if(EXISTS ${PROJECT_SOURCE_DIR}/.git)
+if(EXISTS "${PROJECT_SOURCE_DIR}/.git")
     find_package(Git)
     if(GIT_FOUND)
         execute_process(
@@ -58,6 +61,7 @@ if(EXISTS ${PROJECT_SOURCE_DIR}/.git)
             OUTPUT_STRIP_TRAILING_WHITESPACE
         )
         target_compile_definitions(${PROJECT_NAME} PUBLIC "-DMIDILAB_VERSION=${MIDILAB_VERSION}")
+        set_target_properties(${PROJECT_NAME} PROPERTIES VERSION "${MIDILAB_VERSION}")
     endif()
 endif()
 
@@ -65,8 +69,8 @@ endif()
 # installation
 # ------------
 
-install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION .)
-install(FILES "LICENSE" DESTINATION .)
+install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION ".")
+install(FILES "LICENSE" DESTINATION ".")
 
 if (MINGW)
     if(CMAKE_SIZEOF_VOID_P EQUAL 8)
@@ -78,12 +82,10 @@ if (MINGW)
         COMMAND ${CMAKE_COMMAND} -E tar xzf "${PROJECT_SOURCE_DIR}/packages/${DEPENDENCY_ARCHIVE}.tar.gz"
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         )
-    install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${DEPENDENCY_ARCHIVE}/" DESTINATION .)
+    install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${DEPENDENCY_ARCHIVE}/" DESTINATION ".")
 endif()
 
 set(CPACK_PACKAGE_VENDOR "Julien Berthault")
-set(CPACK_PACKAGE_VERSION ${MIDILAB_VERSION})
-# set(CPACK_PACKAGE_ICON "${PROJECT_SOURCE_DIR}/src/data\\\\logo.png")
 set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/LICENSE")
-
+set(CPACK_NSIS_CREATE_ICONS_EXTRA "CreateShortCut '$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\MIDILab.lnk' '$INSTDIR\\\\MIDILab.exe'")
 include(CPack)
