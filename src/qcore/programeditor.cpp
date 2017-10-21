@@ -180,7 +180,7 @@ void PatchDelegate::setEditorData(QWidget* editor, const QModelIndex& index) con
         byte_t program = programModel->program(channel);
         TreeBox* tree = static_cast<TreeBox*>(editor);
         PatchModel* model = static_cast<PatchModel*>(tree->model());
-        SignalBlocker sb(tree);
+        QSignalBlocker sb(tree);
         tree->setTreeIndex(model->indexForProgram(program));
     }
 }

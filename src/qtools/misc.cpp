@@ -29,18 +29,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QApplication>
 #include <QPushButton>
 
-//===============
-// SignalBlocker
-//===============
-
-SignalBlocker::SignalBlocker(QObject* object) : object(object) {
-    object->blockSignals(true);
-}
-
-SignalBlocker::~SignalBlocker() {
-    object->blockSignals(false);
-}
-
 //=================
 // DialogContainer
 //=================

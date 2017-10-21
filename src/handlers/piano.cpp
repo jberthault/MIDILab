@@ -106,7 +106,6 @@ QLayoutItem* PianoLayout::itemAt(int index) const {
             return mWhite.at(index);
         if (index < mWhite.size() + mBlack.size())
             return mBlack.at(index - mWhite.size()).first;
-        return nullptr;
     }
     return nullptr;
 }
@@ -117,7 +116,6 @@ QLayoutItem* PianoLayout::takeAt(int index) {
             return mWhite.takeAt(index);
         if (index < mWhite.size() + mBlack.size())
             return mBlack.takeAt(index-mWhite.size()).first;
-        return nullptr;
     }
     return nullptr;
 }

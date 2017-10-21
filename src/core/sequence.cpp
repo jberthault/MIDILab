@@ -251,28 +251,15 @@ StandardMidiFile read_file(const std::string& filename) {
     }
 }
 
-size_t write_event(const Event& event, std::ostream& stream, byte_t* running_status) {
+size_t write_deltatime(uint32_t delatime, std::ostream& stream) {
+    variable_t variable;
+    if (!variable.set_true_value(delatime))
+        throw std::logic_error("variable error");
+    return write_variable(variable, stream);
+}
+
+size_t write_raw_event(byte_t status, const Event& event, std::ostream& stream, byte_t* running_status) {
     size_t bytes = 0;
-    byte_t status = event.at(0);
-    // check event type
-    if (!event)
-        throw std::invalid_argument("can't write null event");
-    if (event.is(~midi_families | system_realtime_families))
-        throw std::invalid_argument("can't write custom or realtime events");
-    // transform note off to note on
-    if (event.family() == family_t::note_off && event.at(2) == 0)
-        status = 0x90;
-    // update voice event's channel
-    if (event.is(voice_families)) {
-        switch (event.channels().size()) {
-        case 0: throw std::invalid_argument("voice event is not bound to any channel");
-        case 1: status = (0xf0 & status) | *event.channels().begin(); break;
-        default: throw std::invalid_argument("can't write an event bound to multiple channels");
-        }
-    }
-    // check status
-    if (!is_msb_set(status))
-        throw std::invalid_argument("wrong status byte");
     // update running status
     bool write_status = true;
     if (running_status != nullptr) {
@@ -301,25 +288,52 @@ size_t write_event(const Event& event, std::ostream& stream, byte_t* running_sta
     return bytes;
 }
 
+size_t write_event(uint32_t deltatime, const Event& event, std::ostream& stream, byte_t* running_status) {
+    size_t bytes = 0;
+    byte_t status = event.at(0);
+    // check status
+    if (!is_msb_set(status))
+        throw std::invalid_argument("wrong status byte");
+    // check event type
+    if (!event)
+        throw std::invalid_argument("can't write null event");
+    if (event.is(~midi_families | system_realtime_families))
+        throw std::invalid_argument("can't write custom or realtime events");
+    if (event.is(voice_families)) {
+        // transform note off to note on
+        if (event.family() == family_t::note_off && event.at(2) == 0)
+            status = 0x90;
+        // check voice event's channel
+        if (!event.channels())
+            throw std::invalid_argument("voice event is not bound to any channel");
+        // insert one event per channel
+        for(channel_t channel : event.channels()) {
+            bytes += write_deltatime(deltatime, stream);
+            bytes += write_raw_event((0xf0 & status) | channel, event, stream, running_status);
+            deltatime = 0;
+        }
+    } else {
+        bytes += write_deltatime(deltatime, stream);
+        bytes += write_raw_event(status, event, stream, running_status);
+    }
+
+    return bytes;
+}
+
 size_t write_track(const StandardMidiFile::track_type& track, std::ostream& stream, bool use_running_status) {
     size_t size = 0; // number of bytes in the chunk
     byte_t running_status = 0; // initialize running status
     byte_t* running_status_ptr = use_running_status ? &running_status : nullptr;
     std::stringstream oss;
-    variable_t variable;
     // check track integrity
     auto rfirst = track.rbegin();
     if (rfirst == track.rend())
         throw std::invalid_argument("empty track");
-    if (rfirst->second.family() != family_t::end_of_track)
-        throw std::invalid_argument("last event should be an end of track");
     // write data
-    for (const StandardMidiFile::value_type& value: track) {
-        if (!variable.set_true_value(value.first))
-            throw std::logic_error("variable error");
-        size += write_variable(variable, oss);
-        size += write_event(value.second, oss, running_status_ptr);
-    }
+    for (const StandardMidiFile::value_type& value: track)
+        size += write_event(value.first, value.second, oss, running_status_ptr);
+    if (rfirst->second.family() != family_t::end_of_track)
+        size += write_event(0, Event::end_of_track(), oss, running_status_ptr);
     // prepend a header
     size_t bytes = 0;
     bytes += 4; stream << "MTrk";

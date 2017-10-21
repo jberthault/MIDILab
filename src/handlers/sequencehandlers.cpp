@@ -300,10 +300,7 @@ void SequenceWriter::set_families(families_t families) {
 
 Sequence SequenceWriter::load_sequence() const {
     std::lock_guard<std::mutex> guard(m_storage_mutex);
-    Sequence sequence = Sequence::from_realtime(m_storage);
-    for (track_t track : sequence.tracks())
-        sequence.push_event(Event::end_of_track(), track, sequence.last_timestamp(track));
-    return sequence;
+    return Sequence::from_realtime(m_storage);
 }
 
 Handler::result_type SequenceWriter::handle_message(const Message& message) {

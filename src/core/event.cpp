@@ -532,8 +532,8 @@ Event Event::note_on(channels_t channels, byte_t note, byte_t velocity) {
     return {family_t::note_on, channels, {0x90, to_data_byte(note), to_data_byte(velocity)}};
 }
 
-Event Event::aftertouch(channels_t channels, const Note& note, byte_t pressure) {
-    return {family_t::aftertouch, channels, {0xa0, to_data_byte(note.code()), to_data_byte(pressure)}};
+Event Event::aftertouch(channels_t channels, byte_t note, byte_t pressure) {
+    return {family_t::aftertouch, channels, {0xa0, to_data_byte(note), to_data_byte(pressure)}};
 }
 
 Event Event::controller(channels_t channels, byte_t controller, byte_t value) {
@@ -578,23 +578,23 @@ Event Event::tune_request() {
     return {family_t::tune_request, {}, {0xf6}};
 }
 
-Event Event::midi_clock() {
+Event Event::clock() {
     return {family_t::clock, {}, {0xf8}};
 }
 
-Event Event::midi_tick() {
+Event Event::tick() {
     return {family_t::tick, {}, {0xf9}};
 }
 
-Event Event::midi_start() {
+Event Event::start() {
     return {family_t::start, {}, {0xfa}};
 }
 
-Event Event::midi_continue() {
+Event Event::continue_() {
     return {family_t::continue_, {}, {0xfb}};
 }
 
-Event Event::midi_stop() {
+Event Event::stop() {
     return {family_t::stop, {}, {0xfc}};
 }
 

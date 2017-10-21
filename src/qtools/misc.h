@@ -98,23 +98,6 @@ QVBoxLayout* make_vbox(Args&& ... args) {
     return vbox;
 }
 
-//===============
-// SignalBlocker
-//===============
-
-/**
- * class that block signal of a QObject in a RAII-style
- */
-
-struct SignalBlocker {
-
-    SignalBlocker(QObject* object);
-    ~SignalBlocker();
-
-    QObject* object;
-
-};
-
 //=================
 // DialogContainer
 //=================

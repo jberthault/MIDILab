@@ -584,7 +584,7 @@ void FamilySelector::onItemChange(QTreeWidgetItem* item, int /*column*/) {
 }
 
 void FamilySelector::setItemState(QTreeWidgetItem* item, Qt::CheckState checkState) {
-    SignalBlocker blocker(this);
+    QSignalBlocker blocker(this);
     item->setCheckState(0, checkState);
     update(indexFromItem(item));
 }

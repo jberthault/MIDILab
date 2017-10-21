@@ -406,7 +406,7 @@ public:
 
     static Event note_off(channels_t channels, byte_t note, byte_t velocity = 0);
     static Event note_on(channels_t channels, byte_t note, byte_t velocity);
-    static Event aftertouch(channels_t channels, const Note& note, byte_t pressure);
+    static Event aftertouch(channels_t channels, byte_t note, byte_t pressure);
     static Event controller(channels_t channels, byte_t controller, byte_t value = 0);
     static Event program_change(channels_t channels, byte_t program);
     static Event channel_pressure(channels_t channels, byte_t pressure);
@@ -417,11 +417,11 @@ public:
     static Event song_position(uint16_t value);
     static Event song_select(byte_t value);
     static Event tune_request();
-    static Event midi_clock();
-    static Event midi_tick();
-    static Event midi_start();
-    static Event midi_continue();
-    static Event midi_stop();
+    static Event clock();
+    static Event tick();
+    static Event start();
+    static Event continue_();
+    static Event stop();
     static Event active_sense();
     static Event reset();
     static Event tempo(double bpm);
@@ -451,7 +451,7 @@ public:
     bool is(families_t families) const; /*!< true if family belongs to families */
     family_t extract_family(bool is_realtime) const; /*!< get family from raw data */
 
-    explicit operator bool() const; /*!< true if family is not a no_family */
+    explicit operator bool() const; /*!< true if event is valid */
 
     // channels accessors
 

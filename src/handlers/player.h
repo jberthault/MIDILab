@@ -245,8 +245,9 @@ public:
 
     void setCurrentStatus(SequenceStatus status);
 
+    bool isLoaded() const;
     Sequence loadRow(int row);
-    Sequence loadNext();
+    Sequence loadRelative(int offset, bool wrap);
 
 public slots:
     void browseFiles();
@@ -501,7 +502,7 @@ public:
 
     explicit Player(SequenceReader* sr, QWidget* parent);
 
-    void setNextSequence(bool play);
+    void setNextSequence(bool play, int offset);
     void setSequence(const Sequence& sequence, bool play);
     void setTrackFilter(Handler* handler);
 
@@ -525,6 +526,7 @@ protected slots:
     void changeDistorsion(double distorsion);
 
     void playSequence(bool resetStepping=true);
+    void playCurrentSequence(bool resetStepping=true);
     void pauseSequence();
     void resetSequence();
     void playNextSequence();

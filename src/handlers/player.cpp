@@ -45,6 +45,12 @@ auto findCodecs() {
     return codecs;
 }
 
+template<typename IntegralT>
+auto modulo(IntegralT a, IntegralT b) {
+  const auto result = a % b;
+  return result >= 0 ? result : result + b;
+}
+
 }
 
 //===============
@@ -261,7 +267,7 @@ void SequenceView::setCodec(QTextCodec* codec) {
     Q_ASSERT(codec);
     mCodec = codec;
     // prevent itemChanged, we want it to be emitted for checkstate only :(
-    SignalBlocker guard(mTreeWidget);
+    QSignalBlocker guard(mTreeWidget);
     Q_UNUSED(guard);
     for (auto trackItem : trackItems()) {
         trackItem->setCodec(codec);
@@ -301,7 +307,7 @@ const Sequence& SequenceView::sequence() const {
 void SequenceView::setSequence(const Sequence& sequence, timestamp_t lower, timestamp_t upper) {
 
     // prevent signals
-    SignalBlocker guard(this);
+    QSignalBlocker guard(this);
     Q_UNUSED(guard);
 
     // clean previous sequence
@@ -577,6 +583,10 @@ void PlaylistTable::setCurrentStatus(SequenceStatus status) {
     }
 }
 
+bool PlaylistTable::isLoaded() const {
+    return mCurrentItem;
+}
+
 Sequence PlaylistTable::loadRow(int row) {
     Sequence sequence;
     auto playlistItem = dynamic_cast<PlaylistItem*>(item(row, 0));
@@ -593,8 +603,14 @@ Sequence PlaylistTable::loadRow(int row) {
     return sequence;
 }
 
-Sequence PlaylistTable::loadNext() {
-    return loadRow(mCurrentItem ? mCurrentItem->row() + 1 : 0);
+Sequence PlaylistTable::loadRelative(int offset, bool wrap) {
+    int row = 0;
+    if (mCurrentItem) {
+        row = mCurrentItem->row() + offset;
+        if (wrap)
+            row = modulo(row, rowCount());
+    }
+    return loadRow(row);
 }
 
 void PlaylistTable::browseFiles() {
@@ -1288,19 +1304,16 @@ void Player::setTrackFilter(Handler* handler) {
     mSequenceView->setTrackFilter(handler);
 }
 
-void Player::setNextSequence(bool play) {
+void Player::setNextSequence(bool play, int offset) {
     resetSequence();
-    if (mMediaView->isSingle()) {
+    if (mMediaView->isSingle() && mPlaylist->isLoaded()) {
         if (mMediaView->isLooping()) {
             if (play)
-                playSequence();
+                playCurrentSequence();
             return;
         }
     } else {
-        Sequence nextSequence = mPlaylist->loadNext();
-        /// @todo use modulo to avoid start again for an error (be careful that one is ok)
-        if (nextSequence.empty() && mMediaView->isLooping())
-            nextSequence = mPlaylist->loadRow(0);
+        Sequence nextSequence = mPlaylist->loadRelative(offset, mMediaView->isLooping());
         if (!nextSequence.empty()) {
             setSequence(nextSequence, play);
             return;
@@ -1340,7 +1353,7 @@ void Player::setSequence(const Sequence& sequence, bool play) {
     mSequenceView->setSequence(sequence, mPlayer->lower(), mPlayer->upper());
     mTracker->setSequence(sequence, mPlayer->lower(), mPlayer->upper());
     if (play)
-        playSequence();
+        playCurrentSequence();
 }
 
 void Player::saveSequence() {
@@ -1379,6 +1392,15 @@ void Player::onPositionSelected(timestamp_t timestamp, Qt::MouseButton button) {
 }
 
 void Player::playSequence(bool resetStepping) {
+    if (!mIsPlaying) {
+        if (mPlaylist->isLoaded())
+            playCurrentSequence(resetStepping);
+        else
+            playNextSequence();
+    }
+}
+
+void Player::playCurrentSequence(bool resetStepping) {
     if (!mIsPlaying) {
         if (resetStepping)
             mIsStepping = false;
@@ -1420,11 +1442,11 @@ void Player::resetSequence() {
 }
 
 void Player::playNextSequence() {
-    setNextSequence(true);
+    setNextSequence(true, 1);
 }
 
 void Player::playLastSequence() {
-    qWarning() << "unimplemented";
+    setNextSequence(true, -1);
 }
 
 void Player::stepForward() {
@@ -1439,5 +1461,5 @@ void Player::stepForward() {
             break;
         }
     }
-    playSequence(false);
+    playCurrentSequence(false);
 }
