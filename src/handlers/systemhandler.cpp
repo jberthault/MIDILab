@@ -307,66 +307,72 @@ class LinuxSystemHandler : public Handler {
         }
 
         result_type on_open(state_type state) override {
-            return open_system(state);
+            return to_result(open_system(state));
         }
 
         result_type on_close(state_type state) override {
             if (is_receive_enabled())
                 reset_system();
-            return close_system(state);
+            return to_result(close_system(state));
         }
 
     private:
 
-        result_type open_system(state_type s) {
+        result_type to_result(size_t errors) {
+            return errors != 0 ? result_type::fail : result_type::success;
+        }
+
+        size_t check(int errnum) {
+            if (errnum >= 0)
+                return 0;
+            TRACE_WARNING(name() << ": " << snd_strerror(errnum));
+            return 1;
+        }
+
+        size_t open_system(state_type s) {
+            size_t errors = 0;
             bool in_opening = mode().any(handler_ns::in_mode) && s.any(handler_ns::forward_state) && state().none(handler_ns::forward_state);
             bool out_opening = mode().any(handler_ns::out_mode) && s.any(handler_ns::receive_state) && state().none(handler_ns::receive_state);
             if (in_opening || out_opening) {
                 snd_rawmidi_t** in = in_opening ? &m_i_handler : nullptr;
                 snd_rawmidi_t** out = out_opening ? &m_o_handler : nullptr;
-                int err = snd_rawmidi_open(in, out, m_hardware_name.c_str(), 0);
-                if (err < 0) {
-                    TRACE_WARNING("Can't open " << name() << ": " << snd_strerror(err));
-                    return handler_ns::fail_result;
-                }
+                errors += check(snd_rawmidi_open(in, out, m_hardware_name.c_str(), 0));
             } else {
                 TRACE_WARNING("Can't open " << name() << ": nothing to open");
-                return handler_ns::fail_result;
+                ++errors;
             }
-            if (in_opening)
-                m_i_reader = std::thread([this](){i_callback();});
-            alter_state(s, true);
-            return handler_ns::success_result;
+            if (!errors) {
+                if (in_opening)
+                    m_i_reader = std::thread([this](){i_callback();});
+                alter_state(s, true);
+            }
+            return errors;
         }
 
-        result_type close_system(state_type s) {
+        size_t close_system(state_type s) {
+            size_t errors = 0;
             // close input handler
             if (mode().any(handler_ns::in_mode) && s.any(handler_ns::forward_state) && state().any(handler_ns::forward_state)) {
                 alter_state(handler_ns::forward_state, false);
                 m_i_reader.join();
-                int err_i = snd_rawmidi_close(m_i_handler);
-                if (err_i < 0)
-                    TRACE_WARNING("Error while closing " << name() << ": " << snd_strerror(err_i));
+                errors += check(snd_rawmidi_close(m_i_handler));
             }
             // close output handler
             if (mode().any(handler_ns::out_mode) && s.any(handler_ns::receive_state) && state().any(handler_ns::receive_state)) {
                 alter_state(handler_ns::receive_state, false);
-                int err_o = snd_rawmidi_close(m_o_handler);
-                if (err_o < 0)
-                    TRACE_WARNING("Error while closing " << name() << ": " << snd_strerror(err_o));
+                errors += check(snd_rawmidi_close(m_o_handler));
             }
-            return handler_ns::success_result;
+            return errors;
         }
 
-        result_type write_event(const Event& event) {
-            result_type result;
+        size_t write_event(const Event& event) {
+            size_t errors = 0;
             Event::data_type data = event.data();
             for (channel_t c : event.channels()) {
                 data[0] = (data[0] & ~0xf) | c;
-                snd_rawmidi_write(m_o_handler, data.data(), data.size());
-                result |= handler_ns::success_result;
+                errors += check(snd_rawmidi_write(m_o_handler, data.data(), data.size()));
             }
-            return result;
+            return errors;
         }
 
         void i_callback() {
@@ -418,8 +424,8 @@ class LinuxSystemHandler : public Handler {
             return state().any(handler_ns::receive_state) && mode().any(handler_ns::receive_mode);
         }
 
-        family_t handled_families() const override {
-            return custom_family | voice_families | reset_family;
+        families_t handled_families() const override {
+            return voice_families | families_t::merge(family_t::custom, family_t::reset);
         }
 
         result_type handle_message(const Message& message) override {
@@ -427,18 +433,18 @@ class LinuxSystemHandler : public Handler {
             MIDI_CHECK_OPEN_RECEIVE;
             if (mode().any(handler_ns::receive_mode)) {
                 if (message.event.is(voice_families))
-                    return write_event(message.event);
-                if (message.event.is(reset_family))
-                    return reset_system();
+                    return to_result(write_event(message.event));
+                if (message.event.family() == family_t::reset)
+                    return to_result(reset_system());
             }
-            return handler_ns::unhandled_result;
+            return result_type::unhandled;
         }
 
-        result_type reset_system() {
-            result_type result;
-            result |= write_event(Event::controller(all_channels, all_controllers_off_controller));
-            result |= write_event(Event::controller(all_channels, all_sound_off_controller));
-            return result;
+        size_t reset_system() {
+            size_t errors = 0;
+            errors += write_event(Event::controller(all_channels, all_controllers_off_controller));
+            errors += write_event(Event::controller(all_channels, all_sound_off_controller));
+            return errors;
         }
 
 };
