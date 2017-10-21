@@ -163,18 +163,18 @@ size_t ControllerWheel::setParameter(const QString& key, const QString& value) {
     return AbstractWheel::setParameter(key, value);
 }
 
-family_t ControllerWheel::handled_families() const {
-    return custom_family | controller_family | reset_family; // | channel_pressure_f;
+families_t ControllerWheel::handled_families() const {
+    return families_t::merge(family_t::custom, family_t::controller, family_t::reset); // channel_pressure;
 }
 
 Handler::result_type ControllerWheel::handle_message(const Message& message) {
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_RECEIVE;
-    switch (+message.event.family()) {
-    case controller_family: receiveController(message.event.channels(), message.event.at(1), message.event.at(2)); return success_result;
-    case reset_family: resetController(all_channels); return success_result;
+    switch (message.event.family()) {
+    case family_t::controller: receiveController(message.event.channels(), message.event.at(1), message.event.at(2)); return result_type::success;
+    case family_t::reset: resetController(all_channels); return result_type::success;
     }
-    return unhandled_result;
+    return result_type::unhandled;
 }
 
 void ControllerWheel::onControlChange() {
@@ -197,7 +197,7 @@ void ControllerWheel::onMove(channels_t channels, qreal ratio) {
 
 void ControllerWheel::updateText(channels_t channels) {
     for (channel_t channel : channels)
-        slider()->setText(channels_t::from_bit(channel), stringForRatio(slider()->ratio(channel)));
+        slider()->setText(channels_t::merge(channel), stringForRatio(slider()->ratio(channel)));
 }
 
 void ControllerWheel::receiveController(channels_t channels, byte_t controller, byte_t value) {
@@ -251,36 +251,36 @@ PitchWheel::PitchWheel(const QString& name, QWidget* parent) : AbstractWheel(io_
     static_cast<QVBoxLayout*>(layout())->insertWidget(0, mTypeBox);
 }
 
-family_t PitchWheel::handled_families() const {
-    return custom_family | controller_family | pitch_wheel_family | reset_family;
+families_t PitchWheel::handled_families() const {
+    return families_t::merge(family_t::custom, family_t::controller, family_t::pitch_wheel, family_t::reset);
 }
 
 Handler::result_type PitchWheel::handle_message(const Message& message) {
     /// @note data_entry_fine_controller is ignored
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_RECEIVE;
-    switch (+message.event.family()) {
-    case controller_family:
+    switch (message.event.family()) {
+    case family_t::controller:
         switch (message.event.at(1)) {
         case registered_parameter_coarse_controller:
             receiveCoarseRPN(message.event.channels(), message.event.at(2));
-            return success_result;
+            return result_type::success;
         case registered_parameter_fine_controller:
             receiveFineRPN(message.event.channels(), message.event.at(2));
-            return success_result;
+            return result_type::success;
         case data_entry_coarse_controller:
             receivePitchRange(message.event.channels() & channel_ns::find(mRegisteredParameters, 0x0000), message.event.at(2));
-            return success_result;
+            return result_type::success;
         }
         break;
-    case pitch_wheel_family:
+    case family_t::pitch_wheel:
         receivePitchValue(message.event.channels(), message.event.get_14bits());
-        return success_result;
-    case reset_family:
+        return result_type::success;
+    case family_t::reset:
         resetPitch(all_channels);
-        return success_result;
+        return result_type::success;
     }
-    return unhandled_result;
+    return result_type::unhandled;
 }
 
 Handler::result_type PitchWheel::on_close(state_type state) {
@@ -363,17 +363,17 @@ void PitchWheel::updatePitchValueText(channels_t channels) {
         QString repr = QString::number(semitones, 'f', 2);
         if (semitones > 0)
             repr.prepend("+");
-        slider()->setText(channels_t::from_bit(channel), repr);
+        slider()->setText(channels_t::merge(channel), repr);
     }
 }
 
 void PitchWheel::receiveCoarseRPN(channels_t channels, byte_t byte) {
-    for (channels_t c : channels)
+    for (channel_t c : channels)
         mRegisteredParameters[c] = short_tools::alter_coarse(mRegisteredParameters[c], byte);
 }
 
 void PitchWheel::receiveFineRPN(channels_t channels, byte_t byte) {
-    for (channels_t c : channels)
+    for (channel_t c : channels)
         mRegisteredParameters[c] = short_tools::alter_fine(mRegisteredParameters[c], byte);
 }
 
@@ -420,18 +420,18 @@ ProgramWheel::ProgramWheel(const QString& name, QWidget* parent) : AbstractWheel
     prepare(.0);
 }
 
-family_t ProgramWheel::handled_families() const {
-    return custom_family | program_change_family;
+families_t ProgramWheel::handled_families() const {
+    return families_t::merge(family_t::custom, family_t::program_change);
 }
 
 Handler::result_type ProgramWheel::handle_message(const Message& message) {
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_RECEIVE;
-    if (message.event.is(program_change_family)) {
+    if (message.event.family() == family_t::program_change) {
         setProgramChange(message.event.channels(), message.event.at(1));
-        return success_result;
+        return result_type::success;
     }
-    return unhandled_result;
+    return result_type::unhandled;
 }
 
 void ProgramWheel::setProgramChange(channels_t channels, byte_t program) {

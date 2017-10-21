@@ -233,6 +233,7 @@ public:
     using value_type = typename container_type::value_type; // Item
     using iterator = typename container_type::iterator;
     using const_iterator = typename container_type::const_iterator;
+    using const_reverse_iterator = typename container_type::const_reverse_iterator;
 
     // builders
     static Sequence from_file(const StandardMidiFile& data);
@@ -271,6 +272,9 @@ public:
     // iterators
     const_iterator begin() const;
     const_iterator end() const;
+
+    const_reverse_iterator rbegin() const;
+    const_reverse_iterator rend() const;
 
 private:
     std::string m_title; /*!< simple string that helps identifying the sequence */

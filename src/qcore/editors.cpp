@@ -71,11 +71,11 @@ ChannelEditor::ChannelEditor(QWidget* parent) : QWidget(parent) {
     setWindowTitle("Channel Colors");
     setWindowIcon(QIcon(":/data/brush.svg"));
 
-    setButton(Qt::LeftButton, channels_t::from_bit(0x0));
-    setButton(Qt::RightButton, channels_t::from_bit(0x1));
+    setButton(Qt::LeftButton, channels_t::merge(0x0));
+    setButton(Qt::RightButton, channels_t::merge(0x1));
     setButton(Qt::MidButton, drum_channels);
-    setButton(Qt::XButton1, channels_t::from_bit(0x2));
-    setButton(Qt::XButton2, channels_t::from_bit(0x3));
+    setButton(Qt::XButton1, channels_t::merge(0x2));
+    setButton(Qt::XButton2, channels_t::merge(0x3));
 
     QGridLayout* grid = new QGridLayout;
     grid->setMargin(0);
@@ -133,7 +133,7 @@ channels_t ChannelEditor::channelsFromButtons(Qt::MouseButtons buttons) const {
 }
 
 QBrush ChannelEditor::brush(channels_t channels, Qt::Orientations orientations) const {
-    size_t count = channels.count();
+    size_t count = channels.size();
     if (count == 0)
         return {};
     if (count == 1)
@@ -161,7 +161,7 @@ QStringList ChannelsSelector::channelsToStringList(channels_t channels) {
 
 QString ChannelsSelector::channelsToString(channels_t channels) {
     QString result;
-    if (channels.count() > 10) {
+    if (channels.size() > 10) {
         result += "*";
         QStringList stringList = channelsToStringList(~channels);
         if (!stringList.isEmpty())
@@ -323,12 +323,12 @@ ChannelsSlider::ChannelsSlider(Qt::Orientation orientation, QWidget* parent) :
 
     for (channel_t c=0 ; c < 0x10 ; c++) {
         // handle
-        auto knob = new ChannelKnob(channels_t::from_bit(c));
+        auto knob = new ChannelKnob(channels_t::merge(c));
         knob->setPen(QPen(Qt::black));
         connect(knob, &ChannelKnob::selected, this, &ChannelsSlider::onSelect);
         connect(knob, &ChannelKnob::surselected, this, &ChannelsSlider::onSurselect);
         // label
-        auto label = new ChannelLabelKnob(channels_t::from_bit(c));
+        auto label = new ChannelLabelKnob(channels_t::merge(c));
         connect(label, &ChannelLabelKnob::selected, this, &ChannelsSlider::onSelect);
         connect(label, &ChannelLabelKnob::surselected, this, &ChannelsSlider::onSurselect);
         mKnobs[c] = knob;
@@ -443,8 +443,7 @@ void ChannelsSlider::onDefault(channels_t channels) {
 void ChannelsSlider::onMove(channels_t channels, qreal xratio, qreal yratio) {
     qreal ratio = orientation() == Qt::Horizontal ? xratio : yratio;
     channels_t extension = extend(channels);
-    channels_t others = extension & ~channels;
-    for (channel_t channel : others)
+    for (channel_t channel : extension & ~channels)
         setKnobRatio(mKnobs[channel], ratio);
     if (channels)
         setKnobRatio(mGroupKnob, ratio);
@@ -489,7 +488,7 @@ bool ChannelsSlider::matchSelection(channels_t channels) const {
 }
 
 channels_t ChannelsSlider::extend(channels_t channels) const {
-    return matchSelection(channels) ? channels_t(channels | mSelection) : channels;
+    return matchSelection(channels) ? channels | mSelection : channels;
 }
 
 void ChannelsSlider::configure(ChannelKnob* knob, ChannelLabelKnob* label, qreal fixedRatio) {
@@ -520,55 +519,55 @@ FamilySelector::FamilySelector(QWidget* parent) : QTreeWidget(parent) {
     setAlternatingRowColors(true);
     setHeaderHidden(true);
 
-    QTreeWidgetItem* midiItem = makeItem(invisibleRootItem(), midi_families, "MIDI Events");
-    QTreeWidgetItem* voiceItem = makeItem(midiItem, voice_families, "Voice Events");
-    QTreeWidgetItem* noteItem = makeItem(voiceItem, note_families, "Note Events");
-    makeItem(noteItem, note_off_family);
-    makeItem(noteItem, note_on_family);
-    makeItem(noteItem, aftertouch_family);
-    makeItem(voiceItem, controller_family);
-    makeItem(voiceItem, program_change_family);
-    makeItem(voiceItem, channel_pressure_family);
-    makeItem(voiceItem, pitch_wheel_family);
-    QTreeWidgetItem* systemItem = makeItem(midiItem, system_families, "System Events");
-    QTreeWidgetItem* systemCommonItem = makeItem(systemItem, system_common_families, "System Common Events");
-    makeItem(systemCommonItem, sysex_family);
-    makeItem(systemCommonItem, mtc_frame_family);
-    makeItem(systemCommonItem, song_position_family);
-    makeItem(systemCommonItem, song_select_family);
-    makeItem(systemCommonItem, xf4_family);
-    makeItem(systemCommonItem, xf5_family);
-    makeItem(systemCommonItem, tune_request_family);
-    makeItem(systemCommonItem, end_of_sysex_family);
-    QTreeWidgetItem* systemRealtimeItem = makeItem(systemItem, system_realtime_families, "System Realtime Events");
-    makeItem(systemRealtimeItem, clock_family);
-    makeItem(systemRealtimeItem, tick_family);
-    makeItem(systemRealtimeItem, start_family);
-    makeItem(systemRealtimeItem, continue_family);
-    makeItem(systemRealtimeItem, stop_family);
-    makeItem(systemRealtimeItem, xfd_family);
-    makeItem(systemRealtimeItem, active_sense_family);
-    makeItem(systemRealtimeItem, reset_family);
-    QTreeWidgetItem* metaItem = makeItem(midiItem, meta_families, "Meta Events");
-    makeItem(metaItem, sequence_number_family);
-    makeItem(metaItem, text_family);
-    makeItem(metaItem, copyright_family);
-    makeItem(metaItem, track_name_family);
-    makeItem(metaItem, instrument_name_family);
-    makeItem(metaItem, lyrics_family);
-    makeItem(metaItem, marker_family);
-    makeItem(metaItem, cue_point_family);
-    makeItem(metaItem, program_name_family);
-    makeItem(metaItem, device_name_family);
-    makeItem(metaItem, channel_prefix_family);
-    makeItem(metaItem, port_family);
-    makeItem(metaItem, end_of_track_family);
-    makeItem(metaItem, tempo_family);
-    makeItem(metaItem, smpte_offset_family);
-    makeItem(metaItem, time_signature_family);
-    makeItem(metaItem, key_signature_family);
-    makeItem(metaItem, proprietary_family);
-    makeItem(metaItem, default_meta_family);
+    QTreeWidgetItem* midiItem = makeNode(invisibleRootItem(), midi_families, "MIDI Events");
+    QTreeWidgetItem* voiceItem = makeNode(midiItem, voice_families, "Voice Events");
+    QTreeWidgetItem* noteItem = makeNode(voiceItem, note_families, "Note Events");
+    makeLeaf(noteItem, family_t::note_off);
+    makeLeaf(noteItem, family_t::note_on);
+    makeLeaf(noteItem, family_t::aftertouch);
+    makeLeaf(voiceItem, family_t::controller);
+    makeLeaf(voiceItem, family_t::program_change);
+    makeLeaf(voiceItem, family_t::channel_pressure);
+    makeLeaf(voiceItem, family_t::pitch_wheel);
+    QTreeWidgetItem* systemItem = makeNode(midiItem, system_families, "System Events");
+    QTreeWidgetItem* systemCommonItem = makeNode(systemItem, system_common_families, "System Common Events");
+    makeLeaf(systemCommonItem, family_t::sysex);
+    makeLeaf(systemCommonItem, family_t::mtc_frame);
+    makeLeaf(systemCommonItem, family_t::song_position);
+    makeLeaf(systemCommonItem, family_t::song_select);
+    makeLeaf(systemCommonItem, family_t::xf4);
+    makeLeaf(systemCommonItem, family_t::xf5);
+    makeLeaf(systemCommonItem, family_t::tune_request);
+    makeLeaf(systemCommonItem, family_t::end_of_sysex);
+    QTreeWidgetItem* systemRealtimeItem = makeNode(systemItem, system_realtime_families, "System Realtime Events");
+    makeLeaf(systemRealtimeItem, family_t::clock);
+    makeLeaf(systemRealtimeItem, family_t::tick);
+    makeLeaf(systemRealtimeItem, family_t::start);
+    makeLeaf(systemRealtimeItem, family_t::continue_);
+    makeLeaf(systemRealtimeItem, family_t::stop);
+    makeLeaf(systemRealtimeItem, family_t::xfd);
+    makeLeaf(systemRealtimeItem, family_t::active_sense);
+    makeLeaf(systemRealtimeItem, family_t::reset);
+    QTreeWidgetItem* metaItem = makeNode(midiItem, meta_families, "Meta Events");
+    makeLeaf(metaItem, family_t::sequence_number);
+    makeLeaf(metaItem, family_t::text);
+    makeLeaf(metaItem, family_t::copyright);
+    makeLeaf(metaItem, family_t::track_name);
+    makeLeaf(metaItem, family_t::instrument_name);
+    makeLeaf(metaItem, family_t::lyrics);
+    makeLeaf(metaItem, family_t::marker);
+    makeLeaf(metaItem, family_t::cue_point);
+    makeLeaf(metaItem, family_t::program_name);
+    makeLeaf(metaItem, family_t::device_name);
+    makeLeaf(metaItem, family_t::channel_prefix);
+    makeLeaf(metaItem, family_t::port);
+    makeLeaf(metaItem, family_t::end_of_track);
+    makeLeaf(metaItem, family_t::tempo);
+    makeLeaf(metaItem, family_t::smpte_offset);
+    makeLeaf(metaItem, family_t::time_signature);
+    makeLeaf(metaItem, family_t::key_signature);
+    makeLeaf(metaItem, family_t::proprietary);
+    makeLeaf(metaItem, family_t::default_meta);
 
     connect(this, &QTreeWidget::itemChanged, this, &FamilySelector::onItemChange);
 
@@ -618,19 +617,23 @@ void FamilySelector::updateAncestors(QTreeWidgetItem* item) {
     updateAncestors(parent);
 }
 
-QTreeWidgetItem* FamilySelector::makeItem(QTreeWidgetItem* root, family_t family, const std::string& name) {
+QTreeWidgetItem* FamilySelector::makeNode(QTreeWidgetItem* root, families_t families, const QString& name) {
     QStringList texts;
-    texts << QString::fromStdString(family_tools::family_name(family, name));
+    texts << name;
     QTreeWidgetItem* child = new QTreeWidgetItem(root, texts);
-    child->setData(0, Qt::UserRole, (qulonglong)family);
+    child->setData(0, Qt::UserRole, families.to_integral());
     return child;
 }
 
-family_t FamilySelector::families() const {
+QTreeWidgetItem* FamilySelector::makeLeaf(QTreeWidgetItem* root, family_t family) {
+    return makeNode(root, families_t::merge(family), QString::fromStdString(family_tools::info(family).name));
+}
+
+families_t FamilySelector::families() const {
     return mFamilies;
 }
 
-void FamilySelector::setFamilies(family_t families) {
+void FamilySelector::setFamilies(families_t families) {
     if (families != mFamilies) {
         mFamilies = families;
         setChildFamilies(invisibleRootItem()->child(0), families);
@@ -638,19 +641,19 @@ void FamilySelector::setFamilies(family_t families) {
     }
 }
 
-family_t FamilySelector::childFamilies(QTreeWidgetItem* item) const {
+families_t FamilySelector::childFamilies(QTreeWidgetItem* item) const {
     if (item->checkState(0) == Qt::Checked)
-        return (family_t)item->data(0, Qt::UserRole).toULongLong();
-    family_t result = no_family;
+        return families_t::from_integral(item->data(0, Qt::UserRole).toULongLong());
+    families_t result;
     if (item->checkState(0) == Qt::PartiallyChecked)
         for (int row = 0 ; row < item->childCount() ; row++)
             result |= childFamilies(item->child(row));
     return result;
 }
 
-void FamilySelector::setChildFamilies(QTreeWidgetItem* item, family_t families) {
-    family_t item_families = item->data(0, Qt::UserRole).toULongLong();
-    family_t intersection = item_families & families;
+void FamilySelector::setChildFamilies(QTreeWidgetItem* item, families_t families) {
+    auto item_families = families_t::from_integral(item->data(0, Qt::UserRole).toULongLong());
+    auto intersection = item_families & families;
     Qt::CheckState checkState = Qt::Unchecked;
     if (intersection == item_families)
         checkState = Qt::Checked;

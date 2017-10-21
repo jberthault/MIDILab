@@ -51,8 +51,8 @@ public:
         }
     }
 
-    family_t handled_families() const override {
-        return custom_family | voice_families | reset_family;
+    families_t handled_families() const override {
+        return voice_families | families_t::merge(family_t::custom, family_t::reset);
     }
 
     result_type handle_message(const Message& message) override {
@@ -60,50 +60,49 @@ public:
         MIDI_CHECK_OPEN_RECEIVE;
         if (mode().any(handler_ns::receive_mode)) {
             if (message.event.is(voice_families))
-                return write_event(message.event);
-            if (message.event.is(sysex_family))
-                return write_sysex(message.event);
-            if (message.event.is(reset_family))
-                return reset_system();
-            if (message.event.is(custom_family) && message.event.get_custom_key() == "System.volume")
-                return set_volume((DWORD)unmarshall<uint32_t>(message.event.get_custom_value()));
+                return to_result(write_event(message.event));
+            if (message.event.family() == family_t::sysex)
+                return to_result(write_sysex(message.event));
+            if (message.event.family() == family_t::reset)
+                return to_result(reset_system());
+            if (message.event.family() == family_t::custom && message.event.get_custom_key() == "System.volume")
+                return to_result(set_volume((DWORD)unmarshall<uint32_t>(message.event.get_custom_value())));
         }
-        return handler_ns::unhandled_result;
+        return result_type::unhandled;
     }
 
     result_type on_open(state_type state) override {
-        return open_system(state);
+        return to_result(open_system(state));
     }
 
     result_type on_close(state_type state) override {
         if (is_receive_enabled())
             reset_system();
-        return close_system(state);
+        return to_result(close_system(state));
     }
 
 private:
 
-    static result_type convert_result(MMRESULT result) {
-        /// @todo enhance results
-        return result == MMSYSERR_NOERROR ? handler_ns::success_result : handler_ns::fail_result;
+    result_type to_result(size_t errors) {
+        return errors != 0 ? result_type::fail : result_type::success;
     }
 
-    result_type check_in(MMRESULT result) const {
+    size_t check_in(MMRESULT result) const {
         if (result != MMSYSERR_NOERROR) {
             char text[MAXERRORLENGTH];
             midiInGetErrorTextA(result, text, MAXERRORLENGTH);
             TRACE_WARNING("IN " << name() << ": " << text);
         }
-        return convert_result(result);
+        return result == MMSYSERR_NOERROR ? 0 : 1;
     }
 
-    result_type check_out(MMRESULT result) const {
+    size_t check_out(MMRESULT result) const {
         if (result != MMSYSERR_NOERROR) {
             char text[MAXERRORLENGTH];
             midiOutGetErrorTextA(result, text, MAXERRORLENGTH);
             TRACE_WARNING("OUT " << name() << ": " << text);
         }
-        return convert_result(result);
+        return result == MMSYSERR_NOERROR ? 0 : 1;
     }
 
     static void CALLBACK callback_in(HMIDIIN, UINT msg, DWORD_PTR instance, DWORD param1, DWORD) {
@@ -133,77 +132,78 @@ private:
         }
     }
 
-    result_type set_volume(DWORD volume) {
+    size_t set_volume(DWORD volume) {
         return check_out(midiOutSetVolume(m_handle_out, volume));
     }
 
-    result_type open_system(state_type s) {
-        result_type result;
+    size_t open_system(state_type s) {
+        size_t errors = 0;
         if (mode().any(handler_ns::in_mode) && s.any(handler_ns::forward_state) && state().none(handler_ns::forward_state)) {
-            result |= check_in(midiInOpen(&m_handle_in, m_id_in, (DWORD_PTR)callback_in, (DWORD_PTR)this, CALLBACK_FUNCTION));
-            result |= check_in(midiInStart(m_handle_in));
+            errors += check_in(midiInOpen(&m_handle_in, m_id_in, (DWORD_PTR)callback_in, (DWORD_PTR)this, CALLBACK_FUNCTION));
+            errors += check_in(midiInStart(m_handle_in));
         }
         if (mode().any(handler_ns::out_mode) && s.any(handler_ns::receive_state) && state().none(handler_ns::receive_state)) {
-            result |= check_out(midiOutOpen(&m_handle_out, m_id_out, (DWORD_PTR)callback_out, (DWORD_PTR)this, CALLBACK_FUNCTION));
-            set_volume(0xffffffff); // full volume (volume settings are done using sysex messages)
+            errors += check_out(midiOutOpen(&m_handle_out, m_id_out, (DWORD_PTR)callback_out, (DWORD_PTR)this, CALLBACK_FUNCTION));
+            set_volume(0xffffffff); // full volume (volume settings are done using sysex messages) (ignoring errors here)
         }
-        return result;
+        return errors;
     }
 
-    result_type close_system(state_type s) {
-        result_type result;
+    size_t close_system(state_type s) {
+        size_t errors = 0;
         if (mode().any(handler_ns::in_mode) && s.any(handler_ns::forward_state) && state().any(handler_ns::forward_state)) {
-            result |= check_in(midiInStop(m_handle_in));
-            result |= check_in(midiInClose(m_handle_in));
+            errors += check_in(midiInStop(m_handle_in));
+            errors += check_in(midiInClose(m_handle_in));
         }
         if (mode().any(handler_ns::out_mode) && s.any(handler_ns::receive_state) && state().any(handler_ns::receive_state)) {
-            result |= check_out(midiOutClose(m_handle_out));
+            errors += check_out(midiOutClose(m_handle_out));
         }
-        return result;
+        return errors;
     }
 
     result_type read_event(DWORD data) {
         if (state().any(handler_ns::forward_state)) {
             byte_t* bytes = reinterpret_cast<byte_t*>(&data);
             forward_message({Event::raw(true, {bytes, bytes+4}), this});
-            return handler_ns::success_result;
+            return result_type::success;
         }
-        return handler_ns::closed_result;
+        return result_type::closed;
     }
 
-    result_type write_sysex(const Event& event) {
+    size_t write_sysex(const Event& event) {
+        size_t errors = 0;
         MIDIHDR hdr;
         memset(&hdr, 0, sizeof(MIDIHDR));
         std::vector<char> sys_ex_data(event.begin(), event.end());
         hdr.dwBufferLength = (DWORD)event.size();
         hdr.lpData = sys_ex_data.data();
-        check_out(midiOutPrepareHeader(m_handle_out, &hdr, sizeof(MIDIHDR)));
-        check_out(midiOutLongMsg(m_handle_out, &hdr, sizeof(MIDIHDR)));
-        check_out(midiOutUnprepareHeader(m_handle_out, &hdr, sizeof(MIDIHDR)));
-        return handler_ns::success_result;
+        errors += check_out(midiOutPrepareHeader(m_handle_out, &hdr, sizeof(MIDIHDR)));
+        errors += check_out(midiOutLongMsg(m_handle_out, &hdr, sizeof(MIDIHDR)));
+        errors += check_out(midiOutUnprepareHeader(m_handle_out, &hdr, sizeof(MIDIHDR)));
+        return errors;
     }
 
-    result_type write_event(const Event& event) {
+    size_t write_event(const Event& event) {
         /// merge all in a midiOutLongMsg() ?
-        result_type result;
+        size_t errors = 0;
         uint32_t frame = *reinterpret_cast<const uint32_t*>(&event.data()[0]);
         frame &= ~0xf; // clear low nibble
         for (channel_t channel : event.channels())
-            result |= check_out(midiOutShortMsg(m_handle_out, frame | channel));
-        return result;
+            errors += check_out(midiOutShortMsg(m_handle_out, frame | channel));
+        return errors;
     }
 
     bool is_receive_enabled() const {
         return state().any(handler_ns::receive_state) && mode().any(handler_ns::receive_mode);
     }
 
-    result_type reset_system() {
+    size_t reset_system() {
         // return check_out(midiOutReset(m_handle_out));
-        result_type result;
-        result |= write_event(Event::controller(all_channels, all_controllers_off_controller));
-        result |= write_event(Event::controller(all_channels, all_sound_off_controller));
-        // result |= write_event(Event::controller(all_channels, volume_coarse_controller, 100));
-        return result;
+        size_t errors = 0;
+        errors += write_event(Event::controller(all_channels, all_controllers_off_controller));
+        errors += write_event(Event::controller(all_channels, all_sound_off_controller));
+        // errors += write_event(Event::controller(all_channels, volume_coarse_controller, 100));
+        return errors;
     }
 
     HMIDIIN m_handle_in;

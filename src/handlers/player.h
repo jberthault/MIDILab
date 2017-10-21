@@ -106,7 +106,7 @@ public:
 
     void setCodec(QTextCodec* codec);
 
-    void updateVisibiliy(family_t families, channels_t channels, timestamp_t lower, timestamp_t upper);
+    void updateVisibiliy(families_t families, channels_t channels, timestamp_t lower, timestamp_t upper);
 
     QVariant data(int column, int role) const override;
 

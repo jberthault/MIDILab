@@ -72,7 +72,7 @@ public:
     bool start_playing(bool rewind);
     void stop_playing(bool reset = true);
 
-    family_t handled_families() const override;
+    families_t handled_families() const override;
     result_type handle_message(const Message& message) override;
     result_type on_close(state_type state) override;
 
@@ -120,7 +120,7 @@ public:
 
     SequenceWriter();
 
-    void set_families(family_t families); /*!< default is all voice events */
+    void set_families(families_t families); /*!< default is all voice events */
 
     Sequence load_sequence() const;
 
@@ -131,7 +131,7 @@ public:
 
 private:
     bool m_recording;
-    family_t m_families; /*!< accepted families */
+    families_t m_families; /*!< accepted families */
     Sequence::realtime_type m_storage;
     mutable std::mutex m_storage_mutex;
 

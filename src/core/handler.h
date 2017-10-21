@@ -80,7 +80,7 @@ public:
     struct HandlerFilter { const Handler* handler; };
     struct TrackFilter { track_t track; };
     struct ChannelFilter { channels_t channels; };
-    struct FamilyFilter { family_t families; };
+    struct FamilyFilter { families_t families; };
     struct AnyFilter { std::vector<Filter> filters; };
     struct AllFilter { std::vector<Filter> filters; };
 
@@ -96,7 +96,7 @@ public:
     static Filter track(track_t track);
     static Filter raw_channels(channels_t channels);
     static Filter channels(channels_t channels);
-    static Filter families(family_t families);
+    static Filter families(families_t families);
 
     friend Filter operator |(const Filter& lhs, const Filter& rhs); /*!< match any */
     friend Filter operator &(const Filter& lhs, const Filter& rhs); /*!< match all */
@@ -147,9 +147,9 @@ private:
 // Handler
 //=========
 
-#define MIDI_HANDLE_OPEN do { if (handle_open(message) == ::handler_ns::success_result) return ::handler_ns::success_result; } while (false)
-#define MIDI_CHECK_OPEN_RECEIVE do { if (state().none(::handler_ns::receive_state)) return ::handler_ns::closed_result; } while (false)
-#define MIDI_CHECK_OPEN_FORWARD_RECEIVE do { if (!state().all(::handler_ns::endpoints_state)) return ::handler_ns::closed_result; } while (false)
+#define MIDI_HANDLE_OPEN do { if (handle_open(message) == ::Handler::result_type::success) return ::Handler::result_type::success; } while (false)
+#define MIDI_CHECK_OPEN_RECEIVE do { if (state().none(::handler_ns::receive_state)) return ::Handler::result_type::closed; } while (false)
+#define MIDI_CHECK_OPEN_FORWARD_RECEIVE do { if (!state().all(::handler_ns::endpoints_state)) return ::Handler::result_type::closed; } while (false)
 
 /**
  * The Handler class is the minimum interface required to deal with midi events.
@@ -176,13 +176,6 @@ private:
 
 namespace handler_ns {
 
-using result_t = flags_t<unsigned>;
-static constexpr result_t success_result = 0x01; /*!< handling was successful */
-static constexpr result_t fail_result = 0x02; /*!< handling failed (general purpose) */
-static constexpr result_t unhandled_result = 0x04; /*!< handling failed (event is not supposed to be handled) */
-static constexpr result_t closed_result = 0x08; /*!< handling failed because handler was closed */
-static constexpr result_t error_result = 0x10; /*!< an exception has been thrown while handling */
-
 // mode enable to check type of handler
 // mode is basically used to give extra information about the handler, not to check !
 // mode is guaranteed to be constant for each handler
@@ -193,9 +186,9 @@ static constexpr result_t error_result = 0x10; /*!< an exception has been thrown
 // mode is a read-only
 
 using mode_t = flags_t<unsigned>;
-static constexpr mode_t in_mode = 0x1; /*!< can generate events */
-static constexpr mode_t out_mode = 0x2; /*!< can handle events */
-static constexpr mode_t thru_mode = 0x4; /*!< can forward on handling */
+static constexpr mode_t in_mode = mode_t::from_integral(0x1); /*!< can generate events */
+static constexpr mode_t out_mode = mode_t::from_integral(0x2); /*!< can handle events */
+static constexpr mode_t thru_mode = mode_t::from_integral(0x4); /*!< can forward on handling */
 static constexpr mode_t io_mode = in_mode | out_mode;
 static constexpr mode_t forward_mode = in_mode | thru_mode;
 static constexpr mode_t receive_mode = out_mode | thru_mode;
@@ -206,8 +199,8 @@ static constexpr mode_t receive_mode = out_mode | thru_mode;
 // @warning messages will be handled even if the handler is closed, you must check it.
 
 using state_t = flags_t<unsigned>;
-static constexpr state_t forward_state = 0x1;
-static constexpr state_t receive_state = 0x2;
+static constexpr state_t forward_state = state_t::from_integral(0x1);
+static constexpr state_t receive_state = state_t::from_integral(0x2);
 static constexpr state_t endpoints_state = forward_state | receive_state; /*!< @note junction may be a better name */
 
 }
@@ -215,10 +208,17 @@ static constexpr state_t endpoints_state = forward_state | receive_state; /*!< @
 class Handler {
 
 public:
-    using result_type = handler_ns::result_t;
     using mode_type = handler_ns::mode_t;
     using state_type = handler_ns::state_t;
     using sinks_type = std::unordered_map<Handler*, Filter>;
+
+    enum class result_type {
+        success, /*!< handling was successful */
+        fail, /*!< handling failed (general purpose) */
+        unhandled, /*!< handling failed (event is not supposed to be handled) */
+        closed,/*!< handling failed because handler was closed */
+        error  /*!< an exception has been thrown while handling */
+    };
 
     static Event open_event(state_type state); /*!< Specific action with key "Open" */
     static Event close_event(state_type state); /*!< Specific action with key "Close" */
@@ -244,8 +244,8 @@ public:
      * @todo delegate to the meta class
      */
 
-    virtual family_t handled_families() const;
-    virtual family_t input_families() const;
+    virtual families_t handled_families() const;
+    virtual families_t input_families() const;
 
     result_type handle_open(const Message& message);
     virtual result_type on_open(state_type state);

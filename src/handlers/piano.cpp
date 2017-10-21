@@ -34,11 +34,10 @@ PianoKey::PianoKey(const Note& note, Piano* parent) :
 }
 
 void PianoKey::setState(channels_t channels, bool on) {
-    channels_t newChannels = mChannels.alter(channels, on);
-    if (mChannels != newChannels) {
-        mChannels = newChannels;
+    auto previousChannels = mChannels;
+    mChannels.commute(channels, on);
+    if (mChannels != previousChannels)
         update();
-    }
 }
 
 const Note& PianoKey::note() const {
@@ -306,10 +305,10 @@ bool Piano::eventFilter(QObject* obj, QEvent* event) {
 
 void Piano::receiveKeys(bool on, PianoKey* key, Qt::MouseButtons buttons) {
     ChannelEditor* editor = channelEditor();
-    channels_t channels = editor ? editor->channelsFromButtons(buttons) : channels_t::from_bit(0);
+    channels_t channels = editor ? editor->channelsFromButtons(buttons) : channels_t::merge(0);
     if (key != nullptr && channels) {
-        Event event = on ? Event::note_on(channels, key->note(), velocity()) :
-                           Event::note_off(channels, key->note());
+        Event event = on ? Event::note_on(channels, key->note().code(), velocity()) :
+                           Event::note_off(channels, key->note().code());
         generate(std::move(event));
         key->setState(channels, on);
     }

@@ -50,7 +50,7 @@ class Monitor : public GraphicalHandler {
 public:
     explicit Monitor(const QString& name, QWidget* parent);
 
-    void setFamilies(family_t families);
+    void setFamilies(families_t families);
 
     result_type handle_message(const Message& message) override;
 

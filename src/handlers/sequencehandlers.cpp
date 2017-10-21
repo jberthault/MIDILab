@@ -177,8 +177,8 @@ void SequenceReader::stop_playing(bool reset) {
     }
 }
 
-family_t SequenceReader::handled_families() const {
-    return custom_family | song_position_family | song_select_family | start_family | continue_family | stop_family;
+families_t SequenceReader::handled_families() const {
+    return families_t::merge(family_t::custom, family_t::song_position, family_t::song_select, family_t::start, family_t::continue_, family_t::stop);
 }
 
 Handler::result_type SequenceReader::on_close(state_type state) {
@@ -190,13 +190,13 @@ Handler::result_type SequenceReader::on_close(state_type state) {
 Handler::result_type SequenceReader::handle_message(const Message& message) {
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_RECEIVE;
-    switch (+message.event.family()) {
-    case song_position_family: return handle_beat((double)message.event.get_14bits());
-    case song_select_family: return handle_sequence(message.event.at(1));
-    case start_family: return handle_start(true);
-    case continue_family: return handle_start(false);
-    case stop_family: return handle_stop(true);
-    case custom_family: {
+    switch (message.event.family()) {
+    case family_t::song_position: return handle_beat((double)message.event.get_14bits());
+    case family_t::song_select: return handle_sequence(message.event.at(1));
+    case family_t::start: return handle_start(true);
+    case family_t::continue_: return handle_start(false);
+    case family_t::stop: return handle_stop(true);
+    case family_t::custom: {
         auto k = message.event.get_custom_key();
         if (k == "SequenceReader.pause") return handle_stop(false);
         if (k == "SequenceReader.distorsion") return handle_distorsion(message.event.get_custom_value());
@@ -204,33 +204,33 @@ Handler::result_type SequenceReader::handle_message(const Message& message) {
         break;
     }
     }
-    return unhandled_result;
+    return result_type::unhandled;
 }
 
 Handler::result_type SequenceReader::handle_beat(double beat) {
     set_position(m_sequence.clock().beat2timestamp(beat));
-    return success_result;
+    return result_type::success;
 }
 
 Handler::result_type SequenceReader::handle_sequence(byte_t id) {
     if (select_sequence(id))
-        return success_result;
+        return result_type::success;
     TRACE_WARNING("no song loaded for id: " << (int)id);
-    return fail_result;
+    return result_type::fail;
 }
 
 Handler::result_type SequenceReader::handle_start(bool rewind) {
-    return start_playing(rewind) ? success_result : fail_result;
+    return start_playing(rewind) ? result_type::success : result_type::fail;
 }
 
 Handler::result_type SequenceReader::handle_stop(bool reset) {
     stop_playing(reset);
-    return success_result;
+    return result_type::success;
 }
 
 Handler::result_type SequenceReader::handle_distorsion(const std::string& distorsion) {
     set_distorsion(unmarshall<double>(distorsion));
-    return success_result;
+    return result_type::success;
 }
 
 /// @todo adopt a strategy to forward settings at 0, when no note is available
@@ -257,7 +257,7 @@ void SequenceReader::run() {
         // forward events in the current range
         for ( ; it != last ; ++it) {
             const Event& event = it->event;
-            if (event.is(tempo_family))
+            if (event.family() == family_t::tempo)
                 base_time = m_sequence.clock().base_time(event);
             forward_message({event, this, it->track});
         }
@@ -294,7 +294,7 @@ SequenceWriter::SequenceWriter() :
     m_storage.reserve(8192);
 }
 
-void SequenceWriter::set_families(family_t families) {
+void SequenceWriter::set_families(families_t families) {
     m_families = families;
 }
 
@@ -311,9 +311,9 @@ Handler::result_type SequenceWriter::handle_message(const Message& message) {
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_RECEIVE;
     if (!message.event.is(m_families) || !m_recording)
-        return unhandled_result;
+        return result_type::unhandled;
     m_storage.push_back(Sequence::realtime_type::value_type{message.event, message.track, clock_type::now()});
-    return success_result;
+    return result_type::success;
 }
 
 void SequenceWriter::start_recording() {

@@ -50,14 +50,14 @@ NoteMemory::NoteMemory() {
 }
 
 void NoteMemory::feed(const Event& event) {
-    switch (+event.family()) {
-    case note_on_family:
+    switch (event.family()) {
+    case family_t::note_on:
         set_on(event.channels(), event.at(1));
         break;
-    case note_off_family:
+    case family_t::note_off:
         set_off(event.channels(), event.at(1));
         break;
-    case controller_family:
+    case family_t::controller:
         if (event.at(1) == all_sound_off_controller || event.at(1) == all_notes_off_controller)
             clear(event.channels());
         break;
@@ -115,6 +115,6 @@ void Corruption::tick(channels_t channels) {
 
 channels_t Corruption::reset() {
     channels_t previous = m_corrupted;
-    m_corrupted = channels_t();
+    m_corrupted.clear();
     return previous;
 }

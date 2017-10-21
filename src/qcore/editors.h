@@ -261,11 +261,11 @@ public:
     explicit FamilySelector(QWidget* parent);
 
 public slots:
-    family_t families() const;
-    void setFamilies(family_t families);
+    families_t families() const;
+    void setFamilies(families_t families);
 
 signals:
-    void familiesChanged(family_t families);
+    void familiesChanged(families_t families);
 
 private slots:
     void onItemChange(QTreeWidgetItem* item, int column);
@@ -274,13 +274,14 @@ private slots:
     void setItemState(QTreeWidgetItem* item, Qt::CheckState checkState); // no signal
     void updateFamilies();
 
-    family_t childFamilies(QTreeWidgetItem* item) const;
-    void setChildFamilies(QTreeWidgetItem* item, family_t families);
+    families_t childFamilies(QTreeWidgetItem* item) const;
+    void setChildFamilies(QTreeWidgetItem* item, families_t families);
 
 private:
-    QTreeWidgetItem* makeItem(QTreeWidgetItem* root, family_t family, const std::string& name = {});
+    QTreeWidgetItem* makeNode(QTreeWidgetItem* root, families_t families, const QString& name);
+    QTreeWidgetItem* makeLeaf(QTreeWidgetItem* root, family_t family);
 
-    family_t mFamilies;
+    families_t mFamilies;
 
 };
 

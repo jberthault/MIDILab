@@ -41,7 +41,7 @@ Event ChannelMapper::unmap_event(channels_t channels) {
 
 ChannelMapper::ChannelMapper() : Handler(thru_mode) {
     for (channel_t c=0 ; c < 0x10 ; ++c)
-        m_mapping[c] = channels_t::from_bit(c);
+        m_mapping[c] = channels_t::merge(c);
 }
 
 channel_map_t<channels_t> ChannelMapper::mapping() const {
@@ -58,7 +58,7 @@ void ChannelMapper::set_mapping(channel_map_t<channels_t> mapping) {
 void ChannelMapper::reset_mapping(channels_t channels) {
     std::lock_guard<std::mutex> guard(m_mutex);
     for (channel_t channel : channels)
-        m_mapping[channel] = channels_t::from_bit(channel);
+        m_mapping[channel] = channels_t::merge(channel);
     m_corruption.tick();
 }
 
@@ -69,18 +69,18 @@ Handler::result_type ChannelMapper::handle_message(const Message& message) {
 
     std::lock_guard<std::mutex> guard(m_mutex);
 
-    if (message.event.is(custom_family)) {
+    if (message.event.family() == family_t::custom) {
         auto k = message.event.get_custom_key();
         if (k == "ChannelMapping.remap") {
             auto mapped_channels = unmarshall<channels_t>(message.event.get_custom_value());
             channel_ns::store(m_mapping, message.event.channels(), mapped_channels);
             m_corruption.tick();
-            return success_result;
+            return result_type::success;
         } else if (k == "ChannelMapping.unmap") {
             for (channel_t channel : message.event.channels())
-                m_mapping[channel] = channels_t::from_bit(channel);
+                m_mapping[channel] = channels_t::merge(channel);
             m_corruption.tick();
-            return success_result;
+            return result_type::success;
         }
     }
 
@@ -95,7 +95,7 @@ Handler::result_type ChannelMapper::handle_message(const Message& message) {
         copy.event.set_channels(remap(message.event.channels()));
 
     feed_forward(copy);
-    return success_result;
+    return result_type::success;
 }
 
 void ChannelMapper::feed_forward(const Message& message) {

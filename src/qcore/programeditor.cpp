@@ -164,7 +164,7 @@ QWidget* PatchDelegate::createEditor(QWidget* parent, const QStyleOptionViewItem
     PatchModel* model = new PatchModel(editor);
     model->setPatch(programModel->patch());
     editor->setModel(model);
-    channels_t channels = channels_t::from_bit(index.row());
+    channels_t channels = channels_t::merge(index.row());
     connect(editor, &TreeBox::treeIndexChanged, [=](QModelIndex){
         QVariant data = editor->currentData(Qt::UserRole);
         if (data.isValid())
@@ -269,7 +269,7 @@ void ProgramModel::setPatch(const Patch* patch) {
     mPatch = patch;
     for (channel_t c=0 ; c < 0x10 ; c++)
         if (hasProgram(c))
-            fillProgram(channels_t::from_bit(c), program(c)); // change text
+            fillProgram(channels_t::merge(c), program(c)); // change text
 }
 
 bool ProgramModel::hasProgram(channel_t channel) const {
@@ -294,7 +294,7 @@ void ProgramModel::fillProgram(channels_t channels, byte_t program) {
 }
 
 void ProgramModel::setProgram(channel_t channel, byte_t program) {
-    fillProgram(channels_t::from_bit(channel), program);
+    fillProgram(channels_t::merge(channel), program);
 }
 
 void ProgramModel::clearPrograms() {
@@ -452,7 +452,7 @@ void ProgramEditor::editProgram(channels_t channels, byte_t program) {
 
 void ProgramEditor::updateSuccess(Handler* handler, Message message) {
     /// @todo treat bank messages
-    if (message.event.is(family_ns::program_change_family)) {
+    if (message.event.family() == family_t::program_change) {
         receiveProgram(handler, message.event.channels(), message.event.at(1));
     } else if (message.event.get_custom_key() == "Close") {
         mRecords[handler].second.clear();

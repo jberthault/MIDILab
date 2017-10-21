@@ -28,6 +28,8 @@ using namespace handler_ns;
 
 /// @todo print the holes numbers on the screen
 
+static const channels_t defaultChannels = channels_t::merge(0);
+
 //===============
 // MetaHarmonica
 //===============
@@ -112,13 +114,13 @@ size_t Harmonica::setParameter(const QString& key, const QString& value) {
 void Harmonica::onPress(QAbstractButton* button) {
     Note note = buttonNote(button);
     if (note && canGenerate())
-        generate(Event::note_on(1, note, velocity()));
+        generate(Event::note_on(defaultChannels, note.code(), velocity()));
 }
 
 void Harmonica::onRelease(QAbstractButton* button) {
     Note note = buttonNote(button);
     if (note && canGenerate())
-        generate(Event::note_off(1, note));
+        generate(Event::note_off(defaultChannels, note.code()));
 }
 
 void Harmonica::addElement(QWidget* widget, int true_row, int true_col) {

@@ -64,7 +64,7 @@ struct Match : public boost::static_visitor<bool> {
     }
 
     bool operator()(const Filter::FamilyFilter& filter) const {
-        return filter.families.all(message.event.family());
+        return filter.families.contains(message.event.family());
     }
 
     bool operator()(const Filter::AllFilter& filter) const {
@@ -284,7 +284,7 @@ Filter Filter::raw_channels(channels_t channels) {
     return {ChannelFilter{channels}};
 }
 
-Filter Filter::families(family_t families) {
+Filter Filter::families(families_t families) {
     return {FamilyFilter{families}};
 }
 
@@ -399,39 +399,39 @@ void Handler::set_state(state_type state) {
 }
 
 void Handler::alter_state(state_type state, bool on) {
-    m_state = m_state.alter(state, on);
+    m_state.commute(state, on);
 }
 
-family_t Handler::handled_families() const {
-    return ~no_family;
+families_t Handler::handled_families() const {
+    return all_families;
 }
 
-family_t Handler::input_families() const {
-    return ~no_family;
+families_t Handler::input_families() const {
+    return all_families;
 }
 
 Handler::result_type Handler::handle_open(const Message& message) {
-    if (message.event.is(custom_family)) {
+    if (message.event.family() == family_t::custom) {
         auto key = message.event.get_custom_key();
         if (key == "Open") {
             on_open(unmarshall<state_type>(message.event.get_custom_value()));
-            return success_result;
+            return result_type::success;
         } else if (key == "Close") {
             on_close(unmarshall<state_type>(message.event.get_custom_value()));
-            return success_result;
+            return result_type::success;
         }
     }
-    return unhandled_result;
+    return result_type::unhandled;
 }
 
 Handler::result_type Handler::on_open(state_type state) {
     alter_state(state, true);
-    return success_result;
+    return result_type::success;
 }
 
 Handler::result_type Handler::on_close(state_type state) {
     alter_state(state, false);
-    return success_result;
+    return result_type::success;
 }
 
 Holder* Handler::holder() const {
@@ -459,7 +459,7 @@ Handler::result_type Handler::receive_message(const Message& message) {
         return m_receiver ? m_receiver->receive_message(this, message) : handle_message(message);
     } catch (const std::exception& error) {
         TRACE_ERROR(m_name << " handling exception: " << error.what());
-        return fail_result;
+        return result_type::error;
     }
 }
 

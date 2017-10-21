@@ -157,7 +157,7 @@ void SequenceViewItem::setCodec(QTextCodec* codec) {
         setText(3, codec->toUnicode(mRawText));
 }
 
-void SequenceViewItem::updateVisibiliy(family_t families, channels_t channels, timestamp_t lower, timestamp_t upper) {
+void SequenceViewItem::updateVisibiliy(families_t families, channels_t channels, timestamp_t lower, timestamp_t upper) {
     bool familiesVisible = mItem.event.is(families);
     bool channelsVisible = !mItem.event.is(voice_families) || channels.all(mItem.event.channels());
     bool boundsVisible = lower <= mItem.timestamp && mItem.timestamp <= upper;
@@ -192,7 +192,7 @@ SequenceView::SequenceView(QWidget *parent) :
     connect(selectFamilyButton, &QPushButton::clicked, this, &SequenceView::onFamilyFilterClick);
 
     mFamilySelector = new FamilySelector(this);
-    mFamilySelector->setFamilies(~no_family);
+    mFamilySelector->setFamilies(all_families);
     mFamilySelector->setWindowFlags(Qt::Dialog);
     mFamilySelector->setVisible(false);
     connect(mFamilySelector, &FamilySelector::familiesChanged, this, &SequenceView::updateItemsVisibility);
@@ -323,7 +323,7 @@ void SequenceView::setSequence(const Sequence& sequence, timestamp_t lower, time
     for (const Sequence::Item& item : sequence.events()) {
         if (item.event.is(voice_families))
             trackChannels[item.track] |= item.event.channels();
-        else if (item.event.is(track_name_family))
+        else if (item.event.family() == family_t::track_name)
             trackNames[item.track] << QByteArray::fromStdString(item.event.description());
     }
 
@@ -346,7 +346,7 @@ void SequenceView::setSequence(const Sequence& sequence, timestamp_t lower, time
             trackItem->setCheckState(0, Qt::Checked);
         // background name
         channels_t channels = trackChannels[track];
-        trackItem->setData(0, Qt::UserRole, (unsigned)channels);
+        trackItem->setData(0, Qt::UserRole, channels.to_integral());
         setItemBackground(trackItem, channels);
     }
 
@@ -430,7 +430,7 @@ void SequenceView::onChannelFilterClick() {
 
 void SequenceView::setChannelColor(channel_t channel, const QColor& /*color*/) {
     for (SequenceViewTrackItem* trackItem : trackItems()) {
-        channels_t channels(trackItem->data(0, Qt::UserRole).toUInt());
+        auto channels = channels_t::from_integral(trackItem->data(0, Qt::UserRole).toUInt());
         if (channels.contains(channel))
             setItemBackground(trackItem, channels);
     }
@@ -1039,7 +1039,7 @@ void Trackbar::setSequence(const Sequence& sequence, timestamp_t lower, timestam
     // reinitialize markers
     cleanMarkers();
     for (const Sequence::Item& item : sequence.events())
-        if (item.event.is(marker_family))
+        if (item.event.family() == family_t::marker)
             addMarker(item.timestamp, QString::fromStdString(item.event.description()), false);
 }
 
@@ -1156,7 +1156,7 @@ void TempoView::setTempo(const Event& event) {
     if (event == mLastTempo)
         return;
     mLastTempo = event;
-    double bpm = event.is(tempo_family) ? event.get_bpm() : 0.;
+    double bpm = event.family() == family_t::tempo ? event.get_bpm() : 0.;
     mTempoSpin->setValue(bpm);
     updateDistorted();
 }
@@ -1433,7 +1433,7 @@ void Player::stepForward() {
     const Sequence& seq = mPlayer->sequence();
     auto first = seq.begin(), last = seq.end();
     for (auto it = std::lower_bound(first, last, pos) ; it != last ; ++it) {
-        if (it->event.is(note_on_family)) {
+        if (it->event.family() == family_t::note_on) {
             mNextStep = it->timestamp;
             mIsStepping = true;
             break;

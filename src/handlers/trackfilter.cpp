@@ -49,27 +49,26 @@ Handler::result_type TrackFilter::handle_message(const Message& message) {
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_FORWARD_RECEIVE;
 
-    if (message.event.is(custom_family)) {
+    if (message.event.family() == family_t::custom) {
         std::string k = message.event.get_custom_key();
         if (k == "TrackFilter.disable") {
             auto track = unmarshall<track_t>(message.event.get_custom_value());
             m_corruption[track].tick();
             m_filter.elements.insert(track);
-            return success_result;
+            return result_type::success;
         } else if (k == "TrackFilter.enable") {
             m_filter.elements.erase(unmarshall<track_t>(message.event.get_custom_value()));
-            return success_result;
+            return result_type::success;
         } else if (k == "TrackFilter.enable_all") {
             m_filter.elements.clear();
-            return success_result;
+            return result_type::success;
         }
     }
 
     clean_corrupted(message.source, message.track);
-    if (!m_filter.match(message.track))
-        return {};
-    feed_forward(message);
-    return success_result;
+    if (m_filter.match(message.track))
+        feed_forward(message);
+    return result_type::success;
 }
 
 void TrackFilter::feed_forward(const Message& message) {

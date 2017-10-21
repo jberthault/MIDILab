@@ -415,7 +415,7 @@ void HandlerListEditor::updateHandler(Handler* handler) {
 }
 
 void HandlerListEditor::onMessageHandled(Handler* handler, const Message& message) {
-    if (message.event.is(family_ns::custom_family)) {
+    if (message.event.family() == family_t::custom) {
         auto key = message.event.get_custom_key();
         if (key == "Open" || key == "Close")
             updateHandler(handler);

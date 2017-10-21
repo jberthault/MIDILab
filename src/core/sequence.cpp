@@ -193,8 +193,7 @@ Event read_event(std::istream& stream, bool is_realtime, byte_t* running_status)
     return Event::raw(is_realtime, {data.begin(), data.end()});
 }
 
-StandardMidiFile::track_type read_track(std::istream& stream) {
-    StandardMidiFile::track_type track;
+void read_track(std::istream& stream, StandardMidiFile::track_type& track) {
     find_pattern("MTrk", stream); // throw if header is not found
     uint32_t size = read_uint32(stream); // number of bytes in the chunk
     std::streampos end = stream.tellg() + (std::streampos)size; // position of end of track
@@ -207,7 +206,7 @@ StandardMidiFile::track_type read_track(std::istream& stream) {
         if (!event) // check event
             TRACE_WARNING("none event found");
         track.emplace_back(deltatime.true_value, event); // add event in the track
-        if (event.is(end_of_track_family)) {
+        if (event.family() == family_t::end_of_track) {
             if (stream.tellg() < end)
                 throw std::logic_error("premature end of track");
             break;
@@ -215,18 +214,7 @@ StandardMidiFile::track_type read_track(std::istream& stream) {
         if (stream.tellg() >= end)
             throw std::logic_error("unexpected end of track");
     }
-    return track;
 }
-
-/*
-struct StandardMidiHeader {
-    char MThd[4];
-    uint32_t size;
-    uint16_t format;
-    uint16_t ppqn;
-    uint16_t ntracks;
-};
-*/
 
 StandardMidiFile read_file(std::istream& stream) {
     StandardMidiFile file;
@@ -237,13 +225,13 @@ StandardMidiFile read_file(std::istream& stream) {
     file.format = read_uint16(stream);
     if (file.format > 2)
         throw std::logic_error("unexpected midi file format");
-    uint16_t tracks_count = read_uint16(stream);
+    file.tracks.resize(read_uint16(stream));
     file.ppqn = read_uint16(stream); /// @todo check values of ppqn
-    for (uint16_t i=0 ; i < tracks_count ; ++i) {
+    for (auto& track : file.tracks) {
         try {
-            file.tracks.push_back(read_track(stream));
+            read_track(stream, track);
         } catch (const std::exception& err) {
-            TRACE_ERROR("failed parsing track " << i << ": " << err.what());
+            TRACE_ERROR("failed parsing track: " << err.what());
             break;
         }
     }
@@ -263,8 +251,6 @@ StandardMidiFile read_file(const std::string& filename) {
     }
 }
 
-
-
 size_t write_event(const Event& event, std::ostream& stream, byte_t* running_status) {
     size_t bytes = 0;
     byte_t status = event.at(0);
@@ -274,11 +260,11 @@ size_t write_event(const Event& event, std::ostream& stream, byte_t* running_sta
     if (event.is(~midi_families | system_realtime_families))
         throw std::invalid_argument("can't write custom or realtime events");
     // transform note off to note on
-    if (event.is(note_off_family) && event.at(2) == 0)
+    if (event.family() == family_t::note_off && event.at(2) == 0)
         status = 0x90;
     // update voice event's channel
     if (event.is(voice_families)) {
-        switch (event.channels().count()) {
+        switch (event.channels().size()) {
         case 0: throw std::invalid_argument("voice event is not bound to any channel");
         case 1: status = (0xf0 & status) | *event.channels().begin(); break;
         default: throw std::invalid_argument("can't write an event bound to multiple channels");
@@ -325,7 +311,7 @@ size_t write_track(const StandardMidiFile::track_type& track, std::ostream& stre
     auto rfirst = track.rbegin();
     if (rfirst == track.rend())
         throw std::invalid_argument("empty track");
-    if (!rfirst->second.is(end_of_track_family))
+    if (rfirst->second.family() != family_t::end_of_track)
         throw std::invalid_argument("last event should be an end of track");
     // write data
     for (const StandardMidiFile::value_type& value: track) {
@@ -439,7 +425,7 @@ ppqn_t Clock::ppqn() const {
 }
 
 Clock::duration_type Clock::base_time(const Event& tempo_event) const {
-    assert(tempo_event.is(tempo_family));
+    assert(tempo_event.family() == family_t::tempo);
     /// @todo check negative values of first byte of ppqn
     return duration_type{tempo_event.get_meta_int<int64_t>() / (double)m_ppqn};
 }
@@ -535,7 +521,7 @@ Sequence Sequence::from_realtime(const realtime_type& data, ppqn_t ppqn) {
     // compute clock
     sequence.m_clock.reset(ppqn);
     for (const RealtimeItem& item : data)
-        if (item.event.is(tempo_family))
+        if (item.event.family() == family_t::tempo)
             sequence.m_clock.push_duration(item.event, item.time - t0);
     // fill event
     for (const RealtimeItem& item : data)
@@ -568,14 +554,14 @@ const Clock& Sequence::clock() const {
 void Sequence::update_clock() {
     m_clock.reset();
     for (const Item& item : m_events)
-        if (item.event.is(tempo_family))
+        if (item.event.family() == family_t::tempo)
             m_clock.push_timestamp(item.event, item.timestamp);
 }
 
 void Sequence::update_clock(ppqn_t ppqn) {
     m_clock.reset(ppqn);
     for (const Item& item : m_events)
-        if (item.event.is(tempo_family))
+        if (item.event.family() == family_t::tempo)
             m_clock.push_timestamp(item.event, item.timestamp);
 }
 
@@ -670,4 +656,12 @@ Sequence::const_iterator Sequence::begin() const {
 
 Sequence::const_iterator Sequence::end() const {
     return m_events.end();
+}
+
+Sequence::const_reverse_iterator Sequence::rbegin() const {
+    return m_events.rbegin();
+}
+
+Sequence::const_reverse_iterator Sequence::rend() const {
+    return m_events.rend();
 }

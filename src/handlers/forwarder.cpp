@@ -34,7 +34,7 @@ Handler::result_type ForwardHandler::handle_message(const Message& message) {
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_FORWARD_RECEIVE;
     forward_message(message);
-    return success_result;
+    return result_type::success;
 }
 
 //===============

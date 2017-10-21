@@ -61,7 +61,7 @@ std::string channel_string(channel_t channel) {
 }
 
 std::string channels_string(channels_t channels) {
-    switch (channels.count()) {
+    switch (channels.size()) {
     case 0: return "";
     case 1: return channel_string(*channels.begin());
     case 16: return "*";
@@ -361,15 +361,13 @@ static const std::array<const char*, 0x80> program_names = {
     "Gunshot"
 };
 
-std::ostream& family_tools::print_event(std::ostream& stream, const Event& event) {
-    return family_printer(event.family(), print_bytes)(stream, event);
-}
+namespace {
 
-std::ostream& family_tools::print_bytes(std::ostream& stream, const Event& event) {
+std::ostream& print_bytes(std::ostream& stream, const Event& event) {
     return ::print_bytes(stream, event.begin(), event.end());
 }
 
-std::ostream& family_tools::print_controller(std::ostream& stream, const Event& event) {
+std::ostream& print_controller(std::ostream& stream, const Event& event) {
     byte_t id = event.at(1);
     auto it = controller_tools::info().find(id);
     if (it != controller_tools::info().end())
@@ -379,13 +377,13 @@ std::ostream& family_tools::print_controller(std::ostream& stream, const Event& 
     return stream << " (" << (int)event.at(2) << ')';
 }
 
-std::ostream& family_tools::print_program(std::ostream& stream, const Event& event) {
+std::ostream& print_program(std::ostream& stream, const Event& event) {
     return stream << program_names[event.at(1) & 0x7f] << " (" << (int)event.at(1) << ')';
 }
 
-std::ostream& family_tools::print_note(std::ostream& stream, const Event& event) {
+std::ostream& print_note(std::ostream& stream, const Event& event) {
     byte_t note = event.at(1);
-    if (event.channels().any(drum_channels)) {
+    if (event.channels().contains(drum_channel)) {
         drum_ns::print_drum(stream, note);
     } else {
         stream << Note::from_code(note);
@@ -393,20 +391,20 @@ std::ostream& family_tools::print_note(std::ostream& stream, const Event& event)
     return stream << " (" << (int)event.at(2) << ')'; /// add velocity/aftertouch
 }
 
-std::ostream& family_tools::print_8bits(std::ostream& stream, const Event& event) {
+std::ostream& print_8bits(std::ostream& stream, const Event& event) {
     return stream << (int)event.at(1);
 }
 
-std::ostream& family_tools::print_14bits(std::ostream& stream, const Event& event) {
+std::ostream& print_14bits(std::ostream& stream, const Event& event) {
     return stream << event.get_14bits();
 }
 
-std::ostream& family_tools::print_key_signature(std::ostream& stream, const Event& event) {
+std::ostream& print_key_signature(std::ostream& stream, const Event& event) {
     Event::const_iterator it = event.meta_begin();
     return stream << (int)(char)*it++ << ((*it == 0) ? " major" : " minor");
 }
 
-std::ostream& family_tools::print_time_signature(std::ostream& stream, const Event& event) {
+std::ostream& print_time_signature(std::ostream& stream, const Event& event) {
     Event::const_iterator it = event.meta_begin();
     int nn = *it++;
     int dd = 1 << *it++;
@@ -415,11 +413,11 @@ std::ostream& family_tools::print_time_signature(std::ostream& stream, const Eve
     return stream << nn << '/' << dd << " (" << cc << ", " << bb << ")";
 }
 
-std::ostream& family_tools::print_mtc_frame(std::ostream& stream, const Event&) {
+std::ostream& print_mtc_frame(std::ostream& stream, const Event&) {
     return stream; /// @todo
 }
 
-std::ostream& family_tools::print_smpte_offset(std::ostream& stream, const Event& event) {
+std::ostream& print_smpte_offset(std::ostream& stream, const Event& event) {
     Event::const_iterator it = event.meta_begin();
     byte_t hours_byte = *it++;
     int fps = (hours_byte & 0b01100000) >> 5;
@@ -437,100 +435,87 @@ std::ostream& family_tools::print_smpte_offset(std::ostream& stream, const Event
     return stream << " fps " << hours << "h " << minutes << "m " << seconds << "s " << frames + subframes/100. << " frames";
 }
 
-std::ostream& family_tools::print_meta_string(std::ostream& stream, const Event& event) {
+std::ostream& print_meta_string(std::ostream& stream, const Event& event) {
     return stream << event.get_meta_string();
 }
 
-std::ostream& family_tools::print_meta_int(std::ostream& stream, const Event& event) {
+std::ostream& print_meta_int(std::ostream& stream, const Event& event) {
     return stream << event.get_meta_int();
 }
 
-std::ostream& family_tools::print_meta_bytes(std::ostream& stream, const Event& event) {
+std::ostream& print_meta_bytes(std::ostream& stream, const Event& event) {
     return ::print_bytes(stream, event.meta_begin(), event.end());
 }
 
-std::ostream& family_tools::print_bpm(std::ostream& stream, const Event& event) {
+std::ostream& print_bpm(std::ostream& stream, const Event& event) {
     return stream << decay_value<int>(10. * event.get_bpm()) / 10. << " bpm";
 }
 
-std::ostream& family_tools::print_noop(std::ostream& stream, const Event&) {
+std::ostream& print_noop(std::ostream& stream, const Event&) {
     return stream;
 }
 
-std::ostream& family_tools::print_custom(std::ostream& stream, const Event& event) {
+std::ostream& print_custom(std::ostream& stream, const Event& event) {
     return stream << event.get_custom_key();
 }
 
-const family_info_t& family_tools::family_info(family_t family) {
-    return m_info()[family];
+static const std::unordered_map<family_t, family_tools::info_type> family_infos = {
+    {family_t::invalid, {"Invalid Event", print_noop, false}},
+    {family_t::custom, {"Custom Event", print_custom, true}},
+    {family_t::note_off, {"Note Off", print_note, true}},
+    {family_t::note_on, {"Note On", print_note, true}},
+    {family_t::aftertouch, {"Aftertouch", print_note, true}},
+    {family_t::controller, {"Controller", print_controller, true}},
+    {family_t::program_change, {"Program Change", print_program, true}},
+    {family_t::channel_pressure, {"Channel Pressure", print_8bits, true}},
+    {family_t::pitch_wheel, {"Pitch Wheel", print_14bits, true}},
+    {family_t::sysex, {"System Exclusive", print_bytes, false}},
+    {family_t::mtc_frame, {"MTC Quarter Frame Message", print_mtc_frame, false}},
+    {family_t::song_position, {"Song Position Pointer", print_14bits, false}},
+    {family_t::song_select, {"Song Select", print_8bits, false}},
+    {family_t::xf4, {"System Common 0xf4", print_noop, false}},
+    {family_t::xf5, {"System Common 0xf5", print_noop, false}},
+    {family_t::tune_request, {"Tune Request", print_noop, false}},
+    {family_t::end_of_sysex, {"End Of Sysex", print_noop, false}},
+    {family_t::clock, {"MIDI Clock", print_noop, false}},
+    {family_t::tick, {"Tick", print_noop, false}},
+    {family_t::start, {"MIDI Start", print_noop, false}},
+    {family_t::continue_, {"MIDI Continue", print_noop, false}},
+    {family_t::stop, {"MIDI Stop", print_noop, false}},
+    {family_t::xfd, {"System Realtime 0xfd", print_noop, false}},
+    {family_t::active_sense, {"Active Sense", print_noop, false}},
+    {family_t::reset, {"Reset", print_noop, false}},
+    {family_t::sequence_number, {"Sequence Number", print_meta_int, false}},
+    {family_t::text, {"Text Event", print_meta_string, false}},
+    {family_t::copyright, {"Copyright Notice", print_meta_string, false}},
+    {family_t::track_name, {"Track Name", print_meta_string, false}},
+    {family_t::instrument_name, {"Instrument Name", print_meta_string, false}},
+    {family_t::lyrics, {"Lyrics", print_meta_string, false}},
+    {family_t::marker, {"Marker", print_meta_string, false}},
+    {family_t::cue_point, {"Cue Point", print_meta_string, false}},
+    {family_t::program_name, {"Program Name", print_meta_string, false}},
+    {family_t::device_name, {"Device Name", print_meta_string, false}},
+    {family_t::channel_prefix, {"Channel Prefix", print_meta_int, false}},
+    {family_t::port, {"MIDI Port", print_meta_int, false}},
+    {family_t::end_of_track, {"End Of Track", print_noop, false}},
+    {family_t::tempo, {"Set Tempo", print_bpm, false}},
+    {family_t::smpte_offset, {"SMPTE Offset", print_smpte_offset, false}},
+    {family_t::time_signature, {"Time Signature", print_time_signature, false}},
+    {family_t::key_signature, {"Key Signature", print_key_signature, false}},
+    {family_t::proprietary, {"Proprietary", print_bytes, false}},
+    {family_t::default_meta, {"Unknown MetaEvent", print_bytes, false}},
+};
+
 }
 
-family_tools::printer_type family_tools::family_printer(family_t family, printer_type default_printer) {
-    auto it = m_info().find(family);
-    return (it != m_info().end()) ? it->second.printer : default_printer;
+std::ostream& family_tools::print_event(std::ostream& stream, const Event& event) {
+    return info(event.family()).printer(stream, event);
 }
 
-const std::string& family_tools::family_name(family_t family, const std::string& default_name) {
-    auto it = m_info().find(family);
-    return (it != m_info().end()) ? it->second.name : default_name;
-}
-
-bool family_tools::has_family(family_t family) {
-    return m_info().find(family) != m_info().end();
-}
-
-const family_tools::family_storage_type& family_tools::info() {
-    return m_info();
-}
-
-family_tools::family_storage_type& family_tools::m_info() {
-    static family_storage_type m_info_ = {
-        {no_family, {"Invalid Event", print_noop, false}},
-        {note_off_family, {"Note Off", print_note, true}},
-        {note_on_family, {"Note On", print_note, true}},
-        {aftertouch_family, {"Aftertouch", print_note, true}},
-        {controller_family, {"Controller", print_controller, true}},
-        {program_change_family, {"Program Change", print_program, true}},
-        {channel_pressure_family, {"Channel Pressure", print_8bits, true}},
-        {pitch_wheel_family, {"Pitch Wheel", print_14bits, true}},
-        {sysex_family, {"System Exclusive", print_bytes, false}},
-        {mtc_frame_family, {"MTC Quarter Frame Message", print_mtc_frame, false}},
-        {song_position_family, {"Song Position Pointer", print_14bits, false}},
-        {song_select_family, {"Song Select", print_8bits, false}},
-        {xf4_family, {"System Common 0xf4", print_noop, false}},
-        {xf5_family, {"System Common 0xf5", print_noop, false}},
-        {tune_request_family, {"Tune Request", print_noop, false}},
-        {end_of_sysex_family, {"End Of Sysex", print_noop, false}},
-        {clock_family, {"MIDI Clock", print_noop, false}},
-        {tick_family, {"Tick", print_noop, false}},
-        {start_family, {"MIDI Start", print_noop, false}},
-        {continue_family, {"MIDI Continue", print_noop, false}},
-        {stop_family, {"MIDI Stop", print_noop, false}},
-        {xfd_family, {"System Realtime 0xfd", print_noop, false}},
-        {active_sense_family, {"Active Sense", print_noop, false}},
-        {reset_family, {"Reset", print_noop, false}},
-        {sequence_number_family, {"Sequence Number", print_meta_int, false}},
-        {text_family, {"Text Event", print_meta_string, false}},
-        {copyright_family, {"Copyright Notice", print_meta_string, false}},
-        {track_name_family, {"Track Name", print_meta_string, false}},
-        {instrument_name_family, {"Instrument Name", print_meta_string, false}},
-        {lyrics_family, {"Lyrics", print_meta_string, false}},
-        {marker_family, {"Marker", print_meta_string, false}},
-        {cue_point_family, {"Cue Point", print_meta_string, false}},
-        {program_name_family, {"Program Name", print_meta_string, false}},
-        {device_name_family, {"Device Name", print_meta_string, false}},
-        {channel_prefix_family, {"Channel Prefix", print_meta_int, false}},
-        {port_family, {"MIDI Port", print_meta_int, false}},
-        {end_of_track_family, {"End Of Track", print_noop, false}},
-        {tempo_family, {"Set Tempo", print_bpm, false}},
-        {smpte_offset_family, {"SMPTE Offset", print_smpte_offset, false}},
-        {time_signature_family, {"Time Signature", print_time_signature, false}},
-        {key_signature_family, {"Key Signature", print_key_signature, false}},
-        {proprietary_family, {"Proprietary", print_bytes, false}},
-        {default_meta_family, {"Unknown MetaEvent", print_bytes, false}},
-        {custom_family, {"Custom Event", print_custom, true}},
-    };
-    return m_info_;
+const family_tools::info_type& family_tools::info(family_t family) {
+    static const info_type default_info {"Unknown Event", print_bytes, false};
+    auto it = family_infos.find(family);
+    return it == family_infos.end() ? default_info : it->second;
 }
 
 //=======
@@ -539,94 +524,86 @@ family_tools::family_storage_type& family_tools::m_info() {
 
 // event builders
 
-Event Event::note_off(channels_t channels, const Note& note, byte_t velocity) {
-    return {note_off_family, channels, {0x80, to_data_byte(note.code()), to_data_byte(velocity)}};
+Event Event::note_off(channels_t channels, byte_t note, byte_t velocity) {
+    return {family_t::note_off, channels, {0x80, to_data_byte(note), to_data_byte(velocity)}};
 }
 
-Event Event::note_on(channels_t channels, const Note& note, byte_t velocity) {
-    return {note_on_family, channels, {0x90, to_data_byte(note.code()), to_data_byte(velocity)}};
-}
-
-Event Event::drum_off(channels_t channels, byte_t byte, byte_t velocity) {
-    return {note_off_family, channels, {0x80, to_data_byte(byte), to_data_byte(velocity)}};
-}
-
-Event Event::drum_on(channels_t channels, byte_t byte, byte_t velocity) {
-    return {note_on_family, channels, {0x90, to_data_byte(byte), to_data_byte(velocity)}};
+Event Event::note_on(channels_t channels, byte_t note, byte_t velocity) {
+    return {family_t::note_on, channels, {0x90, to_data_byte(note), to_data_byte(velocity)}};
 }
 
 Event Event::aftertouch(channels_t channels, const Note& note, byte_t pressure) {
-    return {aftertouch_family, channels, {0xa0, to_data_byte(note.code()), to_data_byte(pressure)}};
+    return {family_t::aftertouch, channels, {0xa0, to_data_byte(note.code()), to_data_byte(pressure)}};
 }
 
 Event Event::controller(channels_t channels, byte_t controller, byte_t value) {
-    return {controller_family, channels, {0xb0, to_data_byte(controller), to_data_byte(value)}};
+    return {family_t::controller, channels, {0xb0, to_data_byte(controller), to_data_byte(value)}};
 }
 
 Event Event::program_change(channels_t channels, byte_t program) {
-    return {program_change_family, channels, {0xc0, to_data_byte(program)}};
+    return {family_t::program_change, channels, {0xc0, to_data_byte(program)}};
 }
 
 Event Event::channel_pressure(channels_t channels, byte_t pressure) {
-    return {channel_pressure_family, channels, {0xd0, to_data_byte(pressure)}};
+    return {family_t::channel_pressure, channels, {0xd0, to_data_byte(pressure)}};
 }
 
 Event Event::pitch_wheel(channels_t channels, uint16_t pitch) {
-    return {pitch_wheel_family, channels, {0xe0, short_tools::fine(pitch), short_tools::coarse(pitch)}};
+    return {family_t::pitch_wheel, channels, {0xe0, short_tools::fine(pitch), short_tools::coarse(pitch)}};
 }
 
 Event Event::sys_ex(data_type data) {
     if (data.empty() || data.front() != 0xf0 || data.back() != 0xf7 || std::any_of(++data.begin(), --data.end(), is_msb_set<byte_t>))
         return {};
-    return {sysex_family, {}, std::move(data)};
+    return {family_t::sysex, {}, std::move(data)};
 }
 
 Event Event::master_volume(uint16_t volume, byte_t sysex_channel) {
-    return {sysex_family, {}, {0xf0, 0x7f, sysex_channel, 0x04, 0x01, short_tools::fine(volume), short_tools::coarse(volume), 0xf7}};
+    return {family_t::sysex, {}, {0xf0, 0x7f, sysex_channel, 0x04, 0x01, short_tools::fine(volume), short_tools::coarse(volume), 0xf7}};
 }
 
 Event Event::mtc_frame(byte_t value) {
-    return {mtc_frame_family, {}, {0xf1, value}};
+    return {family_t::mtc_frame, {}, {0xf1, value}};
 }
 
 Event Event::song_position(uint16_t value) {
-    return {song_position_family, {}, {0xf2, short_tools::fine(value), short_tools::coarse(value)}};
+    return {family_t::song_position, {}, {0xf2, short_tools::fine(value), short_tools::coarse(value)}};
 }
 
 Event Event::song_select(byte_t value) {
-    return {song_select_family, {}, {0xf3, to_data_byte(value)}};
+    return {family_t::song_select, {}, {0xf3, to_data_byte(value)}};
 }
 
 Event Event::tune_request() {
-    return {tune_request_family, {}, {0xf6}};
+    return {family_t::tune_request, {}, {0xf6}};
 }
 
 Event Event::midi_clock() {
-    return {clock_family, {}, {0xf8}};
+    return {family_t::clock, {}, {0xf8}};
 }
 
 Event Event::midi_tick() {
-    return {tick_family, {}, {0xf9}};
+    return {family_t::tick, {}, {0xf9}};
 }
 
 Event Event::midi_start() {
-    return {start_family, {}, {0xfa}};
+    return {family_t::start, {}, {0xfa}};
 }
 
 Event Event::midi_continue() {
-    return {continue_family, {}, {0xfb}};
+    return {family_t::continue_, {}, {0xfb}};
 }
 
 Event Event::midi_stop() {
-    return {stop_family, {}, {0xfc}};
+    return {family_t::stop, {}, {0xfc}};
 }
 
 Event Event::active_sense() {
-    return {active_sense_family, {}, {0xfe}};
+    return {family_t::active_sense, {}, {0xfe}};
 }
 
 Event Event::reset() {
-    return {reset_family, {}, {0xff}};
+    return {family_t::reset, {}, {0xff}};
 }
 
 Event Event::tempo(double bpm) {
@@ -635,22 +612,22 @@ Event Event::tempo(double bpm) {
         return {};
     }
     auto tempo = decay_value<uint32_t>(60000000. / bpm);
-    return {tempo_family, {}, {0xff, 0x51, 0x03, to_byte(tempo >> 16), to_byte(tempo >> 8), to_byte(tempo)}};
+    return {family_t::tempo, {}, {0xff, 0x51, 0x03, to_byte(tempo >> 16), to_byte(tempo >> 8), to_byte(tempo)}};
 }
 
 Event Event::end_of_track() {
-    return {end_of_track_family, {}, {0xff, 0x2f, 0x00}};
+    return {family_t::end_of_track, {}, {0xff, 0x2f, 0x00}};
 }
 
 Event Event::custom(channels_t channels, const std::string& key) {
-    return {custom_family, channels, {key.begin(), key.end()}};
+    return {family_t::custom, channels, {key.begin(), key.end()}};
 }
 
 Event Event::custom(channels_t channels, const std::string& key, const std::string& value) {
     data_type data(key.size() + value.size() + 1, 0x00);
     auto pos = std::copy(key.begin(), key.end(), data.begin());
     std::copy(value.begin(), value.end(), ++pos);
-    return {custom_family, channels, std::move(data)};
+    return {family_t::custom, channels, std::move(data)};
 }
 
 Event Event::raw(bool is_realtime, data_type data) {
@@ -664,11 +641,16 @@ Event Event::raw(bool is_realtime, data_type data) {
     event.m_family = event.extract_family(is_realtime);
     // get channel mask
     if (event.is(voice_families))
-        event.m_channels = channels_t::from_bit(channel);
+        event.m_channels = channels_t::merge(channel);
     return event;
 }
 
 // constructors
+
+Event::Event() :
+    m_family(family_t::invalid), m_channels(), m_data() {
+
+}
 
 Event::Event(family_t family, channels_t channels, data_type data) :
     m_family(family), m_channels(channels), m_data(std::move(data)) {
@@ -693,7 +675,7 @@ bool Event::operator ==(const Event& event) const  {
 // string
 
 std::string Event::name() const {
-    return family_tools::family_name(m_family, "Unknown Event");
+    return family_tools::info(m_family).name;
 }
 
 std::string Event::description() const {
@@ -723,65 +705,65 @@ family_t Event::family() const {
 }
 
 Event::operator bool() const {
-    return (bool)m_family;
+    return m_family != family_t::invalid;
 }
 
-bool Event::is(family_t families) const {
-    return families & m_family;
+bool Event::is(families_t families) const {
+    return families.contains(m_family);
 }
 
 family_t Event::extract_family(bool is_realtime) const {
     switch (at(0, 0x00) & 0xf0) { // VOICE EVENT
-    case 0x80: return note_off_family;
-    case 0x90: return note_on_family;
-    case 0xa0: return aftertouch_family;
-    case 0xb0: return controller_family;
-    case 0xc0: return program_change_family;
-    case 0xd0: return channel_pressure_family;
-    case 0xe0: return pitch_wheel_family;
+    case 0x80: return family_t::note_off;
+    case 0x90: return family_t::note_on;
+    case 0xa0: return family_t::aftertouch;
+    case 0xb0: return family_t::controller;
+    case 0xc0: return family_t::program_change;
+    case 0xd0: return family_t::channel_pressure;
+    case 0xe0: return family_t::pitch_wheel;
     case 0xf0:
         switch (at(0)) { // SYSTEM EVENT
-        case 0xf0: return sysex_family;
-        case 0xf1: return mtc_frame_family;
-        case 0xf2: return song_position_family;
-        case 0xf3: return song_select_family;
-        case 0xf4: return xf4_family;
-        case 0xf5: return xf5_family;
-        case 0xf6: return tune_request_family;
-        case 0xf7: return end_of_sysex_family;
-        case 0xf8: return clock_family;
-        case 0xf9: return tick_family;
-        case 0xfa: return start_family;
-        case 0xfb: return continue_family;
-        case 0xfc: return stop_family;
-        case 0xfd: return xfd_family;
-        case 0xfe: return active_sense_family;
+        case 0xf0: return family_t::sysex;
+        case 0xf1: return family_t::mtc_frame;
+        case 0xf2: return family_t::song_position;
+        case 0xf3: return family_t::song_select;
+        case 0xf4: return family_t::xf4;
+        case 0xf5: return family_t::xf5;
+        case 0xf6: return family_t::tune_request;
+        case 0xf7: return family_t::end_of_sysex;
+        case 0xf8: return family_t::clock;
+        case 0xf9: return family_t::tick;
+        case 0xfa: return family_t::start;
+        case 0xfb: return family_t::continue_;
+        case 0xfc: return family_t::stop;
+        case 0xfd: return family_t::xfd;
+        case 0xfe: return family_t::active_sense;
         default: // 0xff
             if (is_realtime)
-                return reset_family;
+                return family_t::reset;
             switch (at(1, 0xff)) { // META EVENT
-            case 0x00: return sequence_number_family;
-            case 0x01: return text_family;
-            case 0x02: return copyright_family;
-            case 0x03: return track_name_family;
-            case 0x04: return instrument_name_family;
-            case 0x05: return lyrics_family;
-            case 0x06: return marker_family;
-            case 0x07: return cue_point_family;
-            case 0x08: return program_name_family;
-            case 0x09: return device_name_family;
-            case 0x20: return channel_prefix_family;
-            case 0x21: return port_family;
-            case 0x2f: return end_of_track_family;
-            case 0x51: return tempo_family;
-            case 0x54: return smpte_offset_family;
-            case 0x58: return time_signature_family;
-            case 0x59: return key_signature_family;
-            case 0x7f: return proprietary_family;
-            default  : return default_meta_family;
+            case 0x00: return family_t::sequence_number;
+            case 0x01: return family_t::text;
+            case 0x02: return family_t::copyright;
+            case 0x03: return family_t::track_name;
+            case 0x04: return family_t::instrument_name;
+            case 0x05: return family_t::lyrics;
+            case 0x06: return family_t::marker;
+            case 0x07: return family_t::cue_point;
+            case 0x08: return family_t::program_name;
+            case 0x09: return family_t::device_name;
+            case 0x20: return family_t::channel_prefix;
+            case 0x21: return family_t::port;
+            case 0x2f: return family_t::end_of_track;
+            case 0x51: return family_t::tempo;
+            case 0x54: return family_t::smpte_offset;
+            case 0x58: return family_t::time_signature;
+            case 0x59: return family_t::key_signature;
+            case 0x7f: return family_t::proprietary;
+            default  : return family_t::default_meta;
             }
         }
-    default: return no_family;
+    default: return family_t::invalid;
     }
 }
 

@@ -70,10 +70,10 @@ Handler::result_type Transposer::handle_message(const Message& message) {
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_FORWARD_RECEIVE;
 
-    if (message.event.is(custom_family)) {
+    if (message.event.family() == family_t::custom) {
         if (message.event.get_custom_key() == "Transpose") {
             set_key(message.event.channels(), unmarshall<int>(message.event.get_custom_value()));
-            return success_result;
+            return result_type::success;
         }
     } else if (message.event.is(note_families)) {
         clean_corrupted(message.source, message.track);
@@ -85,12 +85,12 @@ Handler::result_type Transposer::handle_message(const Message& message) {
                 copy.event.set_channels(pair.second);
                 feed_forward(copy);
             }
-            return success_result;
+            return result_type::success;
         }
     }
 
     feed_forward(message); // to feed controller events
-    return success_result;
+    return result_type::success;
 }
 
 void Transposer::feed_forward(const Message& message) {

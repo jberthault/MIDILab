@@ -378,7 +378,7 @@ class Instrument : public GraphicalHandler {
 public:
     explicit Instrument(mode_type mode, const QString& name, QWidget* parent);
 
-    family_t handled_families() const override;
+    families_t handled_families() const override;
     result_type handle_message(const Message& message) override;
     result_type on_close(state_type state) override;
 

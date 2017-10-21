@@ -78,44 +78,43 @@ struct SoundFontHandler::Impl {
     }
 
     Handler::result_type reset_system() {
-        Handler::result_type result;
-        result |= push(Event::controller(all_channels, all_controllers_off_controller));
-        result |= push(Event::controller(all_channels, all_sound_off_controller));
-        // result |= push(Event::controller(all_channels, volume_coarse_controller, 100));
-        return result;
+        push(Event::controller(all_channels, all_controllers_off_controller));
+        push(Event::controller(all_channels, all_sound_off_controller));
+        // push(Event::controller(all_channels, volume_coarse_controller, 100));
+        return result_type::success;
     }
 
     Handler::result_type push(const Event& event) {
-        switch (+event.family()) {
-        case note_off_family: for (channel_t channel : event.channels()) fluid_synth_noteoff(synth, channel, event.at(1)); return success_result;
-        case note_on_family: for (channel_t channel : event.channels()) fluid_synth_noteon(synth, channel, event.at(1), event.at(2)); return success_result;
-        case program_change_family: for (channel_t channel : event.channels()) fluid_synth_program_change(synth, channel, event.at(1)); return success_result;
-        case controller_family: for (channel_t channel : event.channels()) fluid_synth_cc(synth, channel, event.at(1), event.at(2)); return success_result;
-        case channel_pressure_family: for (channel_t channel : event.channels()) fluid_synth_channel_pressure(synth, channel, event.at(1)); return success_result;
-        case pitch_wheel_family: for (channel_t channel : event.channels()) fluid_synth_pitch_bend(synth, channel, event.get_14bits()); return success_result;
-        case reset_family: return reset_system();
-        case sysex_family: {
+        switch (event.family()) {
+        case family_t::note_off: for (channel_t channel : event.channels()) fluid_synth_noteoff(synth, channel, event.at(1)); return result_type::success;
+        case family_t::note_on: for (channel_t channel : event.channels()) fluid_synth_noteon(synth, channel, event.at(1), event.at(2)); return result_type::success;
+        case family_t::program_change: for (channel_t channel : event.channels()) fluid_synth_program_change(synth, channel, event.at(1)); return result_type::success;
+        case family_t::controller: for (channel_t channel : event.channels()) fluid_synth_cc(synth, channel, event.at(1), event.at(2)); return result_type::success;
+        case family_t::channel_pressure: for (channel_t channel : event.channels()) fluid_synth_channel_pressure(synth, channel, event.at(1)); return result_type::success;
+        case family_t::pitch_wheel: for (channel_t channel : event.channels()) fluid_synth_pitch_bend(synth, channel, event.get_14bits()); return result_type::success;
+        case family_t::reset: return reset_system();
+        case family_t::sysex: {
             /// @note master volume does not seem to be handled correctly
             std::vector<char> sys_ex_data(event.begin()+1, event.end()-1);
             fluid_synth_sysex(synth, sys_ex_data.data(), sys_ex_data.size(), nullptr, nullptr, nullptr, 0);
-            return success_result;
+            return result_type::success;
         }
-        case custom_family: {
+        case family_t::custom: {
             auto k = event.get_custom_key();
             auto v = event.get_custom_value();
             if (k == "SoundFont.gain") {
                 fluid_synth_set_gain(synth, (float)unmarshall<double>(v));
-                return success_result;
+                return result_type::success;
             } else if (k == "SoundFont.file") {
                 if (fluid_synth_sfload(synth, v.c_str(), 1) == -1)
-                    return fail_result;
+                    return result_type::fail;
                 file = std::move(v);
-                return success_result;
+                return result_type::success;
             }
             break;
         }
         }
-        return unhandled_result;
+        return result_type::unhandled;
     }
 
     fluid_settings_t* settings;
@@ -149,8 +148,8 @@ std::string SoundFontHandler::file() const {
     return m_pimpl->file;
 }
 
-family_t SoundFontHandler::handled_families() const {
-    return (custom_family | voice_families | reset_family) & ~aftertouch_family;
+families_t SoundFontHandler::handled_families() const {
+    return families_t::merge(family_t::custom, family_t::sysex, family_t::reset, family_t::note_off, family_t::note_on, family_t::controller, family_t::program_change, family_t::channel_pressure, family_t::pitch_wheel);
 }
 
 SoundFontHandler::result_type SoundFontHandler::on_open(state_type state) {
@@ -269,7 +268,7 @@ void SoundFontEditor::onClick() {
 }
 
 void SoundFontEditor::onMessageHandled(Handler* handler, const Message& message) {
-    if (handler == this->handler() && message.event.is(custom_family) && message.event.get_custom_key() == "SoundFont.file") {
+    if (handler == this->handler() && message.event.family() == family_t::custom && message.event.get_custom_key() == "SoundFont.file") {
         QFileInfo fileInfo(QString::fromStdString(message.event.get_custom_value()));
         mFileEditor->setText(fileInfo.completeBaseName());
         mFileEditor->setToolTip(fileInfo.absoluteFilePath());

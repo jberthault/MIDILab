@@ -42,7 +42,7 @@ public:
     double gain() const;
     std::string file() const;
 
-    family_t handled_families() const override;
+    families_t handled_families() const override;
     result_type handle_message(const Message& message) override;
     result_type on_open(state_type state) override;
     result_type on_close(state_type state) override;

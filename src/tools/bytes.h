@@ -168,103 +168,177 @@ template<typename T> inline T unmarshall(const std::string& string) { return unm
 // flags
 // =====
 
-template<typename T, typename N = size_t,
-         typename = std::enable_if_t<std::is_integral<T>::value>,
-         typename = std::enable_if_t<std::is_integral<N>::value>
-         >
-struct flags_t {
 
-    using mask_type = T;
-    using bit_type = N; /*!< bit identifier */
+template<typename T, bool = std::is_enum<T>::value, bool = std::is_integral<T>::value>
+struct enum_decay {};
 
-    struct const_iterator : public std::iterator<std::forward_iterator_tag, bit_type> {
+template<typename T>
+struct enum_decay<T, true, false> {
+    using type = std::underlying_type_t<T>;
+};
 
-        const_iterator(mask_type mask) : mask(mask), current(0) { adjust(); }
+template<typename T>
+struct enum_decay<T, false, true> {
+    using type = T;
+};
 
-        bool operator==(const const_iterator& rhs) const { return mask == rhs.mask; }
-        bool operator!=(const const_iterator& rhs) const { return mask != rhs.mask; }
+template<typename T, typename N = size_t>
+class flags_t {
 
-        const_iterator& operator++() { shift(); adjust(); return *this; }
-        const_iterator operator++(int) { const_iterator it(*this); operator ++(); return it; }
-        bit_type operator*() const { return current; }
+public:
 
-        void shift() { mask >>= 1; current++; }
-        void adjust() { while (mask && !(mask & 1)) shift(); }
+    using storage_type = std::enable_if_t<std::is_integral<T>::value, T>;
+    using value_type = N;
+    using base_type = typename enum_decay<N>::type;
 
-        mask_type mask;
-        bit_type current;
+    // ------------
+    // constructors
+    // ------------
 
-    };
+    template<typename ... Values>
+    static constexpr flags_t merge(Values&& ... values) { return from_integral(merge_integral(std::forward<Values>(values)...)); }
 
-    static constexpr flags_t from_bit(bit_type bit) { return mask_type(1) << bit; }
+    constexpr flags_t() : m_storage(0) { }
 
-    constexpr flags_t(mask_type mask = 0) : m_mask(mask) { }
+    // ----------
+    // conversion
+    // ----------
 
-    constexpr operator mask_type() const { return m_mask; }
-    operator mask_type&() { return m_mask; }
+    template<typename IntegralT>
+    static constexpr flags_t from_integral(IntegralT integral) { return flags_t{static_cast<storage_type>(integral)}; }
 
-    void reset(bit_type bit) { m_mask &= ~from_bit(bit); }
-    void set(bit_type bit) { m_mask |= from_bit(bit); }
-    void flip(bit_type bit) { m_mask ^= from_bit(bit); }
+    constexpr storage_type to_integral() const { return m_storage; }
 
-    /**
-      * Count bits set in the mask using Brian Kernighan's Algorithm
-      *
-      * Non-loop algorithms:
-      * // 16 bits
-      * n -= (n >> 1) & 0x5555;
-      * n = (n & 0x3333) + ((n >> 2) & 0x3333);
-      * n = (n + (n >> 4)) & 0x0f0f;
-      * return (n * 0x0101) >> 8;
-      * // 32 bits (_popcnt32)
-      * n -= (n >> 1) & 0x55555555;
-      * n = (n & 0x33333333) + ((n >> 2) & 0x33333333);
-      * n = (n + (n >> 4)) & 0x0f0f0f0f;
-      * return (n * 0x01010101) >> 24;
-      * // 64 bits
-      * n -= (n >> 1) & 0x5555555555555555;
-      * n = (n & 0x3333333333333333) + ((n >> 2) & 0x3333333333333333);
-      * n = (n + (n >> 4)) & 0x0f0f0f0f0f0f0f0f;
-      * return (n * 0x0101010101010101) >> 56;
-      */
+    constexpr explicit operator bool() const { return m_storage; }
 
-    size_t count() const {
+    // ----------
+    // observers
+    // ----------
+
+    constexpr bool contains(value_type value) const { return (m_storage >> static_cast<base_type>(value)) & 1; }
+
+    constexpr size_t size() const {
         size_t count = 0;
-        for (mask_type mask = m_mask ; mask ; count++)
-            mask &= mask - 1;
+        for (storage_type storage = m_storage ; storage ; count++)
+            storage &= storage - 1;
         return count;
     }
 
-    constexpr bool contains(bit_type bit) const { return (m_mask >> bit) & 1; }
+    // better names : intersects, is_superset, disjoints
+    constexpr bool any(flags_t flags) const { return m_storage & flags.m_storage;} /*!< true if intersection is not null */
+    constexpr bool all(flags_t flags) const { return (m_storage & flags.m_storage) == flags.m_storage; } /*!< true if this contains all the mask */
+    constexpr bool none(flags_t flags) const { return !any(flags);} /*!< true if intersection is null */
 
-    constexpr bool any(mask_type mask) const { return m_mask & mask;} /*!< true if intersection is not null */
-    constexpr bool all(mask_type mask) const { return (m_mask & mask) == mask; } /*!< true if this contains all the mask */
-    constexpr bool none(mask_type mask) const { return !any(mask);} /*!< true if intersection is null */
+    // --------
+    // mutators
+    // --------
 
-    constexpr flags_t alter(mask_type mask, bool on) const {
-        return on ? m_mask | mask : m_mask & ~mask; // return m_mask ^ ((-on ^ m_mask) & mask);
+    constexpr void commute(flags_t flags, bool on) {
+        on ? m_storage |= flags.m_storage : m_storage &= ~flags.m_storage; // m_storage ^= ((-on ^ m_storage) & flags.m_storage);
     }
 
-    constexpr const_iterator begin() const { return {m_mask}; }
-    constexpr const_iterator end() const { return {0}; }
+    constexpr void reset(value_type value) { m_storage &= ~merge_integral(value); }
+    constexpr void set(value_type value) { m_storage |= merge_integral(value); }
+    constexpr void flip(value_type value) { m_storage ^= merge_integral(value); }
 
-    mask_type m_mask;
+    constexpr void clear() { m_storage = 0; }
+
+    // ---------------
+    // const operators
+    // ---------------
+
+    constexpr flags_t operator |(flags_t rhs) const { return from_integral(m_storage | rhs.m_storage); }
+    constexpr flags_t operator &(flags_t rhs) const { return from_integral(m_storage & rhs.m_storage); }
+    constexpr flags_t operator ^(flags_t rhs) const { return from_integral(m_storage ^ rhs.m_storage); }
+    constexpr flags_t operator ~() const { return from_integral(~m_storage); }
+
+    constexpr bool operator ==(flags_t rhs) const { return m_storage == rhs.m_storage; }
+    constexpr bool operator !=(flags_t rhs) const { return m_storage != rhs.m_storage; }
+    constexpr bool operator <(flags_t rhs) const { return m_storage < rhs.m_storage; }
+    constexpr bool operator <=(flags_t rhs) const { return m_storage <= rhs.m_storage; }
+    constexpr bool operator >(flags_t rhs) const { return m_storage > rhs.m_storage; }
+    constexpr bool operator >=(flags_t rhs) const { return m_storage >= rhs.m_storage; }
+
+    // ------------------
+    // mutable operators
+    // ------------------
+
+    constexpr void operator |=(flags_t rhs) { m_storage |= rhs.m_storage; }
+    constexpr void operator &=(flags_t rhs) { m_storage &= rhs.m_storage; }
+    constexpr void operator ^=(flags_t rhs) { m_storage ^= rhs.m_storage; }
+
+    // ---------
+    // iterators
+    // ---------
+
+    struct const_iterator : public std::iterator<std::forward_iterator_tag, value_type> {
+
+        const_iterator(storage_type storage = 0) : storage(storage), base(0) { adjust(); }
+
+        bool operator==(const const_iterator& rhs) const { return storage == rhs.storage; }
+        bool operator!=(const const_iterator& rhs) const { return storage != rhs.storage; }
+
+        const_iterator& operator++() { shift(); adjust(); return *this; }
+        const_iterator operator++(int) { const_iterator it(*this); operator ++(); return it; }
+        value_type operator*() const { return static_cast<value_type>(base); }
+
+        void shift() { storage >>= 1; base++; }
+        void adjust() { while (storage && !(storage & 1)) shift(); }
+
+        storage_type storage;
+        base_type base;
+
+    };
+
+    constexpr const_iterator begin() const { return {m_storage}; }
+    constexpr const_iterator end() const { return {}; }
+
+private:
+
+    // ---------------
+    // private details
+    // ---------------
+
+    static constexpr storage_type merge_integral() { return 0; }
+
+    template<typename ... Values>
+    static constexpr storage_type merge_integral(value_type value, Values&& ... values) { return (storage_type(1) << static_cast<base_type>(value)) | merge_integral(std::forward<Values>(values)...); }
+
+    // --------------------
+    // private constructors
+    // --------------------
+
+    constexpr explicit flags_t(storage_type set) : m_storage(set) { }
+
+    //----------------
+    // private members
+    // ---------------
+
+    storage_type m_storage;
 
 };
 
 template<typename T, typename N>
-struct marshalling_traits<flags_t<T, N>> : public marshalling_traits<T> {};
+struct marshalling_traits<flags_t<T, N>> {
+    auto operator()(flags_t<T, N> flags) {
+        return marshall(flags.to_integral());
+    }
+};
 
 template<typename T, typename N>
 struct unmarshalling_traits<flags_t<T, N>> {
      auto operator()(const std::string& string) {
-        return flags_t<T, N>{unmarshall<T>(string)};
+        return flags_t<T, N>::from_integral(unmarshall<T>(string));
     }
 };
 
 namespace std {
 template <typename T, typename N>
-struct hash<flags_t<T, N>> : public hash<T> {};
+struct hash<flags_t<T, N>> {
+    auto operator()(flags_t<T, N> flags) const {
+        return hash<T>()(flags.to_integral());
+    }
+};
 }
 
 #endif // TOOLS_BYTES_H

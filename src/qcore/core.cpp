@@ -170,7 +170,7 @@ Observer::Observer(QObject* parent) : QObject(parent), Receiver() {
 }
 
 Observer::result_type Observer::receive_message(Handler* target, const Message& message) {
-    if (target->handle_message(message) == success_result && message.event.is(~note_families))
+    if (target->handle_message(message) == result_type::success && message.event.is(~note_families))
         QApplication::postEvent(this, new StorageEvent(target, message));
 }
 
@@ -414,8 +414,8 @@ Instrument::Instrument(mode_type mode, const QString& name, QWidget* parent) :
 
 }
 
-family_t Instrument::handled_families() const {
-    return custom_family | note_on_family | note_off_family | controller_family | reset_family;
+families_t Instrument::handled_families() const {
+    return families_t::merge(family_t::custom, family_t::note_on, family_t::note_off, family_t::controller, family_t::reset);
 }
 
 Handler::result_type Instrument::on_close(state_type state) {
@@ -431,27 +431,27 @@ Handler::result_type Instrument::handle_message(const Message& message) {
 
     using namespace controller_ns;
 
-    switch (+message.event.family()) {
-    case note_on_family:
+    switch (message.event.family()) {
+    case family_t::note_on:
         setNote(message.event.channels(), message.event.get_note(), true);
-        return success_result;
-    case note_off_family:
+        return result_type::success;
+    case family_t::note_off:
         setNote(message.event.channels(), message.event.get_note(), false);
-        return success_result;
-    case reset_family:
+        return result_type::success;
+    case family_t::reset:
         onReset();
-        return success_result;
-    case controller_family:
+        return result_type::success;
+    case family_t::controller:
         if (message.event.at(1) == all_sound_off_controller) {
             onSoundOff(message.event.channels());
-            return success_result;
+            return result_type::success;
         }
         if (message.event.at(1) == all_notes_off_controller) {
             onNotesOff(message.event.channels());
-            return success_result;
+            return result_type::success;
         }
     }
-    return unhandled_result;
+    return result_type::unhandled;
 }
 
 QMap<QString, QString> Instrument::getParameters() const {

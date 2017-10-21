@@ -100,7 +100,7 @@ public:
     QMap<QString, QString> getParameters() const override;
     size_t setParameter(const QString& key, const QString& value) override;
 
-    family_t handled_families() const override;
+    families_t handled_families() const override;
     result_type handle_message(const Message& message) override;
 
 protected slots:
@@ -145,7 +145,7 @@ class PitchWheel : public AbstractWheel {
 public:
     explicit PitchWheel(const QString& name, QWidget* parent);
 
-    family_t handled_families() const override;
+    families_t handled_families() const override;
     result_type handle_message(const Message& message) override;
     result_type on_close(state_type state) override;
 
@@ -198,7 +198,7 @@ class ProgramWheel : public AbstractWheel {
 public:
     explicit ProgramWheel(const QString& name, QWidget* parent);
 
-    family_t handled_families() const override;
+    families_t handled_families() const override;
     result_type handle_message(const Message& message) override;
 
     void setProgramChange(channels_t channels, byte_t program);

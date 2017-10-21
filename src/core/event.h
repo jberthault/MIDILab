@@ -58,8 +58,8 @@ using channel_t = uint8_t; /*!< channel type differs from byte type due to its l
 using channels_t = flags_t<uint16_t, channel_t>;
 
 static constexpr channel_t drum_channel = 9;
-static constexpr channels_t drum_channels = channels_t::from_bit(drum_channel);
-static constexpr channels_t all_channels = 0xffff;
+static constexpr channels_t drum_channels = channels_t::merge(drum_channel);
+static constexpr channels_t all_channels = channels_t::from_integral(0xffff);
 
 namespace channel_ns {
 
@@ -257,137 +257,126 @@ static constexpr byte_t poly_operation_controller(0x7f);
 // Family
 //========
 
-using family_t = flags_t<uint64_t>;
-
-struct family_info_t {
-
-    using printer_type = std::ostream& (*)(std::ostream& stream, const Event& event);
-
-    std::string name;
-    printer_type printer;
-    bool has_channels;
-
+enum class family_t : uint8_t {
+    invalid          , // @note special value for undefined events
+    custom           , // @note special value for user-defined events
+    note_off         , // 8x note velocity
+    note_on          , // 9x note velocity
+    aftertouch       , // ax note pressure
+    controller       , // bx controller value
+    program_change   , // cx program
+    channel_pressure , // dx pressure
+    pitch_wheel      , // ex fine coarse
+    sysex            , // f0 ...
+    mtc_frame        , // f1 time_code_value
+    song_position    , // f2 fine coarse
+    song_select      , // f3 number
+    xf4              , // f4 -
+    xf5              , // f5 -
+    tune_request     , // f6 -
+    end_of_sysex     , // f7 -
+    clock            , // f8 -
+    tick             , // f9 -
+    start            , // fa -
+    continue_        , // fb -
+    stop             , // fc -
+    xfd              , // fd -
+    active_sense     , // fe -
+    reset            , // ff - @warning status is shared with meta events
+    sequence_number  , // ff 00 variable (uint16)
+    text             , // ff 01 variable (string)
+    copyright        , // ff 02 variable (string)
+    track_name       , // ff 03 variable (string)
+    instrument_name  , // ff 04 variable (string)
+    lyrics           , // ff 05 variable (string)
+    marker           , // ff 06 variable (string)
+    cue_point        , // ff 07 variable (string)
+    program_name     , // ff 08 variable (string)
+    device_name      , // ff 09 variable (string)
+    channel_prefix   , // ff 20 variable (int)
+    port             , // ff 21 variable (int)
+    end_of_track     , // ff 2f variable -
+    tempo            , // ff 51 variable ...
+    smpte_offset     , // ff 54 variable ...
+    time_signature   , // ff 58 variable ...
+    key_signature    , // ff 59 variable ...
+    proprietary      , // ff 7f variable ...
+    default_meta     , // ff xx variable ...
+    reserved_01      , //
+    reserved_02      , //
+    reserved_03      , //
+    reserved_04      , //
+    reserved_05      , //
+    reserved_06      , //
+    reserved_07      , //
+    reserved_08      , //
+    reserved_09      , //
+    reserved_10      , //
+    reserved_11      , //
+    reserved_12      , //
+    reserved_13      , //
+    reserved_14      , //
+    reserved_15      , //
+    reserved_16      , //
+    reserved_17      , //
+    reserved_18      , //
+    reserved_19      , //
+    reserved_20      , //
 };
+
+using families_t = flags_t<uint64_t, family_t>;
 
 struct family_tools {
 
-    using printer_type = family_info_t::printer_type;
-    using family_storage_type = std::unordered_map<family_t, family_info_t>;
+    using printer_type = std::ostream& (*)(std::ostream& stream, const Event& event);
+
+    struct info_type {
+        std::string name;
+        printer_type printer;
+        bool has_channels;
+    };
 
     static std::ostream& print_event(std::ostream& stream, const Event& event);
 
-    static std::ostream& print_bytes(std::ostream& stream, const Event& event);
-    static std::ostream& print_controller(std::ostream& stream, const Event& event);
-    static std::ostream& print_program(std::ostream& stream, const Event& event);
-    static std::ostream& print_note(std::ostream& stream, const Event& event);
-    static std::ostream& print_8bits(std::ostream& stream, const Event& event);
-    static std::ostream& print_14bits(std::ostream& stream, const Event& event);
-    static std::ostream& print_key_signature(std::ostream& stream, const Event& event);
-    static std::ostream& print_time_signature(std::ostream& stream, const Event& event);
-    static std::ostream& print_mtc_frame(std::ostream& stream, const Event& event);
-    static std::ostream& print_smpte_offset(std::ostream& stream, const Event& event);
-    static std::ostream& print_meta_string(std::ostream& stream, const Event& event);
-    static std::ostream& print_meta_int(std::ostream& stream, const Event& event);
-    static std::ostream& print_meta_bytes(std::ostream& stream, const Event& event);
-    static std::ostream& print_bpm(std::ostream& stream, const Event& event);
-    static std::ostream& print_noop(std::ostream& stream, const Event& event);
-    static std::ostream& print_custom(std::ostream& stream, const Event& event);
-
-    static family_t register_family(family_info_t family_info); /*!< register a new family (may throw overflow_error) */
-
-    static const family_info_t& family_info(family_t family);
-    static printer_type family_printer(family_t family, printer_type default_printer);
-    static const std::string& family_name(family_t family, const std::string& default_name);
-
-    static bool has_family(family_t family); /*!< true if family is registered (must be unique) */
-    static const family_storage_type& info(); /*!< name of families + description function (public access) */
-
-private:
-    static family_storage_type& m_info(); /*!< info about families */
+    static const info_type& info(family_t family);
 
 };
 
 namespace family_ns {
 
-/// @todo separate family from families
+static constexpr families_t note_families = families_t::merge(family_t::note_off, family_t::note_on, family_t::aftertouch);
 
-static constexpr family_t no_family               = 0x0000000000000000u;
-static constexpr family_t note_off_family         = 0x0000000000000001u;  // 8x note velocity
-static constexpr family_t note_on_family          = 0x0000000000000002u;  // 9x note velocity
-static constexpr family_t aftertouch_family       = 0x0000000000000004u;  // ax note pressure
-static constexpr family_t controller_family       = 0x0000000000000008u;  // bx controller value
-static constexpr family_t program_change_family   = 0x0000000000000010u;  // cx program
-static constexpr family_t channel_pressure_family = 0x0000000000000020u;  // dx pressure
-static constexpr family_t pitch_wheel_family      = 0x0000000000000040u;  // ex fine coarse
-static constexpr family_t sysex_family            = 0x0000000000000080u;  // f0 ...
-static constexpr family_t mtc_frame_family        = 0x0000000000000100u;  // f1 time_code_value
-static constexpr family_t song_position_family    = 0x0000000000000200u;  // f2 fine coarse
-static constexpr family_t song_select_family      = 0x0000000000000400u;  // f3 number
-static constexpr family_t xf4_family              = 0x0000000000000800u;  // f4 -
-static constexpr family_t xf5_family              = 0x0000000000001000u;  // f5 -
-static constexpr family_t tune_request_family     = 0x0000000000002000u;  // f6 -
-static constexpr family_t end_of_sysex_family     = 0x0000000000004000u;  // f7 -
-static constexpr family_t clock_family            = 0x0000000000008000u;  // f8 -
-static constexpr family_t tick_family             = 0x0000000000010000u;  // f9 -
-static constexpr family_t start_family            = 0x0000000000020000u;  // fa -
-static constexpr family_t continue_family         = 0x0000000000040000u;  // fb -
-static constexpr family_t stop_family             = 0x0000000000080000u;  // fc -
-static constexpr family_t xfd_family              = 0x0000000000100000u;  // fd -
-static constexpr family_t active_sense_family     = 0x0000000000200000u;  // fe -
-static constexpr family_t reset_family            = 0x0000000000400000u;  // ff - @warning status is shared with meta events
-static constexpr family_t sequence_number_family  = 0x0000000000800000u;  // ff 00 variable (uint16)
-static constexpr family_t text_family             = 0x0000000001000000u;  // ff 01 variable (string)
-static constexpr family_t copyright_family        = 0x0000000002000000u;  // ff 02 variable (string)
-static constexpr family_t track_name_family       = 0x0000000004000000u;  // ff 03 variable (string)
-static constexpr family_t instrument_name_family  = 0x0000000008000000u;  // ff 04 variable (string)
-static constexpr family_t lyrics_family           = 0x0000000010000000u;  // ff 05 variable (string)
-static constexpr family_t marker_family           = 0x0000000020000000u;  // ff 06 variable (string)
-static constexpr family_t cue_point_family        = 0x0000000040000000u;  // ff 07 variable (string)
-static constexpr family_t program_name_family     = 0x0000000080000000u;  // ff 08 variable (string)
-static constexpr family_t device_name_family      = 0x0000000100000000u;  // ff 09 variable (string)
-static constexpr family_t channel_prefix_family   = 0x0000000200000000u;  // ff 20 variable (int)
-static constexpr family_t port_family             = 0x0000000400000000u;  // ff 21 variable (int)
-static constexpr family_t end_of_track_family     = 0x0000000800000000u;  // ff 2f variable -
-static constexpr family_t tempo_family            = 0x0000001000000000u;  // ff 51 variable ...
-static constexpr family_t smpte_offset_family     = 0x0000002000000000u;  // ff 54 variable ...
-static constexpr family_t time_signature_family   = 0x0000004000000000u;  // ff 58 variable ...
-static constexpr family_t key_signature_family    = 0x0000008000000000u;  // ff 59 variable ...
-static constexpr family_t proprietary_family      = 0x0000010000000000u;  // ff 7f variable ...
-static constexpr family_t default_meta_family     = 0x0000020000000000u;  // ff xx variable ...
-static constexpr family_t custom_family           = 0x0000040000000000u;  // <implementation defined>
+static constexpr families_t voice_families = note_families | families_t::merge(family_t::controller, family_t::program_change, family_t::channel_pressure, family_t::pitch_wheel);
 
-static constexpr family_t note_families =
-        note_off_family | note_on_family | aftertouch_family;
+static constexpr families_t system_common_families = families_t::merge(
+        family_t::sysex, family_t::mtc_frame, family_t::song_position, family_t::song_select,
+        family_t::xf4, family_t::xf5, family_t::tune_request, family_t::end_of_sysex
+);
 
-static constexpr family_t voice_families =
-        note_families | controller_family | program_change_family |
-        channel_pressure_family | pitch_wheel_family;
+static constexpr families_t system_realtime_families = families_t::merge(
+        family_t::clock, family_t::tick, family_t::start, family_t::continue_, family_t::stop,
+        family_t::xfd, family_t::active_sense, family_t::reset
+);
 
-static constexpr family_t system_common_families =
-        sysex_family | mtc_frame_family | song_position_family | song_select_family |
-        xf4_family | xf5_family | tune_request_family | end_of_sysex_family;
+static constexpr families_t system_families = system_common_families | system_realtime_families;
 
-static constexpr family_t system_realtime_families =
-        clock_family | tick_family | start_family | continue_family | stop_family |
-        xfd_family | active_sense_family | reset_family;
+static constexpr families_t meta_families = families_t::merge(
+        family_t::sequence_number, family_t::text, family_t::copyright, family_t::track_name,
+        family_t::instrument_name, family_t::lyrics, family_t::marker, family_t::cue_point,
+        family_t::program_name, family_t::device_name, family_t::channel_prefix, family_t::port,
+        family_t::end_of_track, family_t::tempo, family_t::smpte_offset, family_t::time_signature,
+        family_t::key_signature, family_t::proprietary, family_t::default_meta
+);
 
-static constexpr family_t system_families =
-        system_common_families | system_realtime_families;
+static constexpr families_t midi_families = voice_families | system_families | meta_families;
 
-static constexpr family_t meta_families =
-        sequence_number_family | text_family | copyright_family | track_name_family |
-        instrument_name_family | lyrics_family | marker_family | cue_point_family |
-        program_name_family | device_name_family | channel_prefix_family | port_family |
-        end_of_track_family | tempo_family | smpte_offset_family | time_signature_family |
-        key_signature_family | proprietary_family | default_meta_family;
+static constexpr families_t all_families = midi_families | families_t::merge(family_t::custom);
 
-static constexpr family_t midi_families =
-        voice_families | system_families | meta_families;
-
-static constexpr family_t string_families =
-        text_family | copyright_family | track_name_family | instrument_name_family |
-        lyrics_family | marker_family | cue_point_family | program_name_family |
-        device_name_family;
+static constexpr families_t string_families = families_t::merge(
+        family_t::text, family_t::copyright, family_t::track_name, family_t::instrument_name,
+        family_t::lyrics, family_t::marker, family_t::cue_point, family_t::program_name,
+        family_t::device_name
+);
 
 }
 
@@ -415,10 +404,8 @@ public:
 
     // event builders (no 0xf4, 0xf5, 0xfd) @todo make meta events builder
 
-    static Event note_off(channels_t channels, const Note& note, byte_t velocity = 0);
-    static Event note_on(channels_t channels, const Note& note, byte_t velocity);
-    static Event drum_off(channels_t channels, byte_t byte, byte_t velocity = 0);
-    static Event drum_on(channels_t channels, byte_t byte, byte_t velocity);
+    static Event note_off(channels_t channels, byte_t note, byte_t velocity = 0);
+    static Event note_on(channels_t channels, byte_t note, byte_t velocity);
     static Event aftertouch(channels_t channels, const Note& note, byte_t pressure);
     static Event controller(channels_t channels, byte_t controller, byte_t value = 0);
     static Event program_change(channels_t channels, byte_t program);
@@ -445,7 +432,7 @@ public:
 
     // constructors & copy
 
-    Event() = default; /*!< default constructor makes an empty event */
+    Event(); /*!< default constructor makes an invalid event */
 
     // miscellaneous
 
@@ -461,7 +448,7 @@ public:
     // family accessors
 
     family_t family() const; /*!< family accessor */
-    bool is(family_t families) const; /*!< true if family belongs to families */
+    bool is(families_t families) const; /*!< true if family belongs to families */
     family_t extract_family(bool is_realtime) const; /*!< get family from raw data */
 
     explicit operator bool() const; /*!< true if family is not a no_family */
