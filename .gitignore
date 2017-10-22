@@ -39,4 +39,4 @@ Thumbs.db
 
 # QtCreator cache
 
-*.user
+CMakeLists.txt.user*
