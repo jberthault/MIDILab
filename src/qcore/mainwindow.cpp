@@ -24,7 +24,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QtGlobal>
-#include <QFileDialog>
 #include "mainwindow.h"
 #include "core.h"
 #include "parsing.h"
@@ -312,10 +311,12 @@ QStringList MainWindow::getConfigs() const {
 
 void MainWindow::readLastConfig() {
     auto configurations = getConfigs();
-    readConfig(configurations.empty() ? QString(":/data/config.xml") : configurations.front());
+    auto fileName = configurations.empty() ? QString(":/data/config.xml") : configurations.front();
+    if (readConfig(fileName) && !configurations.empty())
+        Manager::instance->pathRetriever("configuration")->setSelection(fileName);
 }
 
-void MainWindow::readConfig(const QString& fileName) {
+bool MainWindow::readConfig(const QString& fileName) {
     // make system handlers
     auto system_handlers = create_system();
     for (Handler* handler : system_handlers)
@@ -324,7 +325,7 @@ void MainWindow::readConfig(const QString& fileName) {
     QFile configFile(fileName);
     if (!configFile.open(QIODevice::ReadOnly)) {
         qCritical() << "Can't read file" << fileName;
-        return;
+        return false;
     }
     QByteArray configData = configFile.readAll();
     configFile.close();
@@ -333,17 +334,18 @@ void MainWindow::readConfig(const QString& fileName) {
     parsing::Configuration config;
     if (!reader.parse(configData, config)) {
         qCritical() << "Can't parse config" << fileName;
-        return;
+        return false;
     }
     // fill interface
     ConfigurationPuller puller;
     puller.addConfiguration(static_cast<MultiDisplayer*>(centralWidget()), config);
     // redo the layout
     mManagerEditor->graphEditor()->graph()->doLayout();
+    return true;
 }
 
 void MainWindow::loadConfig() {
-    QString fileName = QFileDialog::getOpenFileName(this, "Read condiguration", QString(), "Configuration (*.xml)");
+    QString fileName = Manager::instance->pathRetriever("configuration")->getReadFile(this);
     if (!fileName.isEmpty())
         loadConfig(fileName);
 }
@@ -356,7 +358,7 @@ void MainWindow::loadConfig(const QString& fileName) {
 
 void MainWindow::writeConfig() {
 
-    QString fileName = QFileDialog::getSaveFileName(this, "Save condiguration", QString(), "Configuration (*.xml)");
+    QString fileName = Manager::instance->pathRetriever("configuration")->getWriteFile(this);
     if (fileName.isEmpty())
         return;
 

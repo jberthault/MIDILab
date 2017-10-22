@@ -23,7 +23,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifdef MIDILAB_FLUIDSYNTH_VERSION
 
 #include <fluidsynth.h>
-#include <QFileDialog>
 #include "qcore/manager.h"
 #include "qtools/misc.h"
 
@@ -262,7 +261,7 @@ size_t SoundFontEditor::setParameter(const QString& key, const QString& value) {
 }
 
 void SoundFontEditor::onClick() {
-    QString file = QFileDialog::getOpenFileName(this, "Select a SoundFont", QString(), "SoundFont (*.sf2)");
+    QString file = context()->pathRetriever("soundfont")->getReadFile(this);
     if (!file.isNull())
         setFile(file);
 }

@@ -73,6 +73,7 @@ public:
 
     ChannelEditor* channelEditor() override;
     QList<Handler*> getHandlers() override;
+    PathRetriever* pathRetriever(const QString& type) override;
 
 public slots:
     // -----------------------
@@ -123,6 +124,7 @@ private:
 
     Holder* holderAt(const QString& group);
 
+    QMap<QString, PathRetriever*> mPathRetrievers;
     QMap<Handler*, Data> mStorage;
     std::vector<std::unique_ptr<StandardHolder>> mHolders; /*!< holder-pool */
     MetaHandlerCollector* mCollector;

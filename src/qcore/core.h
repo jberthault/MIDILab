@@ -40,6 +40,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "core/event.h"
 #include "core/handler.h"
 #include "core/misc.h"
+#include "qtools/misc.h"
 
 /*!< enable QVariant to accept those types */
 Q_DECLARE_METATYPE(Message)
@@ -257,6 +258,7 @@ public:
 
     virtual ChannelEditor* channelEditor() = 0;
     virtual QList<Handler*> getHandlers() = 0;
+    virtual PathRetriever* pathRetriever(const QString& type) = 0;
 
 };
 

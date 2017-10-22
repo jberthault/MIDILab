@@ -485,7 +485,7 @@ Sequence WriterItem::loadSequence() {
     return mHandler->load_sequence();
 }
 
-PlaylistTable::PlaylistTable(QWidget* parent) : QTableWidget(0, 2, parent), mCurrentItem(nullptr) {
+PlaylistTable::PlaylistTable(QWidget* parent) : QTableWidget(0, 2, parent), mCurrentItem(nullptr), mContext(nullptr) {
 
     setHorizontalHeaderLabels(QStringList() << "Filename" << "Duration");
 
@@ -613,14 +613,19 @@ Sequence PlaylistTable::loadRelative(int offset, bool wrap) {
     return loadRow(row);
 }
 
+
+void PlaylistTable::setContext(Context* context) {
+    mContext = context;
+}
+
 void PlaylistTable::browseFiles() {
-    addPaths(QFileDialog::getOpenFileNames(this, "Select MIDI Files", QString(), "MIDI File (*.mid *.midi *.kar)"));
+    addPaths(mContext->pathRetriever("midi")->getReadFiles(this));
 }
 
 void PlaylistTable::browseRecorders() {
     // get all sequence writers
     QList<Handler*> handlers;
-    for (Handler* handler : Manager::instance->getHandlers())
+    for (Handler* handler : mContext->getHandlers())
         if (dynamic_cast<SequenceWriter*>(handler))
             handlers << handler;
     if (handlers.empty()) {
@@ -1269,6 +1274,7 @@ size_t Player::setParameter(const QString& key, const QString& value) {
 
 void Player::updateContext(Context* context) {
     mSequenceView->setChannelEditor(context->channelEditor());
+    mPlaylist->setContext(context);
 }
 
 void Player::changePosition(timestamp_t timestamp) {
@@ -1357,7 +1363,7 @@ void Player::setSequence(const Sequence& sequence, bool play) {
 }
 
 void Player::saveSequence() {
-    QString filename = QFileDialog::getSaveFileName(this, "Select MIDI Saving File", QString(), "MIDI File (*.mid *.midi *.kar)");
+    QString filename = context()->pathRetriever("midi")->getWriteFile(this);
     if (filename.isNull())
         return;
     Sequence sequence = mPlayer->sequence();

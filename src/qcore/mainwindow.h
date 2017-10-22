@@ -95,7 +95,7 @@ public:
 public slots:
     QStringList getConfigs() const; /*!< get existing configurations */
     void readLastConfig(); /*!< set current state from the last configuration */
-    void readConfig(const QString& fileName); /*!< set current state from the given configuration */
+    bool readConfig(const QString& fileName); /*!< set current state from the given configuration */
     void loadConfig(); /*!< reload application asking for the configuration */
     void loadConfig(const QString& fileName); /*!< reload application using the given fileName */
     void writeConfig(); /*!< save current state in a configuration */

@@ -98,6 +98,43 @@ QVBoxLayout* make_vbox(Args&& ... args) {
     return vbox;
 }
 
+//===============
+// PathRetriever
+//===============
+
+class PathRetriever : public QObject {
+
+    Q_OBJECT
+
+    Q_PROPERTY(QString caption READ caption WRITE setCaption)
+    Q_PROPERTY(QString dir READ dir WRITE setDir)
+    Q_PROPERTY(QString filter READ filter WRITE setFilter)
+
+public:
+    explicit PathRetriever(QObject* parent);
+
+    QString caption() const;
+    void setCaption(const QString& caption);
+
+    QString dir() const;
+    void setDir(const QString& dir);
+
+    QString filter() const;
+    void setFilter(const QString& filter);
+
+    void setSelection(const QString& selection); /*!< save dir from selection */
+
+    QString getReadFile(QWidget* parent);
+    QString getWriteFile(QWidget* parent);
+    QStringList getReadFiles(QWidget* parent);
+
+private:
+    QString mCaption;
+    QString mDir;
+    QString mFilter;
+
+};
+
 //=================
 // DialogContainer
 //=================

@@ -23,7 +23,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <random>
 #include <QDialog>
-#include <QFileDialog>
 #include <QMessageBox>
 #include <QStandardItemModel>
 #include <QHeaderView>
@@ -249,6 +248,8 @@ public:
     Sequence loadRow(int row);
     Sequence loadRelative(int offset, bool wrap);
 
+    void setContext(Context* context);
+
 public slots:
     void browseFiles();
     void browseRecorders();
@@ -275,6 +276,7 @@ private:
     QAction* makeSeparator();
 
 private:
+    Context* mContext;
     PlaylistItem* mCurrentItem;
     std::default_random_engine mRandomEngine;
 

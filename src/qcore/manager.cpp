@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QPluginLoader>
 #include <QMainWindow>
 #include <QDockWidget>
+#include <QSettings>
 #include "manager.h"
 #include "qtools/displayer.h"
 #include "handlers/handlers.h"
@@ -57,6 +58,23 @@ Manager::Manager(QObject* parent) : Context(parent) {
     mGUIHolder = new GraphicalHolder(this);
 
     mObserver = new Observer(this);
+
+    QSettings settings;
+
+    mPathRetrievers["midi"] = new PathRetriever(this);
+    mPathRetrievers["midi"]->setCaption("MIDI files");
+    mPathRetrievers["midi"]->setFilter("MIDI Files (*.mid *.midi *.kar);;All Files (*)");
+    mPathRetrievers["midi"]->setDir(settings.value("paths/midi").toString());
+
+    mPathRetrievers["soundfont"] = new PathRetriever(this);
+    mPathRetrievers["soundfont"]->setCaption("SoundFont Files");
+    mPathRetrievers["soundfont"]->setFilter("SoundFont Files (*.sf2);;All Files (*)");
+    mPathRetrievers["soundfont"]->setDir(settings.value("paths/soundfont").toString());
+
+    mPathRetrievers["configuration"] = new PathRetriever(this);
+    mPathRetrievers["configuration"]->setCaption("Configuration Files");
+    mPathRetrievers["configuration"]->setFilter("Configuration Files (*.xml);;All Files (*)");
+    mPathRetrievers["configuration"]->setDir(settings.value("paths/configuration").toString());
 
     qApp->setQuitOnLastWindowClosed(false);
     connect(qApp, &QApplication::lastWindowClosed, this, &Manager::quit);
@@ -100,6 +118,11 @@ QList<Handler*> Manager::getHandlers() {
     while (it.hasNext())
         result.push_back(it.next().key());
     return result;
+}
+
+PathRetriever* Manager::pathRetriever(const QString& type) {
+    auto it = mPathRetrievers.find(type);
+    return it == mPathRetrievers.end() ? nullptr : it.value();
 }
 
 Handler* Manager::loadHandler(MetaHandler* meta, const HandlerConfiguration& config) {
@@ -331,6 +354,11 @@ void Manager::quit() {
     TRACE_DEBUG("deleting displayers ...");
     for (MultiDisplayer* multiDisplayer : MultiDisplayer::topLevelDisplayers())
         multiDisplayer->deleteLater();
+    // save path settings
+    QSettings settings;
+    settings.setValue("paths/midi", mPathRetrievers["midi"]->dir());
+    settings.setValue("paths/soundfont", mPathRetrievers["soundfont"]->dir());
+    settings.setValue("paths/configuration", mPathRetrievers["configuration"]->dir());
     // now we can quit
     qApp->quit();
 }

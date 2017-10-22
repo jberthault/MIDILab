@@ -28,6 +28,63 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QMouseEvent>
 #include <QApplication>
 #include <QPushButton>
+#include <QFileDialog>
+
+//===============
+// PathRetriever
+//===============
+
+PathRetriever::PathRetriever(QObject* parent) : QObject(parent) {
+
+}
+
+QString PathRetriever::caption() const {
+    return mCaption;
+}
+
+void PathRetriever::setCaption(const QString& caption) {
+    mCaption = caption;
+}
+
+QString PathRetriever::dir() const {
+    return mDir;
+}
+
+void PathRetriever::setDir(const QString& dir) {
+    mDir = dir;
+}
+
+QString PathRetriever::filter() const {
+    return mFilter;
+}
+
+void PathRetriever::setFilter(const QString& filter) {
+    mFilter = filter;
+}
+
+void PathRetriever::setSelection(const QString& selection) {
+    if (!selection.isNull())
+        mDir = QFileInfo(selection).dir().path();
+}
+
+QString PathRetriever::getReadFile(QWidget* parent) {
+    QString selection = QFileDialog::getOpenFileName(parent, mCaption, mDir, mFilter);
+    setSelection(selection);
+    return selection;
+}
+
+QString PathRetriever::getWriteFile(QWidget *parent) {
+    QString selection = QFileDialog::getSaveFileName(parent, mCaption, mDir, mFilter);
+    setSelection(selection);
+    return selection;
+}
+
+QStringList PathRetriever::getReadFiles(QWidget *parent) {
+    QStringList selection = QFileDialog::getOpenFileNames(parent, mCaption, mDir, mFilter);
+    if (!selection.empty())
+        setSelection(selection.front());
+    return selection;
+}
 
 //=================
 // DialogContainer
