@@ -193,25 +193,25 @@ SequenceView::SequenceView(QWidget *parent) :
     connect(mTreeWidget, &QTreeWidget::itemChanged, this, &SequenceView::onItemChange);
     connect(mTreeWidget, &QTreeWidget::itemDoubleClicked, this, &SequenceView::onItemDoubleClick);
 
-    auto selectFamilyButton = new QPushButton("Types", this);
-    selectFamilyButton->setToolTip("Filter by type");
-    connect(selectFamilyButton, &QPushButton::clicked, this, &SequenceView::onFamilyFilterClick);
+    mFamilySelectorButton = new QPushButton("Types", this);
+    mFamilySelectorButton->setToolTip("Filter by type");
+    connect(mFamilySelectorButton, &QPushButton::clicked, this, &SequenceView::onFamilyFilterClick);
 
     mFamilySelector = new FamilySelector(this);
     mFamilySelector->setFamilies(all_families);
     mFamilySelector->setWindowFlags(Qt::Dialog);
     mFamilySelector->setVisible(false);
-    connect(mFamilySelector, &FamilySelector::familiesChanged, this, &SequenceView::updateItemsVisibility);
+    connect(mFamilySelector, &FamilySelector::familiesChanged, this, &SequenceView::onFamiliesChanged);
 
-    auto selectChannelButton = new QPushButton("Channels", this);
-    selectChannelButton->setToolTip("Filter by channel");
-    connect(selectChannelButton, &QPushButton::clicked, this, &SequenceView::onChannelFilterClick);
+    mChannelSelectorButton = new QPushButton("Channels", this);
+    mChannelSelectorButton->setToolTip("Filter by channel");
+    connect(mChannelSelectorButton, &QPushButton::clicked, this, &SequenceView::onChannelFilterClick);
 
     mChannelsSelector = new ChannelsSelector(this);
     mChannelsSelector->setChannels(all_channels);
     mChannelsSelector->setWindowFlags(Qt::Dialog);
     mChannelsSelector->setVisible(false);
-    connect(mChannelsSelector, &ChannelsSelector::channelsChanged, this, &SequenceView::updateItemsVisibility);
+    connect(mChannelsSelector, &ChannelsSelector::channelsChanged, this, &SequenceView::onChannelsChanged);
 
     auto codecSelector = new QComboBox(this);
     codecSelector->setToolTip("Text Encoding");
@@ -232,7 +232,7 @@ SequenceView::SequenceView(QWidget *parent) :
     expandButton->setIcon(QIcon(":/data/expand-down.svg"));
     connect(expandButton, &QToolButton::clicked, mTreeWidget, &QTreeWidget::expandAll);
 
-    setLayout(make_vbox(margin_tag{0}, mTreeWidget, make_hbox(stretch_tag{}, selectChannelButton, selectFamilyButton, codecSelector, expandButton, collapseButton)));
+    setLayout(make_vbox(margin_tag{0}, mTreeWidget, make_hbox(stretch_tag{}, mChannelSelectorButton, mFamilySelectorButton, codecSelector, expandButton, collapseButton)));
 }
 
 DistordedClock& SequenceView::distordedClock() {
@@ -393,6 +393,23 @@ void SequenceView::updateItemsVisibility() {
 
 void SequenceView::updateItemVisibility(SequenceViewItem* item) {
     item->updateVisibiliy(mFamilySelector->families(), mChannelsSelector->channels(), mLower, mUpper);
+}
+
+void SequenceView::onFamiliesChanged(families_t families) {
+    if (families.all(midi_families))
+        mFamilySelectorButton->setText("Types");
+    else
+        mFamilySelectorButton->setText("Types*");
+    updateItemsVisibility();
+
+}
+
+void SequenceView::onChannelsChanged(channels_t channels) {
+    if (channels == all_channels)
+        mChannelSelectorButton->setText("Channels");
+    else
+        mChannelSelectorButton->setText("Channels*");
+    updateItemsVisibility();
 }
 
 void SequenceView::addNextEvent() {

@@ -159,6 +159,8 @@ private slots:
     void setItemBackground(QTreeWidgetItem* item, channels_t channels);
     void updateItemsVisibility();
     void updateItemVisibility(SequenceViewItem* item);
+    void onFamiliesChanged(families_t families);
+    void onChannelsChanged(channels_t channels);
 
 signals:
     void positionSelected(timestamp_t timestamp, Qt::MouseButton);
@@ -168,6 +170,8 @@ private:
     ChannelEditor* mChannelEditor;
     FamilySelector* mFamilySelector;
     ChannelsSelector* mChannelsSelector;
+    QPushButton* mFamilySelectorButton;
+    QPushButton* mChannelSelectorButton;
     QTimer* mEventUpdater; /*!< timer filling sequence event asynchronously */
     Sequence mSequence;
     Sequence::const_iterator mSequenceIt; /*!< iterator pointing to the next event to add */
