@@ -22,7 +22,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QMimeData>
 #include <QTextCodec>
 #include <QByteArrayList>
-#include <QInputDialog>
 #include <QPushButton>
 #include "player.h"
 #include "handlers/trackfilter.h"

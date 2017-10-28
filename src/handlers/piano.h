@@ -24,7 +24,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QWidget>
 #include <QEvent>
 #include <QPaintEvent>
-#include <QSet>
 #include <QLayout>
 #include <QLayoutItem>
 #include <QRect>

@@ -38,6 +38,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QAction>
 #include <QTime>
 #include <chrono>
+#include <set>
 
 //==============
 // Layout Utils
@@ -178,7 +179,7 @@ protected slots:
 private:
     bool mDontUpdateThis;
     bool mDontUpdateChildren;
-    QSet<QCheckBox*> mButtons;
+    std::set<QCheckBox*> mButtons;
 
 };
 

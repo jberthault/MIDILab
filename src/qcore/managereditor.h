@@ -181,7 +181,7 @@ protected slots:
     void editSelection();
     void renameSelection();
 
-    QSet<Handler*> selectedHandlers();
+    std::set<Handler*> selectedHandlers();
 
 private:
     QMap<Handler*, QTreeWidgetItem*> mItems;

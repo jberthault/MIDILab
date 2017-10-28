@@ -444,8 +444,7 @@ void HandlerListEditor::onDoubleClick(QTreeWidgetItem* item, int column) {
 }
 
 void HandlerListEditor::showMenu(const QPoint& point) {
-    QSet<Handler*> handlers = selectedHandlers();
-    bool singleton = handlers.size() == 1;
+    bool singleton = selectedHandlers().size() == 1;
     mEditAction->setEnabled(singleton);
     mRenameAction->setEnabled(singleton);
     mMenu->exec(mapToGlobal(point));
@@ -478,7 +477,7 @@ void HandlerListEditor::editSelection() {
 }
 
 void HandlerListEditor::renameSelection() {
-    QSet<Handler*> handlers = selectedHandlers();
+    auto handlers = selectedHandlers();
     if (handlers.size() == 1) {
         QString name = QInputDialog::getText(this, "Text Selection", "Please set the handler's name");
         if (!name.isEmpty())
@@ -488,8 +487,8 @@ void HandlerListEditor::renameSelection() {
     }
 }
 
-QSet<Handler*> HandlerListEditor::selectedHandlers() {
-    QSet<Handler*> result;
+std::set<Handler*> HandlerListEditor::selectedHandlers() {
+    std::set<Handler*> result;
     for (QTreeWidgetItem* item : selectedItems()) {
         Handler* handler = handlerForItem(item);
         if (handler)

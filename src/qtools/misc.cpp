@@ -130,11 +130,10 @@ TriState::TriState(const QString& text, QWidget* parent) : TriState(parent) {
 }
 
 void TriState::addCheckBox(QCheckBox* button) {
-    if (mButtons.contains(button))
-        return;
-    mButtons.insert(button);
-    connect(button, SIGNAL(stateChanged(int)), SLOT(onChildChange(int)));
-    onChildChange(0); // update state
+    if (mButtons.insert(button).second) {
+        connect(button, SIGNAL(stateChanged(int)), SLOT(onChildChange(int)));
+        onChildChange(0); // update state
+    }
 }
 
 void TriState::onClick() {
