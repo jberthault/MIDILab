@@ -91,12 +91,18 @@ struct parser_traits<bool(const QString&, T&)> {
     using type = T;
 };
 
-#define UNSERIALIZE(setter, parser, string) do {           \
-    serial::parser_traits<decltype(parser)>::type __value; \
-    if (!parser(string, __value))                          \
-        return 0;                                          \
-    setter(__value);                                       \
-    return 1;                                              \
+#define UNSERIALIZE(key, parser, setter, param) do {           \
+    if (param.name == key) {                                   \
+        serial::parser_traits<decltype(parser)>::type __value; \
+        if (!parser(param.value, __value))                     \
+            return 0;                                          \
+        setter(__value);                                       \
+        return 1;                                              \
+    }                                                          \
+} while (false)
+
+#define SERIALIZE(key, serializer, value, params) do {   \
+    params.push_back(Parameter{key, serializer(value)}); \
 } while (false)
 
 }
@@ -176,7 +182,7 @@ public:
         QString defaultValue; /*!< value considered if not specified, empty means N/A */
     };
 
-    using Parameters = QVector<Parameter>;
+    using Parameters = std::vector<Parameter>;
     using instance_type = std::pair<Handler*, QWidget*>;
 
     using QObject::QObject;
@@ -271,6 +277,14 @@ class HandlerView : public QWidget {
     Q_OBJECT
 
 public:
+
+    struct Parameter {
+        QString name;
+        QString value;
+    };
+
+    using Parameters = std::vector<Parameter>;
+
     explicit HandlerView(QWidget* parent);
 
     ChannelEditor* channelEditor(); /*!< shortcut for context()->channelEditor() */
@@ -278,9 +292,9 @@ public:
     Context* context();
     void setContext(Context* context);
 
-    virtual QMap<QString, QString> getParameters() const;
-    virtual size_t setParameter(const QString& key, const QString& value);
-    size_t setParameters(const QMap<QString, QString>& parameters);
+    virtual Parameters getParameters() const;
+    virtual size_t setParameter(const Parameter& Parameter);
+    size_t setParameters(const Parameters& parameters);
 
 protected:
     virtual void updateContext(Context* context);
@@ -342,8 +356,8 @@ class GraphicalHandler : public HandlerView, public Handler {
 public:
     explicit GraphicalHandler(mode_type mode, const QString& name, QWidget* parent);
 
-    QMap<QString, QString> getParameters() const override;
-    size_t setParameter(const QString& key, const QString& value) override;
+    Parameters getParameters() const override;
+    size_t setParameter(const Parameter& parameter) override;
 
     track_t track() const;
     void setTrack(track_t track);
@@ -384,8 +398,8 @@ public:
     result_type handle_message(const Message& message) override;
     result_type on_close(state_type state) override;
 
-    QMap<QString, QString> getParameters() const override;
-    size_t setParameter(const QString& key, const QString& value) override;
+    Parameters getParameters() const override;
+    size_t setParameter(const Parameter& parameter) override;
 
     byte_t velocity() const;
     void setVelocity(byte_t velocity);

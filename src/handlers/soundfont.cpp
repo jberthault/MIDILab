@@ -243,21 +243,20 @@ SoundFontEditor::SoundFontEditor(SoundFontHandler* handler, QWidget* parent) :
     setLayout(form);
 }
 
-QMap<QString, QString> SoundFontEditor::getParameters() const {
+HandlerView::Parameters SoundFontEditor::getParameters() const {
     auto result = HandlerEditor::getParameters();
-    result["file"] = QString::fromStdString(static_cast<SoundFontHandler*>(handler())->file());
-    result["gain"] = serial::serializeDouble(static_cast<SoundFontHandler*>(handler())->gain());
+    SERIALIZE("file", QString::fromStdString, static_cast<SoundFontHandler*>(handler())->file(), result);
+    SERIALIZE("gain", serial::serializeDouble, static_cast<SoundFontHandler*>(handler())->gain(), result);
     return result;
 }
 
-size_t SoundFontEditor::setParameter(const QString& key, const QString& value) {
-    if (key == "file") {
-        setFile(value);
+size_t SoundFontEditor::setParameter(const Parameter& parameter) {
+    if (parameter.name == "file") {
+        setFile(parameter.value);
         return 1;
-    } else if (key == "gain") {
-        UNSERIALIZE(setGain, serial::parseDouble, value);
     }
-    return HandlerEditor::setParameter(key, value);
+    UNSERIALIZE("gain", serial::parseDouble, setGain, parameter);
+    return HandlerEditor::setParameter(parameter);
 }
 
 void SoundFontEditor::onClick() {

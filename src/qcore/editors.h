@@ -336,7 +336,7 @@ public:
 
     QString name() const;
     QString group() const;
-    QMap<QString, QString> parameters() const;
+    HandlerView::Parameters parameters() const;
 
 private:
     QLineEdit* addField(const MetaHandler::Parameter& param);

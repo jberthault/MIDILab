@@ -189,16 +189,15 @@ Piano::Piano(const QString& name, QWidget* parent) :
     setRange(qMakePair(Note(Tonality::A, 0), Note(Tonality::C, 7)));
 }
 
-QMap<QString, QString> Piano::getParameters() const {
+HandlerView::Parameters Piano::getParameters() const {
     auto result = Instrument::getParameters();
-    result["range"] = serial::serializeRange(mRange);
+    SERIALIZE("range", serial::serializeRange, mRange, result);
     return result;
 }
 
-size_t Piano::setParameter(const QString& key, const QString& value) {
-    if (key == "range")
-        UNSERIALIZE(setRange, serial::parseRange, value);
-    return Instrument::setParameter(key, value);
+size_t Piano::setParameter(const Parameter& parameter) {
+    UNSERIALIZE("range", serial::parseRange, setRange, parameter);
+    return Instrument::setParameter(parameter);
 }
 
 const QPair<Note, Note>& Piano::range() const {

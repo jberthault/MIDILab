@@ -208,11 +208,11 @@ const MetaHandler::Parameters& MetaHandler::parameters() const {
 }
 
 void MetaHandler::addParameters(const Parameters& parameters) {
-    mParameters.append(parameters);
+    mParameters.insert(mParameters.end(), parameters.begin(), parameters.end());
 }
 
 void MetaHandler::addParameter(const Parameter& parameter) {
-    mParameters.append(parameter);
+    mParameters.push_back(parameter);
 }
 
 void MetaHandler::addParameter(const QString& name, const QString& type, const QString& description, const QString& defaultValue) {
@@ -295,22 +295,20 @@ void HandlerView::setContext(Context* context) {
     mContext = context;
 }
 
-QMap<QString, QString> HandlerView::getParameters() const {
+HandlerView::Parameters HandlerView::getParameters() const {
     return {};
 }
 
-size_t HandlerView::setParameter(const QString& /*key*/, const QString& /*value*/) {
+size_t HandlerView::setParameter(const Parameter& /*parameter*/) {
     return 0;
 }
 
-size_t HandlerView::setParameters(const QMap<QString, QString>& parameters) {
+size_t HandlerView::setParameters(const Parameters& parameters) {
     size_t results = 0;
-    QMapIterator<QString, QString> it(parameters);
-    while (it.hasNext()) {
-        it.next();
-        size_t count = setParameter(it.key(), it.value());
+    for (const auto& parameter : parameters) {
+        size_t count = setParameter(parameter);
         if (!count)
-            TRACE_WARNING("unable to set parameter " << it.key().toStdString());
+            TRACE_WARNING("unable to set parameter " << parameter.name.toStdString());
         results += count;
     }
     return results;
@@ -369,16 +367,15 @@ GraphicalHandler::GraphicalHandler(mode_type mode, const QString& name, QWidget*
     set_name(qstring2name(name));
 }
 
-QMap<QString, QString> GraphicalHandler::getParameters() const {
+HandlerView::Parameters GraphicalHandler::getParameters() const {
     auto result = HandlerView::getParameters();
-    result["track"] = serial::serializeTrack(mTrack);
+    SERIALIZE("track", serial::serializeTrack, mTrack, result);
     return result;
 }
 
-size_t GraphicalHandler::setParameter(const QString& key, const QString& value) {
-    if (key == "track")
-        UNSERIALIZE(setTrack, serial::parseTrack, value);
-    return HandlerView::setParameter(key, value);
+size_t GraphicalHandler::setParameter(const Parameter& parameter) {
+    UNSERIALIZE("track", serial::parseTrack, setTrack, parameter);
+    return HandlerView::setParameter(parameter);
 }
 
 track_t GraphicalHandler::track() const {
@@ -454,16 +451,15 @@ Handler::result_type Instrument::handle_message(const Message& message) {
     return result_type::unhandled;
 }
 
-QMap<QString, QString> Instrument::getParameters() const {
+HandlerView::Parameters Instrument::getParameters() const {
     auto result = GraphicalHandler::getParameters();
-    result["velocity"] = serial::serializeByte(mVelocity);
+    SERIALIZE("velocity", serial::serializeByte, mVelocity, result);
     return result;
 }
 
-size_t Instrument::setParameter(const QString& key, const QString& value) {
-    if (key == "velocity")
-        UNSERIALIZE(setVelocity, serial::parseByte, value);
-    return GraphicalHandler::setParameter(key, value);
+size_t Instrument::setParameter(const Parameter& parameter) {
+    UNSERIALIZE("velocity", serial::parseByte, setVelocity, parameter);
+    return GraphicalHandler::setParameter(parameter);
 }
 
 byte_t Instrument::velocity() const {

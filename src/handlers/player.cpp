@@ -1272,20 +1272,20 @@ Player::Player(SequenceReader* sr, QWidget* parent) :
     setLayout(make_vbox(margin_tag{0}, mMediaView, mTracker, mTempoView, tab));
 }
 
-QMap<QString, QString> Player::getParameters() const {
+HandlerView::Parameters Player::getParameters() const {
     auto result = HandlerEditor::getParameters();
     auto paths = mPlaylist->paths();
     if (!paths.empty())
-        result["playlist"] = paths.join(';');
+        result.push_back(Parameter{"playlist", paths.join(';')});
     return result;
 }
 
-size_t Player::setParameter(const QString& key, const QString& value) {
-    if (key == "playlist") {
-        mPlaylist->addPaths(value.split(';'));
+size_t Player::setParameter(const Parameter& parameter) {
+    if (parameter.name == "playlist") {
+        mPlaylist->addPaths(parameter.value.split(';'));
         return 1;
     }
-    return HandlerEditor::setParameter(key, value);
+    return HandlerEditor::setParameter(parameter);
 }
 
 void Player::updateContext(Context* context) {

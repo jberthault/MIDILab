@@ -46,7 +46,7 @@ class Guitar : public Instrument {
 
     Q_OBJECT
 
-    using ChannelAffectation = QMap<int, int>; /*!< Note : Guitar String */
+    using ChannelAffectation = std::map<int, int>; /*!< Note : Guitar String */
 
 public:
     static const QList<Note> guitarTuning; /*!< E3 A4 D4 G4 B5 E5 */

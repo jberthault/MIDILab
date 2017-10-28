@@ -513,8 +513,8 @@ public:
     void setSequence(const Sequence& sequence, bool play);
     void setTrackFilter(Handler* handler);
 
-    QMap<QString, QString> getParameters() const override;
-    size_t setParameter(const QString& key, const QString& value) override;
+    Parameters getParameters() const override;
+    size_t setParameter(const Parameter& parameter) override;
 
 protected:
     void updateContext(Context* context) override;

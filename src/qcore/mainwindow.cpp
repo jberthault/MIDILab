@@ -81,7 +81,7 @@ struct ConfigurationPuller {
         HandlerConfiguration hc(handler.name);
         hc.host = viewReferences.value(handler.id, nullptr);
         for (const parsing::Property& prop : handler.properties)
-            hc.parameters[prop.key] = prop.value;
+            hc.parameters.push_back(HandlerView::Parameter{prop.key, prop.value});
         hc.group = handler.group;
         // create the handler
         Handler* h = Manager::instance->loadHandler(handler.type, hc);
@@ -154,13 +154,9 @@ struct ConfigurationPusher {
             handlerConfig.id = QString("#%1").arg(id++);
             handlerConfig.name = handlerName(handler);
             handlerConfig.group = holder ? QString::fromStdString(holder->name()) : QString();
-            if (view) {
-                QMapIterator<QString, QString> paramsIt(view->getParameters());
-                while (paramsIt.hasNext()) {
-                    paramsIt.next();
-                    handlerConfig.properties.push_back(parsing::Property{paramsIt.key(), paramsIt.value()});
-                }
-            }
+            if (view)
+                for (const auto& parameter : view->getParameters())
+                    handlerConfig.properties.push_back(parsing::Property{parameter.name, parameter.value});
         }
     }
 
@@ -471,9 +467,7 @@ void MainWindow::addFiles(const QStringList& files) {
     while (it.hasNext()) {
         it.next();
         if (it.value().type == "Player") {
-            QMap<QString, QString> parameters;
-            parameters["playlist"] = files.join(";");
-            Manager::instance->setParameters(it.key(), parameters);
+            Manager::instance->setParameters(it.key(), {HandlerView::Parameter{"playlist", files.join(";")}});
             return;
         }
     }

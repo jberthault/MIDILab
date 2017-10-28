@@ -49,8 +49,8 @@ public:
 
     ChannelsSlider* slider();
 
-    QMap<QString, QString> getParameters() const override;
-    size_t setParameter(const QString& key, const QString& value) override;
+    Parameters getParameters() const override;
+    size_t setParameter(const Parameter& parameter) override;
 
     result_type on_close(state_type state) override;
 
@@ -97,8 +97,8 @@ public:
     byte_t controller() const;
     void setController(byte_t controller);
 
-    QMap<QString, QString> getParameters() const override;
-    size_t setParameter(const QString& key, const QString& value) override;
+    Parameters getParameters() const override;
+    size_t setParameter(const Parameter& parameter) override;
 
     families_t handled_families() const override;
     result_type handle_message(const Message& message) override;

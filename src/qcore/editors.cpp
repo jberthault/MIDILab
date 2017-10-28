@@ -752,14 +752,14 @@ QString HandlerConfigurator::group() const {
     return result;
 }
 
-QMap<QString, QString> HandlerConfigurator::parameters() const {
-    QMap<QString, QString> result;
+HandlerView::Parameters HandlerConfigurator::parameters() const {
+    HandlerView::Parameters result;
     QMapIterator<QString, QLineEdit*> it(mEditors);
     while (it.hasNext()) {
         it.next();
         auto text = it.value()->text();
         if (!text.isEmpty())
-            result[it.key()] = text;
+            result.push_back(HandlerView::Parameter{it.key(), text});
     }
     return result;
 }

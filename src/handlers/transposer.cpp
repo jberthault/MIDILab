@@ -150,16 +150,15 @@ void TransposerEditor::updateContext(Context* context) {
     mSlider->setChannelEditor(context->channelEditor());
 }
 
-QMap<QString, QString> TransposerEditor::getParameters() const {
+HandlerView::Parameters TransposerEditor::getParameters() const {
     auto result = HandlerEditor::getParameters();
-    result["orientation"] = serial::serializeOrientation(mSlider->orientation());
+    SERIALIZE("orientation", serial::serializeOrientation, mSlider->orientation(), result);
     return result;
 }
 
-size_t TransposerEditor::setParameter(const QString& key, const QString& value) {
-    if (key == "orientation")
-        UNSERIALIZE(mSlider->setOrientation, serial::parseOrientation, value);
-    return HandlerEditor::setParameter(key, value);
+size_t TransposerEditor::setParameter(const Parameter& parameter) {
+    UNSERIALIZE("orientation", serial::parseOrientation, mSlider->setOrientation, parameter);
+    return HandlerEditor::setParameter(parameter);
 }
 
 void TransposerEditor::onMove(channels_t channels, qreal ratio) {

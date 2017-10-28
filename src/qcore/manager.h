@@ -41,7 +41,7 @@ struct HandlerConfiguration {
     QWidget* parent;
     SingleDisplayer* host; /*!< widget receiving the handler, new detached handler if null */
     QString group;
-    QMap<QString, QString> parameters; /*!< parameters to apply to the handler */
+    HandlerView::Parameters parameters; /*!< parameters to apply to the handler */
 
 };
 
@@ -93,7 +93,7 @@ public slots:
     void toggleHandler(Handler* handler, Handler::state_type state);
     void renameHandler(Handler* handler, const QString& name);
     bool editHandler(Handler* handler); /*!< returns false if handler has no editor */
-    void setParameters(Handler* handler, const QMap<QString, QString>& parameters);
+    void setParameters(Handler* handler, const HandlerView::Parameters& parameters);
 
     // -------------------
     // handlers management

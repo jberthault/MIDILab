@@ -76,12 +76,12 @@ void Guitar::setNote(channels_t channels, const Note& note, bool on) {
 void Guitar::setSingle(channel_t channel, const Note& note, bool on) {
     ChannelAffectation& aff = mAffectations[channel];
     if (on) {
-        if (aff.contains(note.code()))
+        if (aff.count(note.code()) == 1)
             return;
         // affect
         // update
     } else {
-        if (aff.remove(note.code())) {
+        if (aff.erase(note.code()) == 1) {
             // update
         }
     }

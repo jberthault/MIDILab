@@ -99,16 +99,15 @@ Harmonica::Harmonica(const QString& name, QWidget* parent) :
 
 }
 
-QMap<QString, QString> Harmonica::getParameters() const {
+HandlerView::Parameters Harmonica::getParameters() const {
     auto result = Instrument::getParameters();
-    result["tonality"] = serial::serializeNote(mTonality);
+    SERIALIZE("tonality", serial::serializeNote, mTonality, result);
     return result;
 }
 
-size_t Harmonica::setParameter(const QString& key, const QString& value) {
-    if (key == "tonality")
-        UNSERIALIZE(setTonality, serial::parseNote, value);
-    return Instrument::setParameter(key, value);
+size_t Harmonica::setParameter(const Parameter& parameter) {
+    UNSERIALIZE("tonality", serial::parseNote, setTonality, parameter);
+    return Instrument::setParameter(parameter);
 }
 
 void Harmonica::onPress(QAbstractButton* button) {

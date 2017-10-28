@@ -208,7 +208,7 @@ bool Manager::editHandler(Handler* handler) {
     return true;
 }
 
-void Manager::setParameters(Handler* handler, const QMap<QString, QString>& parameters) {
+void Manager::setParameters(Handler* handler, const HandlerView::Parameters& parameters) {
     Q_ASSERT(handler);
     HandlerView* view = dynamic_cast<GraphicalHandler*>(handler);
     if (!view)

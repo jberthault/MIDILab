@@ -69,16 +69,15 @@ ChannelsSlider* AbstractWheel::slider() {
     return mSlider;
 }
 
-QMap<QString, QString> AbstractWheel::getParameters() const {
+HandlerView::Parameters AbstractWheel::getParameters() const {
     auto result = GraphicalHandler::getParameters();
-    result["orientation"] = serial::serializeOrientation(mSlider->orientation());
+    SERIALIZE("orientation", serial::serializeOrientation, mSlider->orientation(), result);
     return result;
 }
 
-size_t AbstractWheel::setParameter(const QString& key, const QString& value) {
-    if (key == "orientation")
-        UNSERIALIZE(mSlider->setOrientation, serial::parseOrientation, value);
-    return GraphicalHandler::setParameter(key, value);
+size_t AbstractWheel::setParameter(const Parameter& parameter) {
+    UNSERIALIZE("orientation", serial::parseOrientation, mSlider->setOrientation, parameter);
+    return GraphicalHandler::setParameter(parameter);
 }
 
 Handler::result_type AbstractWheel::on_close(state_type state) {
@@ -149,18 +148,15 @@ void ControllerWheel::setController(byte_t controller) {
         mControllerBox->setCurrentIndex(index); // will update mController
 }
 
-QMap<QString, QString> ControllerWheel::getParameters() const {
+HandlerView::Parameters ControllerWheel::getParameters() const {
     auto result = AbstractWheel::getParameters();
-    result["controller"] = serial::serializeByte(mController);
+    SERIALIZE("controller", serial::serializeByte, mController, result);
     return result;
 }
 
-size_t ControllerWheel::setParameter(const QString& key, const QString& value) {
-    if (key == "controller") {
-        UNSERIALIZE(setController, serial::parseByte, value);
-        return 1;
-    }
-    return AbstractWheel::setParameter(key, value);
+size_t ControllerWheel::setParameter(const Parameter& parameter) {
+    UNSERIALIZE("controller", serial::parseByte, setController, parameter);
+    return AbstractWheel::setParameter(parameter);
 }
 
 families_t ControllerWheel::handled_families() const {

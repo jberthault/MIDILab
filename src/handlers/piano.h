@@ -139,8 +139,8 @@ class Piano : public Instrument {
 public:
     explicit Piano(const QString& name, QWidget* parent);
 
-    QMap<QString, QString> getParameters() const override;
-    size_t setParameter(const QString& key, const QString& value) override;
+    Parameters getParameters() const override;
+    size_t setParameter(const Parameter& parameter) override;
 
     const QPair<Note, Note>& range() const;
     void setRange(const QPair<Note, Note>& range);

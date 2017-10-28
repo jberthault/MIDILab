@@ -103,8 +103,8 @@ class SoundFontEditor : public HandlerEditor {
 public:
     explicit SoundFontEditor(SoundFontHandler* handler, QWidget* parent);
 
-    QMap<QString, QString> getParameters() const override;
-    size_t setParameter(const QString& key, const QString& value) override;
+    Parameters getParameters() const override;
+    size_t setParameter(const Parameter& parameter) override;
 
 public slots:
     void onClick();
