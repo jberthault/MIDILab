@@ -353,7 +353,7 @@ void MainWindow::loadConfig() {
 void MainWindow::loadConfig(const QString& fileName) {
     raiseConfig(fileName);
     close();
-    QProcess::startDetached(qApp->arguments()[0], qApp->arguments());
+    QProcess::startDetached(QString("\"%1\"").arg(qApp->arguments()[0]));
 }
 
 void MainWindow::writeConfig() {
@@ -462,6 +462,21 @@ void MainWindow::setupMenu() {
     helpMenu->addSeparator();
     helpMenu->addAction(QIcon(":/data/info.svg"), "About", this, SLOT(about()));
 
+}
+
+void MainWindow::addFiles(const QStringList& files) {
+    if (files.empty())
+        return;
+    QMapIterator<Handler*, Manager::Data> it(Manager::instance->storage());
+    while (it.hasNext()) {
+        it.next();
+        if (it.value().type == "Player") {
+            QMap<QString, QString> parameters;
+            parameters["playlist"] = files.join(";");
+            Manager::instance->setParameters(it.key(), parameters);
+            return;
+        }
+    }
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {

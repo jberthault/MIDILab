@@ -630,7 +630,6 @@ Sequence PlaylistTable::loadRelative(int offset, bool wrap) {
     return loadRow(row);
 }
 
-
 void PlaylistTable::setContext(Context* context) {
     mContext = context;
 }
@@ -728,34 +727,16 @@ void PlaylistTable::dropEvent(QDropEvent* event) {
         qSort(urls);
         for (const QUrl& url : urls)
             addPath(url.toLocalFile());
+        event->accept();
         return;
     }
-    // just accepts events that come from the table itself
-    if (event->source() != this) {
-        qWarning() << "wrong source";
+    // drop selected rows from the table itself
+    if (event->source() == this && event->mimeData()->hasFormat("application/x-qabstractitemmodeldatalist")) {
+        moveRows(selectedRows(), rowAt(event->pos()));
+        event->accept();
         return;
     }
-    // get selected rows
-    QList<int> rows = selectedRows();
-    // compute row where data should be inserted
-    int rowOffset = rowAt(event->pos());
-    // insert new rows
-    for (int i=0 ; i < rows.size() ; i++)
-        insertRow(rowOffset);
-    // adjust row selection after insertion
-    for (int& row : rows)
-        if (row >= rowOffset)
-            row += rows.size();
-    // copy selected rows
-    for (int row : rows) {
-        for (int col=0 ; col < columnCount() ; ++col)
-            setItem(rowOffset, col, takeItem(row, col));
-        rowOffset++;
-    }
-    // remove inner rows
-    removeRows(rows);
-    // accept the drop
-    event->accept();
+    QTableWidget::dropEvent(event);
 }
 
 void PlaylistTable::rowsAboutToBeRemoved(const QModelIndex& parent, int start, int end) {
@@ -764,15 +745,34 @@ void PlaylistTable::rowsAboutToBeRemoved(const QModelIndex& parent, int start, i
     QTableWidget::rowsAboutToBeRemoved(parent, start, end);
 }
 
-QList<int> PlaylistTable::selectedRows() const {
-    QList<int> sourceRows;
+std::vector<int> PlaylistTable::selectedRows() const {
+    std::vector<int> sourceRows;
+    sourceRows.reserve(rowCount());
     for (const QModelIndex& index : selectionModel()->selectedRows())
-        sourceRows.append(index.row());
+        sourceRows.push_back(index.row());
     return sourceRows;
 }
 
-void PlaylistTable::removeRows(QList<int> rows) {
-    qSort(rows.begin(), rows.end(), qGreater<int>());
+void PlaylistTable::moveRows(std::vector<int> rows, int location) {
+    // insert new rows
+    for (size_t i=0 ; i < rows.size() ; i++)
+        insertRow(location);
+    // adjust row selection after insertion
+    for (int& row : rows)
+        if (row >= location)
+            row += rows.size();
+    // copy selected rows
+    for (int row : rows) {
+        for (int col=0 ; col < columnCount() ; ++col)
+            setItem(location, col, takeItem(row, col));
+        ++location;
+    }
+    // remove inner rows
+    removeRows(std::move(rows));
+}
+
+void PlaylistTable::removeRows(std::vector<int> rows) {
+    std::sort(rows.begin(), rows.end(), std::greater<>());
     for (int row : rows)
         removeRow(row);
 }

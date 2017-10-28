@@ -107,6 +107,7 @@ public slots:
     void newDisplayer();
     void unimplemented();
     void setupMenu();
+    void addFiles(const QStringList& files); /*!< add files to an existing playlist */
 
 private slots:
     void onConfigSelection(QAction* action);

@@ -273,8 +273,9 @@ protected:
     void rowsAboutToBeRemoved(const QModelIndex& parent, int start, int end) override;
 
 private:
-    QList<int> selectedRows() const;
-    void removeRows(QList<int> rows);
+    std::vector<int> selectedRows() const;
+    void moveRows(std::vector<int> rows, int location);
+    void removeRows(std::vector<int> rows);
     int rowAt(const QPoint& pos) const;
     QAction* makeAction(const QIcon& icon, const QString& text);
     QAction* makeSeparator();

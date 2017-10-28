@@ -24,17 +24,23 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <qcore/core.h>
 
 int main(int argc, char *argv[]) {
+    // application
     QApplication app(argc, argv);
     QApplication::setOrganizationName("MIDILab");
     QApplication::setApplicationName("MIDILab");
     QApplication::setApplicationVersion(MIDILAB_VERSION_STRING);
+    app.setWindowIcon(QIcon(":/data/logo.png"));
     // register meta types
     qRegisterMetaType<Message>();
-    // set application icon
-    app.setWindowIcon(QIcon(":/data/logo.png"));
     // load default stylesheet if not specified
     if (app.styleSheet().isNull())
         app.setStyleSheet("file:///:/data/theme.stylesheet");
+    // command line
+    QCommandLineParser parser;
+    parser.addHelpOption();
+    parser.addVersionOption();
+    parser.addPositionalArgument("files", "Paths to midi files", "[files...]");
+    parser.process(app);
     // load a splash screen
     QPixmap pixmap(":/data/logo.png");
     QSplashScreen splash(pixmap);
@@ -43,6 +49,7 @@ int main(int argc, char *argv[]) {
     // create main window
     MainWindow window(nullptr);
     window.readLastConfig();
+    window.addFiles(parser.positionalArguments());
     window.show();
     // close the splash when window is built
     splash.finish(&window);
