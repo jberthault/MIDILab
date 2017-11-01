@@ -45,7 +45,7 @@ class MetaForwarder : public MetaHandler {
 public:
     explicit MetaForwarder(QObject* parent);
 
-    instance_type instantiate(const QString& name, QWidget* parent) override;
+    Instance instantiate() override;
 
 };
 

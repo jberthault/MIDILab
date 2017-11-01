@@ -493,7 +493,7 @@ class MetaPlayer : public MetaHandler {
 public:
     explicit MetaPlayer(QObject* parent);
 
-    instance_type instantiate(const QString& name, QWidget* parent) override;
+    Instance instantiate() override;
 
 };
 
@@ -506,8 +506,7 @@ class Player : public HandlerEditor {
     Q_OBJECT
     
 public:
-
-    explicit Player(SequenceReader* sr, QWidget* parent);
+    explicit Player(SequenceReader* sr);
 
     void setNextSequence(bool play, int offset);
     void setSequence(const Sequence& sequence, bool play);

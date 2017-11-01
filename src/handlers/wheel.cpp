@@ -54,8 +54,7 @@ MetaWheel::MetaWheel(QObject* parent) : MetaGraphicalHandler(parent) {
 // AbstractWheel
 //===============
 
-AbstractWheel::AbstractWheel(mode_type mode, const QString& name, QWidget* parent) :
-    GraphicalHandler(mode, name, parent) {
+AbstractWheel::AbstractWheel(mode_type mode) : GraphicalHandler(mode) {
 
     mSlider = new ChannelsSlider(Qt::Vertical, this);
     mSlider->setTextWidth(40);
@@ -108,16 +107,15 @@ MetaControllerWheel::MetaControllerWheel(QObject* parent) : MetaWheel(parent) {
     addParameter("controller", ":controller", "controller id(s) reacting over the GUI", "0x00");
 }
 
-MetaHandler::instance_type MetaControllerWheel::instantiate(const QString& name, QWidget* parent) {
-    return instance_type(new ControllerWheel(name, parent), nullptr);
+MetaHandler::Instance MetaControllerWheel::instantiate() {
+    return Instance(new ControllerWheel, nullptr);
 }
 
 //=================
 // ControllerWheel
 //=================
 
-ControllerWheel::ControllerWheel(const QString& name, QWidget* parent) :
-    AbstractWheel(io_mode, name, parent) {
+ControllerWheel::ControllerWheel() : AbstractWheel(io_mode) {
 
     mDefaultValues.fill(0);
     for (const auto& value : controller_tools::info())
@@ -220,15 +218,15 @@ MetaPitchWheel::MetaPitchWheel(QObject* parent) : MetaWheel(parent) {
     setIdentifier("PitchWheel");
 }
 
-MetaHandler::instance_type MetaPitchWheel::instantiate(const QString& name, QWidget* parent) {
-    return instance_type(new PitchWheel(name, parent), nullptr);
+MetaHandler::Instance MetaPitchWheel::instantiate() {
+    return Instance(new PitchWheel, nullptr);
 }
 
 //============
 // PitchWheel
 //============
 
-PitchWheel::PitchWheel(const QString& name, QWidget* parent) : AbstractWheel(io_mode, name, parent) {
+PitchWheel::PitchWheel() : AbstractWheel(io_mode) {
 
     mRegisteredParameters.fill(0x3fff);
     mPitchRanges.fill(2);
@@ -403,15 +401,15 @@ MetaProgramWheel::MetaProgramWheel(QObject* parent) : MetaWheel(parent) {
     setIdentifier("ProgramWheel");
 }
 
-MetaHandler::instance_type MetaProgramWheel::instantiate(const QString& name, QWidget* parent) {
-    return instance_type(new ProgramWheel(name, parent), nullptr);
+MetaHandler::Instance MetaProgramWheel::instantiate() {
+    return Instance(new ProgramWheel, nullptr);
 }
 
 //==============
 // ProgramWheel
 //==============
 
-ProgramWheel::ProgramWheel(const QString& name, QWidget* parent) : AbstractWheel(io_mode, name, parent) {
+ProgramWheel::ProgramWheel() : AbstractWheel(io_mode) {
     mPrograms.fill(0);
     prepare(.0);
 }
@@ -455,15 +453,15 @@ MetaVolume1Wheel::MetaVolume1Wheel(QObject* parent) : MetaWheel(parent) {
     setIdentifier("Volume1Wheel");
 }
 
-MetaHandler::instance_type MetaVolume1Wheel::instantiate(const QString& name, QWidget* parent) {
-    return instance_type(new Volume1Wheel(name, parent), nullptr);
+MetaHandler::Instance MetaVolume1Wheel::instantiate() {
+    return Instance(new Volume1Wheel, nullptr);
 }
 
 //==============
 // Volume1Wheel
 //==============
 
-Volume1Wheel::Volume1Wheel(const QString& name, QWidget* parent) : AbstractWheel(in_mode, name, parent) {
+Volume1Wheel::Volume1Wheel() : AbstractWheel(in_mode) {
     slider()->setExpanded(false);
     slider()->setOrientation(Qt::Horizontal);
     prepare(.5);
@@ -486,17 +484,15 @@ MetaVolume2Wheel::MetaVolume2Wheel(QObject* parent) : MetaWheel(parent) {
     setIdentifier("Volume2Wheel");
 }
 
-MetaHandler::instance_type MetaVolume2Wheel::instantiate(const QString& name, QWidget* parent) {
-    return instance_type(new Volume2Wheel(name, parent), nullptr);
+MetaHandler::Instance MetaVolume2Wheel::instantiate() {
+    return Instance(new Volume2Wheel, nullptr);
 }
 
 //==============
 // Volume2Wheel
 //==============
 
-Volume2Wheel::Volume2Wheel(const QString& name, QWidget* parent) :
-    AbstractWheel(in_mode, name, parent) {
-
+Volume2Wheel::Volume2Wheel() : AbstractWheel(in_mode) {
     slider()->setExpanded(false);
     slider()->setOrientation(Qt::Horizontal);
     prepare(.5);

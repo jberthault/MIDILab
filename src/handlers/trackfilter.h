@@ -67,7 +67,7 @@ class MetaTrackFilter : public MetaHandler {
 public:
     MetaTrackFilter(QObject* parent);
 
-    instance_type instantiate(const QString& name, QWidget* parent) override;
+    Instance instantiate() override;
 
 };
 

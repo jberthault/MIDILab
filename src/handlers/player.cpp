@@ -214,7 +214,7 @@ SequenceView::SequenceView(QWidget *parent) :
 
     auto codecSelector = new QComboBox(this);
     codecSelector->setToolTip("Text Encoding");
-    for(auto codec : findCodecs())
+    for (auto codec : findCodecs())
         codecSelector->addItem(codec->name());
     connect(codecSelector, SIGNAL(currentIndexChanged(QString)), this, SLOT(setCodecByName(QString)));
     setCodecByName(codecSelector->currentText());
@@ -1223,18 +1223,17 @@ MetaPlayer::MetaPlayer(QObject* parent) : MetaHandler(parent) {
     setIdentifier("Player");
 }
 
-MetaPlayer::instance_type MetaPlayer::instantiate(const QString& name, QWidget* parent) {
-    SequenceReader* sr = new SequenceReader;
-    sr->set_name(qstring2name(name));
-    return instance_type(sr, new Player(sr, parent));
+MetaPlayer::Instance MetaPlayer::instantiate() {
+    auto handler = new SequenceReader;
+    return Instance(handler, new Player(handler));
 }
 
 //========
 // Player
 //========
 
-Player::Player(SequenceReader* sr, QWidget* parent) :
-    HandlerEditor(sr, parent), mIsPlaying(false), mPlayer(sr), mIsStepping(false) {
+Player::Player(SequenceReader* sr) :
+    HandlerEditor(sr), mIsPlaying(false), mPlayer(sr), mIsStepping(false) {
 
     connect(this, &Player::newAffiliation, this, &Player::onAffiliation);
 

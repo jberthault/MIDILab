@@ -124,18 +124,16 @@ MetaChannelMapper::MetaChannelMapper(QObject* parent) : MetaHandler(parent) {
     setIdentifier("ChannelMapper");
 }
 
-MetaChannelMapper::instance_type MetaChannelMapper::instantiate(const QString& name, QWidget* parent) {
-    ChannelMapper* handler = new ChannelMapper;
-    handler->set_name(qstring2name(name));
-    return instance_type(handler, new ChannelMapperEditor(handler, parent));
+MetaChannelMapper::Instance MetaChannelMapper::instantiate() {
+    auto handler = new ChannelMapper;
+    return Instance(handler, new ChannelMapperEditor(handler));
 }
 
 //=====================
 // ChannelMapperEditor
 //=====================
 
-ChannelMapperEditor::ChannelMapperEditor(ChannelMapper* handler, QWidget* parent) :
-    HandlerEditor(handler, parent) {
+ChannelMapperEditor::ChannelMapperEditor(ChannelMapper* handler) : HandlerEditor(handler) {
 
     auto checkBoxLayout = new QGridLayout;
     checkBoxLayout->setMargin(0);

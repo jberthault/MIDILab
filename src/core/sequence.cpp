@@ -307,7 +307,7 @@ size_t write_event(uint32_t deltatime, const Event& event, std::ostream& stream,
         if (!event.channels())
             throw std::invalid_argument("voice event is not bound to any channel");
         // insert one event per channel
-        for(channel_t channel : event.channels()) {
+        for (channel_t channel : event.channels()) {
             bytes += write_deltatime(deltatime, stream);
             bytes += write_raw_event((0xf0 & status) | channel, event, stream, running_status);
             deltatime = 0;

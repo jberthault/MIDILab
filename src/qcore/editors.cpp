@@ -764,7 +764,7 @@ HandlerView::Parameters HandlerConfigurator::parameters() const {
     return result;
 }
 
-QLineEdit* HandlerConfigurator::addField(const MetaHandler::Parameter& param) {
+QLineEdit* HandlerConfigurator::addField(const MetaHandler::MetaParameter& param) {
     auto editor = addLine(param.name, param.description, param.defaultValue);
     mEditors.insert(param.name, editor);
     return editor;

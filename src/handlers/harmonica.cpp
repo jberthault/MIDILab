@@ -40,8 +40,8 @@ MetaHarmonica::MetaHarmonica(QObject* parent) : MetaInstrument(parent) {
     addParameter("tonality", ":note", "tonality of the harmonica with the octave, the harmonica is tuned with the richter system", "C3");
 }
 
-MetaHandler::instance_type MetaHarmonica::instantiate(const QString& name, QWidget* parent) {
-    return instance_type(new Harmonica(name, parent), nullptr);
+MetaHandler::Instance MetaHarmonica::instantiate() {
+    return Instance(new Harmonica, nullptr);
 }
 
 //===========
@@ -62,8 +62,7 @@ const QMap<Harmonica::Index, int> Harmonica::defaultTuning = {
     {{-2, 9}, 36 - 2}, {{-1, 9}, 36 - 1}, {{0, 9}, 36}, {{1, 9}, 33},
 };
 
-Harmonica::Harmonica(const QString& name, QWidget* parent) :
-    Instrument(io_mode, name, parent) {
+Harmonica::Harmonica() : Instrument(io_mode) {
 
     mGroup = new QButtonGroup(this);
     connect(mGroup, SIGNAL(buttonPressed(QAbstractButton*)), SLOT(onPress(QAbstractButton*)));

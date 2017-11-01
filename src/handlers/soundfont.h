@@ -25,6 +25,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <QLineEdit>
 #include <QToolButton>
+#include <QMovie>
 #include "qcore/editors.h"
 
 //==================
@@ -62,7 +63,25 @@ class MetaSoundFont : public MetaHandler {
 public:
     explicit MetaSoundFont(QObject* parent);
 
-    instance_type instantiate(const QString& name, QWidget* parent) override;
+    Instance instantiate() override;
+
+};
+
+//===================
+// SoundFontReceiver
+//===================
+
+class SoundFontReceiver : public CustomReceiver {
+
+    Q_OBJECT
+
+public:
+    explicit SoundFontReceiver(QObject* parent);
+
+    result_type receive_message(Handler* target, const Message& message) final;
+
+signals:
+    void fileHandled();
 
 };
 
@@ -101,21 +120,24 @@ class SoundFontEditor : public HandlerEditor {
     Q_OBJECT
 
 public:
-    explicit SoundFontEditor(SoundFontHandler* handler, QWidget* parent);
+    explicit SoundFontEditor(SoundFontHandler* handler);
 
     Parameters getParameters() const override;
     size_t setParameter(const Parameter& parameter) override;
 
 public slots:
-    void onClick();
-    void onMessageHandled(Handler* handler, const Message& message);
     void setGain(double gain);
     void setFile(const QString& file);
 
 private slots:
+    void onClick();
+    void updateFile();
     void updateGain(double gain);
 
 private:
+    SoundFontReceiver* mReceiver;
+    QMovie* mLoadMovie;
+    QLabel* mLoadLabel;
     QLineEdit* mFileEditor;
     QToolButton* mFileSelector;
     GainEditor* mGainEditor;

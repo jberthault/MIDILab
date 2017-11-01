@@ -38,7 +38,6 @@ struct HandlerConfiguration {
     HandlerConfiguration(QString name);
 
     QString name; /*!< handler's name */
-    QWidget* parent;
     SingleDisplayer* host; /*!< widget receiving the handler, new detached handler if null */
     QString group;
     HandlerView::Parameters parameters; /*!< parameters to apply to the handler */
@@ -56,7 +55,7 @@ class Manager : public Context {
 public:
 
     struct Data {
-        QWidget* editor; /*!< editor attached to the handler */
+        HandlerEditor* editor; /*!< editor attached to the handler */
         QString type; /*!< meta handler name that instantiated the handler */
         bool owns; /*!< true if handler should be deleted explicitly */
     };
@@ -99,7 +98,7 @@ public slots:
     // handlers management
     // -------------------
 
-    void insertHandler(Handler* handler, QWidget* editor, const QString& type, const QString& group);
+    void insertHandler(Handler* handler, HandlerEditor* editor, const QString& type, const QString& group);
     void removeHandler(Handler* handler);
 
     // ----------------
@@ -130,7 +129,7 @@ private:
     MetaHandlerCollector* mCollector;
     GraphicalHolder* mGUIHolder; /*!< holder using Qt event loop */
     ChannelEditor* mChannelEditor;
-    Observer* mObserver;
+    DefaultReceiver* mReceiver;
 
 };
 

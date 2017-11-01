@@ -47,10 +47,9 @@ MetaTransposer::MetaTransposer(QObject* parent) : MetaHandler(parent) {
     setIdentifier("Transposer");
 }
 
-MetaHandler::instance_type MetaTransposer::instantiate(const QString& name, QWidget* parent) {
-    Transposer* handler = new Transposer;
-    handler->set_name(qstring2name(name));
-    return instance_type(handler, new TransposerEditor(handler, parent));
+MetaHandler::Instance MetaTransposer::instantiate() {
+    auto handler = new Transposer;
+    return Instance(handler, new TransposerEditor(handler));
 }
 
 //============
@@ -128,8 +127,7 @@ void Transposer::set_key(channels_t channels, int key) {
 // TransposerEditor
 //==================
 
-TransposerEditor::TransposerEditor(Transposer* handler, QWidget* parent) :
-    HandlerEditor(handler, parent) {
+TransposerEditor::TransposerEditor(Transposer* handler) : HandlerEditor(handler) {
 
     mKeys.fill(0);
 

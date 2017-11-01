@@ -61,7 +61,7 @@ class MetaChannelMapper : public MetaHandler {
 public:
     MetaChannelMapper(QObject* parent);
 
-    instance_type instantiate(const QString& name, QWidget* parent) override;
+    Instance instantiate() override;
 
 };
 
@@ -74,7 +74,7 @@ class ChannelMapperEditor : public HandlerEditor {
     Q_OBJECT
 
 public:
-    explicit ChannelMapperEditor(ChannelMapper* handler, QWidget* parent);
+    explicit ChannelMapperEditor(ChannelMapper* handler);
 
 public slots:
     void updateMapper();

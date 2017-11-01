@@ -148,14 +148,14 @@ protected:
 // Observer
 //==========
 
-class Observer : public QObject, public Receiver {
+class Observer : public QObject {
 
     Q_OBJECT
 
 public:
-    explicit Observer(QObject* parent);
+    using QObject::QObject;
 
-    result_type receive_message(Handler* target, const Message& message) final;
+    Handler::result_type handleMessage(Handler* target, const Message& message);
 
 protected:
     bool event(QEvent* e) override;
@@ -165,9 +165,45 @@ signals:
 
 };
 
+//=================
+// DefaultReceiver
+//=================
+
+class DefaultReceiver : public Observer, public Receiver {
+
+    Q_OBJECT
+
+public:
+    explicit DefaultReceiver(QObject* parent);
+
+    result_type receive_message(Handler* target, const Message& message) final;
+
+};
+
+//================
+// CustomReceiver
+//================
+
+class CustomReceiver : public QObject, public Receiver {
+
+    Q_OBJECT
+
+public:
+    explicit CustomReceiver(QObject* parent);
+
+    Observer* observer();
+    void setObserver(Observer* observer);
+
+private:
+    Observer* mObserver;
+
+};
+
 //=============
 // MetaHandler
 //=============
+
+class HandlerEditor;
 
 class MetaHandler : public QObject {
 
@@ -175,35 +211,43 @@ class MetaHandler : public QObject {
 
 public:
 
-    struct Parameter {
+    struct MetaParameter {
         QString name; /*!< identifier of this parameter */
         QString type; /*!< the serializable type identifier encapsulating this parameter */
         QString description; /*!< description of whatever is represented by this parameter */
         QString defaultValue; /*!< value considered if not specified, empty means N/A */
     };
 
+    using MetaParameters = std::vector<MetaParameter>;
+
+    struct Parameter {
+        QString name; /*!< identifier of the supported MetaParameter */
+        QString value; /*!< encoded value of the parameter (depending on its MetaParameter's type) */
+    };
+
     using Parameters = std::vector<Parameter>;
-    using instance_type = std::pair<Handler*, QWidget*>;
+
+    using Instance = std::pair<Handler*, HandlerEditor*>;
 
     using QObject::QObject;
 
     const QString& identifier() const;
     const QString& description() const;
-    const Parameters& parameters() const;
+    const MetaParameters& parameters() const;
 
-    virtual instance_type instantiate(const QString& name, QWidget* parent) = 0;
+    virtual Instance instantiate() = 0;
 
 protected:
     void setIdentifier(const QString& identifier);
     void setDescription(const QString& description);
-    void addParameters(const Parameters& parameters);
-    void addParameter(const Parameter& parameter);
+    void addParameters(const MetaParameters& parameters);
+    void addParameter(const MetaParameter& parameter);
     void addParameter(const QString& name, const QString& type, const QString& description, const QString& defaultValue);
 
 private:
     QString mIdentifier;
     QString mDescription;
-    Parameters mParameters;
+    MetaParameters mParameters;
 
 };
 
@@ -278,14 +322,10 @@ class HandlerView : public QWidget {
 
 public:
 
-    struct Parameter {
-        QString name;
-        QString value;
-    };
+    using Parameter = MetaHandler::Parameter;
+    using Parameters = MetaHandler::Parameters;
 
-    using Parameters = std::vector<Parameter>;
-
-    explicit HandlerView(QWidget* parent);
+    explicit HandlerView();
 
     ChannelEditor* channelEditor(); /*!< shortcut for context()->channelEditor() */
 
@@ -313,15 +353,12 @@ class HandlerEditor : public HandlerView {
     Q_OBJECT
 
 public:
-    explicit HandlerEditor(Handler* handler, QWidget* parent);
+    explicit HandlerEditor(Handler* handler);
 
     Handler* handler() const;
 
 public slots:
-    void updateEditorName(); /*!< change the title using its handler name */
-    void setEditorName(const QString& name); /*!< change the title */
-    void onRename(Handler* handler); /*!< change title if handler is the edited one (usefull) */
-    void setAffiliated(const QString& type, Handler* handlers);
+    void setAffiliated(const QString& type, Handler* handler);
 
 signals:
     void newAffiliation(QString, Handler*);
@@ -354,7 +391,7 @@ class GraphicalHandler : public HandlerView, public Handler {
     Q_OBJECT
 
 public:
-    explicit GraphicalHandler(mode_type mode, const QString& name, QWidget* parent);
+    explicit GraphicalHandler(mode_type mode);
 
     Parameters getParameters() const override;
     size_t setParameter(const Parameter& parameter) override;
@@ -392,7 +429,7 @@ class Instrument : public GraphicalHandler {
     Q_OBJECT
 
 public:
-    explicit Instrument(mode_type mode, const QString& name, QWidget* parent);
+    explicit Instrument(mode_type mode);
 
     families_t handled_families() const override;
     result_type handle_message(const Message& message) override;

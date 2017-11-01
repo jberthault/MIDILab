@@ -45,7 +45,7 @@ class AbstractWheel : public GraphicalHandler {
     Q_OBJECT
 
 public:
-    explicit AbstractWheel(mode_type mode, const QString& name, QWidget* parent);
+    explicit AbstractWheel(mode_type mode);
 
     ChannelsSlider* slider();
 
@@ -79,7 +79,7 @@ class MetaControllerWheel : public MetaWheel {
 public:
     explicit MetaControllerWheel(QObject* parent);
 
-    instance_type instantiate(const QString& name, QWidget* parent) override;
+    Instance instantiate() override;
 
 };
 
@@ -92,7 +92,7 @@ class ControllerWheel : public AbstractWheel {
     Q_OBJECT
 
 public:
-    explicit ControllerWheel(const QString& name, QWidget* parent);
+    explicit ControllerWheel();
 
     byte_t controller() const;
     void setController(byte_t controller);
@@ -130,7 +130,7 @@ class MetaPitchWheel : public MetaWheel {
 public:
     explicit MetaPitchWheel(QObject* parent);
 
-    instance_type instantiate(const QString& name, QWidget* parent) override;
+    Instance instantiate() override;
 
 };
 
@@ -143,7 +143,7 @@ class PitchWheel : public AbstractWheel {
     Q_OBJECT
 
 public:
-    explicit PitchWheel(const QString& name, QWidget* parent);
+    explicit PitchWheel();
 
     families_t handled_families() const override;
     result_type handle_message(const Message& message) override;
@@ -184,7 +184,7 @@ class MetaProgramWheel : public MetaWheel {
 public:
     explicit MetaProgramWheel(QObject* parent);
 
-    instance_type instantiate(const QString& name, QWidget* parent) override;
+    Instance instantiate() override;
 };
 
 //==============
@@ -196,7 +196,7 @@ class ProgramWheel : public AbstractWheel {
     Q_OBJECT
 
 public:
-    explicit ProgramWheel(const QString& name, QWidget* parent);
+    explicit ProgramWheel();
 
     families_t handled_families() const override;
     result_type handle_message(const Message& message) override;
@@ -221,7 +221,7 @@ class MetaVolume1Wheel : public MetaWheel {
 public:
     explicit MetaVolume1Wheel(QObject* parent);
 
-    instance_type instantiate(const QString& name, QWidget* parent) override;
+    Instance instantiate() override;
 
 };
 
@@ -234,7 +234,7 @@ class Volume1Wheel : public AbstractWheel {
     Q_OBJECT
 
 public:
-    explicit Volume1Wheel(const QString& name, QWidget* parent);
+    explicit Volume1Wheel();
 
 protected slots:
     void onMove(channels_t channels, qreal ratio) override;
@@ -251,7 +251,7 @@ class MetaVolume2Wheel : public MetaWheel {
 public:
     explicit MetaVolume2Wheel(QObject* parent);
 
-    instance_type instantiate(const QString& name, QWidget* parent) override;
+    Instance instantiate() override;
 
 };
 
@@ -264,7 +264,7 @@ class Volume2Wheel : public AbstractWheel {
     Q_OBJECT
 
 public:
-    explicit Volume2Wheel(const QString& name, QWidget* parent);
+    explicit Volume2Wheel();
 
 protected slots:
     void onMove(channels_t channels, qreal ratio) override;

@@ -30,8 +30,8 @@ MetaGuitar::MetaGuitar(QObject* parent) : MetaInstrument(parent) {
     setIdentifier("Guitar");
 }
 
-MetaHandler::instance_type MetaGuitar::instantiate(const QString& name, QWidget* parent) {
-    return instance_type(new Guitar(name, parent), nullptr);
+MetaHandler::Instance MetaGuitar::instantiate() {
+    return Instance(new Guitar, nullptr);
 }
 
 //========
@@ -45,8 +45,7 @@ const QList<Note> Guitar::guitarTuning = (QList<Note>() <<
 const QList<Note> Guitar::bassTuning = (QList<Note>() <<
                                                Note::from_string("E3") << Note::from_string("A4") << Note::from_string("D4") << Note::from_string("G4") );
 
-Guitar::Guitar(const QString& name, QWidget* parent) :
-    Instrument(io_mode, name, parent), mSize(0) {
+Guitar::Guitar() : Instrument(io_mode), mSize(0) {
 
 }
 

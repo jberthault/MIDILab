@@ -34,7 +34,7 @@ class MetaGuitar : public MetaInstrument {
 public:
     explicit MetaGuitar(QObject* parent);
 
-    instance_type instantiate(const QString& name, QWidget* parent) override;
+    Instance instantiate() override;
 
 };
 
@@ -53,7 +53,7 @@ public:
     static const QList<Note> bassTuning; /*!< E3 A4 D4 G4 */
     // static const QList<Note> ukulele_tuning; /*!< G C E A */
 
-    explicit Guitar(const QString& name, QWidget* parent);
+    explicit Guitar();
 
     bool setTuning(const QList<Note>& tuning); /*!< default tuning is empty */
 

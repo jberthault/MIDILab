@@ -33,7 +33,7 @@ class MetaTransposer : public MetaHandler {
 public:
     MetaTransposer(QObject* parent);
 
-    instance_type instantiate(const QString& name, QWidget* parent) override;
+    Instance instantiate() override;
 
 };
 
@@ -81,7 +81,7 @@ class TransposerEditor : public HandlerEditor {
     Q_OBJECT
 
 public:
-    explicit TransposerEditor(Transposer* handler, QWidget* parent);
+    explicit TransposerEditor(Transposer* handler);
 
     Parameters getParameters() const override;
     size_t setParameter(const Parameter& parameter) override;

@@ -29,18 +29,16 @@ MetaRecorder::MetaRecorder(QObject* parent) : MetaHandler(parent) {
     setIdentifier("Recorder");
 }
 
-MetaHandler::instance_type MetaRecorder::instantiate(const QString& name, QWidget* parent) {
-    SequenceWriter* handler = new SequenceWriter;
-    handler->set_name(qstring2name(name));
-    return instance_type(handler, new RecorderEditor(handler, parent));
+MetaHandler::Instance MetaRecorder::instantiate() {
+    auto handler = new SequenceWriter;
+    return Instance(handler, new RecorderEditor(handler));
 }
 
 //================
 // RecorderEditor
 //================
 
-RecorderEditor::RecorderEditor(SequenceWriter* handler, QWidget* parent) :
-    HandlerEditor(handler, parent), mWriter(handler) {
+RecorderEditor::RecorderEditor(SequenceWriter* handler) : HandlerEditor(handler), mWriter(handler) {
 
     mRecordButton = new QPushButton("Status", this);
     QIcon icon;

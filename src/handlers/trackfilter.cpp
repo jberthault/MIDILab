@@ -90,8 +90,6 @@ MetaTrackFilter::MetaTrackFilter(QObject* parent) : MetaHandler(parent) {
     setIdentifier("TrackFilter");
 }
 
-MetaHandler::instance_type MetaTrackFilter::instantiate(const QString& name, QWidget* /*parent*/) {
-    TrackFilter* handler = new TrackFilter;
-    handler->set_name(qstring2name(name));
-    return instance_type(handler, nullptr);
+MetaHandler::Instance MetaTrackFilter::instantiate() {
+    return Instance(new TrackFilter, nullptr);
 }

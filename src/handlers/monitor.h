@@ -35,7 +35,7 @@ class MetaMonitor : public MetaHandler {
 public:
     MetaMonitor(QObject* parent);
 
-    instance_type instantiate(const QString& name, QWidget* parent) override;
+    Instance instantiate() override;
 
 };
 
@@ -48,7 +48,7 @@ class Monitor : public GraphicalHandler {
     Q_OBJECT
 
 public:
-    explicit Monitor(const QString& name, QWidget* parent);
+    explicit Monitor();
 
     void setFamilies(families_t families);
 

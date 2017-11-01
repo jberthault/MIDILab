@@ -339,7 +339,7 @@ public:
     HandlerView::Parameters parameters() const;
 
 private:
-    QLineEdit* addField(const MetaHandler::Parameter& param);
+    QLineEdit* addField(const MetaHandler::MetaParameter& param);
     QLineEdit* addLine(const QString& label, const QString& tooltip, const QString& placeHolder);
 
     QFormLayout* mEditorsLayout;

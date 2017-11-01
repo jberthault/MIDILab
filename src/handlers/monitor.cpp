@@ -45,15 +45,15 @@ MetaMonitor::MetaMonitor(QObject* parent) : MetaHandler(parent) {
     setIdentifier("Monitor");
 }
 
-MetaHandler::instance_type MetaMonitor::instantiate(const QString& name, QWidget* parent) {
-    return instance_type(new Monitor(name, parent), nullptr);
+MetaHandler::Instance MetaMonitor::instantiate() {
+    return Instance(new Monitor, nullptr);
 }
 
 //=========
 // Monitor
 //=========
 
-Monitor::Monitor(const QString& name, QWidget* parent) : GraphicalHandler(out_mode, name, parent) {
+Monitor::Monitor() : GraphicalHandler(out_mode) {
 
     mFamilySelector = new FamilySelector(this);
     mFamilySelector->setFamilies(~families_t::merge(family_t::active_sense));

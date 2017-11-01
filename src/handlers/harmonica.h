@@ -34,7 +34,7 @@ class MetaHarmonica : public MetaInstrument {
 public:
     MetaHarmonica(QObject* parent);
 
-    instance_type instantiate(const QString& name, QWidget* parent) override;
+    Instance instantiate() override;
 
 };
 
@@ -57,7 +57,7 @@ class Harmonica : public Instrument {
     Q_OBJECT
 
 public:
-    explicit Harmonica(const QString& name, QWidget* parent);
+    explicit Harmonica();
 
     Parameters getParameters() const override;
     size_t setParameter(const Parameter& parameter) override;

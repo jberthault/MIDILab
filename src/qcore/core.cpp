@@ -165,13 +165,11 @@ bool GraphicalHolder::event(QEvent* e) {
 // Observer
 //==========
 
-Observer::Observer(QObject* parent) : QObject(parent), Receiver() {
-
-}
-
-Observer::result_type Observer::receive_message(Handler* target, const Message& message) {
-    if (target->handle_message(message) == result_type::success && message.event.is(~note_families))
+Handler::result_type Observer::handleMessage(Handler* target, const Message& message) {
+    auto result = target->handle_message(message);
+    if (result == Handler::result_type::success && message.event.is(~note_families))
         QApplication::postEvent(this, new StorageEvent(target, message));
+    return result;
 }
 
 bool Observer::event(QEvent* e) {
@@ -181,6 +179,34 @@ bool Observer::event(QEvent* e) {
         return true;
     }
     return QObject::event(e);
+}
+
+//=================
+// DefaultReceiver
+//=================
+
+DefaultReceiver::DefaultReceiver(QObject* parent) : Observer(parent), Receiver() {
+
+}
+
+Handler::result_type DefaultReceiver::receive_message(Handler* target, const Message& message) {
+    return handleMessage(target, message);
+}
+
+//================
+// CustomObserver
+//================
+
+CustomReceiver::CustomReceiver(QObject* parent) : QObject(parent), Receiver(), mObserver(nullptr) {
+
+}
+
+Observer* CustomReceiver::observer() {
+    return mObserver;
+}
+
+void CustomReceiver::setObserver(Observer* observer) {
+    mObserver = observer;
 }
 
 //=============
@@ -203,20 +229,20 @@ void MetaHandler::setDescription(const QString& description) {
     mDescription = description;
 }
 
-const MetaHandler::Parameters& MetaHandler::parameters() const {
+const MetaHandler::MetaParameters& MetaHandler::parameters() const {
     return mParameters;
 }
 
-void MetaHandler::addParameters(const Parameters& parameters) {
+void MetaHandler::addParameters(const MetaParameters& parameters) {
     mParameters.insert(mParameters.end(), parameters.begin(), parameters.end());
 }
 
-void MetaHandler::addParameter(const Parameter& parameter) {
+void MetaHandler::addParameter(const MetaParameter& parameter) {
     mParameters.push_back(parameter);
 }
 
 void MetaHandler::addParameter(const QString& name, const QString& type, const QString& description, const QString& defaultValue) {
-    addParameter(Parameter{name, type, description, defaultValue});
+    addParameter(MetaParameter{name, type, description, defaultValue});
 }
 
 //======================
@@ -278,7 +304,7 @@ size_t MetaHandlerCollector::addPlugins(const QDir& dir) {
 // HandlerView
 //=============
 
-HandlerView::HandlerView(QWidget* parent) : QWidget(parent), mContext(nullptr) {
+HandlerView::HandlerView() : QWidget(nullptr), mContext(nullptr) {
 
 }
 
@@ -322,31 +348,17 @@ void HandlerView::updateContext(Context* /*context*/) {
 // HandlerEditor
 //===============
 
-HandlerEditor::HandlerEditor(Handler* handler, QWidget* parent) : HandlerView(parent), mHandler(handler) {
-    Q_ASSERT(handler);
-    updateEditorName();
+HandlerEditor::HandlerEditor(Handler* handler) : HandlerView(), mHandler(handler) {
+
 }
 
 Handler* HandlerEditor::handler() const {
     return mHandler;
 }
 
-void HandlerEditor::updateEditorName() {
-    setEditorName(handlerName(mHandler));
-}
-
-void HandlerEditor::setEditorName(const QString& name) {
-    setWindowTitle(QString("%1 (editor)").arg(name));
-}
-
-void HandlerEditor::onRename(Handler* handler) {
-    if (handler == mHandler)
-        setEditorName(handlerName(handler));
-}
-
-void HandlerEditor::setAffiliated(const QString& type, Handler* handlers) {
-    mAffiliations[type] = handlers;
-    emit newAffiliation(type, handlers);
+void HandlerEditor::setAffiliated(const QString& type, Handler* handler) {
+    mAffiliations[type] = handler;
+    emit newAffiliation(type, handler);
 }
 
 //======================
@@ -361,10 +373,8 @@ MetaGraphicalHandler::MetaGraphicalHandler(QObject* parent) : MetaHandler(parent
 // GraphicalHandler
 //==================
 
-GraphicalHandler::GraphicalHandler(mode_type mode, const QString& name, QWidget* parent) :
-    HandlerView(parent), Handler(mode), mTrack(Message::no_track) {
+GraphicalHandler::GraphicalHandler(mode_type mode) : HandlerView(), Handler(mode), mTrack(Message::no_track) {
 
-    set_name(qstring2name(name));
 }
 
 HandlerView::Parameters GraphicalHandler::getParameters() const {
@@ -406,8 +416,7 @@ MetaInstrument::MetaInstrument(QObject* parent) : MetaGraphicalHandler(parent) {
 // Instrument
 //============
 
-Instrument::Instrument(mode_type mode, const QString& name, QWidget* parent) :
-    GraphicalHandler(mode, name, parent), mVelocity(0x7f) {
+Instrument::Instrument(mode_type mode) : GraphicalHandler(mode), mVelocity(0x7f) {
 
 }
 

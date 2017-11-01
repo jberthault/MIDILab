@@ -120,7 +120,7 @@ class MetaPiano : public MetaInstrument {
 public:
     MetaPiano(QObject* parent);
 
-    instance_type instantiate(const QString& name, QWidget* parent) override;
+    Instance instantiate() override;
 
 };
 
@@ -137,7 +137,7 @@ class Piano : public Instrument {
     Q_OBJECT
 
 public:
-    explicit Piano(const QString& name, QWidget* parent);
+    explicit Piano();
 
     Parameters getParameters() const override;
     size_t setParameter(const Parameter& parameter) override;

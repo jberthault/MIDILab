@@ -34,7 +34,7 @@ using namespace handler_ns;
 //======================
 
 HandlerConfiguration::HandlerConfiguration(QString name) :
-    name(std::move(name)), parent(nullptr), host(nullptr), group("default"), parameters() {
+    name(std::move(name)), host(nullptr), group("default"), parameters() {
 
 }
 
@@ -57,7 +57,7 @@ Manager::Manager(QObject* parent) : Context(parent) {
 
     mGUIHolder = new GraphicalHolder(this);
 
-    mObserver = new Observer(this);
+    mReceiver = new DefaultReceiver(this);
 
     QSettings settings;
 
@@ -92,7 +92,7 @@ Manager::~Manager() {
 }
 
 Observer* Manager::observer() const {
-    return mObserver;
+    return mReceiver;
 }
 
 MetaHandlerCollector* Manager::collector() const {
@@ -126,32 +126,34 @@ PathRetriever* Manager::pathRetriever(const QString& type) {
 }
 
 Handler* Manager::loadHandler(MetaHandler* meta, const HandlerConfiguration& config) {
-    MetaHandler::instance_type inst(nullptr, nullptr);
-    QMainWindow* mainWindow = static_cast<QMainWindow*>(parent());
-    if (meta)
-        inst = meta->instantiate(config.name, config.parent ? config.parent : mainWindow);
-    // insert widget handlers
-    QWidget* widget = dynamic_cast<GraphicalHandler*>(inst.first);
-    if (!widget)
-        widget = inst.second;
-    if (widget) {
-        SingleDisplayer* displayer = dynamic_cast<SingleDisplayer*>(config.host);
-        if (displayer) {
-            displayer->setWidget(widget);
-        } else {
-            MultiDisplayer* container = static_cast<MultiDisplayer*>(mainWindow->centralWidget())->insertDetached();
-            displayer = container->insertSingle();
-            displayer->setWidget(widget);
-            container->show();
+    MetaHandler::Instance instance(nullptr, nullptr);
+    if (meta) {
+        instance = meta->instantiate();
+        // set handler's name
+        instance.first->set_name(qstring2name(config.name));
+        // get instance view
+        HandlerView* view = dynamic_cast<GraphicalHandler*>(instance.first);
+        if (!view)
+            view = instance.second;
+        // set view's parent
+        if (view) {
+            auto displayer = dynamic_cast<SingleDisplayer*>(config.host);
+            if (displayer) {
+                displayer->setWidget(view);
+            } else {
+                auto mainWindow = static_cast<QMainWindow*>(parent());
+                auto container = static_cast<MultiDisplayer*>(mainWindow->centralWidget())->insertDetached();
+                displayer = container->insertSingle();
+                displayer->setWidget(view);
+                container->show();
+            }
         }
-    }
-    if (inst.first) {
         // insert the handler
-        insertHandler(inst.first, inst.second, metaHandlerName(meta), config.group);
+        insertHandler(instance.first, instance.second, metaHandlerName(meta), config.group);
         // set handler parameters
-        setParameters(inst.first, config.parameters);
+        setParameters(instance.first, config.parameters);
     }
-    return inst.first;
+    return instance.first;
 }
 
 Handler* Manager::loadHandler(const QString& type, const HandlerConfiguration& config) {
@@ -219,28 +221,27 @@ void Manager::setParameters(Handler* handler, const HandlerView::Parameters& par
         qWarning() << "no suitable class for setting" << handlerName(handler) << "parameters";
 }
 
-void Manager::insertHandler(Handler* handler, QWidget* editor, const QString& type, const QString& group) {
-    Q_ASSERT(handler && !handler->holder() && !handler->receiver());
-    const bool isObject = dynamic_cast<QObject*>(handler);
-    // register handler / editor
+void Manager::insertHandler(Handler* handler, HandlerEditor* editor, const QString& type, const QString& group) {
+    Q_ASSERT(handler && !handler->holder());
+    auto graphicalHandler = dynamic_cast<GraphicalHandler*>(handler);
+    // set context
+    if (graphicalHandler)
+        graphicalHandler->setContext(this);
+    if (editor)
+        editor->setContext(this);
+    // set holder
+    handler->set_holder(graphicalHandler ? mGUIHolder : holderAt(group));
+    // set receiver
+    auto customReceiver = dynamic_cast<CustomReceiver*>(handler->receiver());
+    if (customReceiver)
+        customReceiver->setObserver(mReceiver);
+    else
+        handler->set_receiver(mReceiver);
+    // register instance
     Data& data = mStorage[handler];
     data.editor = editor;
     data.type = type;
-    data.owns = !isObject;
-    // set channel editor for widgets accepting it
-    auto graphicalHandler = dynamic_cast<GraphicalHandler*>(handler);
-    if (graphicalHandler)
-        graphicalHandler->setContext(this);
-    // connect editor to signals
-    auto handlerEditor = dynamic_cast<HandlerEditor*>(editor);
-    if (handlerEditor) {
-        connect(this, &Manager::handlerRenamed, handlerEditor, &HandlerEditor::onRename);
-        handlerEditor->setContext(this);
-    }
-    // set holder
-    handler->set_holder(isObject ? mGUIHolder : holderAt(group));
-    // set receiver
-    handler->set_receiver(mObserver);
+    data.owns = graphicalHandler == nullptr;
     // opens it
     setHandlerOpen(handler, true);
     // notify listeners

@@ -452,12 +452,17 @@ void ProgramEditor::editProgram(channels_t channels, byte_t program) {
 
 void ProgramEditor::updateSuccess(Handler* handler, Message message) {
     /// @todo treat bank messages
-    if (message.event.family() == family_t::program_change) {
+    switch (message.event.family()) {
+    case family_t::program_change:
         receiveProgram(handler, message.event.channels(), message.event.at(1));
-    } else if (message.event.get_custom_key() == "Close") {
-        mRecords[handler].second.clear();
-        if (handler == mHandlerSelector->currentHandler())
-            mProgramModel->setPrograms(QMap<channel_t, byte_t>());
+        break;
+    case family_t::custom:
+        if (message.event.get_custom_key() == "Close") {
+            mRecords[handler].second.clear();
+            if (handler == mHandlerSelector->currentHandler())
+                mProgramModel->setPrograms(QMap<channel_t, byte_t>());
+        }
+        break;
     }
 }
 

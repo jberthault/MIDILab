@@ -35,7 +35,7 @@ class MetaRecorder : public MetaHandler {
 public:
     MetaRecorder(QObject* parent);
 
-    instance_type instantiate(const QString& name, QWidget* parent) override;
+    Instance instantiate() override;
 
 };
 
@@ -48,7 +48,7 @@ class RecorderEditor : public HandlerEditor {
     Q_OBJECT
 
 public:
-    explicit RecorderEditor(SequenceWriter* handler, QWidget* parent);
+    explicit RecorderEditor(SequenceWriter* handler);
 
 public slots:
     void setRecording(bool recording);

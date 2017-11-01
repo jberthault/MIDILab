@@ -174,17 +174,15 @@ MetaPiano::MetaPiano(QObject* parent) : MetaInstrument(parent) {
     // addParameter("sound_off", ":bool", "", "");
 }
 
-MetaHandler::instance_type MetaPiano::instantiate(const QString& name, QWidget* parent) {
-    return instance_type(new Piano(name, parent), nullptr);
+MetaHandler::Instance MetaPiano::instantiate() {
+    return Instance(new Piano, nullptr);
 }
 
 //=======
 // Piano
 //=======
 
-Piano::Piano(const QString& name, QWidget* parent) :
-    Instrument(io_mode, name, parent), mLastKey(nullptr) {
-
+Piano::Piano() : Instrument(io_mode), mLastKey(nullptr) {
     installEventFilter(this);
     setRange(qMakePair(Note(Tonality::A, 0), Note(Tonality::C, 7)));
 }

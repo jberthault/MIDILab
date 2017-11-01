@@ -176,10 +176,24 @@ MetaSoundFont::MetaSoundFont(QObject* parent) : MetaHandler(parent) {
     setIdentifier("SoundFont");
 }
 
-MetaHandler::instance_type MetaSoundFont::instantiate(const QString& name, QWidget* parent) {
-    SoundFontHandler* handler = new SoundFontHandler;
-    handler->set_name(name.toStdString());
-    return instance_type(handler, new SoundFontEditor(handler, parent));
+MetaHandler::Instance MetaSoundFont::instantiate() {
+    auto handler = new SoundFontHandler;
+    return Instance(handler, new SoundFontEditor(handler));
+}
+
+//===================
+// SoundFontReceiver
+//===================
+
+SoundFontReceiver::SoundFontReceiver(QObject* parent) : CustomReceiver(parent) {
+
+}
+
+Receiver::result_type SoundFontReceiver::receive_message(Handler* target, const Message& message) {
+    auto result = observer()->handleMessage(target, message);
+    if (message.event.family() == family_t::custom && message.event.get_custom_key() == "SoundFont.file")
+        emit fileHandled();
+    return result;
 }
 
 //============
@@ -215,8 +229,16 @@ void GainEditor::updateText(qreal ratio) {
 // SoundFontEditor
 //=================
 
-SoundFontEditor::SoundFontEditor(SoundFontHandler* handler, QWidget* parent) :
-    HandlerEditor(handler, parent) {
+SoundFontEditor::SoundFontEditor(SoundFontHandler* handler) : HandlerEditor(handler) {
+
+    mReceiver = new SoundFontReceiver(this);
+    handler->set_receiver(mReceiver);
+    connect(mReceiver, &SoundFontReceiver::fileHandled, this, &SoundFontEditor::updateFile);
+
+    mLoadMovie = new QMovie(":/data/load.gif", QByteArray(), this);
+    mLoadLabel = new QLabel(this);
+    mLoadLabel->setMovie(mLoadMovie);
+    mLoadLabel->hide();
 
     /// @todo add menu option to set path from a previous one (keep history)
     mFileEditor = new QLineEdit(this);
@@ -228,17 +250,15 @@ SoundFontEditor::SoundFontEditor(SoundFontHandler* handler, QWidget* parent) :
     mFileSelector->setToolTip("Browse SoundFonts");
     mFileSelector->setAutoRaise(true);
     mFileSelector->setIcon(QIcon(":/data/file.svg"));
-    connect(mFileSelector, SIGNAL(clicked()), SLOT(onClick()));
+    connect(mFileSelector, &QToolButton::clicked, this, &SoundFontEditor::onClick);
 
     mGainEditor = new GainEditor(this);
     mGainEditor->setGain(handler->gain());
     connect(mGainEditor, &GainEditor::gainChanged, this, &SoundFontEditor::updateGain);
 
-    connect(Manager::instance->observer(), &Observer::messageHandled, this, &SoundFontEditor::onMessageHandled);
-
     QFormLayout* form = new QFormLayout;
     form->setMargin(0);
-    form->addRow("File", make_hbox(spacing_tag{0}, mFileSelector, mFileEditor));
+    form->addRow("File", make_hbox(spacing_tag{0}, mFileSelector, mFileEditor, mLoadLabel));
     form->addRow("Gain", mGainEditor);
     setLayout(form);
 }
@@ -259,30 +279,33 @@ size_t SoundFontEditor::setParameter(const Parameter& parameter) {
     return HandlerEditor::setParameter(parameter);
 }
 
-void SoundFontEditor::onClick() {
-    QString file = context()->pathRetriever("soundfont")->getReadFile(this);
-    if (!file.isNull())
-        setFile(file);
+void SoundFontEditor::setGain(double gain) {
+    mGainEditor->setGain(gain);
 }
 
-void SoundFontEditor::onMessageHandled(Handler* handler, const Message& message) {
-    if (handler == this->handler() && message.event.family() == family_t::custom && message.event.get_custom_key() == "SoundFont.file") {
-        QFileInfo fileInfo(QString::fromStdString(message.event.get_custom_value()));
-        mFileEditor->setText(fileInfo.completeBaseName());
-        mFileEditor->setToolTip(fileInfo.absoluteFilePath());
+void SoundFontEditor::setFile(const QString& file) {
+    if (handler()->send_message(SoundFontHandler::file_event(file.toStdString()))) {
+        mLoadMovie->start();
+        mLoadLabel->show();
     }
 }
 
-void SoundFontEditor::setGain(double gain) {
-    mGainEditor->setGain(gain);
+void SoundFontEditor::updateFile() {
+    QFileInfo fileInfo(QString::fromStdString(static_cast<SoundFontHandler*>(handler())->file()));
+    mFileEditor->setText(fileInfo.completeBaseName());
+    mFileEditor->setToolTip(fileInfo.absoluteFilePath());
+    mLoadMovie->stop();
+    mLoadLabel->hide();
 }
 
 void SoundFontEditor::updateGain(double gain) {
     handler()->send_message(SoundFontHandler::gain_event(gain));
 }
 
-void SoundFontEditor::setFile(const QString& file) {
-    handler()->send_message(SoundFontHandler::file_event(file.toStdString()));
+void SoundFontEditor::onClick() {
+    auto file = context()->pathRetriever("soundfont")->getReadFile(this);
+    if (!file.isNull())
+        setFile(file);
 }
 
 #endif // MIDILAB_FLUIDSYNTH_VERSION

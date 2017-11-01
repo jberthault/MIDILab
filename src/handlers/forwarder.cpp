@@ -46,8 +46,6 @@ MetaForwarder::MetaForwarder(QObject* parent) : MetaHandler(parent) {
     setDescription("Connection Tool");
 }
 
-MetaHandler::instance_type MetaForwarder::instantiate(const QString& name, QWidget* /*parent*/) {
-    ForwardHandler* handler = new ForwardHandler;
-    handler->set_name(qstring2name(name));
-    return instance_type(handler, nullptr);
+MetaHandler::Instance MetaForwarder::instantiate() {
+    return Instance(new ForwardHandler, nullptr);
 }
