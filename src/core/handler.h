@@ -331,7 +331,7 @@ public:
   *
   */
 
-#ifdef NDEBUG
+#ifndef MIDILAB_VERBOSE_HOLDER
 
 class StandardHolder : public Holder {
 

@@ -488,7 +488,7 @@ void Handler::forward_message(const Message& message) {
 // StandardHolder
 //================
 
-#ifdef NDEBUG
+#ifndef MIDILAB_VERBOSE_HOLDER
 
 StandardHolder::StandardHolder(priority_t priority, std::string name) :
     Holder(), m_task(512), m_name(std::move(name)) {
@@ -555,7 +555,7 @@ void StandardHolder::feed(time_type time) {
     m_count++;
     if (now > m_reference + std::chrono::seconds(3)) {
         auto mean_delta = m_delta / m_count;
-        if (mean_delta > std::chrono::microseconds(100))
+        if (mean_delta > std::chrono::microseconds(75))
             TRACE_INFO(m_name << " " << mean_delta.count() << " us");
         reset(now);
     }

@@ -32,6 +32,8 @@ add_executable(${PROJECT_NAME} ${SRC_FILES} ${QRC_FILES} "README.md" "LICENSE")
 # target configuration
 # --------------------
 
+target_compile_definitions(${PROJECT_NAME} PUBLIC "-DMIDILAB_VERBOSE_HOLDER")
+
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_relaxed_constexpr) # triggers >= c++14
 target_include_directories(${PROJECT_NAME} PUBLIC "src")
 target_link_libraries(${PROJECT_NAME} Boost::boost Qt5::Widgets Qt5::Xml Qt5::XmlPatterns)
