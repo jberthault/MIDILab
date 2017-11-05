@@ -140,6 +140,15 @@ void Knob::moveToFit() {
     mUpdatePosition = true;
 }
 
+void Knob::scroll(int delta) {
+    if (flags() & ItemIsMovable) {
+        int increment = std::copysign(1, delta);
+        qreal xWanted = mXScale.cardinality < 2 || !mXScale.range ? x() + increment : mXScale.upscale(mXScale.joint(mXScale.nearest() + increment));
+        qreal yWanted = mYScale.cardinality < 2 || !mYScale.range ? y() - increment : mYScale.upscale(mYScale.joint(mYScale.nearest() + increment));
+        setPos(xWanted, yWanted);
+    }
+}
+
 QVariant Knob::itemChange(GraphicsItemChange change, const QVariant& value) {
     if (change == ItemPositionChange && mUpdatePosition) {
         auto newValue = value.toPointF();
@@ -167,12 +176,7 @@ void Knob::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event) {
 }
 
 void Knob::wheelEvent(QGraphicsSceneWheelEvent* event) {
-    if (flags() & ItemIsMovable) {
-        int delta = std::copysign(1, event->delta());
-        qreal xWanted = mXScale.cardinality < 2 || !mXScale.range ? x() + delta : mXScale.upscale(mXScale.joint(mXScale.nearest() + delta));
-        qreal yWanted = mYScale.cardinality < 2 || !mYScale.range ? y() - delta : mYScale.upscale(mYScale.joint(mYScale.nearest() + delta));
-        setPos(xWanted, yWanted);
-    }
+    scroll(event->delta());
     QGraphicsObject::wheelEvent(event);
 }
 
@@ -420,7 +424,7 @@ void TextKnob::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option
 // KnobView
 //==========
 
-KnobView::KnobView(QWidget* parent) : QGraphicsView(parent) {
+KnobView::KnobView(QWidget* parent) : QGraphicsView(parent), mLastKnobScrolled(nullptr) {
     QGraphicsScene* scene = new QGraphicsScene(this);
     scene->setSceneRect(QRectF(0., 0., 200., 50.)); // whatever the value, we just need to set it once for all
     scene->setItemIndexMethod(QGraphicsScene::NoIndex);
@@ -448,10 +452,25 @@ void KnobView::resizeEvent(QResizeEvent* event) {
         setVisibleRect(knob, rect);
 }
 
+void KnobView::leaveEvent(QEvent* event) {
+    QGraphicsView::leaveEvent(event);
+    mLastKnobScrolled = nullptr;
+}
+
 void KnobView::mouseDoubleClickEvent(QMouseEvent* event) {
     QGraphicsView::mouseDoubleClickEvent(event);
     if (!event->isAccepted())
         emit viewDoubleClicked(event->button());
+}
+
+void KnobView::wheelEvent(QWheelEvent* event) {
+    /// @note do not forward event to the scene
+    auto knob = dynamic_cast<Knob*>(itemAt(event->pos()));
+    if (!knob)
+        knob = mLastKnobScrolled;
+    if (knob)
+        knob->scroll(event->delta());
+    mLastKnobScrolled = knob;
 }
 
 void KnobView::setVisibleRect(Knob* knob, const QRectF& rect) {
@@ -504,7 +523,7 @@ void MultiSlider::setOrientation(Qt::Orientation orientation) {
     if (orientation == mOrientation)
         return;
     mOrientation = orientation;
-    updateOrientation();
+    transpose();
     updateDimensions();
     updateTextDimensions();
     static_cast<QBoxLayout*>(layout())->setDirection(orientation == Qt::Vertical ? QBoxLayout::TopToBottom : QBoxLayout::LeftToRight);
@@ -540,7 +559,7 @@ void MultiSlider::setKnobRatio(Knob* knob, qreal ratio) const {
     knob->moveToFit();
 }
 
-void MultiSlider::updateOrientation() {
+void MultiSlider::transpose() {
     for (auto particle : mParticleSlider->knobs()) {
         particle->transpose();
         particle->yScale().reversed = mOrientation == Qt::Vertical;

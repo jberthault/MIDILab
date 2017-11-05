@@ -33,6 +33,10 @@ static constexpr range_t<uint16_t> volumeRange = {0, 0xffff};
 static constexpr range_t<byte_t> semitonesRange = {0, 24};
 static constexpr range_t<byte_t> data7Range = {0, 0x7f};
 static constexpr range_t<uint16_t> data14Range = {0, 0x3fff};
+static constexpr range_t<int> panRange = {-50, 50};
+
+static constexpr uint16_t defaultRPN = 0x3fff;
+static constexpr uint16_t pitchBendRangeRPN = 0x0000;
 
 namespace {
 
@@ -181,17 +185,29 @@ void ControllerWheel::onControlChange() {
 }
 
 void ControllerWheel::onMove(channels_t channels, qreal ratio) {
-    if (is_msb_cleared(mController)) {
-        auto byte = data7Range.expand(ratio);
-        channel_ns::store(mValues[mController], channels, byte);
-        if (canGenerate() && channels)
-            generate(Event::controller(channels, mController, byte));
-    }
+    auto byte = data7Range.expand(ratio);
+    channel_ns::store(mValues[mController], channels, byte);
+    if (canGenerate() && channels)
+        generate(Event::controller(channels, mController, byte));
 }
 
 void ControllerWheel::updateText(channels_t channels) {
-    for (channel_t channel : channels)
-        slider()->setText(channels_t::merge(channel), stringForRatio(slider()->ratio(channel)));
+    switch (mController) {
+    case pan_position_coarse_controller:
+    case balance_coarse_controller:
+        for (const auto& pair : channel_ns::reverse(mValues[mController], channels)) {
+            auto pan = panRange.rescale(data7Range, pair.first);
+            auto repr = QString::number(pan);
+            if (pan > 0)
+                repr.prepend("+");
+            slider()->setText(pair.second, repr);
+        }
+        break;
+    default:
+        for (const auto& pair : channel_ns::reverse(mValues[mController], channels))
+            slider()->setText(pair.second, stringForRatio(data7Range.reduce(pair.first)));
+        break;
+    }
 }
 
 void ControllerWheel::receiveController(channels_t channels, byte_t controller, byte_t value) {
@@ -228,7 +244,7 @@ MetaHandler::Instance MetaPitchWheel::instantiate() {
 
 PitchWheel::PitchWheel() : AbstractWheel(io_mode) {
 
-    mRegisteredParameters.fill(0x3fff);
+    mRegisteredParameters.fill(defaultRPN);
     mPitchRanges.fill(2);
     mPitchValues.fill(0x2000);
 
@@ -263,7 +279,7 @@ Handler::result_type PitchWheel::handle_message(const Message& message) {
             receiveFineRPN(message.event.channels(), message.event.at(2));
             return result_type::success;
         case data_entry_coarse_controller:
-            receivePitchRange(message.event.channels() & channel_ns::find(mRegisteredParameters, 0x0000), message.event.at(2));
+            receivePitchRange(message.event.channels() & channel_ns::find(mRegisteredParameters, pitchBendRangeRPN), message.event.at(2));
             return result_type::success;
         }
         break;
@@ -278,30 +294,32 @@ Handler::result_type PitchWheel::handle_message(const Message& message) {
 }
 
 Handler::result_type PitchWheel::on_close(state_type state) {
-    mRegisteredParameters.fill(0x3fff);
+    mRegisteredParameters.fill(defaultRPN);
     mPitchRanges.fill(2);
     mPitchValues.fill(0x2000);
     return AbstractWheel::on_close(state);
 }
 
 void PitchWheel::onPress(channels_t channels) {
-    /// registered parameter 0x0000 is the Pitch Bend Range
-    /// @fixme does not work while scrolling
-    generateRegisteredParameter(channels, 0x0000);
+    if (canGenerate() && rangeDisplayed())
+        generateRegisteredParameter(channels, pitchBendRangeRPN);
 }
 
 void PitchWheel::onRelease(channels_t channels) {
-    /// registered parameter 0x3fff reset
-    /// @fixme does not work while scrolling
-    generateRegisteredParameter(channels, 0x3fff);
+    if (canGenerate() && rangeDisplayed())
+        generateRegisteredParameter(channels, defaultRPN);
 }
 
 void PitchWheel::onMove(channels_t channels, qreal ratio) {
     if (rangeDisplayed()) {
         auto semitones = semitonesRange.expand(ratio);
         channel_ns::store(mPitchRanges, channels, semitones);
-        if (canGenerate() && channels)
+        if (canGenerate() && channels) {
+            channels_t channelsNotReady = channels & ~channel_ns::find(mRegisteredParameters, pitchBendRangeRPN);
+            generateRegisteredParameter(channelsNotReady, pitchBendRangeRPN);
             generate(Event::controller(channels, data_entry_coarse_controller, semitones));
+            generateRegisteredParameter(channelsNotReady, defaultRPN);
+        }
     } else {
         auto value = data14Range.expand(ratio);
         channel_ns::store(mPitchValues, channels, value);
@@ -338,7 +356,8 @@ bool PitchWheel::rangeDisplayed() const {
 }
 
 void PitchWheel::generateRegisteredParameter(channels_t channels, uint16_t value) {
-    if (canGenerate() && channels && rangeDisplayed()) {
+    channel_ns::store(mRegisteredParameters, channels, value);
+    if (channels) {
         generate(Event::controller(channels, registered_parameter_coarse_controller, short_tools::coarse(value)));
         generate(Event::controller(channels, registered_parameter_fine_controller, short_tools::fine(value)));
     }
@@ -377,7 +396,7 @@ void PitchWheel::receivePitchRange(channels_t channels, byte_t semitones) {
         if (rangeDisplayed())
             slider()->setRatio(channels, semitonesRange.reduce(semitones));
         else
-            updateText(channels);
+            updatePitchValueText(channels);
     }
 }
 

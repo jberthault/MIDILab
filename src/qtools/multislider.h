@@ -76,6 +76,7 @@ public:
 
     void transpose();
     void moveToFit();
+    void scroll(int delta);
 
 signals:
     void knobMoved(qreal xvalue, qreal yvalue);
@@ -239,28 +240,35 @@ public:
     QRectF visibleRect() const;
 
     template<typename T = Knob>
-    QList<T*> knobs() const {
-        QList<T*> knobs;
-        for (QGraphicsItem* item : scene()->items()) {
+    std::vector<T*> knobs() const {
+        std::vector<T*> result;
+        auto items = scene()->items();
+        result.reserve(items.size());
+        for (auto item : items) {
             T* knob = dynamic_cast<T*>(item);
             if (knob)
-                knobs.append(knob);
+                result.push_back(knob);
         }
-        return knobs;
+        return result;
     }
 
     void insertKnob(Knob* knob);
 
-protected:
-    void resizeEvent(QResizeEvent* event) override;
-    void mouseDoubleClickEvent(QMouseEvent* event) override;
-    void setVisibleRect(Knob* knob, const QRectF& rect);
-
 signals:
     void viewDoubleClicked(Qt::MouseButton button);
 
-};
+protected:
+    void resizeEvent(QResizeEvent* event) override;
+    void leaveEvent(QEvent* event) override;
+    void mouseDoubleClickEvent(QMouseEvent* event) override;
+    void wheelEvent(QWheelEvent* event) override;
 
+private:
+    void setVisibleRect(Knob* knob, const QRectF& rect);
+
+    Knob* mLastKnobScrolled;
+
+};
 
 //================
 // ChannelsSlider
@@ -292,7 +300,7 @@ signals:
     void textWidthChanged(int textWidth);
 
 protected slots:
-    void updateOrientation();
+    void transpose();
     void updateDimensions();
     void updateTextDimensions();
 
