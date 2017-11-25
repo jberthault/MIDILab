@@ -182,9 +182,10 @@ MetaHandler::Instance MetaPiano::instantiate() {
 // Piano
 //=======
 
-Piano::Piano() : Instrument(io_mode), mLastKey(nullptr) {
+Piano::Piano() : Instrument(io_mode), mLastKey(nullptr), mRange(qMakePair(Note(Tonality::A, 0), Note(Tonality::C, 7))) {
+    mKeys.fill(nullptr);
     installEventFilter(this);
-    setRange(qMakePair(Note(Tonality::A, 0), Note(Tonality::C, 7)));
+    buildKeys();
 }
 
 HandlerView::Parameters Piano::getParameters() const {
@@ -203,35 +204,40 @@ const QPair<Note, Note>& Piano::range() const {
 }
 
 void Piano::setRange(const QPair<Note, Note>& range) {
-    mRange = range;
-    buildKeys(range.first, range.second);
+    if (range != mRange && 0 <= range.first.code() && range.second.code() < 0x80) {
+        mRange = range;
+        clearKeys();
+        buildKeys();
+    }
 }
 
-void Piano::buildKeys(const Note& lower, const Note& upper) {
-    // clear previous keys
-    for (PianoKey* key : mKeys.values())
-        key->deleteLater();
-    mKeys.clear();
-    // create new layout
-    PianoLayout* pianoLayout = new PianoLayout(nullptr);
-    for (int code = lower.code() ; code <= upper.code() ; code++) {
-        PianoKey* key = new PianoKey(Note::from_code(code), this);
+void Piano::clearKeys() {
+    for (PianoKey* key : mKeys)
+        if (key != nullptr)
+            key->deleteLater();
+    mKeys.fill(nullptr);
+    delete layout();
+}
+
+void Piano::buildKeys() {
+    auto pianoLayout = new PianoLayout(nullptr);
+    for (int code = mRange.first.code() ; code <= mRange.second.code() ; code++) {
+        auto key = new PianoKey(Note::from_code(code), this);
         mKeys[code] = key;
         connect(key, &PianoKey::entered, this, &Piano::enterEvent);
         pianoLayout->addKey(key);
     }
-    // delete previous layout and set the new one
-    delete layout();
     setLayout(pianoLayout);
 }
 
 void Piano::onNotesOff(channels_t channels) {
-    for (PianoKey* key : mKeys.values())
-        key->setState(channels, false);
+    for (PianoKey* key : mKeys)
+        if (key != nullptr)
+            key->setState(channels, false);
 }
 
 void Piano::setNote(channels_t channels, const Note& note, bool on) {
-    PianoKey* key = mKeys.value(note.code(), nullptr);
+    PianoKey* key = mKeys[note.code()];
     if (key != nullptr)
         key->setState(channels, on);
 }

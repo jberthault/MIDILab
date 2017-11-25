@@ -40,6 +40,14 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <chrono>
 #include <set>
 
+template<typename T, typename ... Args>
+auto number2string(T number, Args&& ... args) {
+    auto text = QString::number(number, std::forward<Args>(args)...);
+    if (number > 0)
+        text.prepend('+');
+    return text;
+}
+
 //==============
 // Layout Utils
 //==============

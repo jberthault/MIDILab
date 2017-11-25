@@ -30,13 +30,6 @@ namespace {
 static constexpr range_t<int> transpositionRange = {-12, 12};
 static constexpr size_t transpositionCardinality = 25;
 
-QString keyToString(int key) {
-    auto text = QString::number(key);
-    if (key > 0)
-        text.prepend('+');
-    return text;
-}
-
 }
 
 //================
@@ -162,12 +155,12 @@ size_t TransposerEditor::setParameter(const Parameter& parameter) {
 void TransposerEditor::onMove(channels_t channels, qreal ratio) {
     auto key = transpositionRange.expand(ratio);
     channel_ns::store(mKeys, channels, key);
-    mSlider->setText(channels, keyToString(key));
+    mSlider->setText(channels, number2string(key));
     if (channels)
         static_cast<Transposer*>(handler())->send_message(Transposer::transpose_event(channels, key));
 }
 
 void TransposerEditor::updateText(channels_t channels) {
     for (const auto& pair : channel_ns::reverse(mKeys, channels))
-        mSlider->setText(pair.second, keyToString(pair.first));
+        mSlider->setText(pair.second, number2string(pair.first));
 }

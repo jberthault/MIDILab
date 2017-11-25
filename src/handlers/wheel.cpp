@@ -195,13 +195,8 @@ void ControllerWheel::updateText(channels_t channels) {
     switch (mController) {
     case pan_position_coarse_controller:
     case balance_coarse_controller:
-        for (const auto& pair : channel_ns::reverse(mValues[mController], channels)) {
-            auto pan = panRange.rescale(data7Range, pair.first);
-            auto repr = QString::number(pan);
-            if (pan > 0)
-                repr.prepend("+");
-            slider()->setText(pair.second, repr);
-        }
+        for (const auto& pair : channel_ns::reverse(mValues[mController], channels))
+            slider()->setText(pair.second, number2string(panRange.rescale(data7Range, pair.first)));
         break;
     default:
         for (const auto& pair : channel_ns::reverse(mValues[mController], channels))
@@ -373,10 +368,7 @@ void PitchWheel::updatePitchValueText(channels_t channels) {
         auto scale = (double)mPitchRanges[channel];
         range_t<double> scaleRange = {-scale, scale};
         double semitones = scaleRange.rescale(data14Range, mPitchValues[channel]);
-        QString repr = QString::number(semitones, 'f', 2);
-        if (semitones > 0)
-            repr.prepend("+");
-        slider()->setText(channels_t::merge(channel), repr);
+        slider()->setText(channels_t::merge(channel), number2string(semitones, 'f', 2));
     }
 }
 

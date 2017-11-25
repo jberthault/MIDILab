@@ -153,12 +153,13 @@ protected:
     bool eventFilter(QObject* obj, QEvent* event) override;
 
 private:
-    void buildKeys(const Note& lower, const Note& upper); /*!< note that bound are included */
+    void clearKeys();
+    void buildKeys();
     void receiveKeys(bool on, PianoKey* key, Qt::MouseButtons buttons); /*!< change key state and notify the forwarder depending on buttons */
 
     PianoKey* mLastKey;
     QPair<Note, Note> mRange;
-    QMap<int, PianoKey*> mKeys;
+    std::array<PianoKey*, 0x80> mKeys;
 
 };
 
