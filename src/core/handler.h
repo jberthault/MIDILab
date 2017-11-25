@@ -98,9 +98,9 @@ public:
     static Filter channels(channels_t channels);
     static Filter families(families_t families);
 
-    friend Filter operator |(const Filter& lhs, const Filter& rhs); /*!< match any */
-    friend Filter operator &(const Filter& lhs, const Filter& rhs); /*!< match all */
-    friend Filter operator ~(Filter lhs); /*!< unmatch filter */
+    friend Filter operator|(const Filter& lhs, const Filter& rhs); /*!< match any */
+    friend Filter operator&(const Filter& lhs, const Filter& rhs); /*!< match all */
+    friend Filter operator~(Filter lhs); /*!< unmatch filter */
 
     // --------------------
     // combination features
@@ -135,7 +135,7 @@ public:
 
     std::string string() const;
 
-    friend std::ostream& operator <<(std::ostream& stream, const Filter& filter);
+    friend std::ostream& operator<<(std::ostream& stream, const Filter& filter);
 
 private:
     data_type m_data;
@@ -161,13 +161,6 @@ private:
  * * How to synchronize incoming messages ? -> Holder
  * * Inject behavior when a message is processed ? -> Receiver
  *
- * A handler is an object capable to process data asynchronously (via send)
- * Input messages are buffered in a holder object
- * The result of the operation is encapsulated in a future
- *
- * As a serializable object, it also defines a type that describes
- * which dynamic parameters are supported ...
- *
  * @warning changing the receiver while processing messages can be hazardous
  *
  * @todo implement a notification system instead of the receiver ?
@@ -176,16 +169,14 @@ private:
 
 namespace handler_ns {
 
-// mode enable to check type of handler
-// mode is basically used to give extra information about the handler, not to check !
-// mode is guaranteed to be constant for each handler
-// in_mode: handler can generate events
-// thru_mode: handler can forward messages (on reception)
-// out_mode: handler consume received messages (no forwarding)
-// no mode checking is used to prevent usage
-// mode is a read-only
+// each handler has a mode associated which must be one of:
+// - in_mode: handler can generate messages
+// - out_mode: handler can receive messages
+// - io_mode: handler can both generate and receive messages
+// - thru_mode: handler can forward messages (on reception)
+// it is guaranteed to be constant for each handler
 
-using mode_t = flags_t<unsigned>;
+using mode_t = flags_t<>;
 static constexpr mode_t in_mode = mode_t::from_integral(0x1); /*!< can generate events */
 static constexpr mode_t out_mode = mode_t::from_integral(0x2); /*!< can handle events */
 static constexpr mode_t thru_mode = mode_t::from_integral(0x4); /*!< can forward on handling */
@@ -198,7 +189,7 @@ static constexpr mode_t receive_mode = out_mode | thru_mode;
 // @note to forward/receive an event, the respective states must be open
 // @warning messages will be handled even if the handler is closed, you must check it.
 
-using state_t = flags_t<unsigned>;
+using state_t = flags_t<>;
 static constexpr state_t forward_state = state_t::from_integral(0x1);
 static constexpr state_t receive_state = state_t::from_integral(0x2);
 static constexpr state_t endpoints_state = forward_state | receive_state; /*!< @note junction may be a better name */

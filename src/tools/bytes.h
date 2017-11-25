@@ -182,7 +182,7 @@ struct enum_decay<T, false, true> {
     using type = T;
 };
 
-template<typename T, typename N = size_t>
+template<typename T = size_t, typename N = size_t>
 class flags_t {
 
 public:
@@ -247,25 +247,25 @@ public:
     // const operators
     // ---------------
 
-    constexpr flags_t operator |(flags_t rhs) const { return from_integral(m_storage | rhs.m_storage); }
-    constexpr flags_t operator &(flags_t rhs) const { return from_integral(m_storage & rhs.m_storage); }
-    constexpr flags_t operator ^(flags_t rhs) const { return from_integral(m_storage ^ rhs.m_storage); }
-    constexpr flags_t operator ~() const { return from_integral(~m_storage); }
+    constexpr flags_t operator|(flags_t rhs) const { return from_integral(m_storage | rhs.m_storage); }
+    constexpr flags_t operator&(flags_t rhs) const { return from_integral(m_storage & rhs.m_storage); }
+    constexpr flags_t operator^(flags_t rhs) const { return from_integral(m_storage ^ rhs.m_storage); }
+    constexpr flags_t operator~() const { return from_integral(~m_storage); }
 
-    constexpr bool operator ==(flags_t rhs) const { return m_storage == rhs.m_storage; }
-    constexpr bool operator !=(flags_t rhs) const { return m_storage != rhs.m_storage; }
-    constexpr bool operator <(flags_t rhs) const { return m_storage < rhs.m_storage; }
-    constexpr bool operator <=(flags_t rhs) const { return m_storage <= rhs.m_storage; }
-    constexpr bool operator >(flags_t rhs) const { return m_storage > rhs.m_storage; }
-    constexpr bool operator >=(flags_t rhs) const { return m_storage >= rhs.m_storage; }
+    constexpr bool operator==(flags_t rhs) const { return m_storage == rhs.m_storage; }
+    constexpr bool operator!=(flags_t rhs) const { return m_storage != rhs.m_storage; }
+    constexpr bool operator<(flags_t rhs) const { return m_storage < rhs.m_storage; }
+    constexpr bool operator<=(flags_t rhs) const { return m_storage <= rhs.m_storage; }
+    constexpr bool operator>(flags_t rhs) const { return m_storage > rhs.m_storage; }
+    constexpr bool operator>=(flags_t rhs) const { return m_storage >= rhs.m_storage; }
 
     // ------------------
     // mutable operators
     // ------------------
 
-    constexpr void operator |=(flags_t rhs) { m_storage |= rhs.m_storage; }
-    constexpr void operator &=(flags_t rhs) { m_storage &= rhs.m_storage; }
-    constexpr void operator ^=(flags_t rhs) { m_storage ^= rhs.m_storage; }
+    constexpr void operator|=(flags_t rhs) { m_storage |= rhs.m_storage; }
+    constexpr void operator&=(flags_t rhs) { m_storage &= rhs.m_storage; }
+    constexpr void operator^=(flags_t rhs) { m_storage ^= rhs.m_storage; }
 
     // ---------
     // iterators
@@ -279,7 +279,7 @@ public:
         bool operator!=(const const_iterator& rhs) const { return storage != rhs.storage; }
 
         const_iterator& operator++() { shift(); adjust(); return *this; }
-        const_iterator operator++(int) { const_iterator it(*this); operator ++(); return it; }
+        const_iterator operator++(int) { const_iterator it(*this); operator++(); return it; }
         value_type operator*() const { return static_cast<value_type>(base); }
 
         void shift() { storage >>= 1; base++; }
