@@ -112,13 +112,13 @@ size_t Harmonica::setParameter(const Parameter& parameter) {
 void Harmonica::onPress(QAbstractButton* button) {
     Note note = buttonNote(button);
     if (note && canGenerate())
-        generate(Event::note_on(defaultChannels, note.code(), velocity()));
+        generateNoteOn(defaultChannels, note);
 }
 
 void Harmonica::onRelease(QAbstractButton* button) {
     Note note = buttonNote(button);
     if (note && canGenerate())
-        generate(Event::note_off(defaultChannels, note.code()));
+        generateNoteOff(defaultChannels, note);
 }
 
 void Harmonica::addElement(QWidget* widget, int true_row, int true_col) {
@@ -173,7 +173,7 @@ void Harmonica::setTonality(const Note& note) {
     }
 }
 
-void Harmonica::onNotesOff(channels_t /*channels*/) {
+void Harmonica::receiveNotesOff(channels_t /*channels*/) {
     QMapIterator<Index, QAbstractButton*> it(mButtons);
     while (it.hasNext()) {
         it.next();
@@ -181,20 +181,21 @@ void Harmonica::onNotesOff(channels_t /*channels*/) {
     }
 }
 
-void Harmonica::setNote(channels_t /*channels*/, const Note& note, bool on) {
+void Harmonica::receiveNoteOn(channels_t /*channels*/, const Note& note) {
     auto it = mForwardNotes.equal_range(note.code());
-    if (on) {
-        for ( ; it.first != it.second ; ++it.first) {
-            QAbstractButton* button = it.first.value();
-            if (!button->isDown()) {
-                button->setDown(true);
-                break;
-            }
+    for ( ; it.first != it.second ; ++it.first) {
+        QAbstractButton* button = it.first.value();
+        if (!button->isDown()) {
+            button->setDown(true);
+            break;
         }
-    } else {
-        for ( ; it.first != it.second ; ++it.first) {
-            QAbstractButton* button = it.first.value();
-            button->setDown(false);
-        }
+    }
+}
+
+void Harmonica::receiveNoteOff(channels_t /*channels*/, const Note& note) {
+    auto it = mForwardNotes.equal_range(note.code());
+    for ( ; it.first != it.second ; ++it.first) {
+        QAbstractButton* button = it.first.value();
+        button->setDown(false);
     }
 }

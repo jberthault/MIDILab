@@ -62,24 +62,24 @@ void Guitar::setSize(size_t size) {
     mSize = size;
 }
 
-void Guitar::onNotesOff(channels_t channels) {
+void Guitar::receiveNotesOff(channels_t channels) {
     for (channel_t channel : channels)
         mAffectations[channel].clear();
 }
 
-void Guitar::setNote(channels_t channels, const Note& note, bool on) {
-    for (channel_t channel : channels)
-        setSingle(channel, note, on);
+void Guitar::receiveNoteOn(channels_t channels, const Note& note) {
+    for (channel_t channel : channels) {
+        auto& aff = mAffectations[channel];
+        if (aff.count(note.code()) == 0) {
+            // affect
+            // update
+        }
+    }
 }
 
-void Guitar::setSingle(channel_t channel, const Note& note, bool on) {
-    ChannelAffectation& aff = mAffectations[channel];
-    if (on) {
-        if (aff.count(note.code()) == 1)
-            return;
-        // affect
-        // update
-    } else {
+void Guitar::receiveNoteOff(channels_t channels, const Note& note) {
+    for (channel_t channel : channels) {
+        auto& aff = mAffectations[channel];
         if (aff.erase(note.code()) == 1) {
             // update
         }

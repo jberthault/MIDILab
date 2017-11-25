@@ -56,7 +56,9 @@ public:
 
     explicit PianoKey(const Note& note, Piano* parent);
 
-    void setState(channels_t channels, bool on);
+    void setChannels(channels_t channels);
+    void activate(channels_t channels);
+    void deactivate(channels_t channels);
 
     const Note& note() const;
     bool isBlack() const;
@@ -68,7 +70,7 @@ signals:
     void entered(QEvent*);
 
 private:
-    Note mNote;
+    const Note mNote;
     channels_t mChannels; /*!< channels currently active */
     Piano* mParent; /*!< keeps a reference to the parent piano to get channel editor */
 
@@ -118,7 +120,7 @@ private:
 class MetaPiano : public MetaInstrument {
 
 public:
-    MetaPiano(QObject* parent);
+    explicit MetaPiano(QObject* parent);
 
     Instance instantiate() override;
 
@@ -146,8 +148,9 @@ public:
     void setRange(const QPair<Note, Note>& range);
 
 protected:
-    void onNotesOff(channels_t channels) override;
-    void setNote(channels_t channels, const Note& note, bool on) override;
+    void receiveNotesOff(channels_t channels) final;
+    void receiveNoteOn(channels_t channels, const Note& note) final;
+    void receiveNoteOff(channels_t channels, const Note& note) final;
 
     void enterEvent(QEvent* event) override;
     bool eventFilter(QObject* obj, QEvent* event) override;
@@ -155,7 +158,8 @@ protected:
 private:
     void clearKeys();
     void buildKeys();
-    void receiveKeys(bool on, PianoKey* key, Qt::MouseButtons buttons); /*!< change key state and notify the forwarder depending on buttons */
+    void generateKeyOn(PianoKey* key, Qt::MouseButtons buttons);
+    void generateKeyOff(PianoKey* key, Qt::MouseButtons buttons);
 
     PianoKey* mLastKey;
     QPair<Note, Note> mRange;

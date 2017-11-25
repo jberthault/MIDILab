@@ -61,9 +61,9 @@ public:
     void setSize(size_t size); /*!< size must go from 0 to 30 */
 
 protected slots:
-    void onNotesOff(channels_t channels) override;
-    void setNote(channels_t channels, const Note& note, bool on) override;
-    void setSingle(channel_t channel, const Note& note, bool on);
+    void receiveNotesOff(channels_t channels) final;
+    void receiveNoteOn(channels_t channels, const Note& note) final;
+    void receiveNoteOff(channels_t channels, const Note& note) final;
 
 private:
     channel_map_t<ChannelAffectation> mAffectations;

@@ -442,11 +442,14 @@ public:
     void setVelocity(byte_t velocity);
 
 protected:
-    virtual void onClose();
-    virtual void onReset();
-    virtual void onSoundOff(channels_t channels);
-    virtual void onNotesOff(channels_t channels);
-    virtual void setNote(channels_t channels, const Note& note, bool on);
+    virtual void receiveClose();
+    virtual void receiveReset();
+    virtual void receiveNotesOff(channels_t channels);
+    virtual void receiveNoteOn(channels_t channels, const Note& note);
+    virtual void receiveNoteOff(channels_t channels, const Note& note);
+
+    void generateNoteOn(channels_t channels, const Note& note);
+    void generateNoteOff(channels_t channels, const Note& note);
 
 private:
     byte_t mVelocity;

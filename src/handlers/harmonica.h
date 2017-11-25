@@ -65,8 +65,9 @@ public:
     void setTonality(const Note& note); /*!< richter tuning */
 
 protected slots:
-    void onNotesOff(channels_t channels) override;
-    void setNote(channels_t channels, const Note& note, bool on) override;
+    void receiveNotesOff(channels_t channels) final;
+    void receiveNoteOn(channels_t channels, const Note& note) final;
+    void receiveNoteOff(channels_t channels, const Note& note) final;
 
     void onPress(QAbstractButton* button);
     void onRelease(QAbstractButton* button);

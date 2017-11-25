@@ -33,11 +33,19 @@ PianoKey::PianoKey(const Note& note, Piano* parent) :
     setToolTip(QString::fromStdString(note.string()));
 }
 
-void PianoKey::setState(channels_t channels, bool on) {
-    auto previousChannels = mChannels;
-    mChannels.commute(channels, on);
-    if (mChannels != previousChannels)
+void PianoKey::setChannels(channels_t channels) {
+    if (mChannels != channels) {
+        mChannels = channels;
         update();
+    }
+}
+
+void PianoKey::activate(channels_t channels) {
+    setChannels(mChannels | channels);
+}
+
+void PianoKey::deactivate(channels_t channels) {
+    setChannels(mChannels & ~channels);
 }
 
 const Note& PianoKey::note() const {
@@ -230,16 +238,22 @@ void Piano::buildKeys() {
     setLayout(pianoLayout);
 }
 
-void Piano::onNotesOff(channels_t channels) {
+void Piano::receiveNotesOff(channels_t channels) {
     for (PianoKey* key : mKeys)
         if (key != nullptr)
-            key->setState(channels, false);
+            key->deactivate(channels);
 }
 
-void Piano::setNote(channels_t channels, const Note& note, bool on) {
+void Piano::receiveNoteOn(channels_t channels, const Note& note) {
     PianoKey* key = mKeys[note.code()];
     if (key != nullptr)
-        key->setState(channels, on);
+        key->activate(channels);
+}
+
+void Piano::receiveNoteOff(channels_t channels, const Note& note) {
+    PianoKey* key = mKeys[note.code()];
+    if (key != nullptr)
+        key->deactivate(channels);
 }
 
 void Piano::enterEvent(QEvent*) {
@@ -289,28 +303,39 @@ bool Piano::eventFilter(QObject* obj, QEvent* event) {
 
     /// check mouse event type
     switch (mouseEvent->type()) {
-    case QEvent::MouseButtonDblClick: receiveKeys(true, key, mouseEvent->button()); break;
-    case QEvent::MouseButtonPress: receiveKeys(true, key, mouseEvent->button()); break;
-    case QEvent::MouseButtonRelease: receiveKeys(false, key, mouseEvent->button()); break;
+    case QEvent::MouseButtonDblClick:
+    case QEvent::MouseButtonPress:
+        generateKeyOn(key, mouseEvent->button());
+        break;
+    case QEvent::MouseButtonRelease:
+        generateKeyOff(key, mouseEvent->button());
+        break;
     case QEvent::MouseMove:
         if (mLastKey != key && mouseEvent->buttons() != Qt::NoButton) {
-            receiveKeys(false, mLastKey, mouseEvent->buttons());
-            receiveKeys(true, key, mouseEvent->buttons());
+            generateKeyOff(mLastKey, mouseEvent->buttons());
+            generateKeyOn(key, mouseEvent->buttons());
         }
-    default: break; // should never happen
+        break;
     }
 
     mLastKey = key;
     return true;
 }
 
-void Piano::receiveKeys(bool on, PianoKey* key, Qt::MouseButtons buttons) {
+void Piano::generateKeyOn(PianoKey* key, Qt::MouseButtons buttons) {
     ChannelEditor* editor = channelEditor();
     channels_t channels = editor ? editor->channelsFromButtons(buttons) : channels_t::merge(0);
     if (key != nullptr && channels) {
-        Event event = on ? Event::note_on(channels, key->note().code(), velocity()) :
-                           Event::note_off(channels, key->note().code());
-        generate(std::move(event));
-        key->setState(channels, on);
+        generateNoteOn(channels, key->note());
+        key->activate(channels);
+    }
+}
+
+void Piano::generateKeyOff(PianoKey* key, Qt::MouseButtons buttons) {
+    ChannelEditor* editor = channelEditor();
+    channels_t channels = editor ? editor->channelsFromButtons(buttons) : channels_t::merge(0);
+    if (key != nullptr && channels) {
+        generateNoteOff(channels, key->note());
+        key->deactivate(channels);
     }
 }

@@ -426,7 +426,7 @@ families_t Instrument::handled_families() const {
 
 Handler::result_type Instrument::on_close(state_type state) {
     if (state & receive_state)
-        onClose();
+        receiveClose();
     return GraphicalHandler::on_close(state);
 }
 
@@ -435,25 +435,19 @@ Handler::result_type Instrument::handle_message(const Message& message) {
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_RECEIVE;
 
-    using namespace controller_ns;
-
     switch (message.event.family()) {
     case family_t::note_on:
-        setNote(message.event.channels(), message.event.get_note(), true);
+        receiveNoteOn(message.event.channels(), message.event.get_note());
         return result_type::success;
     case family_t::note_off:
-        setNote(message.event.channels(), message.event.get_note(), false);
+        receiveNoteOff(message.event.channels(), message.event.get_note());
         return result_type::success;
     case family_t::reset:
-        onReset();
+        receiveReset();
         return result_type::success;
     case family_t::controller:
-        if (message.event.at(1) == all_sound_off_controller) {
-            onSoundOff(message.event.channels());
-            return result_type::success;
-        }
-        if (message.event.at(1) == all_notes_off_controller) {
-            onNotesOff(message.event.channels());
+        if (message.event.at(1) == controller_ns::all_notes_off_controller) {
+            receiveNotesOff(message.event.channels());
             return result_type::success;
         }
     }
@@ -479,22 +473,30 @@ void Instrument::setVelocity(byte_t velocity) {
     mVelocity = to_data_byte(velocity);
 }
 
-void Instrument::onClose() {
-    onNotesOff(all_channels);
+void Instrument::receiveClose() {
+    receiveNotesOff(all_channels);
 }
 
-void Instrument::onReset() {
-    onNotesOff(all_channels);
+void Instrument::receiveReset() {
+    receiveNotesOff(all_channels);
 }
 
-void Instrument::onSoundOff(channels_t /*channels*/) {
-
-}
-
-void Instrument::onNotesOff(channels_t /*channels*/) {
+void Instrument::receiveNotesOff(channels_t /*channels*/) {
 
 }
 
-void Instrument::setNote(channels_t /*channels*/, const Note& /*note*/, bool /*on*/) {
+void Instrument::receiveNoteOn(channels_t /*channels*/, const Note& /*note*/) {
 
+}
+
+void Instrument::receiveNoteOff(channels_t /*channels*/, const Note& /*note*/) {
+
+}
+
+void Instrument::generateNoteOn(channels_t channels, const Note& note) {
+    generate(Event::note_on(channels, note.code(), velocity()));
+}
+
+void Instrument::generateNoteOff(channels_t channels, const Note& note) {
+    generate(Event::note_off(channels, note.code()));
 }
