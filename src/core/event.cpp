@@ -443,10 +443,6 @@ std::ostream& print_meta_int(std::ostream& stream, const Event& event) {
     return stream << event.get_meta_int();
 }
 
-std::ostream& print_meta_bytes(std::ostream& stream, const Event& event) {
-    return ::print_bytes(stream, event.meta_begin(), event.end());
-}
-
 std::ostream& print_bpm(std::ostream& stream, const Event& event) {
     return stream << decay_value<int>(10. * event.get_bpm()) / 10. << " bpm";
 }

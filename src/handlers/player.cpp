@@ -501,7 +501,7 @@ Sequence WriterItem::loadSequence() {
     return mHandler->load_sequence();
 }
 
-PlaylistTable::PlaylistTable(QWidget* parent) : QTableWidget(0, 2, parent), mCurrentItem(nullptr), mContext(nullptr) {
+PlaylistTable::PlaylistTable(QWidget* parent) : QTableWidget(0, 2, parent), mContext(nullptr), mCurrentItem(nullptr) {
 
     setHorizontalHeaderLabels(QStringList() << "Filename" << "Duration");
 
