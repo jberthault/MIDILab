@@ -26,6 +26,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QLineEdit>
 #include <QToolButton>
 #include <QMovie>
+#include <QGroupBox>
+#include <boost/optional.hpp>
 #include "qcore/editors.h"
 
 //==================
@@ -35,13 +37,25 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 class SoundFontHandler : public Handler {
 
 public:
+
+    struct reverb_type {
+        double roomsize;
+        double damp;
+        double level;
+        double width;
+    };
+
+    using optional_reverb_type = boost::optional<reverb_type>;
+
     static Event gain_event(double gain); /*!< must be in range [0, 10] */
     static Event file_event(const std::string& file);
+    static Event reverb_event(const optional_reverb_type& reverb);
 
     explicit SoundFontHandler();
 
     double gain() const;
     std::string file() const;
+    optional_reverb_type reverb() const;
 
     families_t handled_families() const override;
     result_type handle_message(const Message& message) override;
@@ -111,6 +125,52 @@ private:
 
 };
 
+// =============
+// ReverbEditor
+// =============
+
+class ReverbEditor : public QGroupBox {
+
+    Q_OBJECT
+
+public:
+    explicit ReverbEditor(QWidget* parent);
+
+    bool isActive() const;
+    SoundFontHandler::optional_reverb_type reverb() const;
+    SoundFontHandler::reverb_type rawReverb() const;
+
+public slots:
+    void setActive(bool active);
+    void setRoomSize(double value);
+    void setDamp(double value);
+    void setLevel(double value);
+    void setWidth(double value);
+    void setReverb(const SoundFontHandler::optional_reverb_type& reverb);
+
+signals:
+    void reverbChanged(SoundFontHandler::optional_reverb_type reverb);
+
+private slots:
+    void onRoomsizeChanged(qreal ratio);
+    void onRoomsizeMoved(qreal ratio);
+    void onDampChanged(qreal ratio);
+    void onDampMoved(qreal ratio);
+    void onLevelChanged(qreal ratio);
+    void onLevelMoved(qreal ratio);
+    void onWidthChanged(qreal ratio);
+    void onWidthMoved(qreal ratio);
+    void onToggle(bool activated);
+
+private:
+    SimpleSlider* mRoomsizeSlider;
+    SimpleSlider* mDampSlider;
+    SimpleSlider* mLevelSlider;
+    SimpleSlider* mWidthSlider;
+    SoundFontHandler::reverb_type mReverb;
+
+};
+
 //=================
 // SoundFontEditor
 //=================
@@ -126,21 +186,25 @@ public:
     size_t setParameter(const Parameter& parameter) override;
 
 public slots:
-    void setGain(double gain);
     void setFile(const QString& file);
+    void setGain(double gain);
+    void setReverb(const SoundFontHandler::optional_reverb_type& reverb);
 
 private slots:
     void onClick();
     void updateFile();
-    void updateGain(double gain);
+    void sendGain(double gain);
+    void sendReverb(const SoundFontHandler::optional_reverb_type& reverb);
 
 private:
+    SoundFontHandler* mHandler;
     SoundFontReceiver* mReceiver;
     QMovie* mLoadMovie;
     QLabel* mLoadLabel;
     QLineEdit* mFileEditor;
     QToolButton* mFileSelector;
     GainEditor* mGainEditor;
+    ReverbEditor* mReverbEditor;
 
 };
 

@@ -129,6 +129,42 @@ struct range_t {
 
 };
 
+
+template<typename T>
+struct exp_range_t {
+
+    range_t<T> range;
+    T pivot; /*!< value that will be at 50% on the scale */
+
+    constexpr double factor() const {
+        return 2. * std::log((range.max - pivot) / (pivot - range.min));
+    }
+
+    constexpr range_t<double> expRange() const {
+        return {1., std::exp(factor())};
+    }
+
+    constexpr explicit operator bool() const {
+        return range;
+    }
+
+    constexpr double reduce(T value) const {
+        return std::log(expRange().rescale(range, value)) / factor();
+    }
+
+    constexpr T expand(double value) const {
+        return range.rescale(expRange(), std::exp(factor() * value));
+    }
+
+    template<typename U>
+    constexpr T rescale(const range_t<U>& src, U value) const {
+        return expand(src.reduce(value));
+    }
+
+
+};
+
+
 // ======
 // string
 // ======

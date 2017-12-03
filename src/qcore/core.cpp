@@ -116,6 +116,22 @@ bool parseOrientation(const QString& data, Qt::Orientation& orientation) {
     return ok;
 }
 
+QString serializeBool(bool value) {
+    return value ? "true" : "false";
+}
+
+bool parseBool(const QString& data, bool& value) {
+    if (data == "true") {
+        value = true;
+        return true;
+    }
+    if (data == "false") {
+        value = false;
+        return true;
+    }
+    return false;
+}
+
 QString serializeDouble(double value) {
     return QString::number(value);
 }

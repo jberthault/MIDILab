@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #ifdef MIDILAB_FLUIDSYNTH_VERSION
 
+#include <sstream>
 #include <fluidsynth.h>
 #include "qcore/manager.h"
 #include "qtools/misc.h"
@@ -32,20 +33,41 @@ using namespace handler_ns;
 
 namespace {
 
-static constexpr range_t<double> gainRange = {0., 10.};
-static constexpr double gainPivot = 1.; /*!< gain value that will be at 50% on the scale */
-static constexpr double gainFactor = 2. * std::log((gainRange.max - gainPivot) / (gainPivot - gainRange.min));
-static constexpr range_t<double> gainExpRange = {1., std::exp(gainFactor)};
+static constexpr exp_range_t<double> gainRange = {{0., 10.}, 1.};
+static constexpr range_t<double> roomsizeRange = {0., 1.2};
+static constexpr range_t<double> dampRange = {0., 1.};
+static constexpr range_t<double> levelRange = {0., 1.};
+static constexpr exp_range_t<double> widthRange = {{0., 100.}, 10.};
 
-double gainForRatio(qreal ratio) {
-    return gainRange.rescale(gainExpRange, std::exp(gainFactor*ratio));
+
+static constexpr SoundFontHandler::reverb_type defaultReverb = {
+    FLUID_REVERB_DEFAULT_ROOMSIZE,
+    FLUID_REVERB_DEFAULT_DAMP,
+    FLUID_REVERB_DEFAULT_LEVEL,
+    FLUID_REVERB_DEFAULT_WIDTH,
+};
+
 }
 
-qreal ratioForGain(double gain) {
-    return std::log(gainExpRange.rescale(gainRange, gain))/gainFactor;
-}
+template<>
+struct marshalling_traits<SoundFontHandler::reverb_type> {
+    auto operator()(const SoundFontHandler::reverb_type& reverb) {
+        std::stringstream ss;
+        ss << reverb.roomsize << ' ' << reverb.damp << ' ' << reverb.level << ' ' << reverb.width;
+        return ss.str();
+    }
+};
 
-}
+template<>
+struct unmarshalling_traits<SoundFontHandler::reverb_type> {
+    auto operator()(const std::string& string) {
+        SoundFontHandler::reverb_type reverb;
+        std::stringstream ss(string);
+        ss >> reverb.roomsize >> reverb.damp  >> reverb.level >> reverb.width;
+        return reverb;
+    }
+};
+
 
 //======
 // Impl
@@ -60,6 +82,7 @@ struct SoundFontHandler::Impl {
         fluid_settings_setstr(settings, "audio.jack.id", "MIDILab");
         synth = new_fluid_synth(settings);
         adriver = new_fluid_audio_driver(settings, synth);
+        has_reverb = true;
     }
 
     ~Impl() {
@@ -70,6 +93,15 @@ struct SoundFontHandler::Impl {
 
     double gain() const {
         return (double)fluid_synth_get_gain(synth);
+    }
+
+    SoundFontHandler::reverb_type reverb() const {
+        SoundFontHandler::reverb_type reverb;
+        reverb.roomsize = fluid_synth_get_reverb_roomsize(synth);
+        reverb.damp = fluid_synth_get_reverb_damp(synth);
+        reverb.level = fluid_synth_get_reverb_level(synth);
+        reverb.width = fluid_synth_get_reverb_width(synth);
+        return reverb;
     }
 
     void close() {
@@ -100,26 +132,42 @@ struct SoundFontHandler::Impl {
         }
         case family_t::custom: {
             auto k = event.get_custom_key();
-            auto v = event.get_custom_value();
-            if (k == "SoundFont.gain") {
-                fluid_synth_set_gain(synth, (float)unmarshall<double>(v));
-                return result_type::success;
-            } else if (k == "SoundFont.file") {
-                if (fluid_synth_sfload(synth, v.c_str(), 1) == -1)
-                    return result_type::fail;
-                file = std::move(v);
-                return result_type::success;
-            }
+            if (k == "SoundFont.gain") return process_gain(event.get_custom_value());
+            if (k == "SoundFont.reverb") return process_reverb(event.get_custom_value());
+            if (k == "SoundFont.file") return process_file(event.get_custom_value());
             break;
         }
         }
         return result_type::unhandled;
     }
 
+    Handler::result_type process_gain(std::string string) {
+        fluid_synth_set_gain(synth, (float)unmarshall<double>(string));
+        return result_type::success;
+    }
+
+    Handler::result_type process_reverb(std::string string) {
+        has_reverb = !string.empty();
+        if (has_reverb) {
+            auto reverb = unmarshall<SoundFontHandler::reverb_type>(string);
+            fluid_synth_set_reverb(synth, reverb.roomsize, reverb.damp, reverb.width, reverb.level);
+        }
+        fluid_synth_set_reverb_on(synth, (int)has_reverb);
+        return result_type::success;
+    }
+
+    Handler::result_type process_file(std::string string) {
+        if (fluid_synth_sfload(synth, string.c_str(), 1) == -1)
+            return result_type::fail;
+        file = std::move(string);
+        return result_type::success;
+    }
+
     fluid_settings_t* settings;
     fluid_synth_t* synth;
     fluid_audio_driver_t* adriver;
     std::string file;
+    bool has_reverb;
 
 };
 
@@ -135,6 +183,13 @@ Event SoundFontHandler::file_event(const std::string& file) {
     return Event::custom({}, "SoundFont.file", file);
 }
 
+Event SoundFontHandler::reverb_event(const optional_reverb_type &reverb) {
+    if (reverb)
+        return Event::custom({}, "SoundFont.reverb", marshall(*reverb));
+    else
+        return Event::custom({}, "SoundFont.reverb");
+}
+
 SoundFontHandler::SoundFontHandler() : Handler(out_mode), m_pimpl(std::make_unique<Impl>()) {
 
 }
@@ -145,6 +200,13 @@ double SoundFontHandler::gain() const {
 
 std::string SoundFontHandler::file() const {
     return m_pimpl->file;
+}
+
+SoundFontHandler::optional_reverb_type SoundFontHandler::reverb() const {
+    SoundFontHandler::optional_reverb_type result;
+    if (m_pimpl->has_reverb)
+        result = m_pimpl->reverb();
+    return result;
 }
 
 families_t SoundFontHandler::handled_families() const {
@@ -203,33 +265,184 @@ Receiver::result_type SoundFontReceiver::receive_message(Handler* target, const 
 GainEditor::GainEditor(QWidget* parent) : QWidget(parent) {
     mSlider = new SimpleSlider(this);
     mSlider->setTextWidth(35);
-    mSlider->setDefaultRatio(ratioForGain(.2));
+    mSlider->setDefaultRatio(gainRange.reduce(.2));
     connect(mSlider, &SimpleSlider::knobChanged, this, &GainEditor::updateText);
     connect(mSlider, &SimpleSlider::knobMoved, this, &GainEditor::onMove);
     setLayout(make_vbox(margin_tag{0}, spacing_tag{0}, mSlider));
 }
 
 void GainEditor::setGain(double gain) {
-    mSlider->setRatio(ratioForGain(gain));
+    mSlider->setRatio(gainRange.reduce(gain));
     emit gainChanged(gain);
 }
 
 void GainEditor::onMove(qreal ratio) {
-    auto gain = gainForRatio(ratio);
+    auto gain = gainRange.expand(ratio);
     mSlider->setText(QString::number(gain, 'f', 2));
     emit gainChanged(gain);
 }
 
 void GainEditor::updateText(qreal ratio) {
-    auto gain = gainForRatio(ratio);
+    auto gain = gainRange.expand(ratio);
     mSlider->setText(QString::number(gain, 'f', 2));
+}
+
+// =============
+// ReverbEditor
+// =============
+
+ReverbEditor::ReverbEditor(QWidget* parent) : QGroupBox("Reverb", parent), mReverb(defaultReverb) {
+
+    setCheckable(true);
+    setChecked(true);
+    connect(this, &ReverbEditor::toggled, this, &ReverbEditor::onToggle);
+
+    mRoomsizeSlider = new SimpleSlider(this);
+    mRoomsizeSlider->setTextWidth(35);
+    mRoomsizeSlider->setDefaultRatio(roomsizeRange.reduce(defaultReverb.roomsize));
+    connect(mRoomsizeSlider, &SimpleSlider::knobChanged, this, &ReverbEditor::onRoomsizeChanged);
+    connect(mRoomsizeSlider, &SimpleSlider::knobMoved, this, &ReverbEditor::onRoomsizeMoved);
+
+    mDampSlider = new SimpleSlider(this);
+    mDampSlider->setTextWidth(35);
+    mDampSlider->setDefaultRatio(dampRange.reduce(defaultReverb.damp));
+    connect(mDampSlider, &SimpleSlider::knobChanged, this, &ReverbEditor::onDampChanged);
+    connect(mDampSlider, &SimpleSlider::knobMoved, this, &ReverbEditor::onDampMoved);
+
+    mLevelSlider = new SimpleSlider(this);
+    mLevelSlider->setTextWidth(35);
+    mLevelSlider->setDefaultRatio(levelRange.reduce(defaultReverb.level));
+    connect(mLevelSlider, &SimpleSlider::knobChanged, this, &ReverbEditor::onLevelChanged);
+    connect(mLevelSlider, &SimpleSlider::knobMoved, this, &ReverbEditor::onLevelMoved);
+
+    mWidthSlider = new SimpleSlider(this);
+    mWidthSlider->setTextWidth(35);
+    mWidthSlider->setDefaultRatio(widthRange.reduce(defaultReverb.width));
+    connect(mWidthSlider, &SimpleSlider::knobChanged, this, &ReverbEditor::onWidthChanged);
+    connect(mWidthSlider, &SimpleSlider::knobMoved, this, &ReverbEditor::onWidthMoved);
+
+    QFormLayout* form = new QFormLayout;
+    form->setVerticalSpacing(5);
+    form->addRow("Room Size", mRoomsizeSlider);
+    form->addRow("Damp", mDampSlider);
+    form->addRow("Level", mLevelSlider);
+    form->addRow("Width", mWidthSlider);
+    setLayout(form);
+
+}
+
+bool ReverbEditor::isActive() const {
+    return isChecked();
+}
+
+SoundFontHandler::optional_reverb_type ReverbEditor::reverb() const {
+    if (isActive())
+        return mReverb;
+    return {};
+}
+
+SoundFontHandler::reverb_type ReverbEditor::rawReverb() const {
+    return mReverb;
+}
+
+void ReverbEditor::setActive(bool active) {
+    setChecked(active);
+    emit reverbChanged(reverb());
+}
+
+void ReverbEditor::setRoomSize(double value) {
+    mReverb.roomsize = value;
+    mRoomsizeSlider->setRatio(roomsizeRange.reduce(mReverb.roomsize));
+    if (isActive())
+        emit reverbChanged(reverb());
+}
+
+void ReverbEditor::setDamp(double value) {
+    mReverb.damp = value;
+    mDampSlider->setRatio(dampRange.reduce(mReverb.damp));
+    if (isActive())
+        emit reverbChanged(reverb());
+}
+
+void ReverbEditor::setLevel(double value) {
+    mReverb.level = value;
+    mLevelSlider->setRatio(levelRange.reduce(mReverb.level));
+    if (isActive())
+        emit reverbChanged(reverb());
+}
+
+void ReverbEditor::setWidth(double value) {
+    mReverb.width = value;
+    mWidthSlider->setRatio(widthRange.reduce(mReverb.width));
+    if (isActive())
+        emit reverbChanged(reverb());
+}
+
+void ReverbEditor::setReverb(const SoundFontHandler::optional_reverb_type& reverb) {
+    if (reverb) {
+        mReverb = *reverb;
+        mRoomsizeSlider->setRatio(roomsizeRange.reduce(mReverb.roomsize));
+        mDampSlider->setRatio(dampRange.reduce(mReverb.damp));
+        mLevelSlider->setRatio(levelRange.reduce(mReverb.level));
+        mWidthSlider->setRatio(widthRange.reduce(mReverb.width));
+        setChecked(true);
+    } else {
+        setChecked(false);
+    }
+    emit reverbChanged(reverb);
+}
+
+void ReverbEditor::onRoomsizeChanged(qreal ratio) {
+    mRoomsizeSlider->setText(QString::number(roomsizeRange.expand(ratio), 'f', 2));
+}
+
+void ReverbEditor::onRoomsizeMoved(qreal ratio) {
+    mReverb.roomsize = roomsizeRange.expand(ratio);
+    mRoomsizeSlider->setText(QString::number(mReverb.roomsize, 'f', 2));
+    emit reverbChanged(mReverb);
+}
+
+void ReverbEditor::onDampChanged(qreal ratio) {
+    mDampSlider->setText(QString::number(dampRange.expand(ratio), 'f', 2));
+}
+
+void ReverbEditor::onDampMoved(qreal ratio)  {
+    mReverb.damp = dampRange.expand(ratio);
+    mDampSlider->setText(QString::number(mReverb.damp, 'f', 2));
+    emit reverbChanged(mReverb);
+}
+
+void ReverbEditor::onLevelChanged(qreal ratio) {
+    mLevelSlider->setText(QString::number(levelRange.expand(ratio), 'f', 2));
+}
+
+void ReverbEditor::onLevelMoved(qreal ratio) {
+    mReverb.level = levelRange.expand(ratio);
+    mLevelSlider->setText(QString::number(mReverb.level, 'f', 2));
+    emit reverbChanged(mReverb);
+}
+
+void ReverbEditor::onWidthChanged(qreal ratio) {
+    mWidthSlider->setText(QString::number(widthRange.expand(ratio), 'f', 2));
+}
+void ReverbEditor::onWidthMoved(qreal ratio) {
+    mReverb.width = widthRange.expand(ratio);
+    mWidthSlider->setText(QString::number(mReverb.width, 'f', 2));
+    emit reverbChanged(mReverb);
+}
+
+void ReverbEditor::onToggle(bool activated) {
+    SoundFontHandler::optional_reverb_type optional_reverb;
+    if (activated)
+        optional_reverb = mReverb;
+    emit reverbChanged(optional_reverb);
 }
 
 //=================
 // SoundFontEditor
 //=================
 
-SoundFontEditor::SoundFontEditor(SoundFontHandler* handler) : HandlerEditor(handler) {
+SoundFontEditor::SoundFontEditor(SoundFontHandler* handler) : HandlerEditor(handler), mHandler(handler) {
 
     mReceiver = new SoundFontReceiver(this);
     handler->set_receiver(mReceiver);
@@ -254,19 +467,28 @@ SoundFontEditor::SoundFontEditor(SoundFontHandler* handler) : HandlerEditor(hand
 
     mGainEditor = new GainEditor(this);
     mGainEditor->setGain(handler->gain());
-    connect(mGainEditor, &GainEditor::gainChanged, this, &SoundFontEditor::updateGain);
+    connect(mGainEditor, &GainEditor::gainChanged, this, &SoundFontEditor::sendGain);
+
+    mReverbEditor = new ReverbEditor(this);
+    mReverbEditor->setReverb(handler->reverb());
+    connect(mReverbEditor, &ReverbEditor::reverbChanged, this, &SoundFontEditor::sendReverb);
 
     QFormLayout* form = new QFormLayout;
     form->setMargin(0);
     form->addRow("File", make_hbox(spacing_tag{0}, mFileSelector, mFileEditor, mLoadLabel));
     form->addRow("Gain", mGainEditor);
-    setLayout(form);
+    setLayout(make_vbox(form, mReverbEditor));
 }
 
 HandlerView::Parameters SoundFontEditor::getParameters() const {
     auto result = HandlerEditor::getParameters();
-    SERIALIZE("file", QString::fromStdString, static_cast<SoundFontHandler*>(handler())->file(), result);
-    SERIALIZE("gain", serial::serializeDouble, static_cast<SoundFontHandler*>(handler())->gain(), result);
+    SERIALIZE("file", QString::fromStdString, mHandler->file(), result);
+    SERIALIZE("gain", serial::serializeDouble, mHandler->gain(), result);
+    SERIALIZE("reverb", serial::serializeBool, mReverbEditor->isActive(), result);
+    SERIALIZE("reverb.roomsize", serial::serializeDouble, mReverbEditor->rawReverb().roomsize, result);
+    SERIALIZE("reverb.damp", serial::serializeDouble, mReverbEditor->rawReverb().damp, result);
+    SERIALIZE("reverb.level", serial::serializeDouble, mReverbEditor->rawReverb().level, result);
+    SERIALIZE("reverb.width", serial::serializeDouble, mReverbEditor->rawReverb().width, result);
     return result;
 }
 
@@ -276,11 +498,12 @@ size_t SoundFontEditor::setParameter(const Parameter& parameter) {
         return 1;
     }
     UNSERIALIZE("gain", serial::parseDouble, setGain, parameter);
+    UNSERIALIZE("reverb", serial::parseBool, mReverbEditor->setActive, parameter);
+    UNSERIALIZE("reverb.roomsize", serial::parseDouble, mReverbEditor->setRoomSize, parameter);
+    UNSERIALIZE("reverb.damp", serial::parseDouble, mReverbEditor->setDamp, parameter);
+    UNSERIALIZE("reverb.level", serial::parseDouble, mReverbEditor->setLevel, parameter);
+    UNSERIALIZE("reverb.width", serial::parseDouble, mReverbEditor->setWidth, parameter);
     return HandlerEditor::setParameter(parameter);
-}
-
-void SoundFontEditor::setGain(double gain) {
-    mGainEditor->setGain(gain);
 }
 
 void SoundFontEditor::setFile(const QString& file) {
@@ -290,16 +513,28 @@ void SoundFontEditor::setFile(const QString& file) {
     }
 }
 
+void SoundFontEditor::setGain(double gain) {
+    mGainEditor->setGain(gain);
+}
+
+void SoundFontEditor::setReverb(const SoundFontHandler::optional_reverb_type& reverb) {
+    mReverbEditor->setReverb(reverb);
+}
+
 void SoundFontEditor::updateFile() {
-    QFileInfo fileInfo(QString::fromStdString(static_cast<SoundFontHandler*>(handler())->file()));
+    QFileInfo fileInfo(QString::fromStdString(mHandler->file()));
     mFileEditor->setText(fileInfo.completeBaseName());
     mFileEditor->setToolTip(fileInfo.absoluteFilePath());
     mLoadMovie->stop();
     mLoadLabel->hide();
 }
 
-void SoundFontEditor::updateGain(double gain) {
-    handler()->send_message(SoundFontHandler::gain_event(gain));
+void SoundFontEditor::sendGain(double gain) {
+    mHandler->send_message(SoundFontHandler::gain_event(gain));
+}
+
+void SoundFontEditor::sendReverb(const SoundFontHandler::optional_reverb_type& reverb) {
+    mHandler->send_message(SoundFontHandler::reverb_event(reverb));
 }
 
 void SoundFontEditor::onClick() {

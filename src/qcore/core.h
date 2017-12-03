@@ -80,6 +80,9 @@ bool parseTrack(const QString& data, track_t& track);
 QString serializeOrientation(Qt::Orientation orientation);
 bool parseOrientation(const QString& data, Qt::Orientation& orientation);
 
+QString serializeBool(bool value);
+bool parseBool(const QString& data, bool& value);
+
 QString serializeDouble(double value);
 bool parseDouble(const QString& data, double& value);
 
@@ -364,7 +367,7 @@ signals:
     void newAffiliation(QString, Handler*);
 
 private:
-    Handler* mHandler;
+    Handler* mHandler; /*!< @todo DELETE */
     QMap<QString, Handler*> mAffiliations;
 
 };
