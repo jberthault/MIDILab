@@ -442,7 +442,7 @@ void ReverbEditor::onToggle(bool activated) {
 // SoundFontEditor
 //=================
 
-SoundFontEditor::SoundFontEditor(SoundFontHandler* handler) : HandlerEditor(handler), mHandler(handler) {
+SoundFontEditor::SoundFontEditor(SoundFontHandler* handler) : HandlerEditor(), mHandler(handler) {
 
     mReceiver = new SoundFontReceiver(this);
     handler->set_receiver(mReceiver);
@@ -507,7 +507,7 @@ size_t SoundFontEditor::setParameter(const Parameter& parameter) {
 }
 
 void SoundFontEditor::setFile(const QString& file) {
-    if (handler()->send_message(SoundFontHandler::file_event(file.toStdString()))) {
+    if (mHandler->send_message(SoundFontHandler::file_event(file.toStdString()))) {
         mLoadMovie->start();
         mLoadLabel->show();
     }

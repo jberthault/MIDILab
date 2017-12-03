@@ -133,7 +133,7 @@ MetaChannelMapper::Instance MetaChannelMapper::instantiate() {
 // ChannelMapperEditor
 //=====================
 
-ChannelMapperEditor::ChannelMapperEditor(ChannelMapper* handler) : HandlerEditor(handler) {
+ChannelMapperEditor::ChannelMapperEditor(ChannelMapper* handler) : HandlerEditor(), mHandler(handler) {
 
     auto checkBoxLayout = new QGridLayout;
     checkBoxLayout->setMargin(0);
@@ -203,17 +203,17 @@ void ChannelMapperEditor::updateMapper() {
                 ocs.set(oc);
         mapping[ic] = ocs;
     }
-    static_cast<ChannelMapper*>(handler())->set_mapping(std::move(mapping));
+    mHandler->set_mapping(std::move(mapping));
 }
 
 void ChannelMapperEditor::updateFromMapper() {
-    auto mapping = static_cast<ChannelMapper*>(handler())->mapping();
+    auto mapping = mHandler->mapping();
     for (channel_t ic=0 ; ic < 0x10 ; ++ic)
         for (channel_t oc=0 ; oc < 0x10 ; ++oc)
             mCheckBoxes[ic][oc]->setChecked(mapping[ic].contains(oc));
 }
 
 void ChannelMapperEditor::resetMapper() {
-    static_cast<ChannelMapper*>(handler())->reset_mapping();
+    mHandler->reset_mapping();
     updateFromMapper();
 }

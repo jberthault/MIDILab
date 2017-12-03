@@ -94,6 +94,7 @@ private slots:
     void updateText(channels_t channels);
 
 private:
+    Transposer* mHandler;
     ChannelsSlider* mSlider;
     channel_map_t<int> mKeys;
 

@@ -356,19 +356,7 @@ class HandlerEditor : public HandlerView {
     Q_OBJECT
 
 public:
-    explicit HandlerEditor(Handler* handler);
-
-    Handler* handler() const;
-
-public slots:
-    void setAffiliated(const QString& type, Handler* handler);
-
-signals:
-    void newAffiliation(QString, Handler*);
-
-private:
-    Handler* mHandler; /*!< @todo DELETE */
-    QMap<QString, Handler*> mAffiliations;
+    explicit HandlerEditor() = default;
 
 };
 

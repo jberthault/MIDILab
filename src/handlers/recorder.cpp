@@ -38,7 +38,7 @@ MetaHandler::Instance MetaRecorder::instantiate() {
 // RecorderEditor
 //================
 
-RecorderEditor::RecorderEditor(SequenceWriter* handler) : HandlerEditor(handler), mWriter(handler) {
+RecorderEditor::RecorderEditor(SequenceWriter* handler) : HandlerEditor(), mWriter(handler) {
 
     mRecordButton = new QPushButton("Status", this);
     QIcon icon;

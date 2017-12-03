@@ -82,6 +82,7 @@ public slots:
     void resetMapper();
 
 private:
+    ChannelMapper* mHandler;
     channel_map_t<channel_map_t<QCheckBox*>> mCheckBoxes;
 
 };

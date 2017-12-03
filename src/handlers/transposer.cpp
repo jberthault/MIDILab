@@ -120,7 +120,7 @@ void Transposer::set_key(channels_t channels, int key) {
 // TransposerEditor
 //==================
 
-TransposerEditor::TransposerEditor(Transposer* handler) : HandlerEditor(handler) {
+TransposerEditor::TransposerEditor(Transposer* handler) : HandlerEditor(), mHandler(handler) {
 
     mKeys.fill(0);
 
@@ -157,7 +157,7 @@ void TransposerEditor::onMove(channels_t channels, qreal ratio) {
     channel_ns::store(mKeys, channels, key);
     mSlider->setText(channels, number2string(key));
     if (channels)
-        static_cast<Transposer*>(handler())->send_message(Transposer::transpose_event(channels, key));
+        mHandler->send_message(Transposer::transpose_event(channels, key));
 }
 
 void TransposerEditor::updateText(channels_t channels) {

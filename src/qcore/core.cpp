@@ -360,23 +360,6 @@ void HandlerView::updateContext(Context* /*context*/) {
 
 }
 
-//===============
-// HandlerEditor
-//===============
-
-HandlerEditor::HandlerEditor(Handler* handler) : HandlerView(), mHandler(handler) {
-
-}
-
-Handler* HandlerEditor::handler() const {
-    return mHandler;
-}
-
-void HandlerEditor::setAffiliated(const QString& type, Handler* handler) {
-    mAffiliations[type] = handler;
-    emit newAffiliation(type, handler);
-}
-
 //======================
 // MetaGraphicalHandler
 //======================

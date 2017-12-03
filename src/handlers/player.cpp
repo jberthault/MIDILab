@@ -1232,10 +1232,8 @@ MetaPlayer::Instance MetaPlayer::instantiate() {
 // Player
 //========
 
-Player::Player(SequenceReader* sr) :
-    HandlerEditor(sr), mIsPlaying(false), mPlayer(sr), mIsStepping(false) {
-
-    connect(this, &Player::newAffiliation, this, &Player::onAffiliation);
+Player::Player(SequenceReader* handler) :
+    HandlerEditor(), mIsPlaying(false), mPlayer(handler), mIsStepping(false) {
 
     mPlaylist = new PlaylistTable(this);
     connect(mPlaylist, SIGNAL(doubleClicked(QModelIndex)), SLOT(launch(QModelIndex)));
@@ -1272,6 +1270,7 @@ Player::Player(SequenceReader* sr) :
 }
 
 HandlerView::Parameters Player::getParameters() const {
+    /// @todo get track filter
     auto result = HandlerEditor::getParameters();
     auto paths = mPlaylist->paths();
     if (!paths.empty())
@@ -1280,6 +1279,7 @@ HandlerView::Parameters Player::getParameters() const {
 }
 
 size_t Player::setParameter(const Parameter& parameter) {
+    /// @todo set track filter
     if (parameter.name == "playlist") {
         mPlaylist->addPaths(parameter.value.split(';'));
         return 1;
@@ -1314,11 +1314,6 @@ void Player::changeDistorsion(double distorsion) {
     mPlayer->set_distorsion(distorsion);
     mTracker->setDistorsion(distorsion);
     mSequenceView->distordedClock().setDistorsion(distorsion);
-}
-
-void Player::onAffiliation(const QString& type, Handler* handler) {
-    if (type == "track_filter")
-        setTrackFilter(handler);
 }
 
 void Player::setTrackFilter(Handler* handler) {

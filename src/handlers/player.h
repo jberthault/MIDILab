@@ -506,7 +506,7 @@ class Player : public HandlerEditor {
     Q_OBJECT
     
 public:
-    explicit Player(SequenceReader* sr);
+    explicit Player(SequenceReader* handler);
 
     void setNextSequence(bool play, int offset);
     void setSequence(const Sequence& sequence, bool play);
@@ -541,8 +541,6 @@ protected slots:
 
     void updatePosition();
     void refreshPosition();
-
-    void onAffiliation(const QString& type, Handler* handler);
 
 private:
 
