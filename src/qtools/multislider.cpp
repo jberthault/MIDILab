@@ -185,7 +185,7 @@ void Knob::wheelEvent(QGraphicsSceneWheelEvent* event) {
 //==============
 
 ParticleKnob::ParticleKnob() :
-    Knob(), mShape(shape_type::ellipse), mPen(Qt::NoPen), mColor(Qt::black), mSize(14., 14.) {
+    Knob(), mShape(shape_type::ellipse), mPen(Qt::NoPen), mColor(Qt::black), mRadius(7.) {
 
 }
 
@@ -217,28 +217,32 @@ void ParticleKnob::setColor(const QBrush& brush) {
     update();
 }
 
-const QSizeF& ParticleKnob::size() const {
-    return mSize;
+qreal ParticleKnob::radius() const {
+    return mRadius;
 }
 
-void ParticleKnob::setSize(const QSizeF& size) {
+void ParticleKnob::setRadius(qreal radius) {
     prepareGeometryChange();
-    mSize = size;
+    mRadius = radius;
     update();
+}
+
+QRectF ParticleKnob::enclosingRect() const {
+    return sizeBoundingRect(QSizeF(2*mRadius, 2*mRadius));
 }
 
 QRectF ParticleKnob::boundingRect() const {
     qreal w = mPen.widthF();
-    return sizeBoundingRect(mSize).adjusted(-w, -w, w, w);
+    return enclosingRect().adjusted(-w, -w, w, w);
 }
 
 void ParticleKnob::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, QWidget* /*widget*/) {
     painter->setPen(mPen);
     painter->setBrush(mColor);
     switch (mShape) {
-    case shape_type::round_rect : painter->drawRoundRect(sizeBoundingRect(mSize), 50, 50); break;
-    case shape_type::rect : painter->drawRect(sizeBoundingRect(mSize)); break;
-    case shape_type::ellipse : painter->drawEllipse(sizeBoundingRect(mSize)); break;
+    case shape_type::round_rect : painter->drawRoundRect(enclosingRect(), 50, 50); break;
+    case shape_type::rect : painter->drawRect(enclosingRect()); break;
+    case shape_type::ellipse : painter->drawEllipse(enclosingRect()); break;
     }
 }
 
@@ -499,10 +503,10 @@ void setFixedDimension(QWidget* widget, Qt::Orientation orientation, int size) {
 
 }
 
-MultiSlider::MultiSlider(QWidget* parent) : QWidget(parent), mOrientation(Qt::Horizontal), mTextWidth(0) {
+MultiSlider::MultiSlider(Qt::Orientation orientation, QWidget* parent) : QWidget(parent), mOrientation(orientation), mTextWidth(0) {
     mParticleSlider = new KnobView(this);
     mTextSlider = new KnobView(this);
-    auto layout = new QBoxLayout(QBoxLayout::LeftToRight);
+    auto layout = new QBoxLayout(orientation == Qt::Vertical ? QBoxLayout::TopToBottom : QBoxLayout::LeftToRight);
     fill_box(layout, margin_tag{0}, spacing_tag{0}, mTextSlider, mParticleSlider);
     setLayout(layout);
 }
@@ -540,10 +544,29 @@ void MultiSlider::setTextWidth(int textWidth) {
     emit textWidthChanged(textWidth);
 }
 
-void MultiSlider::insertKnob(ParticleKnob* particleKnob, TextKnob* textKnob) {
+void MultiSlider::insertKnob(ParticleKnob* particleKnob, TextKnob* textKnob, qreal margin, qreal ratio) {
+
+    const bool isHorizontal = mOrientation == Qt::Horizontal;
+    margin += particleKnob->radius();
+
+    auto& particleMainScale = isHorizontal ? particleKnob->xScale() : particleKnob->yScale();
+    auto& particleOffScale = isHorizontal ? particleKnob->yScale() : particleKnob->xScale();
+    auto& textMainScale = isHorizontal ? textKnob->xScale() : textKnob->yScale();
+    auto& textOffScale = isHorizontal ? textKnob->yScale() : textKnob->xScale();
+
+    particleMainScale.margins = {margin, margin};
+    particleOffScale.clamp(ratio);
+    particleOffScale.margins = {margin, margin};
+    particleKnob->yScale().reversed = !isHorizontal;
+
+    textMainScale.value = .5;
+    textOffScale.clamp(ratio);
+    textOffScale.margins = {margin, margin};
+    textKnob->setFlag(TextKnob::ItemIsMovable, false);
+    textKnob->setRotation(isHorizontal ? 0 : -90);
+
     mParticleSlider->insertKnob(particleKnob);
     mTextSlider->insertKnob(textKnob);
-    textKnob->setFlag(TextKnob::ItemIsMovable, false);
 }
 
 Scale& MultiSlider::knobScale(Knob* knob) const {
@@ -572,11 +595,11 @@ void MultiSlider::transpose() {
 
 void MultiSlider::updateDimensions() {
     // minimum size required for non overlapping
-    QSizeF minSize(0., 0.);
+    qreal radiusSum = 0.;
     for (auto knob : mParticleSlider->knobs<ParticleKnob>())
         if (knob->isVisible())
-            minSize += knob->size();
-    const qreal size = 10. + (mOrientation == Qt::Vertical ? minSize.height() : minSize.width());
+            radiusSum += knob->radius();
+    const qreal size = 10. + 2. * radiusSum;
     setFixedDimension(this, mOrientation == Qt::Vertical ? Qt::Horizontal : Qt::Vertical, (int)size);
 }
 
@@ -588,29 +611,14 @@ void MultiSlider::updateTextDimensions() {
 // SimpleSlider
 //==============
 
-SimpleSlider::SimpleSlider(QWidget* parent) : MultiSlider(parent), mDefaultRatio(0.) {
-
-    const qreal radius = 6.;
-    const qreal margin = 8.; // 6 from radius + 2 from offset
-
-    const qreal fixedRatio = .5;
-
+SimpleSlider::SimpleSlider(Qt::Orientation orientation, QWidget* parent) : MultiSlider(orientation, parent), mDefaultRatio(0.) {
     mParticle = new ParticleKnob();
-    mParticle->setSize(QSizeF(2*radius, 2*radius));
-    mParticle->yScale().clamp(fixedRatio);
-    mParticle->xScale().margins = {margin, margin};
-    mParticle->yScale().margins = {margin, margin};
+    mText = new TextKnob();
+    mParticle->setRadius(6.);
     connect(mParticle, &ParticleKnob::knobDoubleClicked, this, &SimpleSlider::onKnobClick);
     connect(mParticle, &ParticleKnob::knobMoved, this, &SimpleSlider::onKnobMove);
-
-    mText = new TextKnob();
-    mText->yScale().clamp(fixedRatio);
-    mText->xScale().value = .5;
-    mText->yScale().margins = {margin, margin};
     connect(mText, &TextKnob::knobDoubleClicked, this, &SimpleSlider::onKnobClick);
-
-    insertKnob(mParticle, mText);
-
+    insertKnob(mParticle, mText, 2., .5);
     updateDimensions();
 }
 

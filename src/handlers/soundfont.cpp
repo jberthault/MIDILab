@@ -263,7 +263,7 @@ Receiver::result_type SoundFontReceiver::receive_message(Handler* target, const 
 //============
 
 GainEditor::GainEditor(QWidget* parent) : QWidget(parent) {
-    mSlider = new SimpleSlider(this);
+    mSlider = new SimpleSlider(Qt::Horizontal, this);
     mSlider->setTextWidth(35);
     mSlider->setDefaultRatio(gainRange.reduce(.2));
     connect(mSlider, &SimpleSlider::knobChanged, this, &GainEditor::updateText);
@@ -297,25 +297,25 @@ ReverbEditor::ReverbEditor(QWidget* parent) : QGroupBox("Reverb", parent), mReve
     setChecked(true);
     connect(this, &ReverbEditor::toggled, this, &ReverbEditor::onToggle);
 
-    mRoomsizeSlider = new SimpleSlider(this);
+    mRoomsizeSlider = new SimpleSlider(Qt::Horizontal, this);
     mRoomsizeSlider->setTextWidth(35);
     mRoomsizeSlider->setDefaultRatio(roomsizeRange.reduce(defaultReverb.roomsize));
     connect(mRoomsizeSlider, &SimpleSlider::knobChanged, this, &ReverbEditor::onRoomsizeChanged);
     connect(mRoomsizeSlider, &SimpleSlider::knobMoved, this, &ReverbEditor::onRoomsizeMoved);
 
-    mDampSlider = new SimpleSlider(this);
+    mDampSlider = new SimpleSlider(Qt::Horizontal, this);
     mDampSlider->setTextWidth(35);
     mDampSlider->setDefaultRatio(dampRange.reduce(defaultReverb.damp));
     connect(mDampSlider, &SimpleSlider::knobChanged, this, &ReverbEditor::onDampChanged);
     connect(mDampSlider, &SimpleSlider::knobMoved, this, &ReverbEditor::onDampMoved);
 
-    mLevelSlider = new SimpleSlider(this);
+    mLevelSlider = new SimpleSlider(Qt::Horizontal, this);
     mLevelSlider->setTextWidth(35);
     mLevelSlider->setDefaultRatio(levelRange.reduce(defaultReverb.level));
     connect(mLevelSlider, &SimpleSlider::knobChanged, this, &ReverbEditor::onLevelChanged);
     connect(mLevelSlider, &SimpleSlider::knobMoved, this, &ReverbEditor::onLevelMoved);
 
-    mWidthSlider = new SimpleSlider(this);
+    mWidthSlider = new SimpleSlider(Qt::Horizontal, this);
     mWidthSlider->setTextWidth(35);
     mWidthSlider->setDefaultRatio(widthRange.reduce(defaultReverb.width));
     connect(mWidthSlider, &SimpleSlider::knobChanged, this, &ReverbEditor::onWidthChanged);

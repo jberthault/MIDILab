@@ -108,7 +108,7 @@ class ParticleKnob : public Knob {
 
     Q_PROPERTY(QPen pen READ pen WRITE setPen)
     Q_PROPERTY(QBrush color READ color WRITE setColor)
-    Q_PROPERTY(QSizeF size READ size WRITE setSize)
+    Q_PROPERTY(qreal radius READ radius WRITE setRadius)
 
 public:
 
@@ -129,17 +129,19 @@ public:
     const QBrush& color() const;
     void setColor(const QBrush& brush);
 
-    const QSizeF& size() const;
-    void setSize(const QSizeF& size);
+    qreal radius() const;
+    void setRadius(qreal radius);
 
+    QRectF enclosingRect() const;
     QRectF boundingRect() const override;
     void paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) override;
+
 
 private:
     shape_type mShape;
     QPen mPen;
     QBrush mColor;
-    QSizeF mSize;
+    qreal mRadius;
 
 };
 
@@ -279,7 +281,7 @@ class MultiSlider : public QWidget {
     Q_OBJECT
 
 public:
-    explicit MultiSlider(QWidget* parent);
+    explicit MultiSlider(Qt::Orientation orientation, QWidget* parent);
 
     KnobView* particleSlider() const;
     KnobView* textSlider() const;
@@ -293,7 +295,7 @@ public:
     Scale& knobScale(Knob* knob) const;
     qreal knobRatio(Knob* knob) const;
     void setKnobRatio(Knob* knob, qreal ratio) const;
-    void insertKnob(ParticleKnob* particleKnob, TextKnob* textKnob);
+    void insertKnob(ParticleKnob* particleKnob, TextKnob* textKnob, qreal margin, qreal ratio);
 
 signals:
     void orientationChanged(Qt::Orientation orientation);
@@ -321,7 +323,7 @@ class SimpleSlider : public MultiSlider {
     Q_OBJECT
 
 public:
-    explicit SimpleSlider(QWidget* parent);
+    explicit SimpleSlider(Qt::Orientation orientation, QWidget* parent);
 
     qreal defaultRatio() const;
     void setDefaultRatio(qreal ratio);

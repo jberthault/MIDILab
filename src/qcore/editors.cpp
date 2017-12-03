@@ -311,38 +311,46 @@ void ChannelLabelKnob::onPress(Qt::MouseButton button) {
 //================
 
 ChannelsSlider::ChannelsSlider(Qt::Orientation orientation, QWidget* parent) :
-    MultiSlider(parent), mChannelEditor(nullptr), mDefaultRatio(0.) {
+    MultiSlider(orientation, parent), mChannelEditor(nullptr), mDefaultRatio(0.) {
 
     connect(particleSlider(), &KnobView::viewDoubleClicked, this, &ChannelsSlider::onViewClick);
 
     mGroupKnob = new ChannelKnob({});
+    mGroupKnob->setRadius(6.);
     mGroupKnob->setVisible(false);
+    connect(mGroupKnob, &ChannelKnob::defaulted, this, &ChannelsSlider::onDefault);
+    connect(mGroupKnob, &ChannelKnob::moved, this, &ChannelsSlider::onMove);
+    connect(mGroupKnob, &ChannelKnob::pressed, this, &ChannelsSlider::onPress);
+    connect(mGroupKnob, &ChannelKnob::released, this, &ChannelsSlider::onRelease);
 
     mGroupLabel = new ChannelLabelKnob({});
     mGroupLabel->setVisible(false);
+    connect(mGroupLabel, &ChannelLabelKnob::defaulted, this, &ChannelsSlider::onDefault);
+
+    insertKnob(mGroupKnob, mGroupLabel, 2., .5);
 
     for (channel_t c=0 ; c < 0x10 ; c++) {
-        // handle
+        // knob
         auto knob = new ChannelKnob(channels_t::merge(c));
+        knob->setRadius(6.);
         knob->setPen(QPen(Qt::black));
         connect(knob, &ChannelKnob::selected, this, &ChannelsSlider::onSelect);
         connect(knob, &ChannelKnob::surselected, this, &ChannelsSlider::onSurselect);
+        connect(knob, &ChannelKnob::defaulted, this, &ChannelsSlider::onDefault);
+        connect(knob, &ChannelKnob::moved, this, &ChannelsSlider::onMove);
+        connect(knob, &ChannelKnob::pressed, this, &ChannelsSlider::onPress);
+        connect(knob, &ChannelKnob::released, this, &ChannelsSlider::onRelease);
         // label
         auto label = new ChannelLabelKnob(channels_t::merge(c));
         connect(label, &ChannelLabelKnob::selected, this, &ChannelsSlider::onSelect);
         connect(label, &ChannelLabelKnob::surselected, this, &ChannelsSlider::onSurselect);
+        connect(label, &ChannelLabelKnob::defaulted, this, &ChannelsSlider::onDefault);
         mKnobs[c] = knob;
         mLabels[c] = label;
+        insertKnob(knob, label, 2., (qreal)c / 0xf);
     }
 
-    configure(mGroupKnob, mGroupLabel, .5);
-    for (channel_t c=0 ; c < 0x10 ; c++)
-        configure(mKnobs[c], mLabels[c], (qreal)c / 0xf);
-
-    if (orientation == Qt::Vertical)
-        setOrientation(Qt::Vertical);
-    else
-        updateDimensions();
+    updateDimensions();
 }
 
 void ChannelsSlider::setChannelEditor(ChannelEditor* editor) {
@@ -489,24 +497,6 @@ bool ChannelsSlider::matchSelection(channels_t channels) const {
 
 channels_t ChannelsSlider::extend(channels_t channels) const {
     return matchSelection(channels) ? channels | mSelection : channels;
-}
-
-void ChannelsSlider::configure(ChannelKnob* knob, ChannelLabelKnob* label, qreal fixedRatio) {
-    static const qreal radius = 6.;
-    static const qreal margin = 8.; // 6 from radius + 2 from offset
-    knob->setSize(QSizeF(2*radius, 2*radius));
-    knob->xScale().margins = {margin, margin};
-    knob->yScale().margins = {margin, margin};
-    knob->yScale().clamp(fixedRatio);
-    label->xScale().value = .5;
-    label->yScale().margins = {margin, margin};
-    label->yScale().clamp(fixedRatio);
-    insertKnob(knob, label);
-    connect(knob, &ChannelKnob::defaulted, this, &ChannelsSlider::onDefault);
-    connect(knob, &ChannelKnob::moved, this, &ChannelsSlider::onMove);
-    connect(knob, &ChannelKnob::pressed, this, &ChannelsSlider::onPress);
-    connect(knob, &ChannelKnob::released, this, &ChannelsSlider::onRelease);
-    connect(label, &ChannelLabelKnob::defaulted, this, &ChannelsSlider::onDefault);
 }
 
 //================

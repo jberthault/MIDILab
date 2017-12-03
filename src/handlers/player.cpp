@@ -1166,7 +1166,7 @@ TempoView::TempoView(QWidget* parent) : QWidget(parent) {
     mDistortedTempoSpin->setToolTip("Current Tempo");
 
     /// @todo turn slider label into a rich editor
-    mDistorsionSlider = new SimpleSlider(this);
+    mDistorsionSlider = new SimpleSlider(Qt::Horizontal, this);
     mDistorsionSlider->setTextWidth(35);
     mDistorsionSlider->setToolTip("Tempo Distorsion");
     mDistorsionSlider->setDefaultRatio(distorsionRange.reduce(1.));

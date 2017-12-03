@@ -230,7 +230,6 @@ protected slots:
 protected:
     bool matchSelection(channels_t channels) const;
     channels_t extend(channels_t channels) const;
-    void configure(ChannelKnob* knob, ChannelLabelKnob* label, qreal fixedRatio);
 
 signals:
     void knobChanged(channels_t channels);
