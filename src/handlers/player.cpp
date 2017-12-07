@@ -472,16 +472,9 @@ const QFileInfo& FileItem::fileInfo() const {
     return mFileInfo;
 }
 
-Sequence FileItem::loadSequence() {
-    Sequence sequence;
-    // QTime t0 = QTime::currentTime();
-    StandardMidiFile file = dumping::read_file(mFileInfo.absoluteFilePath().toLocal8Bit().constData());
-    // QTime t1 = QTime::currentTime();
-    sequence = Sequence::from_file(file);
-    // QTime t2 = QTime::currentTime();
-    sequence.set_title(text().toStdString());
-    // qDebug() << QString("loaded file %1 (read %2 ms; conversion %3 ms)").arg(filename).arg(t0.msecsTo(t1)).arg(t1.msecsTo(t2));
-    return sequence;
+NamedSequence FileItem::loadSequence() {
+    auto file = dumping::read_file(mFileInfo.absoluteFilePath().toLocal8Bit().constData());
+    return {Sequence::from_file(file), text()};
 }
 
 WriterItem::WriterItem(SequenceWriter* handler) : PlaylistItem(), mHandler(handler) {
@@ -497,8 +490,8 @@ SequenceWriter* WriterItem::handler() {
     return mHandler;
 }
 
-Sequence WriterItem::loadSequence() {
-    return mHandler->load_sequence();
+NamedSequence WriterItem::loadSequence() {
+    return {mHandler->load_sequence(), {}};
 }
 
 PlaylistTable::PlaylistTable(QWidget* parent) : QTableWidget(0, 2, parent), mContext(nullptr), mCurrentItem(nullptr) {
@@ -603,23 +596,23 @@ bool PlaylistTable::isLoaded() const {
     return mCurrentItem;
 }
 
-Sequence PlaylistTable::loadRow(int row) {
-    Sequence sequence;
+NamedSequence PlaylistTable::loadRow(int row) {
+    NamedSequence sequence;
     auto playlistItem = dynamic_cast<PlaylistItem*>(item(row, 0));
     if (playlistItem) {
         sequence = playlistItem->loadSequence();
-        if (!sequence.empty()) {
+        if (!sequence.sequence.empty()) {
             // change status
             setCurrentStatus(NO_STATUS);
             mCurrentItem = playlistItem;
             // set duration
-            item(row, 1)->setText(DistordedClock(sequence.clock()).toString(sequence.last_timestamp()));
+            item(row, 1)->setText(DistordedClock(sequence.sequence.clock()).toString(sequence.sequence.last_timestamp()));
         }
     }
     return sequence;
 }
 
-Sequence PlaylistTable::loadRelative(int offset, bool wrap) {
+NamedSequence PlaylistTable::loadRelative(int offset, bool wrap) {
     int row = 0;
     if (mCurrentItem) {
         row = mCurrentItem->row() + offset;
@@ -1329,8 +1322,8 @@ void Player::setNextSequence(bool play, int offset) {
             return;
         }
     } else {
-        Sequence nextSequence = mPlaylist->loadRelative(offset, mMediaView->isLooping());
-        if (!nextSequence.empty()) {
+        auto nextSequence = mPlaylist->loadRelative(offset, mMediaView->isLooping());
+        if (!nextSequence.sequence.empty()) {
             setSequence(nextSequence, play);
             return;
         }
@@ -1361,13 +1354,13 @@ void Player::refreshPosition() {
     }
 }
 
-void Player::setSequence(const Sequence& sequence, bool play) {
+void Player::setSequence(const NamedSequence& sequence, bool play) {
     resetSequence();
-    window()->setWindowTitle(QString::fromStdString(sequence.title()));
-    mPlayer->set_sequence(sequence);
-    mTempoView->setSequence(sequence);
-    mSequenceView->setSequence(sequence, mPlayer->lower(), mPlayer->upper());
-    mTracker->setSequence(sequence, mPlayer->lower(), mPlayer->upper());
+    window()->setWindowTitle(sequence.name);
+    mPlayer->set_sequence(sequence.sequence);
+    mTempoView->setSequence(sequence.sequence);
+    mSequenceView->setSequence(sequence.sequence, mPlayer->lower(), mPlayer->upper());
+    mTracker->setSequence(sequence.sequence, mPlayer->lower(), mPlayer->upper());
     if (play)
         playCurrentSequence();
 }
@@ -1390,8 +1383,8 @@ void Player::saveSequence() {
 }
 
 void Player::launch(QModelIndex index) {
-    Sequence sequence = mPlaylist->loadRow(index.row());
-    if (!sequence.empty()) {
+    auto sequence = mPlaylist->loadRow(index.row());
+    if (!sequence.sequence.empty()) {
         setSequence(sequence, true);
     } else { /// @todo get reason from model
         QMessageBox::critical(this, QString(), "Can't read MIDI File");

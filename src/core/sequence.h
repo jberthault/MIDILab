@@ -197,8 +197,6 @@ private:
  * @li tracks are merged in a single container in a more flexible way
  * @li additional title can be set
  *
- * @todo do not embed title in that class
- *
  * This version uses a sorted vector as the internal implementation
  * It offers more flexibility on reading access (random access iterators)
  * compared to a multimap implementation for example
@@ -239,13 +237,6 @@ public:
     static Sequence from_file(const StandardMidiFile& data);
     static Sequence from_realtime(const realtime_type& data, ppqn_t ppqn = 192);
 
-    // constructors
-    Sequence(std::string title = {});
-
-    // title
-    const std::string& title() const;
-    void set_title(std::string title);
-
     // clock
     const Clock& clock() const;
     void update_clock();
@@ -262,8 +253,8 @@ public:
 
     // mutators
     void clear();
-    void push_event(Event event, track_t track, timestamp_t timestamp); /*!< invalidate clock */
-    void insert_event(Event event, track_t track, timestamp_t timestamp); /*!< invalidate clock */
+    void push_item(Item item); /*!< invalidate clock */
+    void insert_item(Item item); /*!< invalidate clock */
     void insert_track(const StandardMidiFile::track_type& track_data, track_t track, int64_t offset = 0); /*!< invalidate clock */
 
     // converters

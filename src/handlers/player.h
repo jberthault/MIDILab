@@ -40,6 +40,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "qtools/multislider.h"
 #include "sequencehandlers.h"
 
+struct NamedSequence {
+    Sequence sequence;
+    QString name;
+};
+
 //================
 // DistordedClock
 //================
@@ -200,7 +205,7 @@ class PlaylistItem : public QTableWidgetItem {
 public:
     using QTableWidgetItem::QTableWidgetItem;
 
-    virtual Sequence loadSequence() = 0;
+    virtual NamedSequence loadSequence() = 0;
 
 };
 
@@ -211,7 +216,7 @@ public:
 
     const QFileInfo& fileInfo() const;
 
-    Sequence loadSequence() override;
+    NamedSequence loadSequence() override;
 
 private:
     QFileInfo mFileInfo;
@@ -225,7 +230,7 @@ public:
 
     SequenceWriter* handler();
 
-    Sequence loadSequence() override;
+    NamedSequence loadSequence() override;
 
 private:
     SequenceWriter* mHandler;
@@ -249,8 +254,8 @@ public:
     void setCurrentStatus(SequenceStatus status);
 
     bool isLoaded() const;
-    Sequence loadRow(int row);
-    Sequence loadRelative(int offset, bool wrap);
+    NamedSequence loadRow(int row);
+    NamedSequence loadRelative(int offset, bool wrap);
 
     void setContext(Context* context);
 
@@ -509,7 +514,7 @@ public:
     explicit Player(SequenceReader* handler);
 
     void setNextSequence(bool play, int offset);
-    void setSequence(const Sequence& sequence, bool play);
+    void setSequence(const NamedSequence& sequence, bool play);
     void setTrackFilter(Handler* handler);
 
     Parameters getParameters() const override;

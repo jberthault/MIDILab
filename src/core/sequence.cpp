@@ -539,24 +539,8 @@ Sequence Sequence::from_realtime(const realtime_type& data, ppqn_t ppqn) {
             sequence.m_clock.push_duration(item.event, item.time - t0);
     // fill event
     for (const RealtimeItem& item : data)
-        sequence.push_event(item.event, item.track, sequence.m_clock.time2timestamp(item.time - t0));
+        sequence.push_item({item.event, item.track, sequence.m_clock.time2timestamp(item.time - t0)});
     return sequence;
-}
-
-// constructors
-
-Sequence::Sequence(std::string title) : m_title(std::move(title)) {
-
-}
-
-// title
-
-const std::string& Sequence::title() const {
-    return m_title;
-}
-
-void Sequence::set_title(std::string title) {
-    m_title = std::move(title);
 }
 
 // clock
@@ -618,12 +602,13 @@ void Sequence::clear() {
     m_clock.reset();
 }
 
-void Sequence::push_event(Event event, track_t track, timestamp_t timestamp) {
-    m_events.push_back(Item{std::move(event), track, timestamp});
+void Sequence::push_item(Item item) {
+    m_events.push_back(std::move(item));
 }
 
-void Sequence::insert_event(Event event, track_t track, timestamp_t timestamp) {
-    m_events.emplace(std::upper_bound(m_events.begin(), m_events.end(), timestamp), Item{std::move(event), track, timestamp});
+void Sequence::insert_item(Item item) {
+    auto it = std::upper_bound(m_events.begin(), m_events.end(), item.timestamp);
+    m_events.emplace(it, std::move(item));
 }
 
 void Sequence::insert_track(const StandardMidiFile::track_type& track_data, track_t track, int64_t offset) {
