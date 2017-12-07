@@ -77,7 +77,7 @@ public:
     using queue_type = boost::circular_buffer<T>;
     using value_type = typename queue_type::value_type;
 
-    explicit task_t(size_t size) : m_queue(size), m_running(false) {
+    explicit task_t(size_t capacity) : m_queue(capacity), m_running(false) {
 
     }
 
@@ -117,12 +117,14 @@ public:
     template <typename F>
     void run(F consumer) {
         std::unique_lock<std::mutex> guard(m_mutex);
+        queue_type queue(m_queue.capacity());
         while (true) {
             while (!m_queue.empty()) {
-                auto value = std::move(m_queue.front());
-                m_queue.pop_front();
+                m_queue.swap(queue);
                 guard.unlock();
-                consumer(std::move(value));
+                for(auto& value : queue)
+                    consumer(std::move(value));
+                queue.clear();
                 guard.lock();
             }
             if (!m_running)
