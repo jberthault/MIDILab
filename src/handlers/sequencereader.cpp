@@ -18,12 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#include "sequencehandlers.h"
+#include "sequencereader.h"
 #include <algorithm>
-
-using namespace family_ns;
-using namespace controller_ns;
-using namespace handler_ns;
 
 //================
 // SequenceReader
@@ -41,7 +37,7 @@ Event SequenceReader::distorsion_event(double distorsion) {
     return Event::custom({}, "SequenceReader.distorsion", marshall(distorsion));
 }
 
-SequenceReader::SequenceReader() : Handler(io_mode), m_distorsion(1.), m_task(1), m_playing(false) {
+SequenceReader::SequenceReader() : Handler(handler_ns::io_mode), m_distorsion(1.), m_task(1), m_playing(false) {
     init_positions();
     m_task.start([this](std::promise<void>&& promise){
         run();
@@ -152,7 +148,7 @@ bool SequenceReader::start_playing(bool rewind) {
     // ensure previous run is terminated
     stop_playing();
     // can't start if unable to generate events
-    if (state().none(forward_state))
+    if (state().none(handler_ns::forward_state))
         return false;
     // reset position
     if (rewind || m_position.first < m_first_position.first)
@@ -173,7 +169,7 @@ void SequenceReader::stop_playing(bool reset) {
     if (m_status.valid()) { // previously started ?
         m_status.get(); // wait until the end of run and invalid status
         // we don't know (upper limits) if some events are missing
-        forward_message(Message(reset ? Event::reset() : Event::controller(all_channels, all_sound_off_controller), this));
+        forward_message(Message(reset ? Event::reset() : Event::controller(all_channels, controller_ns::all_sound_off_controller), this));
     }
 }
 
@@ -182,7 +178,7 @@ families_t SequenceReader::handled_families() const {
 }
 
 Handler::result_type SequenceReader::on_close(state_type state) {
-    if (state & forward_state)
+    if (state & handler_ns::forward_state)
         stop_playing();
     return Handler::on_close(state);
 }
@@ -280,48 +276,4 @@ SequenceReader::position_type SequenceReader::make_lower(timestamp_t timestamp) 
 
 SequenceReader::position_type SequenceReader::make_upper(timestamp_t timestamp) const {
     return {std::upper_bound(m_sequence.begin(), m_sequence.end(), timestamp), timestamp};
-}
-
-//================
-// SequenceWriter
-//================
-
-/// @todo remove the lock guard
-
-SequenceWriter::SequenceWriter() :
-    Handler(out_mode), m_recording(false), m_families(voice_families | meta_families) {
-
-    m_storage.reserve(8192);
-}
-
-void SequenceWriter::set_families(families_t families) {
-    m_families = families;
-}
-
-Sequence SequenceWriter::load_sequence() const {
-    std::lock_guard<std::mutex> guard(m_storage_mutex);
-    return Sequence::from_realtime(m_storage);
-}
-
-Handler::result_type SequenceWriter::handle_message(const Message& message) {
-    std::lock_guard<std::mutex> guard(m_storage_mutex);
-    MIDI_HANDLE_OPEN;
-    MIDI_CHECK_OPEN_RECEIVE;
-    if (!message.event.is(m_families) || !m_recording)
-        return result_type::unhandled;
-    m_storage.push_back(Sequence::realtime_type::value_type{message.event, message.track, clock_type::now()});
-    return result_type::success;
-}
-
-void SequenceWriter::start_recording() {
-    std::lock_guard<std::mutex> guard(m_storage_mutex);
-    if (!m_recording) {
-        m_storage.clear();
-        m_recording = true;
-    }
-}
-
-void SequenceWriter::stop_recording() {
-    std::lock_guard<std::mutex> guard(m_storage_mutex);
-    m_recording = false;
 }

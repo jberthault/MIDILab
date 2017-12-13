@@ -20,10 +20,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "trackfilter.h"
 
-using namespace controller_ns;
-using namespace handler_ns;
-using namespace family_ns;
-
 //=============
 // TrackFilter
 //=============
@@ -40,7 +36,7 @@ Event TrackFilter::disable_event(track_t track) {
     return Event::custom({}, "TrackFilter.disable", marshall(track));
 }
 
-TrackFilter::TrackFilter() : Handler(thru_mode), m_filter(true) {
+TrackFilter::TrackFilter() : Handler(handler_ns::thru_mode), m_filter(true) {
 
 }
 
@@ -79,17 +75,5 @@ void TrackFilter::feed_forward(const Message& message) {
 void TrackFilter::clean_corrupted(Handler *source, track_t track) {
     channels_t channels = m_corruption[track].reset();
     if (channels)
-        return feed_forward({Event::controller(channels, all_notes_off_controller), source, track});
-}
-
-//=================
-// MetaTrackFilter
-//=================
-
-MetaTrackFilter::MetaTrackFilter(QObject* parent) : MetaHandler(parent) {
-    setIdentifier("TrackFilter");
-}
-
-MetaHandler::Instance MetaTrackFilter::instantiate() {
-    return Instance(new TrackFilter, nullptr);
+        return feed_forward({Event::controller(channels, controller_ns::all_notes_off_controller), source, track});
 }

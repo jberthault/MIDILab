@@ -23,8 +23,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "qcore/editors.h"
 #include "qtools/misc.h"
 
-using namespace handler_ns;
-
 //=========
 // details
 //=========
@@ -53,7 +51,7 @@ MetaHandler::Instance MetaMonitor::instantiate() {
 // Monitor
 //=========
 
-Monitor::Monitor() : GraphicalHandler(out_mode) {
+Monitor::Monitor() : GraphicalHandler(handler_ns::out_mode) {
 
     mFamilySelector = new FamilySelector(this);
     mFamilySelector->setFamilies(~families_t::merge(family_t::active_sense));

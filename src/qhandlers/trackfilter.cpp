@@ -18,19 +18,16 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#include "forwarder.h"
+#include "trackfilter.h"
 
-//================
-// ForwardHandler
-//================
+//=================
+// MetaTrackFilter
+//=================
 
-ForwardHandler::ForwardHandler() : Handler(handler_ns::thru_mode) {
-
+MetaTrackFilter::MetaTrackFilter(QObject* parent) : MetaHandler(parent) {
+    setIdentifier("TrackFilter");
 }
 
-Handler::result_type ForwardHandler::handle_message(const Message& message) {
-    MIDI_HANDLE_OPEN;
-    MIDI_CHECK_OPEN_FORWARD_RECEIVE;
-    forward_message(message);
-    return result_type::success;
+MetaHandler::Instance MetaTrackFilter::instantiate() {
+    return Instance(new TrackFilter, nullptr);
 }

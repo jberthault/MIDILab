@@ -21,7 +21,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef HANDLERS_METATRACKFILTER_H
 #define HANDLERS_METATRACKFILTER_H
 
-#include "qcore/core.h"
+#include "core/handler.h"
+#include "core/misc.h"
 
 //=============
 // TrackFilter
@@ -45,7 +46,7 @@ public:
     static Event enable_event(track_t track);
     static Event disable_event(track_t track);
 
-    TrackFilter();
+    explicit TrackFilter();
 
     result_type handle_message(const Message& message) override;
 
@@ -55,19 +56,6 @@ private:
 
     filter_type m_filter;
     std::unordered_map<track_t, Corruption> m_corruption;
-
-};
-
-//=================
-// MetaTrackFilter
-//=================
-
-class MetaTrackFilter : public MetaHandler {
-
-public:
-    MetaTrackFilter(QObject* parent);
-
-    Instance instantiate() override;
 
 };
 

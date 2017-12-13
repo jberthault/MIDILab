@@ -18,51 +18,23 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#ifndef HANDLERS_RECORDER_H
-#define HANDLERS_RECORDER_H
+#ifndef QHANDLERS_FORWARDER_H
+#define QHANDLERS_FORWARDER_H
 
-#include <QPushButton>
-#include <QLabel>
+#include "handlers/forwarder.h"
 #include "qcore/core.h"
-#include "handlers/sequencehandlers.h"
 
-//==============
-// MetaRecorder
-//==============
+//===============
+// MetaForwarder
+//===============
 
-class MetaRecorder : public MetaHandler {
+class MetaForwarder : public MetaHandler {
 
 public:
-    MetaRecorder(QObject* parent);
+    explicit MetaForwarder(QObject* parent);
 
     Instance instantiate() override;
 
 };
 
-//================
-// RecorderEditor
-//================
-
-class RecorderEditor : public HandlerEditor {
-
-    Q_OBJECT
-
-public:
-    explicit RecorderEditor(SequenceWriter* handler);
-
-public slots:
-    void setRecording(bool recording);
-
-private slots:
-    void setHandlerRecording(bool recording);
-    void startRecording();
-    void stopRecording();
-
-private:
-    SequenceWriter* mWriter;
-    QPushButton* mRecordButton;
-    QLabel* mLabel;
-
-};
-
-#endif // HANDLERS_RECORDER_H
+#endif // QHANDLERS_FORWARDER_H

@@ -18,11 +18,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#ifndef HANDLERS_SEQUENCE_HANDLERS_H
-#define HANDLERS_SEQUENCE_HANDLERS_H
+#ifndef HANDLERS_SEQUENCE_READER_H
+#define HANDLERS_SEQUENCE_READER_H
 
-#include <chrono>     // std::chrono::duration
-#include <mutex>      // std::mutex
 #include <future>     // std::future std::promise
 #include "core/handler.h"
 #include "core/sequence.h"
@@ -44,7 +42,7 @@ public:
     static Event pause_event(); /*!< like stop_event but don't generate a reset_event */
     static Event distorsion_event(double distorsion);
 
-    SequenceReader();
+    explicit SequenceReader();
     ~SequenceReader();
 
     const Sequence& sequence() const; /*!< returns current sequence */
@@ -107,34 +105,4 @@ private:
 
 };
 
-//================
-// SequenceWriter
-//================
-
-class SequenceWriter : public Handler {
-
-public:
-    using duration_type = Clock::duration_type;
-    using clock_type = Clock::clock_type;
-    using time_type = Clock::time_type;
-
-    SequenceWriter();
-
-    void set_families(families_t families); /*!< default is all voice events */
-
-    Sequence load_sequence() const;
-
-    void start_recording(); /*!< first event received will be mark as t0, no effect if handler is recording */
-    void stop_recording();
-
-    result_type handle_message(const Message& message) override;
-
-private:
-    bool m_recording;
-    families_t m_families; /*!< accepted families */
-    Sequence::realtime_type m_storage;
-    mutable std::mutex m_storage_mutex;
-
-};
-
-#endif // MIDI_SEQUENCE_HANDLERS_H
+#endif // HANDLERS_SEQUENCE_READER_H

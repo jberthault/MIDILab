@@ -18,22 +18,41 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#ifndef HANDLERS_FORWARDER_H
-#define HANDLERS_FORWARDER_H
+#ifndef HANDLERS_SEQUENCE_WRITER_H
+#define HANDLERS_SEQUENCE_WRITER_H
 
+#include <mutex>      // std::mutex
 #include "core/handler.h"
+#include "core/sequence.h"
 
 //================
-// ForwardHandler
+// SequenceWriter
 //================
 
-class ForwardHandler : public Handler {
+class SequenceWriter : public Handler {
 
 public:
-    explicit ForwardHandler();
+    using duration_type = Clock::duration_type;
+    using clock_type = Clock::clock_type;
+    using time_type = Clock::time_type;
+
+    explicit SequenceWriter();
+
+    void set_families(families_t families); /*!< default is all voice events */
+
+    Sequence load_sequence() const;
+
+    void start_recording(); /*!< first event received will be mark as t0, no effect if handler is recording */
+    void stop_recording();
 
     result_type handle_message(const Message& message) override;
 
+private:
+    bool m_recording;
+    families_t m_families; /*!< accepted families */
+    Sequence::realtime_type m_storage;
+    mutable std::mutex m_storage_mutex;
+
 };
 
-#endif // HANDLERS_FORWARDER_H
+#endif // HANDLERS_SEQUENCE_WRITER_H

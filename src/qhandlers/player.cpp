@@ -27,9 +27,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "handlers/trackfilter.h"
 #include "qcore/manager.h"
 
-using namespace family_ns;
-using namespace controller_ns;
-
 static constexpr range_t<double> distorsionRange = {0., 4.};
 
 namespace {
@@ -128,7 +125,7 @@ SequenceViewItem::SequenceViewItem(Sequence::Item item, SequenceViewTrackItem *p
     // timestamp
     setText(0, QString::number(decay_value<long>(mItem.timestamp)));
     // channels
-    if (mItem.event.is(voice_families))
+    if (mItem.event.is(family_ns::voice_families))
         setText(1, QString::fromStdString(channel_ns::channels_string(mItem.event.channels())));
     // type
     setText(2, QString::fromStdString(mItem.event.name()));
@@ -137,7 +134,7 @@ SequenceViewItem::SequenceViewItem(Sequence::Item item, SequenceViewTrackItem *p
     rawText.replace("\n", "\\n");
     rawText.replace("\r", "\\r");
     rawText.replace("\t", "\\t");
-    if (item.event.is(string_families)) {
+    if (item.event.is(family_ns::string_families)) {
         mRawText = rawText;
         setText(3, view()->codec()->toUnicode(mRawText));
     } else {
@@ -164,7 +161,7 @@ void SequenceViewItem::setCodec(QTextCodec* codec) {
 
 void SequenceViewItem::updateVisibiliy(families_t families, channels_t channels, timestamp_t lower, timestamp_t upper) {
     bool familiesVisible = mItem.event.is(families);
-    bool channelsVisible = !mItem.event.is(voice_families) || channels.all(mItem.event.channels());
+    bool channelsVisible = !mItem.event.is(family_ns::voice_families) || channels.all(mItem.event.channels());
     bool boundsVisible = lower <= mItem.timestamp && mItem.timestamp <= upper;
     setHidden(!(familiesVisible && channelsVisible && boundsVisible));
 }
@@ -197,7 +194,7 @@ SequenceView::SequenceView(QWidget *parent) :
     connect(mFamilySelectorButton, &QPushButton::clicked, this, &SequenceView::onFamilyFilterClick);
 
     mFamilySelector = new FamilySelector(this);
-    mFamilySelector->setFamilies(all_families);
+    mFamilySelector->setFamilies(family_ns::all_families);
     mFamilySelector->setWindowFlags(Qt::Dialog);
     mFamilySelector->setVisible(false);
     connect(mFamilySelector, &FamilySelector::familiesChanged, this, &SequenceView::onFamiliesChanged);
@@ -326,7 +323,7 @@ void SequenceView::setSequence(const Sequence& sequence, timestamp_t lower, time
     QMap<track_t, channels_t> trackChannels;
     QMap<track_t, QByteArrayList> trackNames;
     for (const Sequence::Item& item : sequence.events()) {
-        if (item.event.is(voice_families))
+        if (item.event.is(family_ns::voice_families))
             trackChannels[item.track] |= item.event.channels();
         else if (item.event.family() == family_t::track_name)
             trackNames[item.track] << QByteArray::fromStdString(item.event.description());
@@ -395,7 +392,7 @@ void SequenceView::updateItemVisibility(SequenceViewItem* item) {
 }
 
 void SequenceView::onFamiliesChanged(families_t families) {
-    if (families.all(midi_families))
+    if (families.all(family_ns::midi_families))
         mFamilySelectorButton->setText("Types");
     else
         mFamilySelectorButton->setText("Types*");

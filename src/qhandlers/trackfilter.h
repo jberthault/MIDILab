@@ -18,19 +18,23 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#include "forwarder.h"
+#ifndef QHANDLERS_METATRACKFILTER_H
+#define QHANDLERS_METATRACKFILTER_H
 
-//================
-// ForwardHandler
-//================
+#include "handlers/trackfilter.h"
+#include "qcore/core.h"
 
-ForwardHandler::ForwardHandler() : Handler(handler_ns::thru_mode) {
+//=================
+// MetaTrackFilter
+//=================
 
-}
+class MetaTrackFilter : public MetaHandler {
 
-Handler::result_type ForwardHandler::handle_message(const Message& message) {
-    MIDI_HANDLE_OPEN;
-    MIDI_CHECK_OPEN_FORWARD_RECEIVE;
-    forward_message(message);
-    return result_type::success;
-}
+public:
+    explicit MetaTrackFilter(QObject* parent);
+
+    Instance instantiate() override;
+
+};
+
+#endif // QHANDLERS_METATRACKFILTER_H

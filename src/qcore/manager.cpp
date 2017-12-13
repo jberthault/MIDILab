@@ -25,9 +25,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QSettings>
 #include "manager.h"
 #include "qtools/displayer.h"
-#include "handlers/handlers.h"
-
-using namespace handler_ns;
 
 //======================
 // HandlerConfiguration
@@ -53,10 +50,7 @@ Manager::Manager(QObject* parent) : Context(parent) {
     mChannelEditor->setWindowFlags(Qt::Dialog);
 
     mCollector = new MetaHandlerCollector(this);
-    mCollector->addFactory(new StandardFactory(this));
-
     mGUIHolder = new GraphicalHolder(this);
-
     mReceiver = new DefaultReceiver(this);
 
     QSettings settings;
@@ -161,15 +155,15 @@ Handler* Manager::loadHandler(const QString& type, const HandlerConfiguration& c
 }
 
 void Manager::setHandlerOpen(Handler* handler, bool open) {
-    setHandlerState(handler, endpoints_state, open);
+    setHandlerState(handler, handler_ns::endpoints_state, open);
 }
 
 void Manager::setHandlerState(Handler* handler, Handler::state_type state, bool open) {
     Q_ASSERT(handler);
-    if (handler->mode().none(forward_mode))
-        state &= ~forward_state;
-    if (handler->mode().none(receive_mode))
-        state &= ~receive_state;
+    if (handler->mode().none(handler_ns::forward_mode))
+        state &= ~handler_ns::forward_state;
+    if (handler->mode().none(handler_ns::receive_mode))
+        state &= ~handler_ns::receive_state;
     if (handler->state().all(state) == open) {
         qWarning() << handlerName(handler) << "handler already" << (open ? "opened" : "closed");
         return;
@@ -179,8 +173,8 @@ void Manager::setHandlerState(Handler* handler, Handler::state_type state, bool 
 
 void Manager::toggleHandler(Handler* handler) {
     Q_ASSERT(handler);
-    bool forward_ok = handler->mode().none(forward_mode) || handler->state().any(forward_state);
-    bool receive_ok = handler->mode().none(receive_mode) || handler->state().any(receive_state);
+    bool forward_ok = handler->mode().none(handler_ns::forward_mode) || handler->state().any(handler_ns::forward_state);
+    bool receive_ok = handler->mode().none(handler_ns::receive_mode) || handler->state().any(handler_ns::receive_state);
     bool is_open = forward_ok && receive_ok;
     setHandlerOpen(handler, !is_open);
 }

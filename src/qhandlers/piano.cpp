@@ -21,8 +21,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "piano.h"
 #include "qcore/editors.h"
 
-using namespace handler_ns;
-
 //==========
 // PianoKey
 //==========
@@ -190,7 +188,7 @@ MetaHandler::Instance MetaPiano::instantiate() {
 // Piano
 //=======
 
-Piano::Piano() : Instrument(io_mode), mLastKey(nullptr), mRange(qMakePair(Note(Tonality::A, 0), Note(Tonality::C, 7))) {
+Piano::Piano() : Instrument(handler_ns::io_mode), mLastKey(nullptr), mRange(qMakePair(Note(Tonality::A, 0), Note(Tonality::C, 7))) {
     mKeys.fill(nullptr);
     installEventFilter(this);
     buildKeys();

@@ -18,8 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#ifndef HANDLERS_STANDARD_H
-#define HANDLERS_STANDARD_H
+#ifndef QHANDLERS_STANDARD_H
+#define QHANDLERS_STANDARD_H
 
 #include "qcore/core.h"
 
@@ -69,4 +69,4 @@ private:
 
 //};
 
-#endif // HANDLERS_STANDARD_H
+#endif // QHANDLERS_STANDARD_H

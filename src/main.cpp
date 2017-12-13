@@ -20,7 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <QApplication>
 #include <QSplashScreen>
-#include "qcore/mainwindow.h"
+#include "mainwindow.h"
 #include <qcore/core.h>
 
 int main(int argc, char *argv[]) {

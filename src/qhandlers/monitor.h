@@ -18,22 +18,49 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#ifndef HANDLERS_FORWARDER_H
-#define HANDLERS_FORWARDER_H
+#ifndef QHANDLERS_MONITOR_H
+#define QHANDLERS_MONITOR_H
 
-#include "core/handler.h"
+#include <QObject>
+#include <QtPlugin>
+#include <QTextEdit>
+#include "qcore/editors.h"
 
-//================
-// ForwardHandler
-//================
+//=============
+// MetaMonitor
+//=============
 
-class ForwardHandler : public Handler {
+class MetaMonitor : public MetaHandler {
 
 public:
-    explicit ForwardHandler();
+    explicit MetaMonitor(QObject* parent);
 
-    result_type handle_message(const Message& message) override;
+    Instance instantiate() override;
 
 };
 
-#endif // HANDLERS_FORWARDER_H
+//=========
+// Monitor
+//=========
+
+class Monitor : public GraphicalHandler {
+
+    Q_OBJECT
+
+public:
+    explicit Monitor();
+
+    void setFamilies(families_t families);
+
+    result_type handle_message(const Message& message) override;
+
+protected slots:
+    void onFilterClick();
+
+private:
+    QTextEdit* mEditor;
+    FamilySelector* mFamilySelector;
+
+};
+
+#endif // QHANDLERS_MONITOR_H

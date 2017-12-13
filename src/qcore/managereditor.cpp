@@ -25,8 +25,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "qtools/displayer.h"
 #include "qtools/misc.h"
 
-using namespace handler_ns;
-
 //=============
 // HandlerNode
 //=============
@@ -228,7 +226,7 @@ void HandlerGraphEditor::insertHandler(Handler* handler) {
         mNodes[handler] = node;
         mGraph->insertNode(node);
     }
-    if (asMode(handler, in_mode))
+    if (asMode(handler, handler_ns::in_mode))
         mSelector->insertHandler(handler);
     /// @todo change style of nodes for type
 }
@@ -273,20 +271,20 @@ void HandlerGraphEditor::forwardEdgeCreation(Node* tail, Node* head) {
     Handler* receiver = static_cast<HandlerNode*>(head)->handler();
     if (!sender || !receiver) { // by construction  sender != receiver
         QMessageBox::critical(this, QString(), "Undefined sender or receiver");
-    } else if (!asMode(receiver, receive_mode)) {
+    } else if (!asMode(receiver, handler_ns::receive_mode)) {
         QMessageBox::warning(this, QString(), "Receiver can not handle event");
     } else {
         if (mFilter->isChecked()) {
             Handler* source = mSelector->currentHandler();
-            if (!source || !asMode(source, in_mode)) {
+            if (!source || !asMode(source, handler_ns::in_mode)) {
                 QMessageBox::critical(this, QString(), "Undefined source");
-            } else if (sender != source && !asMode(sender, thru_mode)) {
+            } else if (sender != source && !asMode(sender, handler_ns::thru_mode)) {
                 QMessageBox::warning(this, QString(), "Sender must be THRU or source");
             } else {
                 Manager::instance->insertConnection(sender, receiver, source);
             }
         } else {
-            if (!asMode(sender, forward_mode)) {
+            if (!asMode(sender, handler_ns::forward_mode)) {
                 QMessageBox::information(this, QString(), "Sender can not forward event");
             } else {
                 Manager::instance->insertConnection(sender, receiver);
@@ -409,8 +407,8 @@ void HandlerListEditor::removeHandler(Handler* handler) {
 void HandlerListEditor::updateHandler(Handler* handler) {
     QTreeWidgetItem* item = mItems.value(handler, nullptr);
     if (item != nullptr) {
-        updateIcon(item, handler, forwardColumn, forward_mode, forward_state);
-        updateIcon(item, handler, receiveColumn, receive_mode, receive_state);
+        updateIcon(item, handler, forwardColumn, handler_ns::forward_mode, handler_ns::forward_state);
+        updateIcon(item, handler, receiveColumn, handler_ns::receive_mode, handler_ns::receive_state);
     }
 }
 
@@ -431,13 +429,13 @@ void HandlerListEditor::onDoubleClick(QTreeWidgetItem* item, int column) {
         Manager::instance->toggleHandler(handler);
         break;
     case forwardColumn:
-        if (handler->mode().any(thru_mode))
+        if (handler->mode().any(handler_ns::thru_mode))
             Manager::instance->toggleHandler(handler);
         else
-            Manager::instance->toggleHandler(handler, forward_state);
+            Manager::instance->toggleHandler(handler, handler_ns::forward_state);
         break;
     case receiveColumn:
-        Manager::instance->toggleHandler(handler, receive_state);
+        Manager::instance->toggleHandler(handler, handler_ns::receive_state);
         break;
     default: break;
     }

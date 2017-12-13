@@ -21,7 +21,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef HANDLERS_CHANNELMAPPER_H
 #define HANDLERS_CHANNELMAPPER_H
 
-#include "qcore/core.h"
+#include "core/handler.h"
+#include "core/misc.h"
 
 //===============
 // ChannelMapper
@@ -33,7 +34,7 @@ public:
     static Event remap_event(channels_t channels, channels_t mapped_channels); /*!< channels given will all map to the whole new channels */
     static Event unmap_event(channels_t channels); /*!< all channels specified won't be mapped */
 
-    ChannelMapper();
+    explicit ChannelMapper();
 
     channel_map_t<channels_t> mapping() const;
     void set_mapping(channel_map_t<channels_t> mapping);
@@ -49,41 +50,6 @@ private:
     channel_map_t<channels_t> m_mapping; /*!< Channel -> [Channel] */
     Corruption m_corruption;
     mutable std::mutex m_mutex; /*!< mutex protecting mapping */
-
-};
-
-//===================
-// MetaChannelMapper
-//===================
-
-class MetaChannelMapper : public MetaHandler {
-
-public:
-    MetaChannelMapper(QObject* parent);
-
-    Instance instantiate() override;
-
-};
-
-//=====================
-// ChannelMapperEditor
-//=====================
-
-class ChannelMapperEditor : public HandlerEditor {
-
-    Q_OBJECT
-
-public:
-    explicit ChannelMapperEditor(ChannelMapper* handler);
-
-public slots:
-    void updateMapper();
-    void updateFromMapper();
-    void resetMapper();
-
-private:
-    ChannelMapper* mHandler;
-    channel_map_t<channel_map_t<QCheckBox*>> mCheckBoxes;
 
 };
 

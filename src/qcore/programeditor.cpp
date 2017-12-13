@@ -27,8 +27,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "editors.h"
 #include "qtools/misc.h"
 
-using namespace handler_ns;
-
 //=======
 // Patch
 //=======
@@ -400,7 +398,7 @@ Handler* ProgramEditor::currentHandler() {
 }
 
 void ProgramEditor::insertHandler(Handler* handler) {
-    if (asMode(handler, out_mode)) {
+    if (asMode(handler, handler_ns::out_mode)) {
         mRecords[handler] = HandlerData(0, QMap<channel_t, byte_t>());
         mHandlerSelector->insertHandler(handler);
     }
@@ -435,7 +433,7 @@ void ProgramEditor::receiveProgram(Handler* handler, channels_t channels, byte_t
 }
 
 void ProgramEditor::sendProgram(Handler* handler, channels_t channels, byte_t program) {
-    if (handler->mode().any(out_mode))
+    if (handler->mode().any(handler_ns::out_mode))
         handler->send_message(Event::program_change(channels, program));
     else
         QMessageBox::warning(this, QString(), "You can't change program of an non-output handler");

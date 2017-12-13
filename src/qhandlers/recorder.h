@@ -18,49 +18,51 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#ifndef HANDLERS_MONITOR_H
-#define HANDLERS_MONITOR_H
+#ifndef QHANDLERS_RECORDER_H
+#define QHANDLERS_RECORDER_H
 
-#include <QObject>
-#include <QtPlugin>
-#include <QTextEdit>
-#include "qcore/editors.h"
+#include <QPushButton>
+#include <QLabel>
+#include "qcore/core.h"
+#include "handlers/sequencewriter.h"
 
-//=============
-// MetaMonitor
-//=============
+//==============
+// MetaRecorder
+//==============
 
-class MetaMonitor : public MetaHandler {
+class MetaRecorder : public MetaHandler {
 
 public:
-    MetaMonitor(QObject* parent);
+    explicit MetaRecorder(QObject* parent);
 
     Instance instantiate() override;
 
 };
 
-//=========
-// Monitor
-//=========
+//================
+// RecorderEditor
+//================
 
-class Monitor : public GraphicalHandler {
+class RecorderEditor : public HandlerEditor {
 
     Q_OBJECT
 
 public:
-    explicit Monitor();
+    explicit RecorderEditor(SequenceWriter* handler);
 
-    void setFamilies(families_t families);
+public slots:
+    void setRecording(bool recording);
 
-    result_type handle_message(const Message& message) override;
-
-protected slots:
-    void onFilterClick();
+private slots:
+    void setHandlerRecording(bool recording);
+    void startRecording();
+    void stopRecording();
 
 private:
-    QTextEdit* mEditor;
-    FamilySelector* mFamilySelector;
+    SequenceWriter* mWriter;
+    QPushButton* mRecordButton;
+    QLabel* mLabel;
 
 };
 
-#endif // HANDLERS_MONITOR_H
+#endif // QHANDLERS_RECORDER_H

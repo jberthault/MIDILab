@@ -25,14 +25,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QMessageBox>
 #include <QtGlobal>
 #include "mainwindow.h"
-#include "core.h"
-#include "parsing.h"
-#include "managereditor.h"
+#include "qcore/core.h"
+#include "qcore/parsing.h"
+#include "qcore/managereditor.h"
 #include "qtools/displayer.h"
 #include "qtools/misc.h"
 #include "handlers/systemhandler.h"
-#include "handlers/sequencehandlers.h"
-#include "handlers/trackfilter.h"
+#include "qhandlers/handlers.h"
 
 namespace {
 
@@ -294,6 +293,7 @@ AboutWindow::AboutWindow(QWidget* parent) :
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     new Manager(this);
+    Manager::instance->collector()->addFactory(new StandardFactory(this));
     mManagerEditor = new ManagerEditor(this);
     mProgramEditor = new ProgramEditor(Manager::instance->channelEditor(), this);
     setCentralWidget(new MultiDisplayer(Qt::Horizontal, this));

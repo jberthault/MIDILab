@@ -18,8 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#ifndef HANDLERS_PLAYER_H
-#define HANDLERS_PLAYER_H
+#ifndef QHANDLERS_PLAYER_H
+#define QHANDLERS_PLAYER_H
 
 #include <random>
 #include <QDialog>
@@ -38,7 +38,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "core/sequence.h"
 #include "qtools/misc.h"
 #include "qtools/multislider.h"
-#include "sequencehandlers.h"
+#include "handlers/sequencereader.h"
+#include "handlers/sequencewriter.h"
 
 struct NamedSequence {
     Sequence sequence;
@@ -54,7 +55,7 @@ class DistordedClock {
 public:
     static const QString timeFormat; /*!< preferred format displayed by QTimeEdit */
 
-    DistordedClock(Clock clock = Clock(), double distorsion = 1.);
+    DistordedClock(Clock clock = {}, double distorsion = 1.);
 
     const Clock& clock() const;
     void setClock(Clock clock);
@@ -565,4 +566,4 @@ private:
 
 };
 
-#endif // HANDLERS_PLAYER_H
+#endif // QHANDLERS_PLAYER_H

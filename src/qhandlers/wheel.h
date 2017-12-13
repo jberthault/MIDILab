@@ -18,8 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#ifndef HANDLERS_WHEEL_H
-#define HANDLERS_WHEEL_H
+#ifndef QHANDLERS_WHEEL_H
+#define QHANDLERS_WHEEL_H
 
 #include <QDialog>
 #include "qcore/editors.h"
@@ -32,7 +32,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 class MetaWheel : public MetaGraphicalHandler {
 
 public:
-    MetaWheel(QObject* parent);
+    explicit MetaWheel(QObject* parent);
 
 };
 
@@ -272,4 +272,4 @@ protected slots:
 
 };
 
-#endif // HANDLERS_WHEEL_H
+#endif // QHANDLERS_WHEEL_H

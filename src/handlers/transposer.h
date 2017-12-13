@@ -21,21 +21,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef HANDLERS_TRANSPOSER_H
 #define HANDLERS_TRANSPOSER_H
 
-#include "qcore/editors.h"
-#include "qtools/misc.h"
-
-//================
-// MetaTransposer
-//================
-
-class MetaTransposer : public MetaHandler {
-
-public:
-    MetaTransposer(QObject* parent);
-
-    Instance instantiate() override;
-
-};
+#include "core/handler.h"
+#include "core/misc.h"
 
 //============
 // Transposer
@@ -57,7 +44,7 @@ class Transposer : public Handler {
 public:
     static Event transpose_event(channels_t channels, int key);
 
-    Transposer();
+    explicit Transposer();
 
     result_type handle_message(const Message& message) override;
 
@@ -69,34 +56,6 @@ private:
     channel_map_t<int> m_keys; /*!< number of semi-tones shifted by channel */
     Corruption m_corruption;
     bool m_bypass;
-
-};
-
-//==================
-// TransposerEditor
-//==================
-
-class TransposerEditor : public HandlerEditor {
-
-    Q_OBJECT
-
-public:
-    explicit TransposerEditor(Transposer* handler);
-
-    Parameters getParameters() const override;
-    size_t setParameter(const Parameter& parameter) override;
-
-protected:
-    void updateContext(Context* context) override;
-
-private slots:
-    void onMove(channels_t channels, qreal ratio);
-    void updateText(channels_t channels);
-
-private:
-    Transposer* mHandler;
-    ChannelsSlider* mSlider;
-    channel_map_t<int> mKeys;
 
 };
 

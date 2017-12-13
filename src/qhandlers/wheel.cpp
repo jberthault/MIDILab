@@ -19,15 +19,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "wheel.h"
-//#include "editors.h"
-#include "systemhandler.h"
+#include "handlers/systemhandler.h"
 
 #include <QGroupBox>
 #include <QPushButton>
-
-using namespace family_ns;
-using namespace controller_ns;
-using namespace handler_ns;
 
 static constexpr range_t<uint16_t> volumeRange = {0, 0xffff};
 static constexpr range_t<byte_t> semitonesRange = {0, 24};
@@ -119,7 +114,7 @@ MetaHandler::Instance MetaControllerWheel::instantiate() {
 // ControllerWheel
 //=================
 
-ControllerWheel::ControllerWheel() : AbstractWheel(io_mode) {
+ControllerWheel::ControllerWheel() : AbstractWheel(handler_ns::io_mode) {
 
     mDefaultValues.fill(0);
     for (const auto& value : controller_tools::info())
@@ -193,8 +188,8 @@ void ControllerWheel::onMove(channels_t channels, qreal ratio) {
 
 void ControllerWheel::updateText(channels_t channels) {
     switch (mController) {
-    case pan_position_coarse_controller:
-    case balance_coarse_controller:
+    case controller_ns::pan_position_coarse_controller:
+    case controller_ns::balance_coarse_controller:
         for (const auto& pair : channel_ns::reverse(mValues[mController], channels))
             slider()->setText(pair.second, number2string(panRange.rescale(data7Range, pair.first)));
         break;
@@ -206,7 +201,7 @@ void ControllerWheel::updateText(channels_t channels) {
 }
 
 void ControllerWheel::receiveController(channels_t channels, byte_t controller, byte_t value) {
-    if (controller == all_controllers_off_controller) {
+    if (controller == controller_ns::all_controllers_off_controller) {
         resetController(channels);
     } else {
         channel_ns::store(mValues[controller], channels, value);
@@ -237,7 +232,7 @@ MetaHandler::Instance MetaPitchWheel::instantiate() {
 // PitchWheel
 //============
 
-PitchWheel::PitchWheel() : AbstractWheel(io_mode) {
+PitchWheel::PitchWheel() : AbstractWheel(handler_ns::io_mode) {
 
     mRegisteredParameters.fill(defaultRPN);
     mPitchRanges.fill(2);
@@ -267,13 +262,13 @@ Handler::result_type PitchWheel::handle_message(const Message& message) {
     switch (message.event.family()) {
     case family_t::controller:
         switch (message.event.at(1)) {
-        case registered_parameter_coarse_controller:
+        case controller_ns::registered_parameter_coarse_controller:
             receiveCoarseRPN(message.event.channels(), message.event.at(2));
             return result_type::success;
-        case registered_parameter_fine_controller:
+        case controller_ns::registered_parameter_fine_controller:
             receiveFineRPN(message.event.channels(), message.event.at(2));
             return result_type::success;
-        case data_entry_coarse_controller:
+        case controller_ns::data_entry_coarse_controller:
             receivePitchRange(message.event.channels() & channel_ns::find(mRegisteredParameters, pitchBendRangeRPN), message.event.at(2));
             return result_type::success;
         }
@@ -312,7 +307,7 @@ void PitchWheel::onMove(channels_t channels, qreal ratio) {
         if (canGenerate() && channels) {
             channels_t channelsNotReady = channels & ~channel_ns::find(mRegisteredParameters, pitchBendRangeRPN);
             generateRegisteredParameter(channelsNotReady, pitchBendRangeRPN);
-            generate(Event::controller(channels, data_entry_coarse_controller, semitones));
+            generate(Event::controller(channels, controller_ns::data_entry_coarse_controller, semitones));
             generateRegisteredParameter(channelsNotReady, defaultRPN);
         }
     } else {
@@ -353,8 +348,8 @@ bool PitchWheel::rangeDisplayed() const {
 void PitchWheel::generateRegisteredParameter(channels_t channels, uint16_t value) {
     channel_ns::store(mRegisteredParameters, channels, value);
     if (channels) {
-        generate(Event::controller(channels, registered_parameter_coarse_controller, short_tools::coarse(value)));
-        generate(Event::controller(channels, registered_parameter_fine_controller, short_tools::fine(value)));
+        generate(Event::controller(channels, controller_ns::registered_parameter_coarse_controller, short_tools::coarse(value)));
+        generate(Event::controller(channels, controller_ns::registered_parameter_fine_controller, short_tools::fine(value)));
     }
 }
 
@@ -420,7 +415,7 @@ MetaHandler::Instance MetaProgramWheel::instantiate() {
 // ProgramWheel
 //==============
 
-ProgramWheel::ProgramWheel() : AbstractWheel(io_mode) {
+ProgramWheel::ProgramWheel() : AbstractWheel(handler_ns::io_mode) {
     mPrograms.fill(0);
     prepare(.0);
 }
@@ -472,7 +467,7 @@ MetaHandler::Instance MetaVolume1Wheel::instantiate() {
 // Volume1Wheel
 //==============
 
-Volume1Wheel::Volume1Wheel() : AbstractWheel(in_mode) {
+Volume1Wheel::Volume1Wheel() : AbstractWheel(handler_ns::in_mode) {
     slider()->setExpanded(false);
     slider()->setOrientation(Qt::Horizontal);
     prepare(.5);
@@ -503,7 +498,7 @@ MetaHandler::Instance MetaVolume2Wheel::instantiate() {
 // Volume2Wheel
 //==============
 
-Volume2Wheel::Volume2Wheel() : AbstractWheel(in_mode) {
+Volume2Wheel::Volume2Wheel() : AbstractWheel(handler_ns::in_mode) {
     slider()->setExpanded(false);
     slider()->setOrientation(Qt::Horizontal);
     prepare(.5);

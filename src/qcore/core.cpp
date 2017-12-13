@@ -27,10 +27,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "core.h"
 #include "qtools/misc.h"
 
-using namespace controller_ns;
-using namespace family_ns;
-using namespace handler_ns;
-
 //=================
 // Name Conversion
 //=================
@@ -183,7 +179,7 @@ bool GraphicalHolder::event(QEvent* e) {
 
 Handler::result_type Observer::handleMessage(Handler* target, const Message& message) {
     auto result = target->handle_message(message);
-    if (result == Handler::result_type::success && message.event.is(~note_families))
+    if (result == Handler::result_type::success && message.event.is(~family_ns::note_families))
         QApplication::postEvent(this, new StorageEvent(target, message));
     return result;
 }
@@ -396,7 +392,7 @@ void GraphicalHandler::setTrack(track_t track) {
 }
 
 bool GraphicalHandler::canGenerate() const {
-    return state().any(forward_state) && isEnabled();
+    return state().any(handler_ns::forward_state) && isEnabled();
 }
 
 void GraphicalHandler::generate(Event event) {
@@ -424,7 +420,7 @@ families_t Instrument::handled_families() const {
 }
 
 Handler::result_type Instrument::on_close(state_type state) {
-    if (state & receive_state)
+    if (state & handler_ns::receive_state)
         receiveClose();
     return GraphicalHandler::on_close(state);
 }

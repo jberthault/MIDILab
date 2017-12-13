@@ -20,9 +20,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "systemhandler.h"
 
-using namespace family_ns;
-using namespace controller_ns;
-
 Event volume_event(uint16_t left, uint16_t right) {
     uint32_t volume = (right << 16) | left;
     return Event::custom({}, "System.volume", marshall(volume));
@@ -39,7 +36,7 @@ class WinSystemHandler : public Handler {
 
 public:
 
-    WinSystemHandler(mode_type mode, UINT id_in, UINT id_out) :
+    explicit WinSystemHandler(mode_type mode, UINT id_in, UINT id_out) :
         Handler(mode), m_id_in(id_in), m_id_out(id_out) {
 
     }
@@ -52,14 +49,14 @@ public:
     }
 
     families_t handled_families() const override {
-        return voice_families | families_t::merge(family_t::custom, family_t::reset);
+        return family_ns::voice_families | families_t::merge(family_t::custom, family_t::reset);
     }
 
     result_type handle_message(const Message& message) override {
         MIDI_HANDLE_OPEN;
         MIDI_CHECK_OPEN_RECEIVE;
         if (mode().any(handler_ns::receive_mode)) {
-            if (message.event.is(voice_families))
+            if (message.event.is(family_ns::voice_families))
                 return to_result(write_event(message.event));
             if (message.event.family() == family_t::sysex)
                 return to_result(write_sysex(message.event));
@@ -200,9 +197,9 @@ private:
     size_t reset_system() {
         // return check_out(midiOutReset(m_handle_out));
         size_t errors = 0;
-        errors += write_event(Event::controller(all_channels, all_controllers_off_controller));
-        errors += write_event(Event::controller(all_channels, all_sound_off_controller));
-        // errors += write_event(Event::controller(all_channels, volume_coarse_controller, 100));
+        errors += write_event(Event::controller(all_channels, controller_ns::all_controllers_off_controller));
+        errors += write_event(Event::controller(all_channels, controller_ns::all_sound_off_controller));
+        // errors += write_event(Event::controller(all_channels, controller_ns::volume_coarse_controller, 100));
         return errors;
     }
 
@@ -425,14 +422,14 @@ class LinuxSystemHandler : public Handler {
         }
 
         families_t handled_families() const override {
-            return voice_families | families_t::merge(family_t::custom, family_t::reset);
+            return family_ns::voice_families | families_t::merge(family_t::custom, family_t::reset);
         }
 
         result_type handle_message(const Message& message) override {
             MIDI_HANDLE_OPEN;
             MIDI_CHECK_OPEN_RECEIVE;
             if (mode().any(handler_ns::receive_mode)) {
-                if (message.event.is(voice_families))
+                if (message.event.is(family_ns::voice_families))
                     return to_result(write_event(message.event));
                 if (message.event.family() == family_t::reset)
                     return to_result(reset_system());
@@ -442,8 +439,8 @@ class LinuxSystemHandler : public Handler {
 
         size_t reset_system() {
             size_t errors = 0;
-            errors += write_event(Event::controller(all_channels, all_controllers_off_controller));
-            errors += write_event(Event::controller(all_channels, all_sound_off_controller));
+            errors += write_event(Event::controller(all_channels, controller_ns::all_controllers_off_controller));
+            errors += write_event(Event::controller(all_channels, controller_ns::all_sound_off_controller));
             return errors;
         }
 

@@ -18,8 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#ifndef HANDLERS_PIANO_H
-#define HANDLERS_PIANO_H
+#ifndef QHANDLERS_PIANO_H
+#define QHANDLERS_PIANO_H
 
 #include <QWidget>
 #include <QEvent>
@@ -167,4 +167,4 @@ private:
 
 };
 
-#endif // HANDLERS_PIANO_H
+#endif // QHANDLERS_PIANO_H

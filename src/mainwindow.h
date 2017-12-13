@@ -25,10 +25,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QMainWindow>
 #include <QComboBox>
 #include <QDialog>
-#include "manager.h"
-#include "managereditor.h"
-#include "programeditor.h"
-#include "parsing.h"
+#include "qcore/manager.h"
+#include "qcore/managereditor.h"
+#include "qcore/programeditor.h"
+#include "qcore/parsing.h"
 #include "qtools/misc.h"
 
 // ======

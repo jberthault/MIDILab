@@ -18,8 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#ifndef HANDLERS_GUITAR_H
-#define HANDLERS_GUITAR_H
+#ifndef QHANDLERS_GUITAR_H
+#define QHANDLERS_GUITAR_H
 
 #include "qcore/core.h"
 
@@ -72,4 +72,4 @@ private:
 
 };
 
-#endif // HANDLERS_GUITAR_H
+#endif // QHANDLERS_GUITAR_H

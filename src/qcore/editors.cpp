@@ -26,8 +26,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QButtonGroup>
 #include "editors.h"
 
-using namespace family_ns;
-
 //=============
 // ColorPicker
 //=============
@@ -509,9 +507,9 @@ FamilySelector::FamilySelector(QWidget* parent) : QTreeWidget(parent) {
     setAlternatingRowColors(true);
     setHeaderHidden(true);
 
-    QTreeWidgetItem* midiItem = makeNode(invisibleRootItem(), midi_families, "MIDI Events");
-    QTreeWidgetItem* voiceItem = makeNode(midiItem, voice_families, "Voice Events");
-    QTreeWidgetItem* noteItem = makeNode(voiceItem, note_families, "Note Events");
+    QTreeWidgetItem* midiItem = makeNode(invisibleRootItem(), family_ns::midi_families, "MIDI Events");
+    QTreeWidgetItem* voiceItem = makeNode(midiItem, family_ns::voice_families, "Voice Events");
+    QTreeWidgetItem* noteItem = makeNode(voiceItem, family_ns::note_families, "Note Events");
     makeLeaf(noteItem, family_t::note_off);
     makeLeaf(noteItem, family_t::note_on);
     makeLeaf(noteItem, family_t::aftertouch);
@@ -519,8 +517,8 @@ FamilySelector::FamilySelector(QWidget* parent) : QTreeWidget(parent) {
     makeLeaf(voiceItem, family_t::program_change);
     makeLeaf(voiceItem, family_t::channel_pressure);
     makeLeaf(voiceItem, family_t::pitch_wheel);
-    QTreeWidgetItem* systemItem = makeNode(midiItem, system_families, "System Events");
-    QTreeWidgetItem* systemCommonItem = makeNode(systemItem, system_common_families, "System Common Events");
+    QTreeWidgetItem* systemItem = makeNode(midiItem, family_ns::system_families, "System Events");
+    QTreeWidgetItem* systemCommonItem = makeNode(systemItem, family_ns::system_common_families, "System Common Events");
     makeLeaf(systemCommonItem, family_t::sysex);
     makeLeaf(systemCommonItem, family_t::mtc_frame);
     makeLeaf(systemCommonItem, family_t::song_position);
@@ -529,7 +527,7 @@ FamilySelector::FamilySelector(QWidget* parent) : QTreeWidget(parent) {
     makeLeaf(systemCommonItem, family_t::xf5);
     makeLeaf(systemCommonItem, family_t::tune_request);
     makeLeaf(systemCommonItem, family_t::end_of_sysex);
-    QTreeWidgetItem* systemRealtimeItem = makeNode(systemItem, system_realtime_families, "System Realtime Events");
+    QTreeWidgetItem* systemRealtimeItem = makeNode(systemItem, family_ns::system_realtime_families, "System Realtime Events");
     makeLeaf(systemRealtimeItem, family_t::clock);
     makeLeaf(systemRealtimeItem, family_t::tick);
     makeLeaf(systemRealtimeItem, family_t::start);
@@ -538,7 +536,7 @@ FamilySelector::FamilySelector(QWidget* parent) : QTreeWidget(parent) {
     makeLeaf(systemRealtimeItem, family_t::xfd);
     makeLeaf(systemRealtimeItem, family_t::active_sense);
     makeLeaf(systemRealtimeItem, family_t::reset);
-    QTreeWidgetItem* metaItem = makeNode(midiItem, meta_families, "Meta Events");
+    QTreeWidgetItem* metaItem = makeNode(midiItem, family_ns::meta_families, "Meta Events");
     makeLeaf(metaItem, family_t::sequence_number);
     makeLeaf(metaItem, family_t::text);
     makeLeaf(metaItem, family_t::copyright);

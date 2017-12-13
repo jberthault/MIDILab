@@ -20,17 +20,15 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "forwarder.h"
 
-//================
-// ForwardHandler
-//================
+//===============
+// MetaForwarder
+//===============
 
-ForwardHandler::ForwardHandler() : Handler(handler_ns::thru_mode) {
-
+MetaForwarder::MetaForwarder(QObject* parent) : MetaHandler(parent) {
+    setIdentifier("Forwarder");
+    setDescription("Connection Tool");
 }
 
-Handler::result_type ForwardHandler::handle_message(const Message& message) {
-    MIDI_HANDLE_OPEN;
-    MIDI_CHECK_OPEN_FORWARD_RECEIVE;
-    forward_message(message);
-    return result_type::success;
+MetaHandler::Instance MetaForwarder::instantiate() {
+    return Instance(new ForwardHandler, nullptr);
 }

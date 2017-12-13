@@ -18,8 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#ifndef HANDLERS_HARMONICA_H
-#define HANDLERS_HARMONICA_H
+#ifndef QHANDLERS_HARMONICA_H
+#define QHANDLERS_HARMONICA_H
 
 #include <QAbstractButton>
 #include <QMultiMap>
@@ -32,7 +32,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 class MetaHarmonica : public MetaInstrument {
 
 public:
-    MetaHarmonica(QObject* parent);
+    explicit MetaHarmonica(QObject* parent);
 
     Instance instantiate() override;
 
@@ -99,4 +99,4 @@ private:
 
 };
 
-#endif // HANDLERS_HARMONICA_H
+#endif // QHANDLERS_HARMONICA_H

@@ -20,8 +20,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "guitar.h"
 
-using namespace handler_ns;
-
 //============
 // MetaGuitar
 //============
@@ -45,7 +43,7 @@ const QList<Note> Guitar::guitarTuning = (QList<Note>() <<
 const QList<Note> Guitar::bassTuning = (QList<Note>() <<
                                                Note::from_string("E3") << Note::from_string("A4") << Note::from_string("D4") << Note::from_string("G4") );
 
-Guitar::Guitar() : Instrument(io_mode), mSize(0) {
+Guitar::Guitar() : Instrument(handler_ns::io_mode), mSize(0) {
 
 }
 
