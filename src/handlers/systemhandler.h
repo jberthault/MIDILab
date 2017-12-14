@@ -34,4 +34,4 @@ Event volume_event(uint16_t left, uint16_t right);
 
 std::list<Handler*> create_system();
 
-#endif // MIDI_SYSTEM_HANDLER_H
+#endif // HANDLERS_SYSTEM_HANDLER_H

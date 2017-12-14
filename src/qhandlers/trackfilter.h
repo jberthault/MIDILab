@@ -18,8 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#ifndef QHANDLERS_METATRACKFILTER_H
-#define QHANDLERS_METATRACKFILTER_H
+#ifndef QHANDLERS_TRACKFILTER_H
+#define QHANDLERS_TRACKFILTER_H
 
 #include "handlers/trackfilter.h"
 #include "qcore/core.h"
@@ -37,4 +37,4 @@ public:
 
 };
 
-#endif // QHANDLERS_METATRACKFILTER_H
+#endif // QHANDLERS_TRACKFILTER_H

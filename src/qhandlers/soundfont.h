@@ -18,8 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#ifndef QHANDLERS_SOUNDFONTHANDLER_H
-#define QHANDLERS_SOUNDFONTHANDLER_H
+#ifndef QHANDLERS_SOUNDFONT_H
+#define QHANDLERS_SOUNDFONT_H
 
 #ifdef MIDILAB_FLUIDSYNTH_VERSION
 
@@ -172,4 +172,4 @@ private:
 
 #endif // MIDILAB_FLUIDSYNTH_VERSION
 
-#endif // QHANDLERS_SOUNDFONTHANDLER_H
+#endif // QHANDLERS_SOUNDFONT_H

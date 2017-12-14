@@ -18,8 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#ifndef HANDLERS_METATRACKFILTER_H
-#define HANDLERS_METATRACKFILTER_H
+#ifndef HANDLERS_TRACKFILTER_H
+#define HANDLERS_TRACKFILTER_H
 
 #include "core/handler.h"
 #include "core/misc.h"
@@ -59,4 +59,4 @@ private:
 
 };
 
-#endif // HANDLERS_METATRACKFILTER_H
+#endif // HANDLERS_TRACKFILTER_H
