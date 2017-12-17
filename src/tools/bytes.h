@@ -27,6 +27,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cmath>
 #include <string>
 #include <type_traits>
+#include <algorithm>
 
 // ====
 // byte
@@ -86,9 +87,23 @@ struct byte_traits {
 
 };
 
-// =======
-// numeric
-// =======
+// ==========
+// algorithms
+// ==========
+
+/**
+ * return true if both range are equal (like std::equal would do),
+ * but if ranges have different sizes, it will also return true
+ * if all remaining element match the predicate
+ */
+
+template<typename InpuIt1, typename InpuIt2, typename UnaryPredicate>
+bool equal_padding(InpuIt1 first1, InpuIt1 last1, InpuIt2 first2, InpuIt2 last2, UnaryPredicate p) {
+    auto its = std::mismatch(first1, last1, first2, last2);
+    if (its.first == last1) return std::all_of(its.second, last2, p);
+    if (its.second == last2) return std::all_of(its.first, last1, p);
+    return false;
+}
 
 template<typename T>
 constexpr std::enable_if_t<std::is_integral<T>::value, T> decay_value(double value) {

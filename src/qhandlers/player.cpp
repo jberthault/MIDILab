@@ -125,8 +125,7 @@ SequenceViewItem::SequenceViewItem(Sequence::Item item, SequenceViewTrackItem *p
     // timestamp
     setText(0, QString::number(decay_value<long>(mItem.timestamp)));
     // channels
-    if (mItem.event.is(family_ns::voice_families))
-        setText(1, QString::fromStdString(channel_ns::channels_string(mItem.event.channels())));
+    setText(1, ChannelsSelector::channelsToStringList(mItem.event.channels()).join(' '));
     // type
     setText(2, QString::fromStdString(mItem.event.name()));
     // data
@@ -161,7 +160,7 @@ void SequenceViewItem::setCodec(QTextCodec* codec) {
 
 void SequenceViewItem::updateVisibiliy(families_t families, channels_t channels, timestamp_t lower, timestamp_t upper) {
     bool familiesVisible = mItem.event.is(families);
-    bool channelsVisible = !mItem.event.is(family_ns::voice_families) || channels.all(mItem.event.channels());
+    bool channelsVisible = !mItem.event.is(family_ns::voice_families) || mItem.event.channels().any(channels);
     bool boundsVisible = lower <= mItem.timestamp && mItem.timestamp <= upper;
     setHidden(!(familiesVisible && channelsVisible && boundsVisible));
 }

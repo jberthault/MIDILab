@@ -19,7 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include <sstream> // std::stringstream
-#include <algorithm> // std::none_of
+#include <algorithm>
 #include "event.h"
 #include "tools/trace.h"
 
@@ -653,19 +653,27 @@ Event::Event(family_t family, channels_t channels, data_type data) :
 
 }
 
-// miscellaneous
+// comparison
 
-bool data_equals(const Event& e1, const Event& e2) {
-    /// @note this will return true when (0xf9, nn, vv) == (0xf9, nn, vv, 00)
-    size_t max_size = std::max(e1.size(), e2.size());
-    for (size_t i=0 ; i < max_size ; i++)
-        if (e1.at(i) != e2.at(i))
-            return false;
-    return true;
+bool Event::equivalent(const Event& lhs, const Event& rhs) {
+    if (lhs.m_family != rhs.m_family)
+        return false;
+    auto ilhs = lhs.begin();
+    auto irhs = rhs.begin();
+    // skip status byte
+    if (lhs.is(midi_families)) {
+        ++ilhs;
+        ++irhs;
+    }
+    return equal_padding(ilhs, lhs.end(), irhs, rhs.end(), [](byte_t value) { return value == 0x00; });
 }
 
-bool Event::operator ==(const Event& event) const  {
-    return m_family == event.m_family && m_channels == event.m_channels && data_equals(*this, event);
+bool operator ==(const Event& lhs, const Event& rhs) {
+    return lhs.m_channels == rhs.m_channels && Event::equivalent(lhs, rhs);
+}
+
+bool operator !=(const Event& lhs, const Event& rhs) {
+    return !(lhs == rhs);
 }
 
 // string
@@ -709,7 +717,7 @@ bool Event::is(families_t families) const {
 }
 
 family_t Event::extract_family(bool is_realtime) const {
-    switch (at(0, 0x00) & 0xf0) { // VOICE EVENT
+    switch (at(0) & 0xf0) { // VOICE EVENT
     case 0x80: return family_t::note_off;
     case 0x90: return family_t::note_on;
     case 0xa0: return family_t::aftertouch;

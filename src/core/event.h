@@ -430,13 +430,16 @@ public:
     static Event custom(channels_t channels, const std::string& key, const std::string& value);
     static Event raw(bool is_realtime, data_type data); /*!< check data content to get a coherent event & updates associated family */
 
-    // constructors & copy
+    // constructors
 
     Event(); /*!< default constructor makes an invalid event */
 
-    // miscellaneous
+    // comparison
 
-    bool operator ==(const Event& event) const; /*!< comparison */
+    static bool equivalent(const Event& lhs, const Event& rhs); /*!< test if both events are equivalent, they may have different channels */
+
+    friend bool operator ==(const Event& lhs, const Event& rhs); /*!< true if events are equivalent and have the same channels */
+    friend bool operator !=(const Event& lhs, const Event& rhs); /*!< @see operator == */
 
     // string
 

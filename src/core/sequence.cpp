@@ -205,7 +205,12 @@ void read_track(std::istream& stream, StandardMidiFile::track_type& track) {
         event = read_event(stream, false, &running_status); // read event
         if (!event) // check event
             TRACE_WARNING("none event found");
-        track.emplace_back(deltatime.true_value, event); // add event in the track
+        // check if current event can be merged with the last one
+        // it aims to remove duplicated events while combining voice events on different channels
+        if (deltatime.true_value == 0 && !track.empty() && Event::equivalent(track.back().second, event))
+            track.back().second.set_channels(track.back().second.channels() | event.channels());
+        else
+            track.emplace_back(deltatime.true_value, event); // add event in the track
         if (event.family() == family_t::end_of_track) {
             if (stream.tellg() < end)
                 throw std::logic_error("premature end of track");
