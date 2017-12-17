@@ -76,6 +76,14 @@ void PianoKey::enterEvent(QEvent* event) {
 // PianoLayout
 //=============
 
+namespace {
+
+constexpr int whiteHeightForWidth(double width) {
+    return decay_value<int>(PianoKey::whiteRatio * width);
+}
+
+}
+
 PianoLayout::PianoLayout(QWidget* parent) : QLayout(parent), mFirstBlack(false), mLastBlack(false) {
 
 }
@@ -103,7 +111,7 @@ void PianoLayout::addItem(QLayoutItem*) {
 }
 
 Qt::Orientations PianoLayout::expandingDirections() const {
-    return Qt::Horizontal | Qt::Vertical;
+    return Qt::Horizontal;
 }
 
 QLayoutItem* PianoLayout::itemAt(int index) const {
@@ -145,9 +153,9 @@ void PianoLayout::setGeometry(const QRect& rect) {
 
     // compute size
     int whiteWidth = (int)(rect.width() / count);
-    int whiteHeight = qMin(rect.height(), int(PianoKey::whiteRatio * whiteWidth));
-    int blackWidth = int(PianoKey::blackWidthRatio * whiteWidth);
-    int blackHeight = int(PianoKey::blackHeightRatio * whiteHeight);
+    int whiteHeight = qMin(rect.height(), whiteHeightForWidth(whiteWidth));
+    int blackWidth = decay_value<int>(PianoKey::blackWidthRatio * whiteWidth);
+    int blackHeight = decay_value<int>(PianoKey::blackHeightRatio * whiteHeight);
     // compute offset
     double totalWidth = mWhite.size() * whiteWidth + blackBounds;
     QPoint whiteOffset = rect.topLeft() + QPoint((rect.width() - (int)totalWidth)/2, (rect.height() - whiteHeight)/2);
@@ -165,8 +173,16 @@ void PianoLayout::setGeometry(const QRect& rect) {
     }
 }
 
+bool PianoLayout::hasHeightForWidth() const {
+    return true;
+}
+
+int PianoLayout::heightForWidth(int width) const {
+    return mWhite.empty() ? 0 : whiteHeightForWidth((double)width / mWhite.size());
+}
+
 QSize PianoLayout::sizeHint() const {
-    return {600, 100};
+    return {600, whiteHeightForWidth(600. / 52)};
 }
 
 //===========
@@ -177,7 +193,6 @@ MetaPiano::MetaPiano(QObject* parent) : MetaInstrument(parent) {
     setIdentifier("Piano");
     setDescription("Interactive Piano Keyboard");
     addParameter("range", ":NoteRange", "closed range \"<first_note>:<last_note>\" of notes composing the keyboard", "A0:C7");
-    // addParameter("sound_off", ":bool", "", "");
 }
 
 MetaHandler::Instance MetaPiano::instantiate() {

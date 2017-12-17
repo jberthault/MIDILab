@@ -99,11 +99,10 @@ public:
     int count() const override;
     void setGeometry(const QRect& rect) override;
 
-//    bool hasHeightForWidth() const;
-//    int heightForWidth(int width) const;
+    bool hasHeightForWidth() const override;
+    int heightForWidth(int width) const override;
     QSize sizeHint() const override;
-//    QSize minimumSize() const;
-//    QSize maximumSize() const;
+
 
 private:
     QList<BlackItem> mBlack;
