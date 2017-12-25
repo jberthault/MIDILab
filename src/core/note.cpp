@@ -21,213 +21,166 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cmath>     // exp2, log2
 #include <sstream>   // std::istringstream
 #include <stdexcept> // std::runtime_error
+#include <type_traits>
 #include "note.h"
 #include "tools/bytes.h"
 
-//==========
-// Tonality
-//==========
+namespace {
 
-const Tonality Tonality::no_tonality;
-const Tonality Tonality::A('A');
-const Tonality Tonality::B('B');
-const Tonality Tonality::C('C');
-const Tonality Tonality::D('D');
-const Tonality Tonality::E('E');
-const Tonality Tonality::F('F');
-const Tonality Tonality::G('G');
-const Tonality Tonality::Ad('H');
-const Tonality Tonality::Bd('I');
-const Tonality Tonality::Cd('J');
-const Tonality Tonality::Dd('K');
-const Tonality Tonality::Ed('L');
-const Tonality Tonality::Fd('M');
-const Tonality Tonality::Gd('N');
-const Tonality Tonality::Ab('O');
-const Tonality Tonality::Bb('P');
-const Tonality Tonality::Cb('Q');
-const Tonality Tonality::Db('R');
-const Tonality Tonality::Eb('S');
-const Tonality Tonality::Fb('T');
-const Tonality Tonality::Gb('U');
+template<typename T, typename = std::enable_if_t<std::is_integral<T>::value>>
+constexpr auto safe_div(T num, T den) {
+    return (num >= 0 ? num : (num - den + 1)) / den;
+}
 
-Tonality Tonality::from_value(int value) {
-    switch (value) {
-    case 0: return A;
-    case 1: return Ad;
-    case 2: return B;
-    case 3: return C;
-    case 4: return Cd;
-    case 5: return D;
-    case 6: return Dd;
-    case 7: return E;
-    case 8: return F;
-    case 9: return Fd;
-    case 10: return G;
-    case 11: return Gd;
-    default: return no_tonality;
+constexpr int code_offset = 12; /*!< midi code of Note(tonalities[0], 0) */
+
+}
+
+namespace tonality_ns {
+
+using namespace note_ns;
+
+constexpr tonality_t tonalities[] = {C, Cd, D, Dd, E, F, Fd, G, Gd, A, Ad, B};
+
+constexpr alteration_t alteration(tonality_t tonality) {
+    switch (tonality) {
+    case A:  case B:  case C:  case D:  case E:  case F:  case G:  return alteration_t::natural;
+    case Ad: case Bd: case Cd: case Dd: case Ed: case Fd: case Gd: return alteration_t::sharp;
+    case Ab: case Bb: case Cb: case Db: case Eb: case Fb: case Gb: return alteration_t::flat;
     }
+    return alteration_t::natural;
 }
 
-Tonality Tonality::from_base(char base, Alteration alteration) {
-    if (!('A' <= base && base <= 'G'))
-        return no_tonality;
-    switch (alteration) {
-    case Alteration::sharp: return Tonality(base + 7);
-    case Alteration::flat: return Tonality(base + 14);
-    default /*natural*/ : return Tonality(base);
+const char* to_string(tonality_t tonality) {
+    switch (tonality) {
+    case A:  return "A";
+    case B:  return "B";
+    case C:  return "C";
+    case D:  return "D";
+    case E:  return "E";
+    case F:  return "F";
+    case G:  return "G";
+    case Ad: return "A#";
+    case Bd: return "B#";
+    case Cd: return "C#";
+    case Dd: return "D#";
+    case Ed: return "E#";
+    case Fd: return "F#";
+    case Gd: return "G#";
+    case Ab: return "Ab";
+    case Bb: return "Bb";
+    case Cb: return "Cb";
+    case Db: return "Db";
+    case Eb: return "Eb";
+    case Fb: return "Fb";
+    case Gb: return "Gb";
     }
+    return "";
 }
 
-Tonality Tonality::from_string(const std::string& string) {
-    std::string::const_iterator it(string.begin()), end(string.end());
-    if (it == end)
-        return Tonality::no_tonality;
-    char base = *it++;
-    Alteration alteration = Alteration::natural;
-    if (it != end) {
-        if (*it == '#')
-            alteration = Alteration::sharp;
-        else if (*it == 'b')
-            alteration = Alteration::flat;
+constexpr int index(tonality_t tonality) {
+    switch (tonality) {
+    case C:  case Bd: return 0;
+    case Cd: case Db: return 1;
+    case D:           return 2;
+    case Dd: case Eb: return 3;
+    case Fb: case E:  return 4;
+    case F:  case Ed: return 5;
+    case Fd: case Gb: return 6;
+    case G:           return 7;
+    case Gd: case Ab: return 8;
+    case A:           return 9;
+    case Ad: case Bb: return 10;
+    case B:  case Cb: return 11;
     }
-    return Tonality::from_base(base, alteration);
+    return 0;
 }
 
-Tonality::Tonality() : m_id('\0') {
-
-}
-
-Tonality::Tonality(char id) : m_id(id) {
-
-}
-
-int Tonality::value() const {
-    switch (m_id) {
-    case 'A': return 0;
-    case 'B': return 2;
-    case 'C': return 3;
-    case 'D': return 5;
-    case 'E': return 7;
-    case 'F': return 8;
-    case 'G': return 10;
-    case 'H': return 1;
-    case 'I': return 3;
-    case 'J': return 4;
-    case 'K': return 6;
-    case 'L': return 8;
-    case 'M': return 9;
-    case 'N': return 11;
-    case 'O': return 11;
-    case 'P': return 1;
-    case 'Q': return 2;
-    case 'R': return 4;
-    case 'S': return 6;
-    case 'T': return 7;
-    case 'U': return 9;
-    default: return 0;
-    }
-}
-
-bool Tonality::is_black() const {
-    switch (value()) {
-    case 1:
-    case 4:
-    case 6:
-    case 9:
-    case 11:
-        return true;
-    default:
+constexpr bool is_black(tonality_t tonality) {
+    switch (tonality) {
+    case A:
+    case B: case Cb:
+    case C: case Bd:
+    case D:
+    case E: case Fb:
+    case F: case Ed:
+    case G:
         return false;
     }
+    return true;
 }
 
-char Tonality::base() const {
-    if ('H' <= m_id && m_id <= 'N')
-        return m_id - 7;
-    if ('O' <= m_id && m_id <= 'U')
-        return m_id - 14;
-    return m_id;
+constexpr int16_t merge(char base, alteration_t alteration) {
+    return (uint16_t)base << 8 | (uint8_t)alteration;
 }
 
-Alteration Tonality::alteration() const {
-    if ('H' <= m_id && m_id <= 'N')
-        return Alteration::sharp;
-    if ('O' <= m_id && m_id <= 'U')
-        return Alteration::flat;
-    return Alteration::natural;
-}
-
-std::string Tonality::string() const {
-    std::string result;
-    if (*this) {
-        result.push_back(base());
-        switch (alteration()) {
-        case Alteration::sharp: result.push_back('#'); break;
-        case Alteration::flat: result.push_back('b'); break;
-        default: break;
-        }
+constexpr tonality_t from_base(char base, alteration_t alteration) {
+    switch (merge(base, alteration)) {
+    case merge('A', alteration_t::natural): return A;
+    case merge('B', alteration_t::natural): return B;
+    case merge('C', alteration_t::natural): return C;
+    case merge('D', alteration_t::natural): return D;
+    case merge('E', alteration_t::natural): return E;
+    case merge('F', alteration_t::natural): return F;
+    case merge('G', alteration_t::natural): return G;
+    case merge('A', alteration_t::sharp): return Ad;
+    case merge('B', alteration_t::sharp): return Bd;
+    case merge('C', alteration_t::sharp): return Cd;
+    case merge('D', alteration_t::sharp): return Dd;
+    case merge('E', alteration_t::sharp): return Ed;
+    case merge('F', alteration_t::sharp): return Fd;
+    case merge('G', alteration_t::sharp): return Gd;
+    case merge('A', alteration_t::flat): return Ab;
+    case merge('B', alteration_t::flat): return Bb;
+    case merge('C', alteration_t::flat): return Cb;
+    case merge('D', alteration_t::flat): return Db;
+    case merge('E', alteration_t::flat): return Eb;
+    case merge('F', alteration_t::flat): return Fb;
+    case merge('G', alteration_t::flat): return Gb;
     }
-    return result;
+    return tonality_t::no_tonality;
 }
 
-bool Tonality::operator ==(const Tonality& tonality) const {
-    return m_id == tonality.m_id;
 }
 
-bool Tonality::operator !=(const Tonality& tonality) const {
-    return m_id != tonality.m_id;
-}
-
-Tonality::operator bool() const {
-    return m_id != '\0';
-}
-
-std::istream& operator >>(std::istream& stream, Tonality& tonality) {
-    Alteration alteration = Alteration::natural;
+std::istream& operator >>(std::istream& stream, tonality_t& tonality) {
+    alteration_t alteration = alteration_t::natural;
     char c1 = stream.get();
     char c2 = stream.peek();
     if (c2 == '#') {
         stream.get();
-        alteration = Alteration::sharp;
+        alteration = alteration_t::sharp;
     } else if (c2 == 'b') {
         stream.get();
-        alteration = Alteration::flat;
+        alteration = alteration_t::flat;
     }
-    tonality = Tonality::from_base(c1, alteration);
-    if (!tonality)
+    tonality = tonality_ns::from_base(c1, alteration);
+    if (tonality == tonality_t::no_tonality)
         throw std::runtime_error("undefined tonality");
     return stream;
 }
 
-std::ostream& operator <<(std::ostream& stream, const Tonality& tonality) {
-    if (!tonality)
+std::ostream& operator <<(std::ostream& stream, const tonality_t& tonality) {
+    if (tonality == tonality_t::no_tonality)
         throw std::runtime_error("undefined tonality");
-    stream << tonality.base();
-    switch (tonality.alteration()) {
-    case Alteration::sharp: stream << '#'; break;
-    case Alteration::flat: stream << 'b'; break;
-    default: break;
-    }
-    return stream;
+    return stream << tonality_ns::to_string(tonality);
 }
 
 //======
 // Note
 //======
 
-const Note::tuning_type Note::tuning_reference(Note(Tonality::A, 3), 440.);
+const Note::tuning_type Note::tuning_reference(note_ns::A(4), 440.);
 
 Note Note::from_code(int code) {
-    int diff = code - offset;
-    int octave = (diff >= 0 ? diff : (diff-12+1)) / 12; // true floor
-    Tonality tonality = Tonality::from_value(diff - 12*octave); // true modulo
-    return {tonality, octave};
+    int diff = code - code_offset;
+    int octave = safe_div(diff, 12);
+    return {tonality_ns::tonalities[diff - 12*octave], octave};
 }
 
 Note Note::from_frequency(double frequency, const tuning_type& tuning) {
     double diff = 12. * log2(frequency / tuning.second);
-    return Note::from_code(decay_value<int>(diff) + tuning.first.code());
+    return from_code(decay_value<int>(diff) + tuning.first.code());
 }
 
 Note Note::from_string(const std::string& string) {
@@ -238,17 +191,25 @@ Note Note::from_string(const std::string& string) {
         if (!stream || stream.tellg() != (std::streampos)-1)
             throw std::runtime_error("string is not entirely consumed");
     } catch (const std::exception&) {
-        note.tonality = Tonality::no_tonality;
+        note.m_tonality = tonality_t::no_tonality;
     }
     return note;
 }
 
-Note::Note(Tonality tonality, int octave) : tonality(tonality), octave(octave) {
+Note::Note(tonality_t tonality, int octave) : m_tonality(tonality), m_octave(octave) {
 
 }
 
+bool Note::is_black() const {
+    return tonality_ns::is_black(m_tonality);
+}
+
+alteration_t Note::alteration() const {
+    return tonality_ns::alteration(m_tonality);
+}
+
 int Note::code() const {
-    return *this ? 12*octave + tonality.value() + offset : 0;
+    return *this ? 12*m_octave + tonality_ns::index(m_tonality) + code_offset : 0;
 }
 
 double Note::frequency(const tuning_type& tuning) const {
@@ -258,26 +219,26 @@ double Note::frequency(const tuning_type& tuning) const {
 std::string Note::string() const {
     std::string result;
     if (*this) {
-        result += tonality.string();
-        result += std::to_string(octave);
+        result += tonality_ns::to_string(m_tonality);
+        result += std::to_string(m_octave);
     }
     return result;
 }
 
-bool Note::operator ==(const Note& note) const {
-    return tonality == note.tonality && octave == note.octave;
+bool operator ==(const Note& lhs, const Note &rhs) {
+    return lhs.m_tonality == rhs.m_tonality && lhs.m_octave == rhs.m_octave;
 }
 
-bool Note::operator !=(const Note& note) const {
-    return tonality != note.tonality || octave != note.octave;
+bool operator !=(const Note& lhs, const Note &rhs) {
+    return !(lhs == rhs);
 }
 
 Note::operator bool() const {
-    return bool(tonality);
+    return m_tonality != tonality_t::no_tonality;
 }
 
 std::istream& operator >>(std::istream& stream, Note& note) {
-    stream >> note.tonality >> note.octave;
+    stream >> note.m_tonality >> note.m_octave;
     if (!stream)
         throw std::runtime_error("undefined note");
     return stream;
@@ -286,5 +247,5 @@ std::istream& operator >>(std::istream& stream, Note& note) {
 std::ostream& operator <<(std::ostream& stream, const Note& note) {
     if (!note)
         throw std::runtime_error("undefined note");
-    return stream << note.tonality << note.octave;
+    return stream << note.m_tonality << note.m_octave;
 }

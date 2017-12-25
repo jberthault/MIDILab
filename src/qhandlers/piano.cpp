@@ -51,7 +51,7 @@ const Note& PianoKey::note() const {
 }
 
 bool PianoKey::isBlack() const {
-    return mNote.tonality.is_black();
+    return mNote.is_black();
 }
 
 void PianoKey::paintEvent(QPaintEvent*) {
@@ -192,7 +192,7 @@ QSize PianoLayout::sizeHint() const {
 MetaPiano::MetaPiano(QObject* parent) : MetaInstrument(parent) {
     setIdentifier("Piano");
     setDescription("Interactive Piano Keyboard");
-    addParameter("range", ":NoteRange", "closed range \"<first_note>:<last_note>\" of notes composing the keyboard", "A0:C7");
+    addParameter("range", ":NoteRange", "closed range \"<first_note>:<last_note>\" of notes composing the keyboard", "A0:C8");
 }
 
 MetaHandler::Instance MetaPiano::instantiate() {
@@ -203,7 +203,7 @@ MetaHandler::Instance MetaPiano::instantiate() {
 // Piano
 //=======
 
-Piano::Piano() : Instrument(handler_ns::io_mode), mLastKey(nullptr), mRange(qMakePair(Note(Tonality::A, 0), Note(Tonality::C, 7))) {
+Piano::Piano() : Instrument(handler_ns::io_mode), mLastKey(nullptr), mRange(qMakePair(note_ns::A(0), note_ns::C(8))) {
     mKeys.fill(nullptr);
     installEventFilter(this);
     buildKeys();

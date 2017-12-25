@@ -46,7 +46,7 @@ constexpr double stringPosition(size_t i, size_t n) {
 constexpr double singleMarkPositions[] = {fretCenters[3], fretCenters[5], fretCenters[7], fretCenters[9], fretCenters[15], fretCenters[17], fretCenters[19], fretCenters[21]};
 constexpr double doubleMarkPositions[] = {fretCenters[12], fretCenters[24]};
 
-const Guitar::Tuning defaultTuning = {Note::from_string("E2"), Note::from_string("A3"), Note::from_string("D3"), Note::from_string("G3"), Note::from_string("B4"), Note::from_string("E4")};
+const Guitar::Tuning defaultTuning = {note_ns::E(2), note_ns::A(2), note_ns::D(3), note_ns::G(3), note_ns::B(3), note_ns::E(4)};
 
 }
 

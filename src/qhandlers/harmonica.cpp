@@ -92,7 +92,7 @@ Harmonica::Harmonica() : Instrument(handler_ns::io_mode) {
     build(3, 2);
     build(4, 2);
 
-    setTonality(Note::from_string("C3"));
+    setTonality(note_ns::C(3));
 
 }
 

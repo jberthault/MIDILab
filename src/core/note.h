@@ -25,62 +25,26 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <string>   // std::string
 #include <iostream> // std::istream sdt::ostream
 
-//==========
-// Tonality
-//==========
+//======
+// Note
+//======
 
-enum class Alteration : int {
+enum class alteration_t : int8_t {
     natural = 0,
     sharp = 1,
     flat = -1
 };
 
-class Tonality {
-
-public:
-    static const Tonality
+enum class tonality_t {
     no_tonality, // special tonality
     A, B, C, D, E, F, G, // natural notes
     Ad, Bd, Cd, Dd, Ed, Fd, Gd, // sharped notes
-    Ab, Bb, Cb, Db, Eb, Fb, Gb; // flat notes
-
-    /**
-     * returns a tonality from the given value (in range [0, 12))
-     * respectively A, A#/Bb, B, C, ..., G#/Ab
-     * sharp notation is preferred to flat for black tonalities
-     * if value is not in the given range, returns no_tonality
-     */
-
-    static Tonality from_value(int value);
-    static Tonality from_base(char base, Alteration alteration); /*!< base describes tone (in range ['A'.. G']) */
-    static Tonality from_string(const std::string& string); /*!< string must match [A-G][#b]? */
-
-    Tonality(); /*!< no_tonality */
-
-    int value() const; /*!< @see from_value (no_tonality yield 0) */
-    bool is_black() const; /*!< returns true if altered (aka equivalent to any of A#, C#, D#, F# or G#) */
-    char base() const; /*!< @see from_base (no_tonality yield \0) */
-    Alteration alteration() const; /*!< @see from_base (no_tonality yield Alteration::natural) */
-    std::string string() const; /*!< @see from_string (no_tonality yields an empty string) */
-
-    bool operator ==(const Tonality& tonality) const; /*!< true if tonalities equals @note A# & Bb does not equal ! */
-    bool operator !=(const Tonality& tonality) const; /*!< @see operator == */
-
-    explicit operator bool() const; /*!< return false if no_tonality, true otherwise */
-
-    friend std::istream& operator >>(std::istream& stream, Tonality& tonality);
-    friend std::ostream& operator <<(std::ostream& stream, const Tonality& tonality);
-
-private:
-    Tonality(char id);
-
-    char m_id; /*!< private id */
-
+    Ab, Bb, Cb, Db, Eb, Fb, Gb // flat notes
 };
 
-//======
-// Note
-//======
+std::istream& operator >>(std::istream& stream, tonality_t& tonality);
+std::ostream& operator <<(std::ostream& stream, const tonality_t& tonality);
+
 
 class Note {
 
@@ -88,33 +52,61 @@ public:
     using tuning_type = std::pair<Note, double>;
     static const tuning_type tuning_reference; /*!< tuning reference (A3, 440 Hz) */
 
-    static const int offset = 21; /*!< midi code of A0 */
-
     static Note from_code(int code); /*!< code stands for the extended midi number */
     static Note from_frequency(double frequency, const tuning_type& tuning = tuning_reference); /*!< will get the note to the nearest frequency */
     static Note from_string(const std::string& string); /*!< string must match [A-G][#b]?(-?[0-9]+) otherwise an invalid note is returned */
 
-    Note(Tonality tonality = {}, int octave = 0);
+    Note(tonality_t tonality = tonality_t::no_tonality, int octave = 0);
 
+    bool is_black() const; /*!< returns true if altered (aka equivalent to any of A#, C#, D#, F# or G#) */
+    alteration_t alteration() const; /*!< @see from_base (no_tonality yield Alteration::natural) */
     int code() const; /*!< value correspond to the midi note: 12*octave + tonality.value() + offset, 0 if undefined */
     double frequency(const tuning_type& tuning = tuning_reference) const;
     std::string string() const; /*!< @see from_string (undefined note yields an empty string) */
 
-    bool operator ==(const Note& note) const; /*!< true if tonalities & octave equals */
-    bool operator !=(const Note& note) const; /*!< @see operator == */
+    friend bool operator ==(const Note& lhs, const Note& rhs); /*!< true if tonalities & octave equals */
+    friend bool operator !=(const Note& lhs, const Note& rhs); /*!< @see operator == */
 
-    explicit operator bool() const; /*!< return true if tone is well formed */
+    explicit operator bool() const; /*!< return true if tonality is well formed */
 
     friend std::istream& operator >>(std::istream& stream, Note& note);
     friend std::ostream& operator <<(std::ostream& stream, const Note& note);
 
-    Tonality tonality; /*!< tonality of the note */
-    int octave; /*!< octave can be any whole number */
+private:
+    tonality_t m_tonality; /*!< tonality of the note */
+    int m_octave; /*!< octave can be any whole number */
 
 };
 
-//class Scale {
+namespace note_ns {
 
-//};
+template<tonality_t T>
+struct tonality_constant : std::integral_constant<tonality_t, T> {
+    inline Note operator()(int octave) const { return {T, octave}; }
+};
+
+constexpr auto A = tonality_constant<tonality_t::A>{};
+constexpr auto B = tonality_constant<tonality_t::B>{};
+constexpr auto C = tonality_constant<tonality_t::C>{};
+constexpr auto D = tonality_constant<tonality_t::D>{};
+constexpr auto E = tonality_constant<tonality_t::E>{};
+constexpr auto F = tonality_constant<tonality_t::F>{};
+constexpr auto G = tonality_constant<tonality_t::G>{};
+constexpr auto Ad = tonality_constant<tonality_t::Ad>{};
+constexpr auto Bd = tonality_constant<tonality_t::Bd>{};
+constexpr auto Cd = tonality_constant<tonality_t::Cd>{};
+constexpr auto Dd = tonality_constant<tonality_t::Dd>{};
+constexpr auto Ed = tonality_constant<tonality_t::Ed>{};
+constexpr auto Fd = tonality_constant<tonality_t::Fd>{};
+constexpr auto Gd = tonality_constant<tonality_t::Gd>{};
+constexpr auto Ab = tonality_constant<tonality_t::Ab>{};
+constexpr auto Bb = tonality_constant<tonality_t::Bb>{};
+constexpr auto Cb = tonality_constant<tonality_t::Cb>{};
+constexpr auto Db = tonality_constant<tonality_t::Db>{};
+constexpr auto Eb = tonality_constant<tonality_t::Eb>{};
+constexpr auto Fb = tonality_constant<tonality_t::Fb>{};
+constexpr auto Gb = tonality_constant<tonality_t::Gb>{};
+
+}
 
 #endif // CORE_NOTE_H
