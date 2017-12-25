@@ -56,6 +56,9 @@ const Guitar::Tuning defaultTuning = {note_ns::E(2), note_ns::A(2), note_ns::D(3
 
 MetaGuitar::MetaGuitar(QObject* parent) : MetaInstrument(parent) {
     setIdentifier("Guitar");
+    setDescription("Interactive Guitar Fretboard");
+    addParameter("tuning", ":Notes", "list of notes separated by ';' from lower string to higher string", serial::serializeNotes(defaultTuning));
+    addParameter("capo", ":ULong", "capo position, no capo if 0", "0");
 }
 
 MetaHandler::Instance MetaGuitar::instantiate() {
