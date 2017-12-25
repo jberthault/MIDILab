@@ -41,7 +41,7 @@ StandardFactory::StandardFactory(QObject* parent) : QObject(parent), MetaHandler
              // instruments
              << new MetaPiano(this)
              << new MetaHarmonica(this)
-             // << new MetaGuitar(this)
+             << new MetaGuitar(this)
              // wheels
              << new MetaControllerWheel(this)
              << new MetaPitchWheel(this)

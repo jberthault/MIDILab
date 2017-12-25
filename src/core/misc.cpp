@@ -75,22 +75,15 @@ void NoteMemory::set_off(channels_t channels, byte_t note) {
 }
 
 void NoteMemory::clear(channels_t channels) {
-    if (channels == all_channels)
-        clear();
-    else
-        for (channels_t& cs : m_data)
-            cs &= ~channels;
+    channel_ns::clear(m_data, channels);
 }
 
 void NoteMemory::clear() {
-    m_data.fill(channels_t{});
+    channel_ns::clear(m_data);
 }
 
 channels_t NoteMemory::active() const {
-    channels_t result;
-    for (channels_t cs : m_data)
-        result |= cs;
-    return result;
+    return channel_ns::aggregate(m_data);
 }
 
 channels_t NoteMemory::active(byte_t note) const {

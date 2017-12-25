@@ -66,14 +66,45 @@ namespace channel_ns {
 std::string channel_string(channel_t channel);
 std::string channels_string(channels_t channels);
 
+// dense map<channel_t, T>
 template<typename T>
 using map_type = std::array<T, 0x10>;
 
+// channels_t[]
+template<size_t N>
+using array_type = std::array<channels_t, N>;
+
+// sparse map<T, channels>
 template<typename T>
 using rmap_type = std::unordered_map<T, channels_t>;
 
+template<size_t N>
+void clear(array_type<N>& array, channels_t channels = all_channels) {
+    if (channels == all_channels)
+        array.fill(channels_t{});
+    else
+        for (channels_t& cs : array)
+            cs &= ~channels;
+}
+
+template<size_t N>
+auto aggregate(const array_type<N>& array) {
+    channels_t channels;
+    for (channels_t cs : array)
+        channels |= cs;
+    return channels;
+}
+
+template<size_t N>
+auto contains(const array_type<N>& array, channels_t channels) {
+    for (channels_t cs : array)
+        if (cs & channels)
+            return true;
+    return false;
+}
+
 template<typename T, typename U>
-channels_t find(const map_type<T>& map, U value) {
+auto find(const map_type<T>& map, U value) {
     channels_t channels;
     for (channel_t c=0 ; c < 0x10 ; c++)
         if (map[c] == value)
@@ -88,7 +119,7 @@ void store(map_type<T>& map, channels_t channels, U value) {
 }
 
 template<typename T>
-rmap_type<T> reverse(const map_type<T>& map, channels_t channels) {
+auto reverse(const map_type<T>& map, channels_t channels) {
     rmap_type<T> rmap;
     for (channel_t c : channels)
         rmap[map[c]].set(c);

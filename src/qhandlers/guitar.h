@@ -23,8 +23,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "qcore/core.h"
 
-//// @todo implement
-
 //============
 // MetaGuitar
 //============
@@ -42,33 +40,63 @@ public:
 // Guitar
 //========
 
+/**
+ * @todo ...
+ * - put eventFilter in common with piano
+ * - enhance the binding algorithm (rebind active notes, prefer neighbors, ...)
+ */
+
 class Guitar : public Instrument {
 
     Q_OBJECT
 
-    using ChannelAffectation = std::map<int, int>; /*!< Note : Guitar String */
-
 public:
-    static const QList<Note> guitarTuning; /*!< E3 A4 D4 G4 B5 E5 */
-    static const QList<Note> bassTuning; /*!< E3 A4 D4 G4 */
-    // static const QList<Note> ukulele_tuning; /*!< G C E A */
+    using Tuning = std::vector<Note>;
+    using StringState = std::array<channels_t, 25>;
+    using State = std::vector<StringState>;
+    using Location = std::pair<int, int>; /*!< string & fret */
 
     explicit Guitar();
 
-    bool setTuning(const QList<Note>& tuning); /*!< default tuning is empty */
+    Parameters getParameters() const override;
+    size_t setParameter(const Parameter& parameter) override;
 
-    size_t size() const; /*!< default size is 0 */
-    void setSize(size_t size); /*!< size must go from 0 to 30 */
+    const Tuning& tuning() const;
+    void setTuning(const Tuning& tuning); /*!< default tuning is E A D G B E */
+
+    size_t capo() const;
+    void setCapo(size_t capo);
+
+    QSize sizeHint() const override;
 
 protected slots:
     void receiveNotesOff(channels_t channels) final;
     void receiveNoteOn(channels_t channels, const Note& note) final;
     void receiveNoteOff(channels_t channels, const Note& note) final;
 
+    void enterEvent(QEvent* event) override;
+    bool eventFilter(QObject* obj, QEvent* event) override;
+    void paintEvent(QPaintEvent* event) override;
+
 private:
-    channel_map_t<ChannelAffectation> mAffectations;
-    size_t mSize;
-    QList<Note> mTuning;
+    void clearNotes();
+    void generateFretOn(const Location& loc, Qt::MouseButtons buttons);
+    void generateFretOff(const Location& loc, Qt::MouseButtons buttons);
+
+    void activate(const Location& loc, channels_t channels);
+    void deactivate(const Location& loc, channels_t channels);
+
+    bool isValid(const Location& loc) const;
+    Note toNote(const Location& loc) const;
+    Location fromNote(int string, const Note& note) const;
+    Location locationAt(const QPoint& point) const;
+
+private:
+    Tuning mTuning;
+    size_t mCapo;
+    State mState;
+    Location mLastLocation;
+    QPixmap mBackground;
 
 };
 

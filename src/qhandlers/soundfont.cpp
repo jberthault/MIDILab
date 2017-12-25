@@ -288,12 +288,12 @@ SoundFontEditor::SoundFontEditor(SoundFontHandler* handler) : HandlerEditor(), m
 HandlerView::Parameters SoundFontEditor::getParameters() const {
     auto result = HandlerEditor::getParameters();
     SERIALIZE("file", QString::fromStdString, mHandler->file(), result);
-    SERIALIZE("gain", serial::serializeDouble, mHandler->gain(), result);
+    SERIALIZE("gain", serial::serializeNumber, mHandler->gain(), result);
     SERIALIZE("reverb", serial::serializeBool, mReverbEditor->isActive(), result);
-    SERIALIZE("reverb.roomsize", serial::serializeDouble, mReverbEditor->rawReverb().roomsize, result);
-    SERIALIZE("reverb.damp", serial::serializeDouble, mReverbEditor->rawReverb().damp, result);
-    SERIALIZE("reverb.level", serial::serializeDouble, mReverbEditor->rawReverb().level, result);
-    SERIALIZE("reverb.width", serial::serializeDouble, mReverbEditor->rawReverb().width, result);
+    SERIALIZE("reverb.roomsize", serial::serializeNumber, mReverbEditor->rawReverb().roomsize, result);
+    SERIALIZE("reverb.damp", serial::serializeNumber, mReverbEditor->rawReverb().damp, result);
+    SERIALIZE("reverb.level", serial::serializeNumber, mReverbEditor->rawReverb().level, result);
+    SERIALIZE("reverb.width", serial::serializeNumber, mReverbEditor->rawReverb().width, result);
     return result;
 }
 

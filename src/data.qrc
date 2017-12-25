@@ -58,5 +58,6 @@
         <file>data/cloud.svg</file>
         <file>data/expand-down.svg</file>
         <file>data/load.gif</file>
+        <file>data/wood.jpg</file>
     </qresource>
 </RCC>
