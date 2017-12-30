@@ -74,8 +74,13 @@ protected slots:
     void receiveNoteOn(channels_t channels, const Note& note) final;
     void receiveNoteOff(channels_t channels, const Note& note) final;
 
+    bool event(QEvent* event) override;
     void enterEvent(QEvent* event) override;
-    bool eventFilter(QObject* obj, QEvent* event) override;
+    void leaveEvent(QEvent* event) override;
+    void mouseDoubleClickEvent(QMouseEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
 
 private:
@@ -95,7 +100,7 @@ private:
     Tuning mTuning;
     size_t mCapo;
     State mState;
-    Location mLastLocation;
+    Location mActiveLocation;
     QPixmap mBackground;
 
 };

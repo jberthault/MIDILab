@@ -63,11 +63,7 @@ public:
     const Note& note() const;
     bool isBlack() const;
 
-    void enterEvent(QEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
-
-signals:
-    void entered(QEvent*);
 
 private:
     const Note mNote;
@@ -151,8 +147,13 @@ protected:
     void receiveNoteOn(channels_t channels, const Note& note) final;
     void receiveNoteOff(channels_t channels, const Note& note) final;
 
+    bool event(QEvent* event) override;
     void enterEvent(QEvent* event) override;
-    bool eventFilter(QObject* obj, QEvent* event) override;
+    void leaveEvent(QEvent* event) override;
+    void mouseDoubleClickEvent(QMouseEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
 
 private:
     void clearKeys();
@@ -160,7 +161,7 @@ private:
     void generateKeyOn(PianoKey* key, Qt::MouseButtons buttons);
     void generateKeyOff(PianoKey* key, Qt::MouseButtons buttons);
 
-    PianoKey* mLastKey;
+    PianoKey* mActiveKey;
     QPair<Note, Note> mRange;
     std::array<PianoKey*, 0x80> mKeys;
 

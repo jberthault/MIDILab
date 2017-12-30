@@ -69,8 +69,7 @@ MetaHandler::Instance MetaGuitar::instantiate() {
 // Guitar
 //========
 
-Guitar::Guitar() : Instrument(handler_ns::io_mode), mTuning(defaultTuning), mCapo(0), mState(defaultTuning.size()), mLastLocation(-1, 0), mBackground(":/data/wood.jpg") {
-    installEventFilter(this);
+Guitar::Guitar() : Instrument(handler_ns::io_mode), mTuning(defaultTuning), mCapo(0), mState(defaultTuning.size()), mActiveLocation(-1, 0), mBackground(":/data/wood.jpg") {
     clearNotes();
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
 }
@@ -96,7 +95,7 @@ void Guitar::setTuning(const Tuning& tuning) {
     if (!tuning.empty()) {
         mTuning = tuning;
         mState.resize(mTuning.size());
-        mLastLocation = {-1, 0};
+        mActiveLocation = {-1, 0};
         clearNotes();
         update();
     }
@@ -109,7 +108,7 @@ size_t Guitar::capo() const {
 void Guitar::setCapo(size_t capo) {
     if (capo < fretCount) {
         mCapo = capo;
-        mLastLocation = {-1, 0};
+        mActiveLocation = {-1, 0};
         clearNotes();
         update();
     }
@@ -152,21 +151,9 @@ void Guitar::receiveNoteOff(channels_t channels, const Note& note) {
     }
 }
 
-void Guitar::enterEvent(QEvent*) {
-    if (canGenerate()) {
-        grabMouse();
-        setMouseTracking(true);
-        setCursor(Qt::PointingHandCursor);
-    }
-}
-
-bool Guitar::eventFilter(QObject* obj, QEvent* event) {
-
-    Q_ASSERT(obj == this);
-
-    /// handle tooltip event
+bool Guitar::event(QEvent* event) {
     if (event->type() == QEvent::ToolTip) {
-        QHelpEvent* helpEvent = static_cast<QHelpEvent*>(event);
+        auto helpEvent = static_cast<QHelpEvent*>(event);
         auto loc = locationAt(helpEvent->pos());
         if (isValid(loc)) {
             QToolTip::showText(helpEvent->globalPos(), QString::fromStdString(toNote(loc).string()));
@@ -176,44 +163,44 @@ bool Guitar::eventFilter(QObject* obj, QEvent* event) {
         }
         return true;
     }
+    return Instrument::event(event);
+}
 
-    /// try to get mouse events
-    QMouseEvent* mouseEvent = dynamic_cast<QMouseEvent*>(event);
-    if (mouseEvent == nullptr)
-        return Instrument::eventFilter(obj, event);
+void Guitar::enterEvent(QEvent*) {
+    if (canGenerate())
+        setCursor(Qt::PointingHandCursor);
+}
 
-    auto loc = locationAt(mouseEvent->pos());
+void Guitar::leaveEvent(QEvent* event) {
+    unsetCursor();
+}
 
-    /// stop tracking on leave
-    if (!isValid(loc) && hasMouseTracking() && mouseEvent->buttons() == Qt::NoButton) {
-        releaseMouse();
-        setMouseTracking(false);
-        unsetCursor();
+void Guitar::mouseDoubleClickEvent(QMouseEvent* event) {
+    mousePressEvent(event);
+}
+
+void Guitar::mousePressEvent(QMouseEvent* event) {
+    if (canGenerate()) {
+        auto loc = locationAt(event->pos());
+        generateFretOn(loc, event->button());
+        mActiveLocation = loc;
     }
+}
 
-    /// don't process events if closed or disable
-    if (!canGenerate())
-        return true;
+void Guitar::mouseReleaseEvent(QMouseEvent* event) {
+    if (canGenerate())
+        generateFretOff(locationAt(event->pos()), event->button());
+}
 
-    /// check mouse event type
-    switch (mouseEvent->type()) {
-    case QEvent::MouseButtonDblClick:
-    case QEvent::MouseButtonPress:
-        generateFretOn(loc, mouseEvent->button());
-        break;
-    case QEvent::MouseButtonRelease:
-        generateFretOff(loc, mouseEvent->button());
-        break;
-    case QEvent::MouseMove:
-        if (mLastLocation != loc && mouseEvent->buttons() != Qt::NoButton) {
-            generateFretOff(mLastLocation, mouseEvent->buttons());
-            generateFretOn(loc, mouseEvent->buttons());
+void Guitar::mouseMoveEvent(QMouseEvent* event) {
+    if (canGenerate()) {
+        auto loc = locationAt(event->pos());
+        if (mActiveLocation != loc) {
+            generateFretOff(mActiveLocation, event->buttons());
+            generateFretOn(loc, event->buttons());
+            mActiveLocation = loc;
         }
-        break;
     }
-
-    mLastLocation = loc;
-    return true;
 }
 
 void Guitar::paintEvent(QPaintEvent* event) {
@@ -343,5 +330,8 @@ Guitar::Location Guitar::locationAt(const QPoint& point) const {
     const range_t<int> xrange = {r.left() + 10, r.right() - 5};
     const range_t<int> yrange = {r.bottom(), r.top()};
     const range_t<double> stringRange = {0., (double)mTuning.size()};
-    return {(int)stringRange.rescale(yrange, point.y()), nearestFretCenter(xrange.reduce(point.x()))};
+    int fret = -1;
+    if (r.left() <= point.x() && point.x() <= r.right())
+        fret = nearestFretCenter(xrange.reduce(point.x()));
+    return {(int)stringRange.rescale(yrange, point.y()), fret};
 }

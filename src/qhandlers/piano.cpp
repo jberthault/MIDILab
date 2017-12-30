@@ -68,10 +68,6 @@ void PianoKey::paintEvent(QPaintEvent*) {
     painter.drawRoundedRect(rect(), 50, 5, Qt::RelativeSize);
 }
 
-void PianoKey::enterEvent(QEvent* event) {
-    emit entered(event);
-}
-
 //=============
 // PianoLayout
 //=============
@@ -203,9 +199,8 @@ MetaHandler::Instance MetaPiano::instantiate() {
 // Piano
 //=======
 
-Piano::Piano() : Instrument(handler_ns::io_mode), mLastKey(nullptr), mRange(qMakePair(note_ns::A(0), note_ns::C(8))) {
+Piano::Piano() : Instrument(handler_ns::io_mode), mActiveKey(nullptr), mRange(qMakePair(note_ns::A(0), note_ns::C(8))) {
     mKeys.fill(nullptr);
-    installEventFilter(this);
     buildKeys();
 }
 
@@ -237,6 +232,7 @@ void Piano::clearKeys() {
         if (key != nullptr)
             key->deleteLater();
     mKeys.fill(nullptr);
+    mActiveKey = nullptr;
     delete layout();
 }
 
@@ -245,7 +241,6 @@ void Piano::buildKeys() {
     for (int code = mRange.first.code() ; code <= mRange.second.code() ; code++) {
         auto key = new PianoKey(Note::from_code(code), this);
         mKeys[code] = key;
-        connect(key, &PianoKey::entered, this, &Piano::enterEvent);
         pianoLayout->addKey(key);
     }
     setLayout(pianoLayout);
@@ -269,22 +264,10 @@ void Piano::receiveNoteOff(channels_t channels, const Note& note) {
         key->deactivate(channels);
 }
 
-void Piano::enterEvent(QEvent*) {
-    if (canGenerate()) {
-        grabMouse();
-        setMouseTracking(true);
-        setCursor(Qt::PointingHandCursor);
-    }
-}
-
-bool Piano::eventFilter(QObject* obj, QEvent* event) {
-
-    Q_ASSERT(obj == this);
-
-    /// handle tooltip event
+bool Piano::event(QEvent* event) {
     if (event->type() == QEvent::ToolTip) {
-        QHelpEvent* helpEvent = static_cast<QHelpEvent*>(event);
-        PianoKey* key = qobject_cast<PianoKey*>(childAt(helpEvent->pos()));
+        auto helpEvent = static_cast<QHelpEvent*>(event);
+        auto key = qobject_cast<PianoKey*>(childAt(helpEvent->pos()));
         if (key) {
             QToolTip::showText(helpEvent->globalPos(), key->toolTip());
         } else {
@@ -293,62 +276,64 @@ bool Piano::eventFilter(QObject* obj, QEvent* event) {
         }
         return true;
     }
+    return Instrument::event(event);
+}
 
-    //QEvent::EnabledChange
+void Piano::enterEvent(QEvent*) {
+    if (canGenerate())
+        setCursor(Qt::PointingHandCursor);
+}
 
-    /// try to get mouse events
-    QMouseEvent* mouseEvent = dynamic_cast<QMouseEvent*>(event);
-    if (mouseEvent == nullptr)
-        return Instrument::eventFilter(obj, event);
+void Piano::leaveEvent(QEvent* event) {
+    unsetCursor();
+}
 
-    PianoKey* key = qobject_cast<PianoKey*>(childAt(mouseEvent->pos()));
+void Piano::mouseDoubleClickEvent(QMouseEvent* event) {
+    mousePressEvent(event);
+}
 
-    /// stop tracking on leave
-    if (key == nullptr && hasMouseTracking() && mouseEvent->buttons() == Qt::NoButton) {
-        releaseMouse();
-        setMouseTracking(false);
-        unsetCursor();
+void Piano::mousePressEvent(QMouseEvent* event) {
+    if (canGenerate()) {
+        auto key = qobject_cast<PianoKey*>(childAt(event->pos()));
+        generateKeyOn(key, event->button());
+        mActiveKey = key;
     }
+}
 
-    /// don't process events if closed or disable
-    if (!canGenerate())
-        return true;
+void Piano::mouseReleaseEvent(QMouseEvent* event) {
+    if (canGenerate())
+        generateKeyOff(qobject_cast<PianoKey*>(childAt(event->pos())), event->button());
+}
 
-    /// check mouse event type
-    switch (mouseEvent->type()) {
-    case QEvent::MouseButtonDblClick:
-    case QEvent::MouseButtonPress:
-        generateKeyOn(key, mouseEvent->button());
-        break;
-    case QEvent::MouseButtonRelease:
-        generateKeyOff(key, mouseEvent->button());
-        break;
-    case QEvent::MouseMove:
-        if (mLastKey != key && mouseEvent->buttons() != Qt::NoButton) {
-            generateKeyOff(mLastKey, mouseEvent->buttons());
-            generateKeyOn(key, mouseEvent->buttons());
+void Piano::mouseMoveEvent(QMouseEvent* event) {
+    if (canGenerate()) {
+        auto key = qobject_cast<PianoKey*>(childAt(event->pos()));
+        if (mActiveKey != key) {
+            generateKeyOff(mActiveKey, event->buttons());
+            generateKeyOn(key, event->buttons());
+            mActiveKey = key;
         }
-        break;
     }
-
-    mLastKey = key;
-    return true;
 }
 
 void Piano::generateKeyOn(PianoKey* key, Qt::MouseButtons buttons) {
-    ChannelEditor* editor = channelEditor();
-    channels_t channels = editor ? editor->channelsFromButtons(buttons) : channels_t::merge(0);
-    if (key != nullptr && channels) {
-        generateNoteOn(channels, key->note());
-        key->activate(channels);
+    if (key) {
+        ChannelEditor* editor = channelEditor();
+        channels_t channels = editor ? editor->channelsFromButtons(buttons) : channels_t::merge(0);
+        if (channels) {
+            generateNoteOn(channels, key->note());
+            key->activate(channels);
+        }
     }
 }
 
 void Piano::generateKeyOff(PianoKey* key, Qt::MouseButtons buttons) {
-    ChannelEditor* editor = channelEditor();
-    channels_t channels = editor ? editor->channelsFromButtons(buttons) : channels_t::merge(0);
-    if (key != nullptr && channels) {
-        generateNoteOff(channels, key->note());
-        key->deactivate(channels);
+    if (key) {
+        ChannelEditor* editor = channelEditor();
+        channels_t channels = editor ? editor->channelsFromButtons(buttons) : channels_t::merge(0);
+        if (channels) {
+            generateNoteOff(channels, key->note());
+            key->deactivate(channels);
+        }
     }
 }
