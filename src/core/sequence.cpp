@@ -90,8 +90,10 @@ namespace dumping {
 
 byte_t read_data_byte(std::istream& stream) {
     byte_t byte = stream.get();
-    if (is_msb_set(byte))
-        throw std::logic_error("expected byte with bit #7 cleared");
+    if (is_msb_set(byte)) {
+        TRACE_WARNING("expected byte with bit #7 cleared before " << stream.tellg());
+        return 0x00;
+    }
     return byte;
 }
 
@@ -198,27 +200,31 @@ void read_track(std::istream& stream, StandardMidiFile::track_type& track) {
     uint32_t size = read_uint32(stream); // number of bytes in the chunk
     std::streampos end = stream.tellg() + (std::streampos)size; // position of end of track
     byte_t running_status = 0; // initialize running status
-    variable_t deltatime; // temporary deltatime
+    uint32_t deltatime; // temporary deltatime
+    uint64_t timestamp = 0; // cumulated deltatimes
     Event event; // temporary event
-    while (true) {
-        deltatime = read_variable(stream); // read deltatime encoded as a variable value
-        event = read_event(stream, false, &running_status); // read event
-        if (!event) // check event
-            TRACE_WARNING("none event found");
-        // check if current event can be merged with the last one
-        // it aims to remove duplicated events while combining voice events on different channels
-        if (deltatime.true_value == 0 && !track.empty() && Event::equivalent(track.back().second, event))
+    bool eot = false; // true if end-of-track event is found
+    while (!eot && stream.tellg() < end) {
+        // read deltatime and add it to timestamp
+        deltatime = read_variable(stream).true_value;
+        timestamp += deltatime;
+        // read event and check its validity
+        event = read_event(stream, false, &running_status);
+        if (!event)
+            throw std::logic_error("none event found");
+        eot = event.family() == family_t::end_of_track;
+        if (deltatime == 0 && !track.empty() && Event::equivalent(track.back().second, event)) {
+            // check if current event can be merged with the last one
+            // it aims to remove duplicated events while combining voice events on different channels
             track.back().second.set_channels(track.back().second.channels() | event.channels());
-        else
-            track.emplace_back(deltatime.true_value, event); // add event in the track
-        if (event.family() == family_t::end_of_track) {
-            if (stream.tellg() < end)
-                throw std::logic_error("premature end of track");
-            break;
+        } else {
+            // add event in the track, ignores deltatime for EOT when a particular timestamp is reached
+            // it may be an annoying feature/bug of some editor
+            track.emplace_back(eot && timestamp == 0x03ffff ? 0 : deltatime, event);
         }
-        if (stream.tellg() >= end)
-            throw std::logic_error("unexpected end of track");
     }
+    if (!eot || stream.tellg() != end)
+        throw std::logic_error("unexpected end of track");
 }
 
 StandardMidiFile read_file(std::istream& stream) {
