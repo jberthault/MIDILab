@@ -22,7 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace {
 
-char nibble2str(byte_t nibble) {
+constexpr char nibble2str(byte_t nibble) {
     nibble &= 0xf;
     return nibble + ((nibble < 0xa) ? '0' : 'W');
 }
@@ -30,8 +30,12 @@ char nibble2str(byte_t nibble) {
 }
 
 std::string byte_string(byte_t byte) {
-    std::string string = "0x";
-    string += nibble2str(byte >> 4);
-    string += nibble2str(byte);
+    std::string string = "0x00";
+    string[2] = nibble2str(byte >> 4);
+    string[3] = nibble2str(byte);
     return string;
+}
+
+std::ostream& print_byte(std::ostream& stream, byte_t byte) {
+    return stream << "0x" << nibble2str(byte >> 4) << nibble2str(byte);
 }

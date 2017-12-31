@@ -186,12 +186,17 @@ struct exp_range_t {
 
 std::string byte_string(byte_t byte);
 
+std::ostream& print_byte(std::ostream& stream, byte_t byte);
+
 template<typename ByteInputIterator>
 std::ostream& print_bytes(std::ostream& stream, ByteInputIterator first, ByteInputIterator last) {
-    if (first != last)
-        stream << byte_string(*first++);
-    for ( ; first != last ; ++first)
-        stream << ' ' << byte_string(*first);
+    if (first != last) {
+        print_byte(stream, *first);
+        for (++first ; first != last ; ++first) {
+            stream << ' ';
+            print_byte(stream, *first);
+        }
+    }
     return stream;
 }
 
