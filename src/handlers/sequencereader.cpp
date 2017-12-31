@@ -257,8 +257,8 @@ void SequenceReader::run() {
                 base_time = m_sequence.clock().base_time(event);
             forward_message({event, this, it->track});
         }
-        // asleep this thread
-        std::this_thread::yield();
+        // asleep this thread for a minimal period
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 }
 
