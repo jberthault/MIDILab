@@ -21,6 +21,14 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "sequencereader.h"
 #include <algorithm>
 
+namespace {
+
+const auto stop_sounds = Event::controller(all_channels, controller_ns::all_sound_off_controller);
+const auto stop_notes = Event::controller(all_channels, controller_ns::all_notes_off_controller);
+const auto stop_all = Event::reset();
+
+}
+
 //================
 // SequenceReader
 //================
@@ -46,7 +54,7 @@ SequenceReader::SequenceReader() : Handler(handler_ns::io_mode), m_distorsion(1.
 }
 
 SequenceReader::~SequenceReader() {
-    stop_playing();
+    stop_playing(stop_all);
     m_task.stop(true);
 }
 
@@ -55,7 +63,7 @@ const Sequence& SequenceReader::sequence() const {
 }
 
 void SequenceReader::set_sequence(const Sequence& sequence) {
-    stop_playing();
+    stop_playing(stop_all);
     m_sequence = sequence;
     init_positions();
 }
@@ -136,6 +144,7 @@ void SequenceReader::set_upper(timestamp_t timestamp) {
 void SequenceReader::jump_position(position_type position) {
     bool playing = m_playing;
     stop_playing();
+    forward_message({stop_notes, this});
     m_position = position;
     if (playing)
         start_playing(false);
@@ -146,7 +155,7 @@ bool SequenceReader::start_playing(bool rewind) {
     if (m_playing)
         return false;
     // ensure previous run is terminated
-    stop_playing();
+    stop_playing(stop_sounds);
     // can't start if unable to generate events
     if (state().none(handler_ns::forward_state))
         return false;
@@ -156,7 +165,7 @@ bool SequenceReader::start_playing(bool rewind) {
     // check upper bound
     if (is_completed())
         return false;
-    // @note it may be a good idea to clean current notes on: forward_message(Message(Event::controller(all_channels, all_notes_off_controller), this));
+    // @note it may be a good idea to clean current notes on: forward_message({stop_notes, this});
     // push the new request and update status
     std::promise<void> promise;
     m_status = promise.get_future();
@@ -164,13 +173,20 @@ bool SequenceReader::start_playing(bool rewind) {
     return true;
 }
 
-void SequenceReader::stop_playing(bool reset) {
+bool SequenceReader::stop_playing(const Event& final_event) {
+    bool stopped = stop_playing();
+    if (stopped)
+        forward_message({final_event, this});
+    return stopped;
+}
+
+bool SequenceReader::stop_playing() {
     m_playing = false; // notify the playing thread to stop
     if (m_status.valid()) { // previously started ?
         m_status.get(); // wait until the end of run and invalid status
-        // we don't know (upper limits) if some events are missing
-        forward_message(Message(reset ? Event::reset() : Event::controller(all_channels, controller_ns::all_sound_off_controller), this));
+        return true;
     }
+    return false;
 }
 
 families_t SequenceReader::handled_families() const {
@@ -179,7 +195,7 @@ families_t SequenceReader::handled_families() const {
 
 Handler::result_type SequenceReader::on_close(state_type state) {
     if (state & handler_ns::forward_state)
-        stop_playing();
+        stop_playing(stop_all);
     return Handler::on_close(state);
 }
 
@@ -191,12 +207,12 @@ Handler::result_type SequenceReader::handle_message(const Message& message) {
     case family_t::song_select: return handle_sequence(message.event.at(1));
     case family_t::start: return handle_start(true);
     case family_t::continue_: return handle_start(false);
-    case family_t::stop: return handle_stop(true);
+    case family_t::stop: return handle_stop(stop_all);
     case family_t::custom: {
         auto k = message.event.get_custom_key();
-        if (k == "SequenceReader.pause") return handle_stop(false);
+        if (k == "SequenceReader.pause") return handle_stop(stop_sounds);
         if (k == "SequenceReader.distorsion") return handle_distorsion(message.event.get_custom_value());
-        if (k == "SequenceReader.toggle") return m_playing ? handle_stop(false) : handle_start(false);
+        if (k == "SequenceReader.toggle") return m_playing ? handle_stop(stop_sounds) : handle_start(false);
         break;
     }
     }
@@ -219,8 +235,8 @@ Handler::result_type SequenceReader::handle_start(bool rewind) {
     return start_playing(rewind) ? result_type::success : result_type::fail;
 }
 
-Handler::result_type SequenceReader::handle_stop(bool reset) {
-    stop_playing(reset);
+Handler::result_type SequenceReader::handle_stop(const Event& final_event) {
+    stop_playing(final_event);
     return result_type::success;
 }
 

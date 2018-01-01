@@ -51,6 +51,13 @@ struct unmarshalling_traits<SoundFontHandler::reverb_type> {
 
 struct SoundFontHandler::Impl {
 
+    using result_type = Handler::result_type;
+    using reverb_type = SoundFontHandler::reverb_type;
+
+    // ---------
+    // structors
+    // ---------
+
     Impl() {
         settings = new_fluid_settings();
         fluid_settings_setint(settings, "synth.threadsafe-api", 0);
@@ -67,11 +74,15 @@ struct SoundFontHandler::Impl {
         delete_fluid_settings(settings);
     }
 
+    // ---------
+    // accessors
+    // ---------
+
     double gain() const {
         return (double)fluid_synth_get_gain(synth);
     }
 
-    SoundFontHandler::reverb_type reverb() const {
+    reverb_type reverb() const {
         SoundFontHandler::reverb_type reverb;
         reverb.roomsize = fluid_synth_get_reverb_roomsize(synth);
         reverb.damp = fluid_synth_get_reverb_damp(synth);
@@ -80,49 +91,109 @@ struct SoundFontHandler::Impl {
         return reverb;
     }
 
-    void close() {
-        fluid_synth_system_reset(synth);
-    }
 
-    Handler::result_type reset_system() {
-        push(Event::controller(all_channels, controller_ns::all_controllers_off_controller));
-        push(Event::controller(all_channels, controller_ns::all_sound_off_controller));
-        // push(Event::controller(all_channels, controller_ns::volume_coarse_controller, 100));
-        return result_type::success;
-    }
+    // --------------
+    // handle methods
+    // --------------
 
-    Handler::result_type push(const Event& event) {
+    result_type handle(const Event& event) {
         switch (event.family()) {
-        case family_t::note_off: for (channel_t channel : event.channels()) fluid_synth_noteoff(synth, channel, event.at(1)); return result_type::success;
-        case family_t::note_on: for (channel_t channel : event.channels()) fluid_synth_noteon(synth, channel, event.at(1), event.at(2)); return result_type::success;
-        case family_t::program_change: for (channel_t channel : event.channels()) fluid_synth_program_change(synth, channel, event.at(1)); return result_type::success;
-        case family_t::controller: for (channel_t channel : event.channels()) fluid_synth_cc(synth, channel, event.at(1), event.at(2)); return result_type::success;
-        case family_t::channel_pressure: for (channel_t channel : event.channels()) fluid_synth_channel_pressure(synth, channel, event.at(1)); return result_type::success;
-        case family_t::pitch_wheel: for (channel_t channel : event.channels()) fluid_synth_pitch_bend(synth, channel, event.get_14bits()); return result_type::success;
-        case family_t::reset: return reset_system();
-        case family_t::sysex: {
-            /// @note master volume does not seem to be handled correctly
-            std::vector<char> sys_ex_data(event.begin()+1, event.end()-1);
-            fluid_synth_sysex(synth, sys_ex_data.data(), sys_ex_data.size(), nullptr, nullptr, nullptr, 0);
-            return result_type::success;
-        }
+        case family_t::note_off: return handle_note_off(event.channels(), event.at(1));
+        case family_t::note_on: return handle_note_on(event.channels(), event.at(1), event.at(2));
+        case family_t::program_change: return handle_program_change(event.channels(), event.at(1));
+        case family_t::controller: return handle_controller(event.channels(), event.at(1), event.at(2));
+        case family_t::channel_pressure: return handle_channel_pressure(event.channels(), event.at(1));
+        case family_t::pitch_wheel: return handle_pitch_wheel(event.channels(), event.get_14bits());
+        case family_t::reset: return handle_reset();
+        case family_t::sysex: return handle_sysex(event);
         case family_t::custom: {
             auto k = event.get_custom_key();
-            if (k == "SoundFont.gain") return process_gain(event.get_custom_value());
-            if (k == "SoundFont.reverb") return process_reverb(event.get_custom_value());
-            if (k == "SoundFont.file") return process_file(event.get_custom_value());
+            if (k == "SoundFont.gain") return handle_gain(event.get_custom_value());
+            if (k == "SoundFont.reverb") return handle_reverb(event.get_custom_value());
+            if (k == "SoundFont.file") return handle_file(event.get_custom_value());
             break;
         }
         }
         return result_type::unhandled;
     }
 
-    Handler::result_type process_gain(std::string string) {
+    result_type handle_note_off(channels_t channels, int note) {
+        for (channel_t channel : channels)
+            fluid_synth_noteoff(synth, channel, note);
+        return result_type::success;
+    }
+
+    result_type handle_note_on(channels_t channels, int note, int velocity) {
+        for (channel_t channel : channels)
+            fluid_synth_noteon(synth, channel, note, velocity);
+        return result_type::success;
+    }
+
+    result_type handle_program_change(channels_t channels, int program) {
+        for (channel_t channel : channels)
+            fluid_synth_program_change(synth, channel, program);
+        return result_type::success;
+    }
+
+    result_type handle_controller(channels_t channels, byte_t controller, int value = 0x00) {
+        if (controller == controller_ns::all_controllers_off_controller) {
+            for (channel_t channel : channels) {
+                fluid_synth_cc(synth, channel, controller_ns::modulation_wheel_coarse_controller, 0);
+                fluid_synth_cc(synth, channel, controller_ns::modulation_wheel_fine_controller, 0);
+                fluid_synth_cc(synth, channel, controller_ns::expression_coarse_controller, 0x7f);
+                fluid_synth_cc(synth, channel, controller_ns::expression_fine_controller, 0x7f);
+                fluid_synth_cc(synth, channel, controller_ns::hold_pedal_controller, 0);
+                fluid_synth_cc(synth, channel, controller_ns::portamento_controller, 0);
+                fluid_synth_cc(synth, channel, controller_ns::sustenuto_pedal_controller, 0);
+                fluid_synth_cc(synth, channel, controller_ns::soft_pedal_controller, 0);
+                fluid_synth_cc(synth, channel, controller_ns::legato_pedal_controller, 0);
+                fluid_synth_cc(synth, channel, controller_ns::hold_2_pedal_controller, 0);
+                fluid_synth_cc(synth, channel, controller_ns::volume_coarse_controller, 100);
+                fluid_synth_cc(synth, channel, controller_ns::volume_fine_controller, 0);
+                fluid_synth_cc(synth, channel, controller_ns::pan_position_coarse_controller, 64);
+                fluid_synth_cc(synth, channel, controller_ns::pan_position_fine_controller, 0);
+                fluid_synth_pitch_wheel_sens(synth, channel, 2);
+                fluid_synth_pitch_bend(synth, channel, 0x2000);
+                fluid_synth_channel_pressure(synth, channel, 0);
+            }
+        } else {
+            for (channel_t channel : channels)
+                fluid_synth_cc(synth, channel, controller, value);
+        }
+        return result_type::success;
+    }
+
+    result_type handle_channel_pressure(channels_t channels, int pressure) {
+        for (channel_t channel : channels)
+            fluid_synth_channel_pressure(synth, channel, pressure);
+        return result_type::success;
+    }
+
+    result_type handle_pitch_wheel(channels_t channels, int pitch) {
+        for (channel_t channel : channels)
+            fluid_synth_pitch_bend(synth, channel, pitch);
+        return result_type::success;
+    }
+
+    result_type handle_reset() {
+        handle_controller(all_channels, controller_ns::all_sound_off_controller);
+        handle_controller(all_channels, controller_ns::all_controllers_off_controller);
+        return result_type::success;
+    }
+
+    result_type handle_sysex(const Event& event) {
+        /// @note master volume does not seem to be handled correctly
+        std::vector<char> sys_ex_data(event.begin()+1, event.end()-1);
+        fluid_synth_sysex(synth, sys_ex_data.data(), sys_ex_data.size(), nullptr, nullptr, nullptr, 0);
+        return result_type::success;
+    }
+
+    result_type handle_gain(std::string string) {
         fluid_synth_set_gain(synth, (float)unmarshall<double>(string));
         return result_type::success;
     }
 
-    Handler::result_type process_reverb(std::string string) {
+    result_type handle_reverb(std::string string) {
         has_reverb = !string.empty();
         if (has_reverb) {
             auto reverb = unmarshall<SoundFontHandler::reverb_type>(string);
@@ -132,12 +203,20 @@ struct SoundFontHandler::Impl {
         return result_type::success;
     }
 
-    Handler::result_type process_file(std::string string) {
+    result_type handle_file(std::string string) {
         if (fluid_synth_sfload(synth, string.c_str(), 1) == -1)
             return result_type::fail;
         file = std::move(string);
         return result_type::success;
     }
+
+    void handle_close() {
+        fluid_synth_system_reset(synth);
+    }
+
+    // ----------
+    // attributes
+    // ----------
 
     fluid_settings_t* settings;
     fluid_synth_t* synth;
@@ -200,14 +279,14 @@ SoundFontHandler::result_type SoundFontHandler::on_open(state_type state) {
 
 SoundFontHandler::result_type SoundFontHandler::on_close(state_type state) {
     if (state & handler_ns::receive_state)
-        m_pimpl->close();
+        m_pimpl->handle_close();
     return Handler::on_close(state);
 }
 
 SoundFontHandler::result_type SoundFontHandler::handle_message(const Message& message) {
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_RECEIVE;
-    return m_pimpl->push(message.event);
+    return m_pimpl->handle(message.event);
 }
 
 #endif // MIDILAB_FLUIDSYNTH_VERSION

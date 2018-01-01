@@ -161,11 +161,13 @@ private:
     void generateRegisteredParameter(channels_t channels, uint16_t value);
     void updatePitchRangeText(channels_t channels);
     void updatePitchValueText(channels_t channels);
-    void receiveCoarseRPN(channels_t channels, byte_t byte);
-    void receiveFineRPN(channels_t channels, byte_t byte);
-    void receivePitchRange(channels_t channels, byte_t semitones); /*!< maximum pitch displayed, the minimum is the opposite (default is 2). */
-    void receivePitchValue(channels_t channels, uint16_t value);
-    void resetPitch(channels_t channels);
+    void resetAll(channels_t channels);
+
+    result_type handleCoarseRPN(channels_t channels, byte_t byte);
+    result_type handleFineRPN(channels_t channels, byte_t byte);
+    result_type handleCoarseDataEntry(channels_t channels, byte_t byte);
+    result_type handlePitchValue(channels_t channels, uint16_t value);
+    result_type handleReset(channels_t channels);
 
 private:
     QComboBox* mTypeBox;

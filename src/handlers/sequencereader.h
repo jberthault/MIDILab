@@ -67,8 +67,9 @@ public:
     timestamp_t upper() const;
     void set_upper(timestamp_t timestamp);
 
-    bool start_playing(bool rewind);
-    void stop_playing(bool reset = true);
+    bool start_playing(bool rewind); /*!< return false if already started */
+    bool stop_playing(const Event& final_event); /*!< return false if already stopped */
+    bool stop_playing(); /*!< return false if already stopped */
 
     families_t handled_families() const override;
     result_type handle_message(const Message& message) override;
@@ -79,7 +80,7 @@ private:
     result_type handle_beat(double beat);
     result_type handle_sequence(byte_t id);
     result_type handle_start(bool rewind);
-    result_type handle_stop(bool reset);
+    result_type handle_stop(const Event& final_event);
     result_type handle_distorsion(const std::string& distorsion);
 
     // event loop running through the sequence

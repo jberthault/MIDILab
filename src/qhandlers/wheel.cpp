@@ -233,21 +233,14 @@ MetaHandler::Instance MetaPitchWheel::instantiate() {
 //============
 
 PitchWheel::PitchWheel() : AbstractWheel(handler_ns::io_mode) {
-
-    mRegisteredParameters.fill(defaultRPN);
-    mPitchRanges.fill(2);
-    mPitchValues.fill(0x2000);
-
     mTypeBox = new QComboBox(this);
     mTypeBox->addItem("Pitch Bend");
     mTypeBox->addItem("Pitch Bend Range");
     connect(mTypeBox, SIGNAL(currentIndexChanged(int)), SLOT(onTypeChange(int)));
-
     connect(slider(), &ChannelsSlider::knobPressed, this, &PitchWheel::onPress);
     connect(slider(), &ChannelsSlider::knobReleased, this, &PitchWheel::onRelease);
-
+    resetAll(all_channels);
     prepare(.5);
-
     static_cast<QVBoxLayout*>(layout())->insertWidget(0, mTypeBox);
 }
 
@@ -262,31 +255,22 @@ Handler::result_type PitchWheel::handle_message(const Message& message) {
     switch (message.event.family()) {
     case family_t::controller:
         switch (message.event.at(1)) {
-        case controller_ns::registered_parameter_coarse_controller:
-            receiveCoarseRPN(message.event.channels(), message.event.at(2));
-            return result_type::success;
-        case controller_ns::registered_parameter_fine_controller:
-            receiveFineRPN(message.event.channels(), message.event.at(2));
-            return result_type::success;
-        case controller_ns::data_entry_coarse_controller:
-            receivePitchRange(message.event.channels() & channel_ns::find(mRegisteredParameters, pitchBendRangeRPN), message.event.at(2));
-            return result_type::success;
+        case controller_ns::registered_parameter_coarse_controller: return handleCoarseRPN(message.event.channels(), message.event.at(2));
+        case controller_ns::registered_parameter_fine_controller: return handleFineRPN(message.event.channels(), message.event.at(2));
+        case controller_ns::non_registered_parameter_coarse_controller: return handleCoarseRPN(message.event.channels(), 0x7f);
+        case controller_ns::non_registered_parameter_fine_controller: return handleFineRPN(message.event.channels(), 0x7f);
+        case controller_ns::data_entry_coarse_controller: return handleCoarseDataEntry(message.event.channels(), message.event.at(2));
+        case controller_ns::all_controllers_off_controller: return handleReset(message.event.channels());
         }
         break;
-    case family_t::pitch_wheel:
-        receivePitchValue(message.event.channels(), message.event.get_14bits());
-        return result_type::success;
-    case family_t::reset:
-        resetPitch(all_channels);
-        return result_type::success;
+    case family_t::pitch_wheel: return handlePitchValue(message.event.channels(), message.event.get_14bits());
+    case family_t::reset: return handleReset(all_channels);
     }
     return result_type::unhandled;
 }
 
 Handler::result_type PitchWheel::on_close(state_type state) {
-    mRegisteredParameters.fill(defaultRPN);
-    mPitchRanges.fill(2);
-    mPitchValues.fill(0x2000);
+    resetAll(all_channels);
     return AbstractWheel::on_close(state);
 }
 
@@ -367,36 +351,47 @@ void PitchWheel::updatePitchValueText(channels_t channels) {
     }
 }
 
-void PitchWheel::receiveCoarseRPN(channels_t channels, byte_t byte) {
+void PitchWheel::resetAll(channels_t channels) {
+    channel_ns::store(mRegisteredParameters, channels, defaultRPN);
+    channel_ns::store(mPitchRanges, channels, 2);
+    channel_ns::store(mPitchValues, channels, 0x2000);
+}
+
+Handler::result_type PitchWheel::handleCoarseRPN(channels_t channels, byte_t byte) {
     for (channel_t c : channels)
         mRegisteredParameters[c] = short_tools::alter_coarse(mRegisteredParameters[c], byte);
+    return result_type::success;
 }
 
-void PitchWheel::receiveFineRPN(channels_t channels, byte_t byte) {
+Handler::result_type PitchWheel::handleFineRPN(channels_t channels, byte_t byte) {
     for (channel_t c : channels)
         mRegisteredParameters[c] = short_tools::alter_fine(mRegisteredParameters[c], byte);
+    return result_type::success;
 }
 
-void PitchWheel::receivePitchRange(channels_t channels, byte_t semitones) {
+Handler::result_type PitchWheel::handleCoarseDataEntry(channels_t channels, byte_t byte) {
+    channels &= channel_ns::find(mRegisteredParameters, pitchBendRangeRPN);
     if (channels) {
-        channel_ns::store(mPitchRanges, channels, semitones);
+        channel_ns::store(mPitchRanges, channels, byte);
         if (rangeDisplayed())
-            slider()->setRatio(channels, semitonesRange.reduce(semitones));
+            slider()->setRatio(channels, semitonesRange.reduce(byte));
         else
             updatePitchValueText(channels);
     }
+    return result_type::success;
 }
 
-void PitchWheel::receivePitchValue(channels_t channels, uint16_t value) {
+Handler::result_type PitchWheel::handlePitchValue(channels_t channels, uint16_t value) {
     channel_ns::store(mPitchValues, channels, value);
     if (!rangeDisplayed())
         slider()->setRatio(channels, data14Range.reduce(value));
+    return result_type::success;
 }
 
-void PitchWheel::resetPitch(channels_t channels) {
-    channel_ns::store(mPitchValues, channels, 0x2000);
-    if (!rangeDisplayed())
-        slider()->setDefault(channels);
+Handler::result_type PitchWheel::handleReset(channels_t channels) {
+    resetAll(channels);
+    slider()->setDefault(channels);
+    return result_type::success;
 }
 
 //==================

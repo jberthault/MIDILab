@@ -1423,7 +1423,7 @@ void Player::pauseSequence() {
     if (mIsPlaying) {
         mIsPlaying = false;
         mIsStepping = false;
-        mPlayer->stop_playing(false);
+        mPlayer->stop_playing(Event::controller(all_channels, controller_ns::all_sound_off_controller));
         mRefreshTimer->stop();
         mTempoView->clearTempo();
         mPlaylist->setCurrentStatus(PAUSED);
@@ -1432,16 +1432,14 @@ void Player::pauseSequence() {
 
 void Player::resetSequence() {
     mPlayer->stop_playing();
+    mPlayer->forward_message({Event::reset(), mPlayer}); // force reset
     if (mIsPlaying) {
         mIsPlaying = false;
         mIsStepping = false;
         mRefreshTimer->stop();
         mTempoView->clearTempo();
-    } else { // generates another reset if paused to clear pianos
-        mPlayer->forward_message({Event::reset(), mPlayer});
     }
     mPlaylist->setCurrentStatus(STOPPED);
-
     changePosition(mPlayer->lower()); // jump to lower limit
     updatePosition();
 }

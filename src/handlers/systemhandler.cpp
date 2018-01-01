@@ -43,7 +43,7 @@ public:
 
     ~WinSystemHandler() {
         if (is_receive_enabled()) {
-            reset_system();
+            handle_reset();
             close_system(handler_ns::endpoints_state);
         }
     }
@@ -57,13 +57,13 @@ public:
         MIDI_CHECK_OPEN_RECEIVE;
         if (mode().any(handler_ns::receive_mode)) {
             if (message.event.is(family_ns::voice_families))
-                return to_result(write_event(message.event));
+                return to_result(handle_voice(message.event));
             if (message.event.family() == family_t::sysex)
-                return to_result(write_sysex(message.event));
+                return to_result(handle_sysex(message.event));
             if (message.event.family() == family_t::reset)
-                return to_result(reset_system());
+                return to_result(handle_reset());
             if (message.event.family() == family_t::custom && message.event.get_custom_key() == "System.volume")
-                return to_result(set_volume((DWORD)unmarshall<uint32_t>(message.event.get_custom_value())));
+                return to_result(handle_volume((DWORD)unmarshall<uint32_t>(message.event.get_custom_value())));
         }
         return result_type::unhandled;
     }
@@ -74,7 +74,7 @@ public:
 
     result_type on_close(state_type state) override {
         if (is_receive_enabled())
-            reset_system();
+            handle_reset();
         return to_result(close_system(state));
     }
 
@@ -129,10 +129,6 @@ private:
         }
     }
 
-    size_t set_volume(DWORD volume) {
-        return check_out(midiOutSetVolume(m_handle_out, volume));
-    }
-
     size_t open_system(state_type s) {
         size_t errors = 0;
         if (mode().any(handler_ns::in_mode) && s.any(handler_ns::forward_state) && state().none(handler_ns::forward_state)) {
@@ -141,7 +137,7 @@ private:
         }
         if (mode().any(handler_ns::out_mode) && s.any(handler_ns::receive_state) && state().none(handler_ns::receive_state)) {
             errors += check_out(midiOutOpen(&m_handle_out, m_id_out, (DWORD_PTR)callback_out, (DWORD_PTR)this, CALLBACK_FUNCTION));
-            set_volume(0xffffffff); // full volume (volume settings are done using sysex messages) (ignoring errors here)
+            handle_volume(0xffffffff); // full volume (volume settings are done using sysex messages) (ignoring errors here)
         }
         return errors;
     }
@@ -167,7 +163,15 @@ private:
         return result_type::closed;
     }
 
-    size_t write_sysex(const Event& event) {
+    bool is_receive_enabled() const {
+        return state().any(handler_ns::receive_state) && mode().any(handler_ns::receive_mode);
+    }
+
+    size_t handle_volume(DWORD volume) {
+        return check_out(midiOutSetVolume(m_handle_out, volume));
+    }
+
+    size_t handle_sysex(const Event& event) {
         size_t errors = 0;
         MIDIHDR hdr;
         memset(&hdr, 0, sizeof(MIDIHDR));
@@ -180,7 +184,38 @@ private:
         return errors;
     }
 
-    size_t write_event(const Event& event) {
+    size_t handle_voice(const Event& event) {
+        /// merge all in a midiOutLongMsg() ?
+        size_t errors = 0;
+        if (event.family() == family_t::controller && event.at(1) == controller_ns::all_controllers_off_controller) {
+            errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::modulation_wheel_coarse_controller, 0));
+            errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::modulation_wheel_fine_controller, 0));
+            errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::expression_coarse_controller, 0x7f));
+            errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::expression_fine_controller, 0x7f));
+            errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::hold_pedal_controller, 0));
+            errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::portamento_controller, 0));
+            errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::sustenuto_pedal_controller, 0));
+            errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::soft_pedal_controller, 0));
+            errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::legato_pedal_controller, 0));
+            errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::hold_2_pedal_controller, 0));
+            errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::volume_coarse_controller, 100));
+            errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::volume_fine_controller, 0));
+            errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::pan_position_coarse_controller, 64));
+            errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::pan_position_fine_controller, 0));
+            errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::registered_parameter_coarse_controller, 0));
+            errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::registered_parameter_fine_controller, 0));
+            errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::data_entry_coarse_controller, 2));
+            errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::registered_parameter_coarse_controller, 0x7f));
+            errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::registered_parameter_fine_controller, 0x7f));
+            errors += handle_raw_voice(Event::pitch_wheel(event.channels(), 0x2000));
+            errors += handle_raw_voice(Event::channel_pressure(event.channels(), 0));
+        } else {
+            errors += handle_raw_voice(event);
+        }
+        return errors;
+    }
+
+    size_t handle_raw_voice(const Event& event) {
         /// merge all in a midiOutLongMsg() ?
         size_t errors = 0;
         uint32_t frame = *reinterpret_cast<const uint32_t*>(&event.data()[0]);
@@ -190,16 +225,10 @@ private:
         return errors;
     }
 
-    bool is_receive_enabled() const {
-        return state().any(handler_ns::receive_state) && mode().any(handler_ns::receive_mode);
-    }
-
-    size_t reset_system() {
-        // return check_out(midiOutReset(m_handle_out));
+    size_t handle_reset() {
         size_t errors = 0;
-        errors += write_event(Event::controller(all_channels, controller_ns::all_controllers_off_controller));
-        errors += write_event(Event::controller(all_channels, controller_ns::all_sound_off_controller));
-        // errors += write_event(Event::controller(all_channels, controller_ns::volume_coarse_controller, 100));
+        errors += handle_voice(Event::controller(all_channels, controller_ns::all_sound_off_controller));
+        errors += handle_voice(Event::controller(all_channels, controller_ns::all_controllers_off_controller));
         return errors;
     }
 
@@ -294,7 +323,7 @@ class LinuxSystemHandler : public Handler {
 
         ~LinuxSystemHandler() {
             if (is_receive_enabled()) {
-                reset_system();
+                handle_reset();
                 close_system(handler_ns::endpoints_state);
             }
         }
@@ -309,7 +338,7 @@ class LinuxSystemHandler : public Handler {
 
         result_type on_close(state_type state) override {
             if (is_receive_enabled())
-                reset_system();
+                handle_reset();
             return to_result(close_system(state));
         }
 
@@ -362,7 +391,37 @@ class LinuxSystemHandler : public Handler {
             return errors;
         }
 
-        size_t write_event(const Event& event) {
+        size_t handle_voice(const Event& event) {
+            size_t errors = 0;
+            if (event.family() == family_t::controller && event.at(1) == controller_ns::all_controllers_off_controller) {
+                errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::modulation_wheel_coarse_controller, 0));
+                errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::modulation_wheel_fine_controller, 0));
+                errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::expression_coarse_controller, 0x7f));
+                errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::expression_fine_controller, 0x7f));
+                errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::hold_pedal_controller, 0));
+                errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::portamento_controller, 0));
+                errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::sustenuto_pedal_controller, 0));
+                errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::soft_pedal_controller, 0));
+                errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::legato_pedal_controller, 0));
+                errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::hold_2_pedal_controller, 0));
+                errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::volume_coarse_controller, 100));
+                errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::volume_fine_controller, 0));
+                errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::pan_position_coarse_controller, 64));
+                errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::pan_position_fine_controller, 0));
+                errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::registered_parameter_coarse_controller, 0));
+                errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::registered_parameter_fine_controller, 0));
+                errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::data_entry_coarse_controller, 2));
+                errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::registered_parameter_coarse_controller, 0x7f));
+                errors += handle_raw_voice(Event::controller(event.channels(), controller_ns::registered_parameter_fine_controller, 0x7f));
+                errors += handle_raw_voice(Event::pitch_wheel(event.channels(), 0x2000));
+                errors += handle_raw_voice(Event::channel_pressure(event.channels(), 0));
+            } else {
+                errors += handle_raw_voice(event);
+            }
+            return errors;
+        }
+
+        size_t handle_raw_voice(const Event& event) {
             size_t errors = 0;
             Event::data_type data = event.data();
             for (channel_t c : event.channels()) {
@@ -430,17 +489,17 @@ class LinuxSystemHandler : public Handler {
             MIDI_CHECK_OPEN_RECEIVE;
             if (mode().any(handler_ns::receive_mode)) {
                 if (message.event.is(family_ns::voice_families))
-                    return to_result(write_event(message.event));
+                    return to_result(handle_voice(message.event));
                 if (message.event.family() == family_t::reset)
-                    return to_result(reset_system());
+                    return to_result(handle_reset());
             }
             return result_type::unhandled;
         }
 
-        size_t reset_system() {
+        size_t handle_reset() {
             size_t errors = 0;
-            errors += write_event(Event::controller(all_channels, controller_ns::all_controllers_off_controller));
-            errors += write_event(Event::controller(all_channels, controller_ns::all_sound_off_controller));
+            errors += handle_voice(Event::controller(all_channels, controller_ns::all_sound_off_controller));
+            errors += handle_voice(Event::controller(all_channels, controller_ns::all_controllers_off_controller));
             return errors;
         }
 
