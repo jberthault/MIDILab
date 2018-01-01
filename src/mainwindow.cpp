@@ -42,15 +42,23 @@ namespace {
 struct ConfigurationPuller {
 
     void addConfiguration(MultiDisplayer* root, const parsing::Configuration& configuration) {
+        // add frames
         if (!configuration.frames.empty())
             setFrame(root, configuration.frames[0], true);
         for (int i=1 ; i < configuration.frames.size() ; i++)
             addFrame(root, configuration.frames[i], true);
+        // add handlers
         for (const parsing::Handler& handler : configuration.handlers)
             addHandler(handler);
+        // add connections
         for (const parsing::Connection& connection : configuration.connections)
             addConnection(connection);
-        setColors(configuration.colors);
+        // set colors
+        for (channel_t c=0 ; c < qMin(0x10, configuration.colors.size()) ; ++c)
+            Manager::instance->channelEditor()->setColor(c, configuration.colors.at(c));
+        // display visible frames created
+        for(auto displayer : visibleDisplayers)
+            displayer->show();
     }
 
     void addConnection(const parsing::Connection& connection) {
@@ -99,7 +107,7 @@ struct ConfigurationPuller {
         MultiDisplayer* displayer = detached ? parent->insertDetached() : parent->insertMulti();
         setFrame(displayer, frame, detached);
         if (detached && frame.visible)
-            displayer->show();
+            visibleDisplayers.push_back(displayer);
     }
 
     void setFrame(MultiDisplayer* displayer, const parsing::Frame& frame, bool isTopLevel) {
@@ -120,13 +128,9 @@ struct ConfigurationPuller {
         viewReferences[view.ref] = parent->insertSingle();
     }
 
-    void setColors(const QVector<QColor>& colors) {
-        for (channel_t c=0 ; c < qMin(0x10, colors.size()) ; ++c)
-            Manager::instance->channelEditor()->setColor(c, colors.at(c));
-    }
-
     QMap<QString, Handler*> handlersReferences;
     QMap<QString, SingleDisplayer*> viewReferences;
+    std::vector<MultiDisplayer*> visibleDisplayers;
 
 };
 
