@@ -57,7 +57,6 @@ public:
 
     families_t handled_families() const override;
     result_type handle_message(const Message& message) override;
-    result_type on_open(state_type state) override;
     result_type on_close(state_type state) override;
 
 private:

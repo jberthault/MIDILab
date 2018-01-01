@@ -44,6 +44,23 @@ struct unmarshalling_traits<SoundFontHandler::reverb_type> {
     }
 };
 
+namespace {
+
+// check if event specifies to turn some channels to drum channels
+channels_t use_for_rhythm_part(const Event& event) {
+    if (   event.family() == family_t::sysex             // sysex event
+        && event.at(2) == 0x41                           // roland manufacturer
+        && event.at(5) == 0x12                           // sending data
+        && event.at(6) == 0x40                           //
+        && (event.at(7) & 0xf0) == 0x10                  //
+        && event.at(8) == 0x15                           // 0x40 0x1X 0x15 <=> address of USE_FOR_RHYTHM_PART
+        && (event.at(9) == 0x01 || event.at(9) == 0x02)) // value {0x00: OFF, 0x01: MAP1, 0x02: MAP2}
+        return channels_t::merge(event.at(7) & 0x0f);
+    return {};
+}
+
+}
+
 
 //======
 // Impl
@@ -66,6 +83,7 @@ struct SoundFontHandler::Impl {
         synth = new_fluid_synth(settings);
         adriver = new_fluid_audio_driver(settings, synth);
         has_reverb = true;
+        drums = drum_channels;
     }
 
     ~Impl() {
@@ -137,6 +155,8 @@ struct SoundFontHandler::Impl {
 
     result_type handle_controller(channels_t channels, byte_t controller, int value = 0x00) {
         if (controller == controller_ns::all_controllers_off_controller) {
+            handle_channel_type(channels & ~drum_channels, CHANNEL_TYPE_MELODIC);
+            handle_channel_type(channels & drum_channels, CHANNEL_TYPE_DRUM);
             for (channel_t channel : channels) {
                 fluid_synth_cc(synth, channel, controller_ns::modulation_wheel_coarse_controller, 0);
                 fluid_synth_cc(synth, channel, controller_ns::modulation_wheel_fine_controller, 0);
@@ -163,6 +183,17 @@ struct SoundFontHandler::Impl {
         return result_type::success;
     }
 
+    result_type handle_channel_type(channels_t channels, int type) {
+        channels_t old_drum_channels = drums;
+        drums.commute(channels, type == CHANNEL_TYPE_DRUM);
+        for(channel_t channel : drums ^ old_drum_channels) {
+            TRACE_INFO("SoundFont: changed channel " << (int)channel << " type to " << (type == CHANNEL_TYPE_DRUM ? "drum" : "melodic"));
+            fluid_synth_set_channel_type(synth, channel, type);
+            fluid_synth_program_change(synth, channel, 0);
+        }
+        return result_type::success;
+    }
+
     result_type handle_channel_pressure(channels_t channels, int pressure) {
         for (channel_t channel : channels)
             fluid_synth_channel_pressure(synth, channel, pressure);
@@ -183,6 +214,11 @@ struct SoundFontHandler::Impl {
 
     result_type handle_sysex(const Event& event) {
         /// @note master volume does not seem to be handled correctly
+        // roland handling
+        auto channels = use_for_rhythm_part(event);
+        if (channels)
+            return handle_channel_type(channels, CHANNEL_TYPE_DRUM);
+        // default handling
         std::vector<char> sys_ex_data(event.begin()+1, event.end()-1);
         fluid_synth_sysex(synth, sys_ex_data.data(), sys_ex_data.size(), nullptr, nullptr, nullptr, 0);
         return result_type::success;
@@ -212,6 +248,7 @@ struct SoundFontHandler::Impl {
 
     void handle_close() {
         fluid_synth_system_reset(synth);
+        drums = drum_channels;
     }
 
     // ----------
@@ -222,6 +259,7 @@ struct SoundFontHandler::Impl {
     fluid_synth_t* synth;
     fluid_audio_driver_t* adriver;
     std::string file;
+    channels_t drums;
     bool has_reverb;
 
 };
@@ -270,11 +308,6 @@ SoundFontHandler::optional_reverb_type SoundFontHandler::reverb() const {
 
 families_t SoundFontHandler::handled_families() const {
     return families_t::merge(family_t::custom, family_t::sysex, family_t::reset, family_t::note_off, family_t::note_on, family_t::controller, family_t::program_change, family_t::channel_pressure, family_t::pitch_wheel);
-}
-
-SoundFontHandler::result_type SoundFontHandler::on_open(state_type state) {
-    TRACE_INFO("Sound Font thread priority: " << get_thread_priority());
-    return Handler::on_open(state);
 }
 
 SoundFontHandler::result_type SoundFontHandler::on_close(state_type state) {
