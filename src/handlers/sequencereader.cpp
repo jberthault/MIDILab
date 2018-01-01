@@ -143,7 +143,7 @@ void SequenceReader::set_upper(timestamp_t timestamp) {
 
 void SequenceReader::jump_position(position_type position) {
     bool playing = m_playing;
-    stop_playing();
+    stop_playing(false);
     forward_message({stop_notes, this});
     m_position = position;
     if (playing)
@@ -173,20 +173,21 @@ bool SequenceReader::start_playing(bool rewind) {
     return true;
 }
 
+bool SequenceReader::stop_playing(bool rewind) {
+    m_playing = false; // notify the playing thread to stop
+    bool stoppable = m_status.valid(); // previously started ?
+    if (stoppable)
+        m_status.get(); // wait until the end of run and invalid status
+    if (rewind)
+        m_position = m_first_position;
+    return stoppable;
+}
+
 bool SequenceReader::stop_playing(const Event& final_event) {
-    bool stopped = stop_playing();
+    bool stopped = stop_playing(false);
     if (stopped)
         forward_message({final_event, this});
     return stopped;
-}
-
-bool SequenceReader::stop_playing() {
-    m_playing = false; // notify the playing thread to stop
-    if (m_status.valid()) { // previously started ?
-        m_status.get(); // wait until the end of run and invalid status
-        return true;
-    }
-    return false;
 }
 
 families_t SequenceReader::handled_families() const {
@@ -274,7 +275,7 @@ void SequenceReader::run() {
             forward_message({event, this, it->track});
         }
         // asleep this thread for a minimal period
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(4));
     }
 }
 

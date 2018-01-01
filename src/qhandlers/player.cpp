@@ -929,6 +929,7 @@ Trackbar::Trackbar(QWidget* parent) : QWidget(parent) {
 
     // Position
     mPositionKnob = new ParticleKnob();
+    mPositionKnob->setZValue(1.);
     mPositionEdit = new TrackedKnob(this);
     mPositionEdit->setDisplayFormat(DistordedClock::timeFormat);
     mPositionEdit->setToolTip("Position");
@@ -1431,7 +1432,7 @@ void Player::pauseSequence() {
 }
 
 void Player::resetSequence() {
-    mPlayer->stop_playing();
+    mPlayer->stop_playing(true);
     mPlayer->forward_message({Event::reset(), mPlayer}); // force reset
     if (mIsPlaying) {
         mIsPlaying = false;
@@ -1440,7 +1441,6 @@ void Player::resetSequence() {
         mTempoView->clearTempo();
     }
     mPlaylist->setCurrentStatus(STOPPED);
-    changePosition(mPlayer->lower()); // jump to lower limit
     updatePosition();
 }
 

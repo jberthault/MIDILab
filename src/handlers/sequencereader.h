@@ -68,8 +68,8 @@ public:
     void set_upper(timestamp_t timestamp);
 
     bool start_playing(bool rewind); /*!< return false if already started */
+    bool stop_playing(bool rewind); /*!< return false if already stopped */
     bool stop_playing(const Event& final_event); /*!< return false if already stopped */
-    bool stop_playing(); /*!< return false if already stopped */
 
     families_t handled_families() const override;
     result_type handle_message(const Message& message) override;
