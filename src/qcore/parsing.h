@@ -75,29 +75,8 @@ struct Configuration {
     QVector<QColor> colors;
 };
 
-class Reader {
-
-public:
-    bool parse(const QByteArray& content, Configuration& configuration);
-    bool parseConfiguration(const QDomElement& element, Configuration& configuration);
-
-    bool parseWidgets(const QDomElement& element, QVector<Widget>& widgets);
-    bool parseFrames(const QDomElement& element, QVector<Frame>& frames);
-    bool parseWidget(const QDomElement& element, Widget& widget);
-    bool parseFrame(const QDomElement& element, Frame& frame);
-    bool parseView(const QDomElement& element, View& view);
-
-    bool parseConnections(const QDomElement& element, QVector<Connection>& connections);
-    bool parseConnection(const QDomElement& element, Connection& connection);
-
-    bool parseHandlers(const QDomElement& element, QVector<Handler>& handlers);
-    bool parseHandler(const QDomElement& element, Handler& handler);
-    bool parseProperty(const QDomElement& element, Property& property);
-
-    bool parseColors(const QDomElement& element, QVector<QColor>& color);
-    bool parseColor(const QDomElement& element, QColor& color);
-
-};
+Configuration readConfiguration(const QByteArray& content);
+Configuration readConfiguration(const QDomElement& element);
 
 class Writer {
 

@@ -62,14 +62,18 @@ struct ConfigurationPuller {
     }
 
     void addConnection(const parsing::Connection& connection) {
+        bool hasSource = !connection.source.isEmpty();
         Handler* tail = handlersReferences.value(connection.tail, nullptr);
         Handler* head = handlersReferences.value(connection.head, nullptr);
-        Handler* source = handlersReferences.value(connection.source, nullptr);
-        if (!tail || !head || !source) {
+        Handler* source = hasSource ? handlersReferences.value(connection.source, nullptr) : nullptr;
+        if (!tail || !head || hasSource && !source) {
             qWarning() << "wrong connection handlers: " << handlerName(tail) << handlerName(head) << handlerName(source);
             return;
         }
-        Manager::instance->insertConnection(tail, head, source);
+        if (hasSource)
+            Manager::instance->insertConnection(tail, head, source);
+        else
+            Manager::instance->insertConnection(tail, head);
     }
 
     void addHandler(const parsing::Handler& handler) {
@@ -242,6 +246,8 @@ struct ConfigurationPusher {
 
 };
 
+const QVariant discardConfigsData = 1;
+
 }
 
 // ============
@@ -322,19 +328,18 @@ bool MainWindow::readConfig(const QString& fileName) {
     auto system_handlers = create_system();
     for (Handler* handler : system_handlers)
         Manager::instance->insertHandler(handler, nullptr, "System", "default");
-    // read file
-    QFile configFile(fileName);
-    if (!configFile.open(QIODevice::ReadOnly)) {
-        qCritical() << "Can't read file" << fileName;
-        return false;
-    }
-    QByteArray configData = configFile.readAll();
-    configFile.close();
-    // parse file
-    parsing::Reader reader;
     parsing::Configuration config;
-    if (!reader.parse(configData, config)) {
-        qCritical() << "Can't parse config" << fileName;
+    try {
+        // read file
+        QFile configFile(fileName);
+        if (!configFile.open(QIODevice::ReadOnly))
+            throw QString("unable to open file");
+        auto configData = configFile.readAll();
+        configFile.close();
+        // parse file
+        config = parsing::readConfiguration(configData);
+    } catch (const QString& error) {
+        QMessageBox::critical(this, QString(), QString("Failed reading configuration file\n%1\n\n%2").arg(fileName, error));
         return false;
     }
     // fill interface
@@ -399,18 +404,35 @@ void MainWindow::raiseConfig(const QString& fileName) {
 }
 
 void MainWindow::updateConfigs() {
+    auto configs = getConfigs();
     mConfigMenu->clear();
-    for (const QString& configurationFile : getConfigs()) {
-        QFileInfo fileInfo(configurationFile);
-        QAction* fileAction = mConfigMenu->addAction(fileInfo.completeBaseName());
-        fileAction->setToolTip(configurationFile);
+    if (!configs.isEmpty()) {
+        for (const QString& configurationFile : configs) {
+            QFileInfo fileInfo(configurationFile);
+            QAction* fileAction = mConfigMenu->addAction(QIcon(":/data/grid-three-up.svg"), fileInfo.completeBaseName());
+            fileAction->setData(configurationFile);
+            fileAction->setToolTip(configurationFile);
+        }
+        mConfigMenu->addSeparator();
     }
+    QAction* clearAction = mConfigMenu->addAction(QIcon(":/data/trash.svg"), "Clear");
+    clearAction->setEnabled(!configs.isEmpty());
 }
 
 void MainWindow::onConfigSelection(QAction* action) {
-    auto result = QMessageBox::question(this, QString(), "Do you want to reload the application ?");
-    if (result == QMessageBox::Yes)
-        loadConfig(action->toolTip());
+    auto fileName = action->data().toString();
+    if (fileName.isNull()) { // clear action triggerred
+        auto result = QMessageBox::question(this, QString(), "Do you want to clear configurations ?");
+        if (result == QMessageBox::Yes) {
+            QSettings settings;
+            settings.remove("config");
+            updateConfigs();
+         }
+    } else {
+        auto result = QMessageBox::question(this, QString(), "Do you want to reload the application ?");
+        if (result == QMessageBox::Yes)
+            loadConfig(fileName);
+    }
 }
 
 void MainWindow::setupMenu() {
@@ -427,6 +449,7 @@ void MainWindow::setupMenu() {
     fileMenu->addAction(QIcon(":/data/cloud-download.svg"), "Load configuration", this, SLOT(loadConfig()));
     fileMenu->addAction(QIcon(":/data/cloud-upload.svg"), "Save configuration", this, SLOT(writeConfig()));
     mConfigMenu = fileMenu->addMenu(QIcon(":/data/cloud.svg"), "Recent configurations");
+    mConfigMenu->setToolTipsVisible(true);
     connect(mConfigMenu, &QMenu::triggered, this, &MainWindow::onConfigSelection);
     updateConfigs();
 

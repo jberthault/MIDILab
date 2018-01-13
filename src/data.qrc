@@ -59,5 +59,6 @@
         <file>data/expand-down.svg</file>
         <file>data/load.gif</file>
         <file>data/wood.jpg</file>
+        <file>data/grid-three-up.svg</file>
     </qresource>
 </RCC>

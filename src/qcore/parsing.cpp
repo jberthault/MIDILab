@@ -33,27 +33,90 @@ namespace parsing {
 
 namespace {
 
-template<typename T, typename F>
-bool parseMultiple(const QDomElement& element, QVector<T>& values, F parser) {
-    QDomNodeList nodes = element.childNodes();
-    for (int i=0 ; i < nodes.size() ; i++) {
-        QDomNode node = nodes.at(i);
-        if (node.nodeType() == QDomNode::CommentNode)
-            continue;
-        T value;
-        if (!parser(node.toElement(), value))
-            return false;
-        values.append(value);
-    }
-    return true;
+void checkNodeName(const QDomElement& element, const QString& name) {
+    if (element.nodeName() != name)
+        throw QString("expected element named '%1'").arg(name);
 }
 
-bool parsePos(const QString& value, QPoint& pos) {
-    // empty value is fine
-    if (value.isEmpty()) {
-        pos = QPoint();
-        return true;
+template<typename F>
+auto parseMultiple(const QDomElement& element, F parser) {
+    using result_type = decltype(parser(element));
+    QVector<result_type> values;
+    auto nodes = element.childNodes();
+    for (int i=0 ; i < nodes.size() ; i++) {
+        auto node = nodes.at(i);
+        if (node.nodeType() != QDomNode::CommentNode)
+            values.append(parser(node.toElement()));
     }
+    return values;
+}
+
+template<typename F>
+auto parseAtMostOne(const QDomElement& element, const QString& tagName, F parser) {
+    using result_type = decltype(parser(element));
+    auto nodes = element.elementsByTagName(tagName);
+    if (nodes.size() > 1)
+        throw QString("too many tags named '%1'").arg(tagName);
+    if (nodes.size() == 1)
+        return parser(nodes.at(0).toElement());
+    return result_type{};
+}
+
+auto parseAttribute(const QDomElement& element, const QString& attributeName) {
+    auto value = element.attribute(attributeName);
+    if (value.isEmpty())
+        throw QString("attribute '%1' of tag '%2' is mandatory").arg(attributeName, element.nodeName());
+    return value;
+}
+
+// handlers
+
+Property parseProperty(const QDomElement& element) {
+    checkNodeName(element, "property");
+    auto key = parseAttribute(element, "type");
+    auto node = element.firstChild();
+    if (node.nodeType() != QDomNode::TextNode)
+        throw QString("no data provided for property %1").arg(key);
+    return {key, node.nodeValue()};
+}
+
+Handler parseHandler(const QDomElement& element) {
+    checkNodeName(element, "handler");
+    auto type = parseAttribute(element, "type");
+    return {
+        type,
+        element.attribute("id"),
+        element.attribute("name", type),
+        element.attribute("group", "default"),
+        parseMultiple(element, parseProperty)
+    };
+}
+
+auto parseHandlers(const QDomElement& element) {
+    return parseMultiple(element, parseHandler);
+}
+
+// connections
+
+Connection parseConnection(const QDomElement& element) {
+    checkNodeName(element, "connection");
+    return {
+        parseAttribute(element, "tail"),
+        parseAttribute(element, "head"),
+        element.attribute("source")
+    };
+}
+
+auto parseConnections(const QDomElement& element) {
+    return parseMultiple(element, parseConnection);
+}
+
+// frames
+
+QPoint parsePos(const QString& value) {
+    // empty value is fine
+    if (value.isEmpty())
+        return {};
     // or it must match exactly
     QRegExp re("(\\d+),(\\d+)");
     if (re.exactMatch(value)) {
@@ -63,23 +126,17 @@ bool parsePos(const QString& value, QPoint& pos) {
         int x = captures.at(1).toInt(&xOK);
         int y = captures.at(2).toInt(&yOK);
         // if conversion succeeds, it's fine
-        if (xOK && yOK) {
-            pos = QPoint(x, y);
-            return true;
-        }
+        if (xOK && yOK)
+            return {x, y};
     }
     // if match fails or conversion fails, it's an error
-    qWarning() << "wrong pos provided, must be <x>,<y>";
-    pos = QPoint();
-    return false;
+    throw QString("wrong pos provided, must be <x>,<y>");
 }
 
-bool parseSize(const QString& value, QSize& size) {
+QSize parseSize(const QString& value) {
     // empty value is fine
-    if (value.isEmpty()) {
-        size = QSize();
-        return true;
-    }
+    if (value.isEmpty())
+        return {};
     // or it must match exactly
     QRegExp re("(\\d+)x(\\d+)");
     if (re.exactMatch(value)) {
@@ -89,227 +146,100 @@ bool parseSize(const QString& value, QSize& size) {
         int width = captures.at(1).toInt(&widthOK);
         int height = captures.at(2).toInt(&heightOK);
         // if conversion succeeds, it's fine
-        if (widthOK && heightOK) {
-            size = QSize(width, height);
-            return true;
-        }
+        if (widthOK && heightOK)
+            return {width, height};
     }
     // if match fails or conversion fails, it's an error
-    qWarning() << "wrong size provided, must be <width>x<height>";
-    size = QSize();
-    return false;
+    throw QString("wrong size provided, must be <width>x<height>");
 }
 
-bool parseVisible(const QString& value, bool& visible) {
-    if (value == "true") {
-        visible = true;
+bool parseVisible(const QString& value) {
+    if (value == "true")
         return true;
-    } else if (value == "false") {
-        visible = false;
-        return true;
-    }
-    qWarning() << "wrong visibility provided, must be 'true' or 'false'";
-    return false;
+    if (value == "false")
+        return false;
+    throw QString("wrong visibility provided, must be 'true' or 'false'");
+}
+
+Qt::Orientation parseLayout(const QString& value) {
+    if (value == "h")
+        return Qt::Horizontal;
+    if (value == "v")
+        return Qt::Vertical;
+    throw QString("layout should be 'h' or 'v'");
+}
+
+View parseView(const QDomElement& element) {
+    return { parseAttribute(element, "ref") };
+}
+
+Frame parseFrame(const QDomElement& element);
+
+Widget parseWidget(const QDomElement& element) {
+    auto nodeName = element.nodeName();
+    if (nodeName == "frame")
+        return {true, parseFrame(element), {}};
+    if (nodeName == "view")
+        return {false, {}, parseView(element)};
+    throw QString("unknown tag %1").arg(nodeName);
+}
+
+Frame parseFrame(const QDomElement& element) {
+    checkNodeName(element, "frame");
+    return {
+        element.attribute("name"),
+        parseSize(element.attribute("size")),
+        parsePos(element.attribute("pos")),
+        parseLayout(parseAttribute(element, "layout")),
+        parseMultiple(element, parseWidget),
+        parseVisible(element.attribute("visible", "true"))
+    };
+}
+
+auto parseFrames(const QDomElement& element) {
+    return parseMultiple(element, parseFrame);
+}
+
+// colors
+
+QColor parseColor(const QDomElement& element) {
+    checkNodeName(element, "color");
+    QDomNode node = element.firstChild();
+    if (node.nodeType() != QDomNode::TextNode)
+        throw QString("no data provided for color");
+    QString colorString = node.nodeValue();
+    QColor color(colorString);
+    if (!color.isValid())
+        throw QString("unknown color %1").arg(colorString);
+    return color;
+}
+
+auto parseColors(const QDomElement& element) {
+    auto colors = parseMultiple(element, parseColor);
+    if (colors.size() != 16)
+        throw QString("wrong number of colors provided, 16 expected, got %1").arg(colors.size());
+    return colors;
 }
 
 }
 
-bool Reader::parse(const QByteArray& content, Configuration& configuration) {
+Configuration readConfiguration(const QByteArray& content) {
     QString errorMsg;
     int errorLine, errorColumn;
     QDomDocument document("Config DOM");
-    if (!document.setContent(content, false, &errorMsg, &errorLine, &errorColumn)) {
-        qCritical() << "config is illformed: " << errorMsg
-                    << ", on line " << errorLine
-                    << ", on column " << errorColumn;
-        return false;
-    }
-    return parseConfiguration(document.documentElement(), configuration);
+    if (!document.setContent(content, false, &errorMsg, &errorLine, &errorColumn))
+        throw QString("%1 (line %2, column %3)").arg(errorMsg).arg(errorLine).arg(errorColumn);
+    return readConfiguration(document.documentElement());
 }
 
-bool Reader::parseConfiguration(const QDomElement& element, Configuration& configuration) {
-    if (element.nodeName() != "configuration") {
-        qCritical() << "config root is not \"configuration\"";
-        return false;
-    }
-    QDomNodeList allHandlers = element.elementsByTagName("handlers");
-    QDomNodeList allConnections = element.elementsByTagName("connections");
-    QDomNodeList allFrames = element.elementsByTagName("frames");
-    QDomNodeList allColors = element.elementsByTagName("colors");
-    bool handlersOK = allHandlers.isEmpty() || (allHandlers.size() == 1 && parseHandlers(allHandlers.at(0).toElement(), configuration.handlers));
-    bool connectionsOK = allConnections.isEmpty() || (allConnections.size() == 1 && parseConnections(allConnections.at(0).toElement(), configuration.connections));
-    bool framesOK = allFrames.isEmpty() || (allFrames.size() == 1 && parseFrames(allFrames.at(0).toElement(), configuration.frames));
-    bool colorsOK = allColors.isEmpty() || (allColors.size() == 1 && parseColors(allColors.at(0).toElement(), configuration.colors));
-    return handlersOK && connectionsOK && framesOK && colorsOK;
-}
-
-bool Reader::parseWidgets(const QDomElement& element, QVector<Widget>& widgets) {
-    return parseMultiple(element, widgets, [this](const QDomElement& element, Widget& widget) {
-        return parseWidget(element, widget);
-    });
-}
-
-bool Reader::parseFrames(const QDomElement& element, QVector<Frame>& frames) {
-    return parseMultiple(element, frames, [this](const QDomElement& element, Frame& frame) {
-        return parseFrame(element, frame);
-    });
-}
-
-bool Reader::parseWidget(const QDomElement& element, Widget& widget) {
-    QString nodeName = element.nodeName();
-    if (nodeName == "frame") {
-        widget.isFrame = true;
-        return parseFrame(element, widget.frame);
-    } else if (nodeName == "view") {
-        widget.isFrame = false;
-        return parseView(element, widget.view);
-    }
-    qWarning() << "unknown tag" << nodeName;
-    return false;
-}
-
-bool Reader::parseFrame(const QDomElement& element, Frame& frame) {
-    QString nodeName = element.nodeName();
-    if (nodeName != "frame") {
-        qWarning() << "unknown tag" << nodeName;
-        return false;
-    }
-    // parse name
-    frame.name = element.attribute("name");
-    // parse layout orientation
-    QString layout = element.attribute("layout");
-    if (layout.isNull()) {
-        qWarning() << "attribute layout of window is mandatory";
-        return false;
-    }
-    if (layout == "h")
-        frame.layout = Qt::Horizontal;
-    else if (layout == "v")
-        frame.layout = Qt::Vertical;
-    else {
-        qWarning() << "attribute layout should be 'h' or 'v'";
-        return false;
-    }
-    // parse pos
-    if (!parsePos(element.attribute("pos"), frame.pos))
-        return false;
-    // parse size
-    if (!parseSize(element.attribute("size"), frame.size))
-        return false;
-    // parse visible
-    if (!parseVisible(element.attribute("visible", "true"), frame.visible))
-        return false;
-    // parse children
-    return parseWidgets(element, frame.widgets);
-}
-
-bool Reader::parseView(const QDomElement& element, View& view) {
-    view.ref = element.attribute("ref");
-    if (view.ref.isNull()) {
-        qWarning() << "attribute ref of view is mandatory";
-        return false;
-    }
-    return true;
-}
-
-bool Reader::parseHandlers(const QDomElement& element, QVector<Handler>& handlers) {
-    return parseMultiple(element, handlers, [this](const QDomElement& element, Handler& handler) {
-        return parseHandler(element, handler);
-    });
-}
-
-bool Reader::parseHandler(const QDomElement& element, Handler& handler) {
-    // getting type
-    handler.type = element.attribute("type");
-    if (handler.type.isNull()) {
-        qWarning() << "attribute type of handler is mandatory";
-        return false;
-    }
-    // getting name
-    handler.name = element.attribute("name", handler.type);
-    // getting group
-    handler.group = element.attribute("group", "default");
-    // getting reference
-    handler.id = element.attribute("id");
-    // getting properties
-    return parseMultiple(element, handler.properties, [this](const QDomElement& element, Property& property) {
-        return parseProperty(element, property);
-    });
-}
-
-bool Reader::parseProperty(const QDomElement& element, Property& property) {
-    if (element.nodeName() != "property") {
-        qWarning() << "not a property";
-        return false;
-    }
-    // getting key
-    property.key = element.attribute("type");
-    if (property.key.isEmpty()) {
-        qWarning() << "attribute type of property is mandatory";
-        return false;
-    }
-    // getting value
-    QDomNode node = element.firstChild();
-    if (node.nodeType() != QDomNode::TextNode) {
-        qWarning() << "no data provided for property" << property.key;
-        return false;
-    }
-    property.value = node.nodeValue();
-    return true;
-}
-
-bool Reader::parseConnections(const QDomElement& element, QVector<Connection>& connections) {
-    return parseMultiple(element, connections, [this](const QDomElement& element, Connection& connection) {
-        return parseConnection(element, connection);
-    });
-}
-
-bool Reader::parseConnection(const QDomElement& element, Connection& connection) {
-    if (element.nodeName() != "connection") {
-        qWarning() << "not a connection";
-        return false;
-    }
-    connection.tail = element.attribute("tail");
-    connection.head = element.attribute("head");
-    connection.source = element.attribute("source");
-    if (connection.tail.isNull() || connection.head.isNull() || connection.source.isNull()) {
-        qWarning() << "connection attributes 'tail', 'head' and 'source' are mandatory";
-        return false;
-    }
-    return true;
-}
-
-bool Reader::parseColors(const QDomElement& element, QVector<QColor>& colors) {
-    bool ok = parseMultiple(element, colors, [this](const QDomElement& element, QColor& color) {
-        return parseColor(element, color);
-    });
-    if (!ok)
-        return false;
-    if (colors.size() != 16) {
-        qWarning() << " wrong number of colors provided, 16 expected, got" << colors.size();
-        return false;
-    }
-    return true;
-}
-
-bool Reader::parseColor(const QDomElement& element, QColor& color) {
-    if (element.nodeName() != "color") {
-        qWarning() << "not a color";
-        return false;
-    }
-    // getting value
-    QDomNode node = element.firstChild();
-    if (node.nodeType() != QDomNode::TextNode) {
-        qWarning() << "no data provided for color";
-        return false;
-    }
-    QString colorString = node.nodeValue();
-    color.setNamedColor(colorString);
-    if (!color.isValid()) {
-        qWarning() << "unknown color" << colorString;
-        return false;
-    }
-    return true;
+Configuration readConfiguration(const QDomElement& element) {
+    checkNodeName(element, "configuration");
+    return {
+        parseAtMostOne(element, "handlers", parseHandlers),
+        parseAtMostOne(element, "connections", parseConnections),
+        parseAtMostOne(element, "frames", parseFrames),
+        parseAtMostOne(element, "colors", parseColors)
+    };
 }
 
 Writer::Writer(QXmlStreamWriter& stream) : stream(stream) {
@@ -372,7 +302,7 @@ void Writer::writeConnection(const Connection& connection) {
     stream.writeStartElement("connection");
     stream.writeAttribute("tail", connection.tail);
     stream.writeAttribute("head", connection.head);
-    if (!connection.source.isNull())
+    if (!connection.source.isEmpty())
         stream.writeAttribute("source", connection.source);
     stream.writeEndElement(); // connection
 }
