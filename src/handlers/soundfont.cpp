@@ -61,7 +61,6 @@ channels_t use_for_rhythm_part(const Event& event) {
 
 }
 
-
 //======
 // Impl
 //======
@@ -108,7 +107,6 @@ struct SoundFontHandler::Impl {
         reverb.width = fluid_synth_get_reverb_width(synth);
         return reverb;
     }
-
 
     // --------------
     // handle methods
@@ -240,6 +238,7 @@ struct SoundFontHandler::Impl {
     }
 
     result_type handle_file(std::string string) {
+        TRACE_MEASURE("SoundFont handle_file");
         if (fluid_synth_sfload(synth, string.c_str(), 1) == -1)
             return result_type::fail;
         file = std::move(string);

@@ -250,6 +250,7 @@ StandardMidiFile read_file(std::istream& stream) {
 }
 
 StandardMidiFile read_file(const std::string& filename) {
+    TRACE_MEASURE("read file");
     try  {
         std::fstream filestream(filename, std::ios_base::in | std::ios_base::binary);
         if (!filestream)
@@ -388,50 +389,29 @@ size_t write_file(const StandardMidiFile& file, const std::string& filename, boo
  *
  * issues:
  * * successive ++ at end will throw
- * * dereference-operator is not const
  *
  */
 
 namespace {
 
-struct const_track_iterator : public std::iterator<std::input_iterator_tag, Sequence::Item> {
+struct const_track_iterator : public std::iterator<std::forward_iterator_tag, Sequence::Item> {
 
     using inner_type = StandardMidiFile::track_type::const_iterator;
 
-    const_track_iterator(const inner_type& it, track_t track = 0, int64_t offset = 0) :
-        m_it(it), m_item{{}, track, {}}, m_offset(offset), m_corrupted(true) {
+    const_track_iterator(const inner_type& it = {}, track_t track = 0, int64_t offset = 0) : m_it(it), m_track(track), m_offset(offset) {}
 
-    }
+    Sequence::Item operator*() const { return {timestamp_t(m_offset + m_it->first), m_it->second, m_track}; }
 
-    const Sequence::Item& operator*() {
-        if (m_corrupted) {
-            m_offset += m_it->first;
-            m_item.event = m_it->second;
-            m_item.timestamp = (timestamp_t)m_offset;
-            m_corrupted = false;
-        }
-        return m_item;
-    }
-
-    const_track_iterator& operator++() {
-        if (m_corrupted)
-            m_offset += m_it->first;
-        ++m_it;
-        m_corrupted = true;
-        return *this;
-    }
-
+    const_track_iterator& operator++() { m_offset += m_it->first; ++m_it; return *this;  }
     const_track_iterator operator++(int) { const_track_iterator it(*this); operator ++(); return it; }
 
     bool operator ==(const const_track_iterator& rhs) const { return m_it == rhs.m_it; }
     bool operator !=(const const_track_iterator& rhs) const { return m_it != rhs.m_it; }
 
 private:
-
-    inner_type m_it; /*!< where is the track ? */
-    Sequence::Item m_item; /*!< a reference is kept so that * do not create a new instance each call */
+    inner_type m_it; /*!< track iterator */
+    track_t m_track; /*!< track identifier */
     int64_t m_offset; /*!< offset is an integral type so that it avoids double approximations */
-    bool m_corrupted; /*!< item has not been updated since the last move */
 
 };
 
@@ -542,15 +522,15 @@ Sequence Sequence::from_file(const StandardMidiFile& data) {
 
 Sequence Sequence::from_realtime(const realtime_type& data, ppqn_t ppqn) {
     Sequence sequence;
-    Clock::time_type t0 = data.empty() ? Clock::time_type() : data.begin()->time;
+    Clock::time_type t0 = data.empty() ? Clock::time_type() : data.begin()->timepoint;
     // compute clock
     sequence.m_clock.reset(ppqn);
     for (const RealtimeItem& item : data)
         if (item.event.family() == family_t::tempo)
-            sequence.m_clock.push_duration(item.event, item.time - t0);
+            sequence.m_clock.push_duration(item.event, item.timepoint - t0);
     // fill event
     for (const RealtimeItem& item : data)
-        sequence.push_item({item.event, item.track, sequence.m_clock.time2timestamp(item.time - t0)});
+        sequence.push_item({sequence.m_clock.time2timestamp(item.timepoint - t0), item.event, item.track});
     return sequence;
 }
 

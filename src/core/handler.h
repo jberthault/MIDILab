@@ -322,7 +322,7 @@ public:
   *
   */
 
-#ifndef MIDILAB_VERBOSE_HOLDER
+#ifndef MIDILAB_MEASUREMENTS
 
 class StandardHolder : public Holder {
 

@@ -317,6 +317,7 @@ void MainWindow::readLastConfig() {
 }
 
 bool MainWindow::readConfig(const QString& fileName) {
+    TRACE_MEASURE("read config");
     // make system handlers
     auto system_handlers = create_system();
     for (Handler* handler : system_handlers)

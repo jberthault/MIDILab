@@ -23,7 +23,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <QEvent>
 #include <QWidget>
-#include <QTime>
 #include <QDialog>
 #include <QString>
 #include <QApplication>

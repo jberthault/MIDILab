@@ -488,7 +488,7 @@ void Handler::forward_message(const Message& message) {
 // StandardHolder
 //================
 
-#ifndef MIDILAB_VERBOSE_HOLDER
+#ifndef MIDILAB_MEASUREMENTS
 
 StandardHolder::StandardHolder(priority_t priority, std::string name) :
     Holder(), m_task(512), m_name(std::move(name)) {

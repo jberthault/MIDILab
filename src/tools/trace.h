@@ -23,6 +23,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <iostream>
 #include <mutex>
+#include <chrono>
+
+//========
+// Traces
+//========
 
 struct logging_tools {
 
@@ -52,5 +57,32 @@ struct logging_tools {
 #define TRACE_INFO(what) TRACE(info, what)
 #define TRACE_WARNING(what) TRACE(warning, what)
 #define TRACE_ERROR(what) TRACE(error, what)
+
+//=========
+// Measure
+//=========
+
+struct measure_t {
+
+    using clock_type = std::chrono::steady_clock;
+    using duration_type = std::chrono::duration<double, std::milli>;
+
+    inline measure_t(const char* text) : text(text), t0(clock_type::now()) {}
+
+    inline ~measure_t() {
+        auto t1 = clock_type::now();
+        auto dt = std::chrono::duration_cast<duration_type>(t1-t0);
+        TRACE_INFO(text << ": " << dt.count() << " ms");
+    }
+
+    const char* text;
+    clock_type::time_point t0;
+};
+
+#ifdef MIDILAB_MEASUREMENTS
+    #define TRACE_MEASURE(...) measure_t __measure {__VA_ARGS__}
+#else
+    #define TRACE_MEASURE(...)
+#endif
 
 #endif // TOOLS_TRACE_H

@@ -47,7 +47,7 @@ Handler::result_type SequenceWriter::handle_message(const Message& message) {
     MIDI_CHECK_OPEN_RECEIVE;
     if (!message.event.is(m_families) || !m_recording)
         return result_type::unhandled;
-    m_storage.push_back(Sequence::realtime_type::value_type{message.event, message.track, clock_type::now()});
+    m_storage.push_back({clock_type::now(), message.event, message.track});
     return result_type::success;
 }
 

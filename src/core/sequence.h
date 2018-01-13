@@ -195,7 +195,6 @@ private:
  * @li timestamp has a floating point precision (better while iterating)
  * @li events are stored with their absolute timestamp
  * @li tracks are merged in a single container in a more flexible way
- * @li additional title can be set
  *
  * This version uses a sorted vector as the internal implementation
  * It offers more flexibility on reading access (random access iterators)
@@ -208,23 +207,20 @@ class Sequence {
 public:
 
     struct Item {
+        timestamp_t timestamp;
         Event event;
         track_t track;
-        timestamp_t timestamp;
+    };
+
+    struct RealtimeItem {
+        Clock::time_type timepoint;
+        Event event;
+        track_t track;
     };
 
     inline friend bool operator <(const Item& lhs, const Item& rhs) { return lhs.timestamp < rhs.timestamp; }
     inline friend bool operator <(timestamp_t lhs, const Item& rhs) { return lhs < rhs.timestamp; }
     inline friend bool operator <(const Item& lhs, timestamp_t rhs) { return lhs.timestamp < rhs; }
-
-    struct RealtimeItem {
-        Event event;
-        track_t track;
-        Clock::time_type time;
-    };
-
-
-    using blacklist_type = blacklist_t<track_t>;
 
     using realtime_type = std::vector<RealtimeItem>;
     using container_type = std::vector<Item>;
@@ -232,6 +228,7 @@ public:
     using iterator = typename container_type::iterator;
     using const_iterator = typename container_type::const_iterator;
     using const_reverse_iterator = typename container_type::const_reverse_iterator;
+    using blacklist_type = blacklist_t<track_t>;
 
     // builders
     static Sequence from_file(const StandardMidiFile& data);
@@ -268,7 +265,6 @@ public:
     const_reverse_iterator rend() const;
 
 private:
-    std::string m_title; /*!< simple string that helps identifying the sequence */
     std::vector<Item> m_events; /*!< event container */
     Clock m_clock;
 

@@ -6,6 +6,8 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 
+option(ENABLE_MEASUREMENTS "embed time measurements for debbugging purposes")
+
 # -------------------
 # target dependencies
 # -------------------
@@ -32,7 +34,10 @@ add_executable(${PROJECT_NAME} ${SRC_FILES} ${QRC_FILES} "README.md" "LICENSE")
 # target configuration
 # --------------------
 
-target_compile_definitions(${PROJECT_NAME} PUBLIC "-DMIDILAB_VERBOSE_HOLDER")
+if (ENABLE_MEASUREMENTS)
+    message(STATUS "measurements are enabled")
+    target_compile_definitions(${PROJECT_NAME} PUBLIC "-DMIDILAB_MEASUREMENTS")
+endif()
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_relaxed_constexpr) # triggers >= c++14
 target_include_directories(${PROJECT_NAME} PUBLIC "src")
@@ -88,7 +93,7 @@ if (MINGW)
 endif()
 
 set(CPACK_PACKAGE_VENDOR "MIDILab")
-SET(CPACK_PACKAGE_VERSION "${MIDILAB_VERSION}")
+set(CPACK_PACKAGE_VERSION "${MIDILAB_VERSION}")
 set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/LICENSE")
 set(CPACK_NSIS_MUI_ICON "${PROJECT_SOURCE_DIR}/src/data/logo.ico")
 set(CPACK_NSIS_URL_INFO_ABOUT "https://github.com/jberthault/MIDILab")
