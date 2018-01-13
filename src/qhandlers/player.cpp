@@ -43,8 +43,8 @@ auto findCodecs() {
 
 template<typename IntegralT>
 auto modulo(IntegralT a, IntegralT b) {
-  const auto result = a % b;
-  return result >= 0 ? result : result + b;
+    const auto result = a % b;
+    return result >= 0 ? result : result + b;
 }
 
 }
@@ -321,7 +321,7 @@ void SequenceView::setSequence(const Sequence& sequence, timestamp_t lower, time
 
     QMap<track_t, channels_t> trackChannels;
     QMap<track_t, QByteArrayList> trackNames;
-    for (const Sequence::Item& item : sequence.events()) {
+    for (const Sequence::Item& item : sequence) {
         if (item.event.is(family_ns::voice_families))
             trackChannels[item.track] |= item.event.channels();
         else if (item.event.family() == family_t::track_name)
@@ -502,6 +502,7 @@ PlaylistTable::PlaylistTable(QWidget* parent) : QTableWidget(0, 2, parent), mCon
     setSelectionMode(QTableWidget::ExtendedSelection);
     setSelectionBehavior(QTableWidget::SelectRows);
     horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+    verticalHeader()->setDefaultAlignment(Qt::AlignHCenter);
     verticalHeader()->setDefaultSectionSize(20);
 
     viewport()->setAcceptDrops(true);
@@ -603,6 +604,8 @@ NamedSequence PlaylistTable::loadRow(int row) {
             mCurrentItem = playlistItem;
             // set duration
             item(row, 1)->setText(DistordedClock(sequence.sequence.clock()).toString(sequence.sequence.last_timestamp()));
+            // ensure line is visible
+            scrollToItem(playlistItem);
         }
     }
     return sequence;
@@ -1065,7 +1068,7 @@ void Trackbar::setSequence(const Sequence& sequence, timestamp_t lower, timestam
     mLastEdit->initialize(sequence.clock(), lastTimestamp, lastTimestamp);
     // reinitialize markers
     cleanMarkers();
-    for (const Sequence::Item& item : sequence.events())
+    for (const Sequence::Item& item : sequence)
         if (item.event.family() == family_t::marker)
             addMarker(item.timestamp, QString::fromStdString(item.event.description()), false);
 }
