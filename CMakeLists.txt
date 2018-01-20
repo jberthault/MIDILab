@@ -27,8 +27,9 @@ endif()
 
 file(GLOB_RECURSE SRC_FILES "src/*.cpp" "src/*.h")
 qt5_add_resources(QRC_FILES "src/data.qrc")
+set(TXT_FILES "README.md" "ROADMAP.md" "LICENSE")
 
-add_executable(${PROJECT_NAME} ${SRC_FILES} ${QRC_FILES} "README.md" "LICENSE")
+add_executable(${PROJECT_NAME} ${SRC_FILES} ${QRC_FILES} ${TXT_FILES})
 
 # --------------------
 # target configuration
@@ -80,16 +81,49 @@ install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION ".")
 install(FILES "LICENSE" DESTINATION ".")
 
 if (MINGW)
-    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-        set(DEPENDENCY_ARCHIVE "dependencies-MinGW64_Release")
-    else()
-        set(DEPENDENCY_ARCHIVE "dependencies-MinGW32_Release")
+    # look for windeployqt to gather qt libs
+    find_program(WINDEPLOYQT_EXECUTABLE "windeployqt")
+    # we assume dll will be found in the same directory as windeployqt
+    get_filename_component(DEPENDENCY_BINARY_DIR "${WINDEPLOYQT_EXECUTABLE}" DIRECTORY)
+    # the build type determines which dlls must be copied
+    if (CMAKE_BUILD_TYPE STREQUAL "Release")
+        set(WINDEPLOYQT_OPTIONS "--release")
     endif()
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E tar xzf "${PROJECT_SOURCE_DIR}/packages/${DEPENDENCY_ARCHIVE}.tar.gz"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        )
-    install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${DEPENDENCY_ARCHIVE}/" DESTINATION ".")
+    # copy every file required to prepare a standalone installer
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/package"
+        # qt & gcc runtime
+        COMMAND "${WINDEPLOYQT_EXECUTABLE}" ${WINDEPLOYQT_OPTIONS} --compiler-runtime -dir "${CMAKE_CURRENT_BINARY_DIR}/package" "$<TARGET_FILE:${PROJECT_NAME}>"
+        # qt dependencies
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libbz2-1.dll        "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libfreetype-6.dll   "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libharfbuzz-0.dll   "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libglib-2.0-0.dll   "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libgraphite2.dll    "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libiconv-2.dll      "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libicudt58.dll      "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libicuin58.dll      "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libicuuc58.dll      "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libintl-8.dll       "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libjpeg-8.dll       "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libpcre-1.dll       "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libpcre2-16-0.dll   "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libpng16-16.dll     "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/zlib1.dll           "${CMAKE_CURRENT_BINARY_DIR}/package"
+        # fluidsynth dependencies
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libfluidsynth-1.dll "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libportaudio-2.dll  "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libreadline7.dll    "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libsndfile-1.dll    "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libFLAC-8.dll       "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libogg-0.dll        "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libspeex-1.dll      "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libtermcap-0.dll    "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libvorbis-0.dll     "${CMAKE_CURRENT_BINARY_DIR}/package"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${DEPENDENCY_BINARY_DIR}/libvorbisenc-2.dll  "${CMAKE_CURRENT_BINARY_DIR}/package"
+    )
+    # give all the files previously gathered to the installer
+    install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/package/" DESTINATION ".")
 endif()
 
 set(CPACK_PACKAGE_VENDOR "MIDILab")
@@ -99,4 +133,5 @@ set(CPACK_NSIS_MUI_ICON "${PROJECT_SOURCE_DIR}/src/data/logo.ico")
 set(CPACK_NSIS_URL_INFO_ABOUT "https://github.com/jberthault/MIDILab")
 set(CPACK_NSIS_HELP_LINK "https://github.com/jberthault/MIDILab")
 set(CPACK_NSIS_CREATE_ICONS_EXTRA "CreateShortCut '$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\MIDILab.lnk' '$INSTDIR\\\\MIDILab.exe'")
+set(CPACK_NSIS_DELETE_ICONS_EXTRA "Delete '$SMPROGRAMS\\\\$START_MENU\\\\MIDILab.lnk'")
 include(CPack)
