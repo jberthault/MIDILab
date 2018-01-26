@@ -668,11 +668,11 @@ bool Event::equivalent(const Event& lhs, const Event& rhs) {
     return equal_padding(ilhs, lhs.end(), irhs, rhs.end(), [](byte_t value) { return value == 0x00; });
 }
 
-bool operator ==(const Event& lhs, const Event& rhs) {
+bool operator==(const Event& lhs, const Event& rhs) {
     return lhs.m_channels == rhs.m_channels && Event::equivalent(lhs, rhs);
 }
 
-bool operator !=(const Event& lhs, const Event& rhs) {
+bool operator!=(const Event& lhs, const Event& rhs) {
     return !(lhs == rhs);
 }
 
@@ -688,7 +688,7 @@ std::string Event::description() const {
     return stream.str();
 }
 
-std::ostream& operator <<(std::ostream& os, const Event& event) {
+std::ostream& operator<<(std::ostream& os, const Event& event) {
     // add name
     os << event.name();
     // add channels

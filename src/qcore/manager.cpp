@@ -246,15 +246,13 @@ void Manager::removeHandler(Handler* handler) {
     Q_ASSERT(handler);
     // remove from known handlers
     Data data = mStorage.take(handler);
-    // clear sinks
-    setSinks(handler, Handler::sinks_type());
+    // clear listeners
+    setListeners(handler, {});
     // clear usages
     for (Handler* h : getHandlers()) {
-        Handler::sinks_type sinks = h->sinks();
-        sinks.erase(handler);
-        for (auto& pair : sinks)
-            pair.second.remove_usage(handler);
-        setSinks(h, sinks);
+        auto listeners = h->listeners();
+        if (listeners.remove_usage(handler))
+            setListeners(h, std::move(listeners));
     }
     // notify listeners
     emit handlerRemoved(handler);
@@ -270,57 +268,34 @@ void Manager::removeHandler(Handler* handler) {
     }
 }
 
-void Manager::setSinks(Handler* handler, Handler::sinks_type sinks) {
-    handler->set_sinks(std::move(sinks));
-    emit sinksChanged(handler);
+void Manager::setListeners(Handler* handler, Listeners listeners) {
+    handler->set_listeners(std::move(listeners));
+    emit handlerListenersChanged(handler);
 }
 
-void Manager::insertConnection(Handler* tail, Handler* head) {
+void Manager::insertConnection(Handler* tail, Handler* head, const Filter& filter) {
     Q_ASSERT(tail && head);
     if (tail == head) {
         TRACE_ERROR("insertConnection fails: the tail can't be the head");
         return;
     }
-    Handler::sinks_type sinks = tail->sinks();
-    sinks[head] = Filter(); // always match
-    setSinks(tail, sinks);
-}
-
-void Manager::insertConnection(Handler* tail, Handler* head, Handler* source) {
-    Q_ASSERT(tail && head && source);
-    if (tail == head) {
-        TRACE_ERROR("insertConnection fails: the tail can't be the head");
-        return;
-    }
-    Handler::sinks_type sinks = tail->sinks();
-    auto it = sinks.find(head);
-    if (it == sinks.end()) // new filter
-        sinks.emplace(head, Filter::handler(source));
-    else if (it->second.match_handler(source)) // source already always match
-        return;
-    else // add filter to the existing one
-        it->second = it->second | Filter::handler(source);
-    setSinks(tail, sinks);
+    auto listeners = tail->listeners();
+    if (listeners.insert(head, filter))
+        setListeners(tail, std::move(listeners));
 }
 
 void Manager::removeConnection(Handler* tail, Handler* head) {
     Q_ASSERT(tail && head);
-    auto sinks = tail->sinks();
-    if (sinks.erase(head))
-        setSinks(tail, sinks);
+    auto listeners = tail->listeners();
+    if (listeners.erase(head))
+        setListeners(tail, std::move(listeners));
 }
 
 void Manager::removeConnection(Handler* tail, Handler* head, Handler* source) {
     Q_ASSERT(tail && head && source);
-    Handler::sinks_type sinks = tail->sinks();
-    auto it = sinks.find(head);
-    if (it != sinks.end()) {
-        if (it->second.remove_usage(source)) {
-            if (!it->second.match_nothing())
-                sinks.erase(it);
-            setSinks(tail, sinks);
-        }
-    }
+    auto listeners = tail->listeners();
+    if (listeners.remove_usage(head, source))
+        setListeners(tail, std::move(listeners));
 }
 
 Holder* Manager::holderAt(const QString& group) {
@@ -344,7 +319,7 @@ void Manager::quit() {
     // auto disconnect
     TRACE_DEBUG("disconnecting handlers ...");
     for (Handler* handler : getHandlers())
-        handler->set_sinks(Handler::sinks_type());
+        handler->set_listeners({});
     // delete orphan displayers
     TRACE_DEBUG("deleting displayers ...");
     for (MultiDisplayer* multiDisplayer : MultiDisplayer::topLevelDisplayers())

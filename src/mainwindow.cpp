@@ -57,7 +57,7 @@ struct ConfigurationPuller {
         for (channel_t c=0 ; c < qMin(0x10, configuration.colors.size()) ; ++c)
             Manager::instance->channelEditor()->setColor(c, configuration.colors.at(c));
         // display visible frames created
-        for(auto displayer : visibleDisplayers)
+        for (auto displayer : visibleDisplayers)
             displayer->show();
     }
 
@@ -70,10 +70,7 @@ struct ConfigurationPuller {
             qWarning() << "wrong connection handlers: " << handlerName(tail) << handlerName(head) << handlerName(source);
             return;
         }
-        if (hasSource)
-            Manager::instance->insertConnection(tail, head, source);
-        else
-            Manager::instance->insertConnection(tail, head);
+        Manager::instance->insertConnection(tail, head, hasSource ? Filter::handler(source) : Filter());
     }
 
     void addHandler(const parsing::Handler& handler) {
@@ -174,17 +171,16 @@ struct ConfigurationPusher {
             auto handler = phandlerIt.key();
             const auto& phandler = phandlerIt.value();
             config.handlers.append(phandler);
-            for (const auto& sink : handler->sinks()) {
-                const auto& filter = sink.second;
+            for (const auto& listener : handler->listeners()) {
                 parsing::Connection connection;
                 connection.tail = phandler.id;
-                connection.head = phandlers[sink.first].id;
-                if (boost::logic::indeterminate(filter.match_nothing())) {
+                connection.head = phandlers[listener.handler].id;
+                if (boost::logic::indeterminate(listener.filter.match_nothing())) {
                     QStringList sources;
                     QMapIterator<Handler*, parsing::Handler> phandlerIt2(phandlers);
                     while (phandlerIt2.hasNext()) {
                         phandlerIt2.next();
-                        if (filter.match_handler(phandlerIt2.key()))
+                        if (listener.filter.match_handler(phandlerIt2.key()))
                             sources.append(phandlerIt2.value().id);
                     }
                     connection.source = sources.join("|");

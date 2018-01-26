@@ -132,7 +132,7 @@ HandlerGraphEditor::HandlerGraphEditor(QWidget* parent) :
     // connect changes from mapper @todo fill already created children
     connect(Manager::instance, &Manager::handlerInserted, this, &HandlerGraphEditor::insertHandler);
     connect(Manager::instance, &Manager::handlerRemoved, this, &HandlerGraphEditor::removeHandler);
-    connect(Manager::instance, &Manager::sinksChanged, this, &HandlerGraphEditor::updateSinks);
+    connect(Manager::instance, &Manager::handlerListenersChanged, this, &HandlerGraphEditor::updateListeners);
     connect(Manager::instance, &Manager::handlerRenamed, this, &HandlerGraphEditor::renameHandler);
     // filter
     mFilter = new QCheckBox(this);
@@ -240,16 +240,15 @@ void HandlerGraphEditor::removeHandler(Handler* handler) {
     mSelector->removeHandler(handler);
 }
 
-void HandlerGraphEditor::updateSinks(Handler* handler) {
-    Handler::sinks_type sinks = handler->sinks();
+void HandlerGraphEditor::updateListeners(Handler* handler) {
+    auto listeners = handler->listeners();
     HandlerNode* tailNode = getNode(handler);
     // can't update handler if not already registered
     if (tailNode == nullptr)
         return;
-    // create or update all edges defined in sinks
-    for (auto& pair : sinks) {
-        Handler* head = pair.first;
-        HandlerNode* headNode = getNode(head);
+    // create or update all edges defined in listeners
+    for (auto& listener : listeners) {
+        HandlerNode* headNode = getNode(listener.handler);
         Q_ASSERT(headNode != nullptr);
         EdgeWrapper* edge = getEdge(tailNode, headNode);
         if (!edge) {
@@ -257,12 +256,12 @@ void HandlerGraphEditor::updateSinks(Handler* handler) {
             edge = new EdgeWrapper(tailNode, headNode);
             mGraph->insertEdge(edge);
         }
-        edge->setFilter(std::move(pair.second));
+        edge->setFilter(std::move(listener.filter));
         updateEdgeVisibility(edge);
     }
     // delete old edges that no longer exist
     for (Edge* edge : tailNode->edges())
-        if (edge->tail() == tailNode && sinks.count(static_cast<EdgeWrapper*>(edge)->receiver()->handler()) == 0)
+        if (edge->tail() == tailNode && listeners.count(static_cast<EdgeWrapper*>(edge)->receiver()->handler()) == 0)
             mGraph->deleteEdge(edge);
 }
 
@@ -281,7 +280,7 @@ void HandlerGraphEditor::forwardEdgeCreation(Node* tail, Node* head) {
             } else if (sender != source && !asMode(sender, handler_ns::thru_mode)) {
                 QMessageBox::warning(this, QString(), "Sender must be THRU or source");
             } else {
-                Manager::instance->insertConnection(sender, receiver, source);
+                Manager::instance->insertConnection(sender, receiver, Filter::handler(source));
             }
         } else {
             if (!asMode(sender, handler_ns::forward_mode)) {

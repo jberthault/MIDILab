@@ -143,7 +143,7 @@ constexpr tonality_t from_base(char base, alteration_t alteration) {
 
 }
 
-std::istream& operator >>(std::istream& stream, tonality_t& tonality) {
+std::istream& operator>>(std::istream& stream, tonality_t& tonality) {
     alteration_t alteration = alteration_t::natural;
     char c1 = stream.get();
     char c2 = stream.peek();
@@ -160,7 +160,7 @@ std::istream& operator >>(std::istream& stream, tonality_t& tonality) {
     return stream;
 }
 
-std::ostream& operator <<(std::ostream& stream, const tonality_t& tonality) {
+std::ostream& operator<<(std::ostream& stream, const tonality_t& tonality) {
     if (tonality == tonality_t::no_tonality)
         throw std::runtime_error("undefined tonality");
     return stream << tonality_ns::to_string(tonality);
@@ -225,11 +225,11 @@ std::string Note::string() const {
     return result;
 }
 
-bool operator ==(const Note& lhs, const Note &rhs) {
+bool operator==(const Note& lhs, const Note& rhs) {
     return lhs.m_tonality == rhs.m_tonality && lhs.m_octave == rhs.m_octave;
 }
 
-bool operator !=(const Note& lhs, const Note &rhs) {
+bool operator!=(const Note& lhs, const Note& rhs) {
     return !(lhs == rhs);
 }
 
@@ -237,14 +237,14 @@ Note::operator bool() const {
     return m_tonality != tonality_t::no_tonality;
 }
 
-std::istream& operator >>(std::istream& stream, Note& note) {
+std::istream& operator>>(std::istream& stream, Note& note) {
     stream >> note.m_tonality >> note.m_octave;
     if (!stream)
         throw std::runtime_error("undefined note");
     return stream;
 }
 
-std::ostream& operator <<(std::ostream& stream, const Note& note) {
+std::ostream& operator<<(std::ostream& stream, const Note& note) {
     if (!note)
         throw std::runtime_error("undefined note");
     return stream << note.m_tonality << note.m_octave;

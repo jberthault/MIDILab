@@ -67,18 +67,26 @@ struct Message final {
 //========
 
 /**
- * A Filter contains the list of all sources allowed to forward a message to a sink
+ * A filter contains rules that helps the categorization of messages.
+ * It can be used to discriminate
+ *  @li the message's source
+ *  @li the message's track
+ *  @li the event's family
+ *  @li the event's channels
+ *  @li any combination of the rules above
  *
- * @todo ...
- * * avoid inserting duplicates
- * * implement operator== to help simplification
  */
 
-class Filter {
+class Filter final {
 
 public:
-    struct HandlerFilter { const Handler* handler; };
-    struct TrackFilter { track_t track; };
+
+    //-----------------
+    // data definition
+    //-----------------
+
+    struct HandlerFilter { const Handler* handler; bool reversed; };
+    struct TrackFilter { track_t track; bool reversed; };
     struct ChannelFilter { channels_t channels; };
     struct FamilyFilter { families_t families; };
     struct AnyFilter { std::vector<Filter> filters; };
@@ -88,58 +96,123 @@ public:
 
     using data_type = boost::variant<HandlerFilter, TrackFilter, ChannelFilter, FamilyFilter, AnyFilter, AllFilter>;
 
-    // -----------------
+    //-------------------
     // creation features
-    // -----------------
+    //-------------------
 
     static Filter handler(const Handler* handler);
     static Filter track(track_t track);
-    static Filter raw_channels(channels_t channels);
     static Filter channels(channels_t channels);
     static Filter families(families_t families);
 
     friend Filter operator|(const Filter& lhs, const Filter& rhs); /*!< match any */
     friend Filter operator&(const Filter& lhs, const Filter& rhs); /*!< match all */
-    friend Filter operator~(Filter lhs); /*!< unmatch filter */
+    friend Filter operator~(const Filter& lhs); /*!< unmatch filter */
 
-    // --------------------
-    // combination features
-    // --------------------
+    //---------------------
+    // conversion features
+    //---------------------
 
-    Filter(data_type data = AllFilter{}, bool reversed = false); /*!< always match by default */
+    Filter(data_type data = AllFilter{}); /*!< always match by default */
 
-    // --------------------
-    // combination features
-    // --------------------
+    operator const data_type&() const;
+    operator data_type&();
 
-    bool remove_usage(const Handler* handler); /*!< remove all occurences of handler */
+    //---------------------
+    // comparison features
+    //---------------------
 
-    // --------
-    // matching
-    // --------
+    friend bool operator==(const Filter& lhs, const Filter& rhs); /*!< two filters are equal if they cover each other */
+    friend bool operator!=(const Filter& lhs, const Filter& rhs); /*!< @see operator== */
+
+    bool covers(const Filter& rhs) const; /*!< true if lhs is more permissible than rhs */
+
+    //-------------------
+    // matching features
+    //-------------------
 
     match_type match_nothing() const; /*!< true if always true, false if always false, else undetermined */
     match_type match_handler(const Handler* handler) const;
     // match_type match_track(track_t track) const;
     // match_type match_channels(channels_t channels) const;
     // match_type match_families(family_t families) const;
-    // match_type match_source(const Source& source) const;
 
     bool match_message(const Message& message) const;
 
-    // -----------------
-    // string conversion
-    // -----------------
-
-    void write(std::ostream& stream, bool surround) const;
+    //-----------------
+    // string features
+    //-----------------
 
     std::string string() const;
 
     friend std::ostream& operator<<(std::ostream& stream, const Filter& filter);
 
+    // ------------------
+    // mutation features
+    // ------------------
+
+    bool remove_usage(const Handler* handler); /*!< remove all occurences of handler */
+
 private:
     data_type m_data;
-    bool m_reversed; /*!< if true, match if data does not match */
+
+};
+
+//==========
+// Listener
+//==========
+
+/**
+ * A listener represents a handler that will receive messages forwarded from another one.
+ * It is associated to a filter that will allow selecting the messages truly received
+ *
+ */
+
+struct Listener final {
+    Handler* handler;
+    Filter filter;
+};
+
+//==========
+// Listener
+//==========
+
+/**
+ * The Listeners class contains a collection of all listeners attached to a handler.
+ * It corresponds roughly to a multimap {Handler => Filter}
+ *
+ * @note Handlers referenced multiple times will receive as many messages.
+ *
+ */
+
+class Listeners {
+
+public:
+    using listeners_type = std::vector<Listener>;
+    using const_iterator = listeners_type::const_iterator;
+    using iterator = listeners_type::iterator;
+
+    bool empty() const; /*!< check if the list of listeners is empty */
+    size_t size() const; /*!< count the number of existing listeners */
+    size_t count(const Handler* handler) const; /*!< count the number of times that the handler is referenced */
+    const_iterator find(const Handler* handler) const; /*!< find the first listener mapped to the given handler */
+    iterator find(const Handler* handler); /*!< @see find */
+
+    size_t insert(Handler* handler, const Filter& filter); /*!< insert a new listener or merge filters if already inserted */
+    size_t erase(const Handler* handler); /*!< remove all listeners mapped to the given handler */
+    size_t clear(); /*!< remove all listeners */
+
+    size_t sanitize(); /*!< remove all listeners for which the filter never matches */
+    size_t remove_usage(const Handler* handler); /*!< remove occurences of handler from listeners and all filters */
+    size_t remove_usage(const Handler* handler, const Handler* source); /*!< remove occurences of source in the filters of listeners mapped to handler */
+
+    const_iterator begin() const;
+    const_iterator end() const;
+    iterator begin();
+    iterator end();
+
+private:
+    listeners_type m_listeners;
 
 };
 
@@ -201,7 +274,6 @@ class Handler {
 public:
     using mode_type = handler_ns::mode_t;
     using state_type = handler_ns::state_t;
-    using sinks_type = std::unordered_map<Handler*, Filter>;
 
     enum class result_type {
         success, /*!< handling was successful */
@@ -260,10 +332,10 @@ public:
     // forwarding features
     // -------------------
 
-    sinks_type sinks() const;
-    void set_sinks(sinks_type sinks);
+    Listeners listeners() const;
+    void set_listeners(Listeners listeners);
 
-    void forward_message(const Message& message); /*!< send message to all sinks matching their filters, returns number of times the message is forwarded */
+    void forward_message(const Message& message); /*!< send message to all listeners matching their filters, returns number of times the message is forwarded */
 
 private:
     std::string m_name;
@@ -271,8 +343,8 @@ private:
     state_type m_state;
     Holder* m_holder; /*!< delegate synchronizing messages */
     Receiver* m_receiver; /*!< delegate handling synchronized messages */
-    mutable std::mutex m_sinks_mutex;
-    sinks_type m_sinks;
+    mutable std::mutex m_listeners_mutex;
+    Listeners m_listeners;
 
 };
 

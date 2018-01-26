@@ -469,15 +469,15 @@ public:
 
     static bool equivalent(const Event& lhs, const Event& rhs); /*!< test if both events are equivalent, they may have different channels */
 
-    friend bool operator ==(const Event& lhs, const Event& rhs); /*!< true if events are equivalent and have the same channels */
-    friend bool operator !=(const Event& lhs, const Event& rhs); /*!< @see operator == */
+    friend bool operator==(const Event& lhs, const Event& rhs); /*!< true if events are equivalent and have the same channels */
+    friend bool operator!=(const Event& lhs, const Event& rhs); /*!< @see operator== */
 
     // string
 
     std::string name() const; /*!< get event name based on its family */
     std::string description() const; /*!< get event description based on family & data */
 
-    friend std::ostream& operator <<(std::ostream& os, const Event& event);
+    friend std::ostream& operator<<(std::ostream& os, const Event& event);
 
     // family accessors
 

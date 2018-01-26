@@ -22,7 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <iostream>
 #include "trace.h"
 
-std::ostream& operator << (std::ostream& stream, priority_t priority) {
+std::ostream& operator<<(std::ostream& stream, priority_t priority) {
     switch (priority) {
     case priority_t::idle: stream << "idle"; break;
     case priority_t::lowest: stream << "lowest"; break;

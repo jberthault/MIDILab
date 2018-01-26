@@ -218,9 +218,9 @@ public:
         track_t track;
     };
 
-    inline friend bool operator <(const Item& lhs, const Item& rhs) { return lhs.timestamp < rhs.timestamp; }
-    inline friend bool operator <(timestamp_t lhs, const Item& rhs) { return lhs < rhs.timestamp; }
-    inline friend bool operator <(const Item& lhs, timestamp_t rhs) { return lhs.timestamp < rhs; }
+    inline friend bool operator<(const Item& lhs, const Item& rhs) { return lhs.timestamp < rhs.timestamp; }
+    inline friend bool operator<(timestamp_t lhs, const Item& rhs) { return lhs < rhs.timestamp; }
+    inline friend bool operator<(const Item& lhs, timestamp_t rhs) { return lhs.timestamp < rhs; }
 
     using realtime_type = std::vector<RealtimeItem>;
     using container_type = std::vector<Item>;

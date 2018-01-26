@@ -184,7 +184,7 @@ struct SoundFontHandler::Impl {
     result_type handle_channel_type(channels_t channels, int type) {
         channels_t old_drum_channels = drums;
         drums.commute(channels, type == CHANNEL_TYPE_DRUM);
-        for(channel_t channel : drums ^ old_drum_channels) {
+        for (channel_t channel : drums ^ old_drum_channels) {
             TRACE_INFO("SoundFont: changed channel " << (int)channel << " type to " << (type == CHANNEL_TYPE_DRUM ? "drum" : "melodic"));
             fluid_synth_set_channel_type(synth, channel, type);
             fluid_synth_program_change(synth, channel, 0);

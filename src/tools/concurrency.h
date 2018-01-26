@@ -43,7 +43,7 @@ enum class priority_t {
     realtime,
 };
 
-std::ostream& operator << (std::ostream& stream, priority_t priority);
+std::ostream& operator<<(std::ostream& stream, priority_t priority);
 
 priority_t get_thread_priority();
 
@@ -122,7 +122,7 @@ public:
             while (!m_queue.empty()) {
                 m_queue.swap(queue);
                 guard.unlock();
-                for(auto& value : queue)
+                for (auto& value : queue)
                     consumer(std::move(value));
                 queue.clear();
                 guard.lock();

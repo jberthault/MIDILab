@@ -128,7 +128,7 @@ protected slots:
     void renameHandler(Handler* handler);
     void insertHandler(Handler* handler);
     void removeHandler(Handler* handler);
-    void updateSinks(Handler* handler);
+    void updateListeners(Handler* handler);
     // callbacks
     void forwardEdgeCreation(Node* tail, Node* head);
     // others

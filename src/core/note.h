@@ -42,8 +42,8 @@ enum class tonality_t {
     Ab, Bb, Cb, Db, Eb, Fb, Gb // flat notes
 };
 
-std::istream& operator >>(std::istream& stream, tonality_t& tonality);
-std::ostream& operator <<(std::ostream& stream, const tonality_t& tonality);
+std::istream& operator>>(std::istream& stream, tonality_t& tonality);
+std::ostream& operator<<(std::ostream& stream, const tonality_t& tonality);
 
 
 class Note {
@@ -64,13 +64,13 @@ public:
     double frequency(const tuning_type& tuning = tuning_reference) const;
     std::string string() const; /*!< @see from_string (undefined note yields an empty string) */
 
-    friend bool operator ==(const Note& lhs, const Note& rhs); /*!< true if tonalities & octave equals */
-    friend bool operator !=(const Note& lhs, const Note& rhs); /*!< @see operator == */
+    friend bool operator==(const Note& lhs, const Note& rhs); /*!< true if tonalities & octave equals */
+    friend bool operator!=(const Note& lhs, const Note& rhs); /*!< @see operator== */
 
     explicit operator bool() const; /*!< return true if tonality is well formed */
 
-    friend std::istream& operator >>(std::istream& stream, Note& note);
-    friend std::ostream& operator <<(std::ostream& stream, const Note& note);
+    friend std::istream& operator>>(std::istream& stream, Note& note);
+    friend std::ostream& operator<<(std::ostream& stream, const Note& note);
 
 private:
     tonality_t m_tonality; /*!< tonality of the note */

@@ -403,10 +403,10 @@ struct const_track_iterator : public std::iterator<std::forward_iterator_tag, Se
     Sequence::Item operator*() const { return {timestamp_t(m_offset + m_it->first), m_it->second, m_track}; }
 
     const_track_iterator& operator++() { m_offset += m_it->first; ++m_it; return *this;  }
-    const_track_iterator operator++(int) { const_track_iterator it(*this); operator ++(); return it; }
+    const_track_iterator operator++(int) { const_track_iterator it(*this); operator++(); return it; }
 
-    bool operator ==(const const_track_iterator& rhs) const { return m_it == rhs.m_it; }
-    bool operator !=(const const_track_iterator& rhs) const { return m_it != rhs.m_it; }
+    bool operator==(const const_track_iterator& rhs) const { return m_it == rhs.m_it; }
+    bool operator!=(const const_track_iterator& rhs) const { return m_it != rhs.m_it; }
 
 private:
     inner_type m_it; /*!< track iterator */

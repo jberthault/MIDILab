@@ -101,14 +101,13 @@ public slots:
     void insertHandler(Handler* handler, HandlerEditor* editor, const QString& type, const QString& group);
     void removeHandler(Handler* handler);
 
-    // ----------------
-    // sinks management
-    // ----------------
+    // --------------------
+    // listeners management
+    // --------------------
 
-    void setSinks(Handler* handler, Handler::sinks_type sinks);
+    void setListeners(Handler* handler, Listeners listeners);
 
-    void insertConnection(Handler* tail, Handler* head);
-    void insertConnection(Handler* tail, Handler* head, Handler* source);
+    void insertConnection(Handler* tail, Handler* head, const Filter& filter = {});
     void removeConnection(Handler* tail, Handler* head);
     void removeConnection(Handler* tail, Handler* head, Handler* source);
 
@@ -116,7 +115,7 @@ signals:
     void handlerInserted(Handler* handler);
     void handlerRenamed(Handler* handler);
     void handlerRemoved(Handler* handler);
-    void sinksChanged(Handler* handler);
+    void handlerListenersChanged(Handler* handler);
 
 private:
     void quit();

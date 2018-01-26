@@ -87,6 +87,6 @@ void Transposer::set_key(channels_t channels, int key) {
 
     /// @todo call clean_corrupted here instead of waiting for a note event
     /// forward with the transposer as se source
-    /// but it means sinks may accept transposer as a source
+    /// but it means listeners may accept transposer as a source
     /// or we could generate using the last source
 }
