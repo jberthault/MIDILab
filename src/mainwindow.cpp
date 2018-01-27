@@ -26,7 +26,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QtGlobal>
 #include "mainwindow.h"
 #include "qcore/core.h"
-#include "qcore/parsing.h"
+#include "qcore/configuration.h"
 #include "qcore/managereditor.h"
 #include "qtools/displayer.h"
 #include "qtools/misc.h"
@@ -39,33 +39,39 @@ namespace {
 // ConfigurationPuller
 //=====================
 
-struct ConfigurationPuller {
+class ConfigurationPuller {
 
-    void addConfiguration(MultiDisplayer* root, const parsing::Configuration& configuration) {
+public:
+    ConfigurationPuller(MultiDisplayer* mainDisplayer) : mMainDisplayer(mainDisplayer) {
+
+    }
+
+    void addConfiguration(const Configuration& configuration) {
+        TRACE_MEASURE("applying configuration");
         // add frames
         if (!configuration.frames.empty())
-            setFrame(root, configuration.frames[0], true);
+            setFrame(mMainDisplayer, configuration.frames[0], true);
         for (int i=1 ; i < configuration.frames.size() ; i++)
-            addFrame(root, configuration.frames[i], true);
+            addFrame(mMainDisplayer, configuration.frames[i], true);
         // add handlers
-        for (const parsing::Handler& handler : configuration.handlers)
+        for (const auto& handler : configuration.handlers)
             addHandler(handler);
         // add connections
-        for (const parsing::Connection& connection : configuration.connections)
+        for (const auto& connection : configuration.connections)
             addConnection(connection);
         // set colors
         for (channel_t c=0 ; c < qMin(0x10, configuration.colors.size()) ; ++c)
             Manager::instance->channelEditor()->setColor(c, configuration.colors.at(c));
         // display visible frames created
-        for (auto displayer : visibleDisplayers)
+        for (auto displayer : mVisibleDisplayers)
             displayer->show();
     }
 
-    void addConnection(const parsing::Connection& connection) {
+    void addConnection(const Configuration::Connection& connection) {
         bool hasSource = !connection.source.isEmpty();
-        Handler* tail = handlersReferences.value(connection.tail, nullptr);
-        Handler* head = handlersReferences.value(connection.head, nullptr);
-        Handler* source = hasSource ? handlersReferences.value(connection.source, nullptr) : nullptr;
+        Handler* tail = mHandlersReferences.value(connection.tail, nullptr);
+        Handler* head = mHandlersReferences.value(connection.head, nullptr);
+        Handler* source = hasSource ? mHandlersReferences.value(connection.source, nullptr) : nullptr;
         if (!tail || !head || hasSource && !source) {
             qWarning() << "wrong connection handlers: " << handlerName(tail) << handlerName(head) << handlerName(source);
             return;
@@ -73,12 +79,12 @@ struct ConfigurationPuller {
         Manager::instance->insertConnection(tail, head, hasSource ? Filter::handler(source) : Filter());
     }
 
-    void addHandler(const parsing::Handler& handler) {
+    void addHandler(const Configuration::Handler& handler) {
         // special treatment for system handlers (just register the id)
         if (handler.type == "System") {
             for (Handler* h : Manager::instance->getHandlers()) {
                 if (handlerName(h) == handler.name) {
-                    handlersReferences[handler.id] = h;
+                    mHandlersReferences[handler.id] = h;
                     return;
                 }
             }
@@ -87,37 +93,37 @@ struct ConfigurationPuller {
         }
         // prepare config
         HandlerConfiguration hc(handler.name);
-        hc.host = viewReferences.value(handler.id, nullptr);
-        for (const parsing::Property& prop : handler.properties)
+        hc.host = mViewReferences.value(handler.id, nullptr);
+        for (const auto& prop : handler.properties)
             hc.parameters.push_back(HandlerView::Parameter{prop.key, prop.value});
         hc.group = handler.group;
         // create the handler
         Handler* h = Manager::instance->loadHandler(handler.type, hc);
         if (h)
-            handlersReferences[handler.id] = h;
+            mHandlersReferences[handler.id] = h;
     }
 
-    void addWidget(MultiDisplayer* parent, const parsing::Widget& widget) {
+    void addWidget(MultiDisplayer* parent, const Configuration::Widget& widget) {
         if (widget.isFrame)
-            addFrame(parent, widget.frame);
+            addFrame(parent, widget.frame, false);
         else
             addView(parent, widget.view);
     }
 
-    void addFrame(MultiDisplayer* parent, const parsing::Frame& frame, bool detached=false) {
-        MultiDisplayer* displayer = detached ? parent->insertDetached() : parent->insertMulti();
-        setFrame(displayer, frame, detached);
-        if (detached && frame.visible)
-            visibleDisplayers.push_back(displayer);
+    void addFrame(MultiDisplayer* parent, const Configuration::Frame& frame, bool isTopLevel) {
+        MultiDisplayer* displayer = isTopLevel ? parent->insertDetached() : parent->insertMulti();
+        setFrame(displayer, frame, isTopLevel);
+        if (isTopLevel && frame.visible)
+            mVisibleDisplayers.push_back(displayer);
     }
 
-    void setFrame(MultiDisplayer* displayer, const parsing::Frame& frame, bool isTopLevel) {
+    void setFrame(MultiDisplayer* displayer, const Configuration::Frame& frame, bool isTopLevel) {
         displayer->setOrientation(frame.layout);
-        displayer->setWindowTitle(frame.name);
-        for (const parsing::Widget& widget : frame.widgets)
+        for (const auto& widget : frame.widgets)
             addWidget(displayer, widget);
         if (isTopLevel) {
-            QWidget* window = displayer->window();
+            auto window = displayer->window();
+            window->setWindowTitle(frame.name);
             if (frame.size.isValid())
                 window->resize(frame.size);
             if (!frame.pos.isNull())
@@ -125,13 +131,15 @@ struct ConfigurationPuller {
         }
     }
 
-    void addView(MultiDisplayer* parent, const parsing::View& view) {
-        viewReferences[view.ref] = parent->insertSingle();
+    void addView(MultiDisplayer* parent, const Configuration::View& view) {
+        mViewReferences[view.ref] = parent->insertSingle();
     }
 
-    QMap<QString, Handler*> handlersReferences;
-    QMap<QString, SingleDisplayer*> viewReferences;
-    std::vector<MultiDisplayer*> visibleDisplayers;
+private:
+    MultiDisplayer* mMainDisplayer;
+    QMap<QString, Handler*> mHandlersReferences;
+    QMap<QString, SingleDisplayer*> mViewReferences;
+    std::vector<MultiDisplayer*> mVisibleDisplayers;
 
 };
 
@@ -139,106 +147,106 @@ struct ConfigurationPuller {
 // ConfigurationPuller
 //=====================
 
-struct ConfigurationPusher {
+class ConfigurationPusher {
 
-    void prepareHandlers() {
-        storage = Manager::instance->storage();
+public:
+
+    struct Info {
+        Handler* handler;
+        Manager::Data data;
+        Configuration::Handler parsingData;
+    };
+
+    ConfigurationPusher(MultiDisplayer* mainDisplayer) : mMainDisplayer(mainDisplayer) {
         int id=0;
-        QMapIterator<Handler*, Manager::Data> storageIt(storage);
-        while (storageIt.hasNext()) {
-            storageIt.next();
-            auto handler = storageIt.key();
-            const auto& data = storageIt.value();
-            auto holder = dynamic_cast<StandardHolder*>(handler->holder());
-            auto& handlerConfig = phandlers[handler];
-            HandlerView* view = dynamic_cast<GraphicalHandler*>(handler);
+        const auto& storage = Manager::instance->storage();
+        QMapIterator<Handler*, Manager::Data> it(storage);
+        mCache.resize(storage.size());
+        for (auto& info : mCache) {
+            it.next();
+            info.handler = it.key();
+            info.data = it.value();
+            info.parsingData.type = info.data.type;
+            info.parsingData.id = QString("#%1").arg(id++);
+            info.parsingData.name = handlerName(info.handler);
+            auto holder = dynamic_cast<StandardHolder*>(info.handler->holder());
+            if (holder)
+                info.parsingData.group = QString::fromStdString(holder->name());
+            HandlerView* view = dynamic_cast<GraphicalHandler*>(info.handler);
             if (!view)
-                view = dynamic_cast<HandlerView*>(data.editor);
-            handlerConfig.type = data.type;
-            handlerConfig.id = QString("#%1").arg(id++);
-            handlerConfig.name = handlerName(handler);
-            handlerConfig.group = holder ? QString::fromStdString(holder->name()) : QString();
+                view = dynamic_cast<HandlerView*>(info.data.editor);
             if (view)
                 for (const auto& parameter : view->getParameters())
-                    handlerConfig.properties.push_back(parsing::Property{parameter.name, parameter.value});
+                    info.parsingData.properties.push_back(Configuration::Property{parameter.name, parameter.value});
         }
     }
 
-    void prepareConnections() {
-        QMapIterator<Handler*, parsing::Handler> phandlerIt(phandlers);
-        while (phandlerIt.hasNext()) {
-            phandlerIt.next();
-            auto handler = phandlerIt.key();
-            const auto& phandler = phandlerIt.value();
-            config.handlers.append(phandler);
-            for (const auto& listener : handler->listeners()) {
-                parsing::Connection connection;
-                connection.tail = phandler.id;
-                connection.head = phandlers[listener.handler].id;
-                if (boost::logic::indeterminate(listener.filter.match_nothing())) {
-                    QStringList sources;
-                    QMapIterator<Handler*, parsing::Handler> phandlerIt2(phandlers);
-                    while (phandlerIt2.hasNext()) {
-                        phandlerIt2.next();
-                        if (listener.filter.match_handler(phandlerIt2.key()))
-                            sources.append(phandlerIt2.value().id);
-                    }
-                    connection.source = sources.join("|");
-                }
-                config.connections.append(connection);
-            }
-        }
+    auto getSource(const Filter& filter) const {
+        QStringList sources;
+        if (boost::logic::indeterminate(filter.match_nothing()))
+            for(const auto& info : mCache)
+                if (filter.match_handler(info.handler))
+                    sources.append(info.parsingData.id);
+        return sources.join("|");
     }
 
-    void prepareFrames(MultiDisplayer* mainDisplayer) {
-        config.frames.append(displayerToFrame(mainDisplayer));
-        QWidget* mainWindow = mainDisplayer->window();
-        config.frames[0].pos = mainWindow->pos();
-        config.frames[0].size = mainWindow->size();
-        for (auto displayer : MultiDisplayer::topLevelDisplayers())
-            config.frames.append(displayerToFrame(displayer));
+    const Info& getInfo(const Handler* handler) const {
+        return *std::find_if(mCache.begin(), mCache.end(), [=](const auto& info) { return handler == info.handler; });
     }
 
-    parsing::Frame displayerToFrame(MultiDisplayer* displayer) {
-        parsing::Frame frame;
+    Configuration::Connection getConnection(const QString& tailId, const Listener& listener) const {
+        return {tailId, getInfo(listener.handler).parsingData.id, getSource(listener.filter)};
+    }
+
+    Configuration::View getView(SingleDisplayer* displayer) const {
+        for (const auto& info : mCache)
+            if (displayer->widget() == dynamic_cast<GraphicalHandler*>(info.handler) || displayer->widget() == info.data.editor)
+                return {info.parsingData.id};
+    }
+
+    Configuration::Frame getFrame(MultiDisplayer* displayer) const {
+        auto window = displayer->window();
+        Configuration::Frame frame;
         frame.layout = displayer->orientation();
-        frame.name = displayer->windowTitle();
-        frame.pos = displayer->pos();
-        frame.size = displayer->size();
-        frame.visible = displayer->isVisible();
-        for (Displayer* child : displayer->directChildren()) {
-            parsing::Widget widget;
-            auto node = dynamic_cast<MultiDisplayer*>(child);
-            if (node) {
-                widget.isFrame = true;
-                widget.frame = displayerToFrame(node);
-            } else {
-                auto leaf = static_cast<SingleDisplayer*>(child);
-                widget.isFrame = false;
-                QMapIterator<Handler*, parsing::Handler> phandlersIt(phandlers);
-                while (phandlersIt.hasNext()) {
-                    phandlersIt.next();
-                    auto handler = phandlersIt.key();
-                    const auto phandler = phandlersIt.value();
-                    if (leaf->widget() == dynamic_cast<GraphicalHandler*>(handler) || leaf->widget() == storage[handler].editor) {
-                        widget.view.ref = phandler.id;
-                        break;
-                    }
-                }
-            }
-            frame.widgets.append(widget);
-        }
+        frame.name = window->windowTitle();
+        frame.pos = window->pos();
+        frame.size = window->size();
+        frame.visible = window->isVisible();
+        for (Displayer* child : displayer->directChildren())
+            frame.widgets.append(getWidget(child));
         return frame;
     }
 
-    void prepareColors() {
-        for (channel_t c=0 ; c < 0x10 ; ++c)
-            config.colors.append(Manager::instance->channelEditor()->color(c));
+    Configuration::Widget getWidget(Displayer* displayer) const {
+        auto multiDisplayer = dynamic_cast<MultiDisplayer*>(displayer);
+        if (multiDisplayer)
+            return {true, getFrame(multiDisplayer), {}};
+        else
+            return {false, {}, getView(static_cast<SingleDisplayer*>(displayer))};
     }
 
-    parsing::Configuration config;
-    QMap<Handler*, Manager::Data> storage;
-    QMap<Handler*, parsing::Handler> phandlers;
+     auto getConfiguration() const {
+         Configuration config;
+         // handlers
+         for(const auto& info : mCache)
+             config.handlers.append(info.parsingData);
+         // connections
+         for(const auto& info : mCache)
+             for (const auto& listener : info.handler->listeners())
+                 config.connections.append(getConnection(info.parsingData.id, listener));
+         // frames
+         config.frames.append(getFrame(mMainDisplayer));
+         for (auto displayer : MultiDisplayer::topLevelDisplayers())
+             config.frames.append(getFrame(displayer));
+         // colors
+         for (channel_t c=0 ; c < 0x10 ; ++c)
+             config.colors.append(Manager::instance->channelEditor()->color(c));
+         return config;
+    }
+
+private:
+     std::vector<Info> mCache;
+     MultiDisplayer* mMainDisplayer;
 
 };
 
@@ -319,28 +327,22 @@ void MainWindow::readLastConfig() {
 }
 
 bool MainWindow::readConfig(const QString& fileName) {
-    TRACE_MEASURE("read config");
+    Configuration config;
     // make system handlers
     auto system_handlers = create_system();
     for (Handler* handler : system_handlers)
         Manager::instance->insertHandler(handler, nullptr, "System", "default");
-    parsing::Configuration config;
+    // read configuration
     try {
-        // read file
-        QFile configFile(fileName);
-        if (!configFile.open(QIODevice::ReadOnly))
-            throw QString("unable to open file");
-        auto configData = configFile.readAll();
-        configFile.close();
-        // parse file
-        config = parsing::readConfiguration(configData);
+        QFile file(fileName);
+        config = Configuration::read(&file);
     } catch (const QString& error) {
         QMessageBox::critical(this, QString(), QString("Failed reading configuration file\n%1\n\n%2").arg(fileName, error));
         return false;
     }
-    // fill interface
-    ConfigurationPuller puller;
-    puller.addConfiguration(static_cast<MultiDisplayer*>(centralWidget()), config);
+    // apply configuration
+    ConfigurationPuller puller(static_cast<MultiDisplayer*>(centralWidget()));
+    puller.addConfiguration(config);
     // redo the layout
     mManagerEditor->graphEditor()->graph()->doLayout();
     return true;
@@ -359,27 +361,14 @@ void MainWindow::loadConfig(const QString& fileName) {
 }
 
 void MainWindow::writeConfig() {
-
     QString fileName = Manager::instance->pathRetriever("configuration")->getWriteFile(this);
     if (fileName.isEmpty())
         return;
-
-    ConfigurationPusher pusher;
-    pusher.prepareHandlers();
-    pusher.prepareConnections();
-    pusher.prepareFrames(static_cast<MultiDisplayer*>(centralWidget()));
-    pusher.prepareColors();
-
+    ConfigurationPusher pusher(static_cast<MultiDisplayer*>(centralWidget()));
+    auto config = pusher.getConfiguration();
     QSaveFile saveFile(fileName);
     saveFile.open(QSaveFile::WriteOnly);
-
-    QXmlStreamWriter stream(&saveFile);
-    parsing::Writer writer(stream);
-    stream.setAutoFormatting(true);
-    stream.writeStartDocument();
-    writer.writeConfiguration(pusher.config);
-    stream.writeEndDocument();
-
+    Configuration::write(&saveFile, config);
     if (saveFile.commit()) {
         raiseConfig(fileName);
         updateConfigs();

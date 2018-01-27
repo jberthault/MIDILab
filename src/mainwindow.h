@@ -28,7 +28,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "qcore/manager.h"
 #include "qcore/managereditor.h"
 #include "qcore/programeditor.h"
-#include "qcore/parsing.h"
 #include "qtools/misc.h"
 
 // ======
