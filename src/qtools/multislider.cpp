@@ -22,7 +22,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "misc.h"
 
 #include <cmath>
-#include <QDebug>
 #include <QResizeEvent>
 #include <QScrollBar>
 #include <QGraphicsSceneMouseEvent>

@@ -18,7 +18,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#include "piano.h"
+#include <QHelpEvent>
+#include <QToolTip>
+#include "qhandlers/piano.h"
 #include "qcore/editors.h"
 
 //==========
@@ -103,7 +105,7 @@ void PianoLayout::addKey(PianoKey* key) {
 }
 
 void PianoLayout::addItem(QLayoutItem*) {
-    qDebug() << "Can't add item for this layout";
+    TRACE_DEBUG("Can't add item for this layout");
 }
 
 Qt::Orientations PianoLayout::expandingDirections() const {

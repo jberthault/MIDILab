@@ -23,7 +23,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <QGraphicsView>
 #include <QGraphicsScene>
-#include <QDebug>
 #include <QGraphicsItem>
 #include <QList>
 

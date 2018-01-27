@@ -21,7 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QApplication>
 #include <QSplashScreen>
 #include "mainwindow.h"
-#include <qcore/core.h>
+#include "qcore/core.h"
 
 int main(int argc, char *argv[]) {
     // application

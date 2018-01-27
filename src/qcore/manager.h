@@ -21,11 +21,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef QCORE_MANAGER_H
 #define QCORE_MANAGER_H
 
-#include <QObject>
-#include <QMap>
-#include <QDir>
-#include "core.h"
-#include "editors.h"
+#include "qcore/core.h"
+#include "qcore/editors.h"
 
 //======================
 // HandlerConfiguration

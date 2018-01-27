@@ -20,7 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <QGridLayout>
 #include <QPushButton>
-#include "channelmapper.h"
+#include "qhandlers/channelmapper.h"
 #include "qtools/misc.h"
 
 //===================

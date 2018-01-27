@@ -19,19 +19,15 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include <QApplication>
-#include <QPushButton>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
-#include <QtGlobal>
+#include <QPushButton>
 #include "mainwindow.h"
-#include "qcore/core.h"
-#include "qcore/configuration.h"
-#include "qcore/managereditor.h"
-#include "qtools/displayer.h"
-#include "qtools/misc.h"
-#include "handlers/systemhandler.h"
 #include "qhandlers/handlers.h"
+#include "handlers/systemhandler.h"
+#include "qcore/configuration.h"
+#include "qtools/displayer.h"
 
 namespace {
 
@@ -73,7 +69,7 @@ public:
         Handler* head = mHandlersReferences.value(connection.head, nullptr);
         Handler* source = hasSource ? mHandlersReferences.value(connection.source, nullptr) : nullptr;
         if (!tail || !head || hasSource && !source) {
-            qWarning() << "wrong connection handlers: " << handlerName(tail) << handlerName(head) << handlerName(source);
+            TRACE_WARNING("wrong connection handlers: " << handlerName(tail) << ' ' << handlerName(head) << ' ' << handlerName(source));
             return;
         }
         Manager::instance->insertConnection(tail, head, hasSource ? Filter::handler(source) : Filter());
@@ -88,7 +84,7 @@ public:
                     return;
                 }
             }
-            qWarning() << "Unknown system handler";
+            TRACE_WARNING("Unknown system handler");
             return;
         }
         // prepare config

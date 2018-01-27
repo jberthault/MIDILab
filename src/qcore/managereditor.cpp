@@ -18,12 +18,14 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#include <QInputDialog>
 #include <QGraphicsSceneContextMenuEvent>
-#include "managereditor.h"
-#include "manager.h"
-#include "qtools/displayer.h"
-#include "qtools/misc.h"
+#include <QHeaderView>
+#include <QInputDialog>
+#include <QMenu>
+#include <QMessageBox>
+#include <QPushButton>
+#include "qcore/managereditor.h"
+#include "core/misc.h"
 
 //=============
 // HandlerNode

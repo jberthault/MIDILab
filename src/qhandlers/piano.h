@@ -21,18 +21,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef QHANDLERS_PIANO_H
 #define QHANDLERS_PIANO_H
 
-#include <QWidget>
-#include <QEvent>
-#include <QPaintEvent>
-#include <QLayout>
-#include <QLayoutItem>
-#include <QRect>
-#include <QSize>
-#include <QList>
-#include <QPair>
-#include <QDebug>
-#include <QPainter>
-#include <QToolTip>
 #include "qcore/core.h"
 
 //==========

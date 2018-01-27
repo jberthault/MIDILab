@@ -21,7 +21,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "misc.h"
 
 #include <QEvent>
-#include <QDebug>
 #include <QPainter>
 #include <QTextDocument>
 #include <QDropEvent>
@@ -29,6 +28,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QApplication>
 #include <QPushButton>
 #include <QFileDialog>
+#include "tools/trace.h"
+
+std::ostream& operator<<(std::ostream& stream, const QString& string) {
+    return stream << string.toLocal8Bit().constData();
+}
 
 //===============
 // PathRetriever
@@ -110,7 +114,7 @@ QWidget* DialogContainer::widget() {
 
 void DialogContainer::setWidget(QWidget* /*widget*/) {
     /// @todo implement
-    qCritical() << "unimplemented DialogContainer::setWidget";
+    TRACE_ERROR("unimplemented DialogContainer::setWidget");
 }
 
 //==========
@@ -216,7 +220,6 @@ void TreeBox::setTreeIndex(const QModelIndex& index) {
 void TreeBox::storeTreeIndex(const QModelIndex& index) {
     if (index != mTreeIndex) {
         mTreeIndex = index;
-        // qDebug() << index;
         emit treeIndexChanged(index);
     }
 }

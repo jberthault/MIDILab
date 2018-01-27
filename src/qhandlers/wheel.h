@@ -21,9 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef QHANDLERS_WHEEL_H
 #define QHANDLERS_WHEEL_H
 
-#include <QDialog>
 #include "qcore/editors.h"
-#include "qtools/misc.h"
 
 //===========
 // MetaWheel

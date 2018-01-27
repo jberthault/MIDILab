@@ -23,8 +23,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <QPushButton>
 #include <QLabel>
-#include "qcore/core.h"
 #include "handlers/sequencewriter.h"
+#include "qcore/core.h"
 
 //==============
 // MetaRecorder

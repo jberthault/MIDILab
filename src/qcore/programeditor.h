@@ -21,16 +21,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef QCORE_PROGRAM_EDITOR_H
 #define QCORE_PROGRAM_EDITOR_H
 
-#include <QFile>
-#include <QtXml>
-#include <QTableView>
-#include <QHeaderView>
-#include <QItemDelegate>
 #include <QStandardItemModel>
-#include <QScrollArea>
-#include <QDialog>
-#include "core.h"
-#include "editors.h"
+#include <QItemDelegate>
+#include <QtXml>
+#include "qcore/editors.h"
 
 //=======
 // Patch

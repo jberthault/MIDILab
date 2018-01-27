@@ -18,12 +18,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#include <QAbstractEventDispatcher>
-#include <QPluginLoader>
+#include <QApplication>
 #include <QMainWindow>
-#include <QDockWidget>
 #include <QSettings>
-#include "manager.h"
+#include "qcore/manager.h"
 #include "qtools/displayer.h"
 
 //======================
@@ -165,7 +163,7 @@ void Manager::setHandlerState(Handler* handler, Handler::state_type state, bool 
     if (handler->mode().none(handler_ns::receive_mode))
         state &= ~handler_ns::receive_state;
     if (handler->state().all(state) == open) {
-        qWarning() << handlerName(handler) << "handler already" << (open ? "opened" : "closed");
+        TRACE_WARNING(handlerName(handler) << " handler already " << (open ? "opened" : "closed"));
         return;
     }
     handler->send_message(open ? Handler::open_event(state) : Handler::close_event(state));
@@ -212,7 +210,7 @@ void Manager::setParameters(Handler* handler, const HandlerView::Parameters& par
     if (view)
         view->setParameters(parameters);
     else
-        qWarning() << "no suitable class for setting" << handlerName(handler) << "parameters";
+        TRACE_WARNING("no suitable class for setting " << handlerName(handler) << " parameters");
 }
 
 void Manager::insertHandler(Handler* handler, HandlerEditor* editor, const QString& type, const QString& group) {

@@ -18,8 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#include "transposer.h"
-#include "qtools/misc.h"
+#include "qhandlers/transposer.h"
 
 namespace {
 

@@ -18,10 +18,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#include "guitar.h"
-
 #include <QPainter>
 #include <QToolTip>
+#include <QHelpEvent>
+#include <QMouseEvent>
+#include "qhandlers/guitar.h"
 #include "qcore/editors.h"
 
 namespace {

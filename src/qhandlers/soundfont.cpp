@@ -18,12 +18,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#include "soundfont.h"
+#include "qhandlers/soundfont.h"
 
 #ifdef MIDILAB_FLUIDSYNTH_VERSION
-
-#include "qcore/manager.h"
-#include "qtools/misc.h"
 
 namespace {
 

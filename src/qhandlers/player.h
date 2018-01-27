@@ -22,24 +22,16 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define QHANDLERS_PLAYER_H
 
 #include <random>
-#include <QDialog>
-#include <QMessageBox>
-#include <QStandardItemModel>
-#include <QHeaderView>
-#include <QTimeEdit>
-#include <QTableWidget>
-#include <QTimer>
-#include <QMenu>
-#include <QToolBar>
-#include <QToolButton>
 #include <QDoubleSpinBox>
-#include "qcore/editors.h"
-#include "qcore/core.h"
-#include "core/sequence.h"
-#include "qtools/misc.h"
-#include "qtools/multislider.h"
+#include <QTableWidget>
+#include <QTimeEdit>
+#include <QToolBar>
+#include <QTreeWidget>
 #include "handlers/sequencereader.h"
 #include "handlers/sequencewriter.h"
+#include "qcore/core.h"
+#include "qcore/editors.h"
+#include "qtools/misc.h"
 
 struct NamedSequence {
     Sequence sequence;

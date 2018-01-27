@@ -18,11 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#include "wheel.h"
+#include "qhandlers/wheel.h"
 #include "handlers/systemhandler.h"
-
-#include <QGroupBox>
-#include <QPushButton>
 
 static constexpr range_t<uint16_t> volumeRange = {0, 0xffff};
 static constexpr range_t<byte_t> semitonesRange = {0, 24};
@@ -140,7 +137,7 @@ byte_t ControllerWheel::controller() const {
 void ControllerWheel::setController(byte_t controller) {
     int index = mControllerBox->findData(controller);
     if (index == -1)
-        qWarning() << "unknown controller";
+        TRACE_WARNING("unknown controller");
     else
         mControllerBox->setCurrentIndex(index); // will update mController
 }

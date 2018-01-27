@@ -18,13 +18,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#include <QColorDialog>
-#include <QPushButton>
-#include <QVBoxLayout>
-#include <QVBoxLayout>
-#include <QLabel>
 #include <QButtonGroup>
-#include "editors.h"
+#include <QPushButton>
+#include <QColorDialog>
+#include "qcore/editors.h"
 
 //=============
 // ColorPicker

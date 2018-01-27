@@ -22,7 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QLabel>
 #include <QToolButton>
 #include <QButtonGroup>
-#include "harmonica.h"
+#include "qhandlers/harmonica.h"
 
 /// @todo print the holes numbers on the screen
 

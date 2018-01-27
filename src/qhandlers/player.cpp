@@ -18,12 +18,14 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#include <QDropEvent>
+#include <QHeaderView>
+#include <QMessageBox>
 #include <QMimeData>
-#include <QTextCodec>
-#include <QByteArrayList>
+#include <QMouseEvent>
 #include <QPushButton>
-#include "player.h"
+#include <QTextCodec>
+#include <QTimer>
+#include "qhandlers/player.h"
 #include "handlers/trackfilter.h"
 #include "qcore/manager.h"
 
@@ -566,7 +568,7 @@ void PlaylistTable::addPath(const QString& path) {
     static const QStringList suffixes = QStringList() << "mid" << "midi" << "kar";
     QFileInfo info(path);
     if (!info.exists()) {
-        qWarning() << "can't find file" << path;
+        TRACE_WARNING("can't find file " << path);
         return;
     }
     if (info.isDir()) {
@@ -1328,7 +1330,7 @@ void Player::setNextSequence(bool play, int offset) {
             return;
         }
     }
-    qDebug() << "no more sequence to play";
+    TRACE_DEBUG("no more sequence to play");
 }
 
 void Player::updatePosition() {

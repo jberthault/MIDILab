@@ -22,7 +22,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QMimeData>
 #include <QDrag>
 #include <QMenu>
-#include <QDebug>
 #include <QMessageBox>
 #include <QInputDialog>
 #include "displayer.h"
@@ -296,7 +295,7 @@ void Displayer::drag() {
     drag->setMimeData(data);
     drag->exec(Qt::MoveAction);
     if (drag->target() == nullptr)
-        qWarning() << "displayer has not been dropped correctly";
+        TRACE_WARNING("displayer has not been dropped correctly");
 }
 
 //=================

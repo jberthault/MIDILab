@@ -39,6 +39,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <chrono>
 #include <set>
 
+
+std::ostream& operator<<(std::ostream& stream, const QString& string);
+
 template<typename T, typename ... Args>
 auto number2string(T number, Args&& ... args) {
     auto text = QString::number(number, std::forward<Args>(args)...);

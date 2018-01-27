@@ -18,17 +18,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#ifndef QCORE_MAIN_WINDOW_H
-#define QCORE_MAIN_WINDOW_H
+#ifndef MAIN_WINDOW_H
+#define MAIN_WINDOW_H
 
-#include <QWidget>
 #include <QMainWindow>
-#include <QComboBox>
-#include <QDialog>
-#include "qcore/manager.h"
 #include "qcore/managereditor.h"
 #include "qcore/programeditor.h"
-#include "qtools/misc.h"
 
 // ======
 // macros
@@ -121,4 +116,4 @@ private:
 
 };
 
-#endif // QCORE_MAIN_WINDOW_H
+#endif // MAIN_WINDOW_H

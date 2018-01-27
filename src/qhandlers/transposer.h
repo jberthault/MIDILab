@@ -23,7 +23,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "handlers/transposer.h"
 #include "qcore/editors.h"
-#include "qtools/misc.h"
 
 //================
 // MetaTransposer

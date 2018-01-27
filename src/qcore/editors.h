@@ -21,20 +21,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef QCORE_EDITORS_H
 #define QCORE_EDITORS_H
 
-#include <QCheckBox>
-#include <QToolButton>
-#include <QMap>
 #include <QComboBox>
-#include <QLabel>
-#include <QTreeWidget>
+#include <QCheckBox>
 #include <QLineEdit>
-
-#include "core.h"
-#include "core/event.h"
-#include "core/handler.h"
-#include "core/misc.h"
-#include "tools/containers.h"
-#include "qtools/misc.h"
+#include <QTreeWidget>
+#include <QToolButton>
+#include "qcore/core.h"
 #include "qtools/multislider.h"
 
 //=============

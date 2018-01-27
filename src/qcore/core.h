@@ -22,23 +22,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define QCORE_CORE_H
 
 #include <QEvent>
-#include <QWidget>
-#include <QDialog>
-#include <QString>
-#include <QApplication>
-#include <QTextStream>
-#include <QDebug>
-#include <QComboBox>
 #include <QFormLayout>
-#include <QStandardItemModel>
-#include <QCheckBox>
-#include <QTreeWidget>
-#include <QMap>
-#include <QList>
 #include <QDir>
-#include "core/event.h"
 #include "core/handler.h"
-#include "core/misc.h"
 #include "qtools/misc.h"
 
 /*!< enable QVariant to accept those types */

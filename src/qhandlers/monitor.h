@@ -21,8 +21,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef QHANDLERS_MONITOR_H
 #define QHANDLERS_MONITOR_H
 
-#include <QObject>
-#include <QtPlugin>
 #include <QTextEdit>
 #include "qcore/editors.h"
 

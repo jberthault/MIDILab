@@ -21,25 +21,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef QCORE_MANAGER_EDITOR_H
 #define QCORE_MANAGER_EDITOR_H
 
-#include <QObject>
-#include <QWidget>
-#include <QString>
-#include <QTableWidget>
-#include <QDialog>
-#include <QIcon>
-#include <QLabel>
-#include <QPushButton>
-#include <QMessageBox>
-#include <QMenu>
-#include <QHeaderView>
-#include <QWidget>
-#include <QMap>
-#include <QDockWidget>
-#include <QFormLayout>
-#include <QTreeWidget>
+#include "qcore/manager.h"
 #include "qtools/graph.h"
-#include "core.h"
-#include "manager.h"
 
 //=============
 // HandlerNode

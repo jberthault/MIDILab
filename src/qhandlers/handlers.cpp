@@ -18,19 +18,19 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#include "handlers.h"
-#include "piano.h"
-#include "monitor.h"
-#include "wheel.h"
-#include "transposer.h"
-#include "recorder.h"
-#include "harmonica.h"
-#include "forwarder.h"
-#include "channelmapper.h"
-#include "soundfont.h"
-#include "player.h"
-#include "trackfilter.h"
-#include "guitar.h"
+#include "qhandlers/handlers.h"
+#include "qhandlers/piano.h"
+#include "qhandlers/monitor.h"
+#include "qhandlers/wheel.h"
+#include "qhandlers/transposer.h"
+#include "qhandlers/recorder.h"
+#include "qhandlers/harmonica.h"
+#include "qhandlers/forwarder.h"
+#include "qhandlers/channelmapper.h"
+#include "qhandlers/soundfont.h"
+#include "qhandlers/player.h"
+#include "qhandlers/trackfilter.h"
+#include "qhandlers/guitar.h"
 
 //=================
 // StandardFactory

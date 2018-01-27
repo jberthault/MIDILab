@@ -30,7 +30,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QDrag>
 #include <QMimeData>
 #include <QKeyEvent>
-#include <QDebug>
+#include "tools/trace.h"
 
 //===========
 // GraphItem
@@ -278,7 +278,7 @@ bool Edge::isLinked() const {
 
 void Edge::setLink(Node* tail, Node* head) {
     if (isLinked()) {
-        qWarning() << "edge already linked";
+        TRACE_WARNING("edge already linked");
         return;
     }
     prepareGeometryChange();
@@ -358,7 +358,7 @@ void Edge::rawUpdateShape() {
         case 0: mPath.lineTo(headPoint); break;// straight
         case 1: mPath.quadTo(mControlPoints.front(), headPoint); break; // quad
         case 2: mPath.cubicTo(mControlPoints.front(), mControlPoints.back(), headPoint); break; // cubic
-        default: qWarning() << "unable to process more than two control points"; break;
+        default: TRACE_WARNING("unable to process more than two control points"); break;
         }
         // center label on the path
         QPointF center = mPath.pointAtPercent(.5);
@@ -609,10 +609,9 @@ Bundler::Bundler(GraphItem* graph) : BasicNode(graph), mHighlight(false), mMinim
 
 void Bundler::addNode(BasicNode* node) {
     if (mNodes.contains(node)) {
-        qDebug() << "node is already binded to the bundle";
+        TRACE_DEBUG("node is already binded to the bundle");
         return;
     }
-    qDebug() << "insert" << node;
     prepareGeometryChange();
     node->setParentItem(this);
     node->setFlag(ItemIsMovable, false);

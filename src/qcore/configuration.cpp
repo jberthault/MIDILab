@@ -18,12 +18,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#include "configuration.h"
-
 #include <QRegExp>
 #include <QDomElement>
 #include <QXmlStreamWriter>
 #include <QXmlInputSource>
+#include "qcore/configuration.h"
 #include "tools/trace.h"
 
 /**

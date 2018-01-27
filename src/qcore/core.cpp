@@ -18,14 +18,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#include <QPluginLoader>
-#include <QLabel>
-#include <QMetaEnum>
-#include <QPushButton>
-#include <QLineEdit>
 #include <sstream>
-#include "core.h"
-#include "qtools/misc.h"
+#include <QPluginLoader>
+#include <QApplication>
+#include <QMetaEnum>
+#include "qcore/core.h"
 
 //=================
 // Name Conversion
@@ -292,7 +289,7 @@ MetaHandler* MetaHandlerCollector::metaHandler(const QString& type) {
     for (MetaHandler* meta : mMetaHandlers)
         if (meta->identifier() == type)
             return meta;
-    qWarning() << "unknown metahandler named" << type;
+    TRACE_WARNING("unknown metahandler named " << type);
     return nullptr;
 }
 
@@ -320,7 +317,7 @@ size_t MetaHandlerCollector::addPlugin(const QString& filename) {
     if (plugin) { /// @note lifetime is automatically managed
         count += addFactory(dynamic_cast<MetaHandlerFactory*>(plugin));
     } else {
-        qWarning() << "file" << filename << "is not a plugin : " << loader.errorString() << loader.metaData();
+        TRACE_WARNING("file " << filename << "is not a plugin: " << loader.errorString());
     }
     return count;
 }
@@ -331,7 +328,7 @@ size_t MetaHandlerCollector::addPlugins(const QDir& dir) {
         if (QLibrary::isLibrary(filename))
             count += addPlugin(dir.absoluteFilePath(filename));
     if (count == 0)
-        qWarning() << "can't find any plugin in" << dir.absolutePath();
+        TRACE_WARNING("can't find any plugin in " << dir.absolutePath());
     return count;
 }
 

@@ -18,14 +18,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#include <QMouseEvent>
 #include <QMessageBox>
+#include <QHeaderView>
 #include <QXmlSchema>
 #include <QXmlSchemaValidator>
-#include "programeditor.h"
-#include "manager.h"
-#include "editors.h"
-#include "qtools/misc.h"
+#include "qcore/manager.h"
+#include "qcore/programeditor.h"
+#include "core/misc.h"
 
 //=======
 // Patch
@@ -100,7 +99,7 @@ QString Patch::getProgram(byte_t program, const QString& defaultName) const {
 
 bool Patch::insertProgram(byte_t program, const QString& name) {
     if (hasProgram(program)) {
-        qWarning() << "can't insert program in patch" << mName;
+        TRACE_WARNING("can't insert program in patch " << mName);
         return false;
     }
     mPrograms[program] = name;
@@ -132,7 +131,7 @@ bool Patch::hasChild(Patch* patch) const {
 bool Patch::insertChild(Patch* patch) {
     Q_ASSERT(patch != nullptr);
     if (hasChild(patch)) {
-        qWarning() << "Patch" << name() << "already contains" << patch->name();
+        TRACE_WARNING("Patch " << name() << " already contains " << patch->name());
         return false;
     }
     mChilds.append(patch);
@@ -332,7 +331,7 @@ ProgramEditor::ProgramEditor(ChannelEditor* channelEditor, QWidget* parent) : QW
         programsData = programsFile.readAll();
         programsFile.close();
     } else {
-        qCritical() << "Can't read file programs.xml";
+        TRACE_ERROR("Can't read file programs.xml");
     }
 
     /// Construct XSD Validator and check
@@ -347,7 +346,7 @@ ProgramEditor::ProgramEditor(ChannelEditor* channelEditor, QWidget* parent) : QW
         mPatches = QVector<Patch*>::fromList(Patch::parsePatches(dom.documentElement()));
     } else {
         mPatches << new Patch("No Patch");  // required because of at()
-        qCritical() << "programs.xml is illformed";
+        TRACE_ERROR("programs.xml is illformed");
     }
 
     // PATCHES COMBO
