@@ -661,53 +661,26 @@ void Handler::forward_message(const Message& message) {
 // StandardHolder
 //================
 
-#ifndef MIDILAB_MEASUREMENTS
+StandardHolder::StandardHolder(std::string name) : Holder(), m_task(512), m_name(std::move(name)) {
 
-StandardHolder::StandardHolder(priority_t priority, std::string name) :
-    Holder(), m_task(512), m_name(std::move(name)) {
-
-    m_task.start(priority, [this](data_type&& data) {
-        data.first->receive_message(data.second);
-    });
 }
 
-StandardHolder::~StandardHolder() {
-    m_task.stop();
-    TRACE_DEBUG("deleting holder " << m_name << " ...");
-}
-
-std::thread::id StandardHolder::get_id() const {
-    return m_task.get_id();
-}
-
-const std::string& StandardHolder::name() const {
-    return m_name;
-}
-
-void StandardHolder::set_name(std::string name) {
-    m_name = std::move(name);
-}
-
-bool StandardHolder::hold_message(Handler* target, const Message& message) {
-    return m_task.push(data_type{target, message});
-}
-
-#else
-
-StandardHolder::StandardHolder(priority_t priority, std::string name) :
-    Holder(), m_task(512), m_name(std::move(name)) {
-
+void StandardHolder::start(priority_t priority) {
+#ifdef MIDILAB_MEASUREMENTS
     reset(clock_type::now());
-
     m_task.start(priority, [this](data_type&& data) {
         feed(std::move(std::get<2>(data)));
         std::get<0>(data)->receive_message(std::get<1>(data));
     });
+#else
+    m_task.start(priority, [this](data_type&& data) {
+        data.first->receive_message(data.second);
+    });
+#endif
 }
 
-StandardHolder::~StandardHolder() {
-    m_task.stop();
-    TRACE_DEBUG("deleting holder " << m_name << " ...");
+void StandardHolder::stop() {
+    m_task.stop(true);
 }
 
 std::thread::id StandardHolder::get_id() const {
@@ -721,6 +694,8 @@ const std::string& StandardHolder::name() const {
 void StandardHolder::set_name(std::string name) {
     m_name = std::move(name);
 }
+
+#ifdef MIDILAB_MEASUREMENTS
 
 void StandardHolder::feed(time_type time) {
     auto now = clock_type::now();
@@ -740,8 +715,12 @@ void StandardHolder::reset(time_type time) {
     m_reference = std::move(time);
 }
 
-bool StandardHolder::hold_message(Handler* target, const Message& message) {
-    return m_task.push(data_type{target, message, clock_type::now()});
-}
-
 #endif
+
+bool StandardHolder::hold_message(Handler* target, const Message& message) {
+#ifdef MIDILAB_MEASUREMENTS
+    return m_task.push(data_type{target, message, clock_type::now()});
+#else
+    return m_task.push(data_type{target, message});
+#endif
+}

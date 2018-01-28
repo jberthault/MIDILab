@@ -103,8 +103,8 @@ MetaControllerWheel::MetaControllerWheel(QObject* parent) : MetaWheel(parent) {
     addParameter("controller", ":controller", "controller id(s) reacting over the GUI", "0x00");
 }
 
-MetaHandler::Instance MetaControllerWheel::instantiate() {
-    return Instance(new ControllerWheel, nullptr);
+void MetaControllerWheel::setContent(HandlerProxy& proxy) {
+    proxy.setContent(new ControllerWheel);
 }
 
 //=================
@@ -221,8 +221,8 @@ MetaPitchWheel::MetaPitchWheel(QObject* parent) : MetaWheel(parent) {
     setIdentifier("PitchWheel");
 }
 
-MetaHandler::Instance MetaPitchWheel::instantiate() {
-    return Instance(new PitchWheel, nullptr);
+void MetaPitchWheel::setContent(HandlerProxy& proxy) {
+    proxy.setContent(new PitchWheel);
 }
 
 //============
@@ -399,8 +399,8 @@ MetaProgramWheel::MetaProgramWheel(QObject* parent) : MetaWheel(parent) {
     setIdentifier("ProgramWheel");
 }
 
-MetaHandler::Instance MetaProgramWheel::instantiate() {
-    return Instance(new ProgramWheel, nullptr);
+void MetaProgramWheel::setContent(HandlerProxy& proxy) {
+    proxy.setContent(new ProgramWheel);
 }
 
 //==============
@@ -451,8 +451,8 @@ MetaVolume1Wheel::MetaVolume1Wheel(QObject* parent) : MetaWheel(parent) {
     setIdentifier("Volume1Wheel");
 }
 
-MetaHandler::Instance MetaVolume1Wheel::instantiate() {
-    return Instance(new Volume1Wheel, nullptr);
+void MetaVolume1Wheel::setContent(HandlerProxy& proxy) {
+    proxy.setContent(new Volume1Wheel);
 }
 
 //==============
@@ -482,8 +482,8 @@ MetaVolume2Wheel::MetaVolume2Wheel(QObject* parent) : MetaWheel(parent) {
     setIdentifier("Volume2Wheel");
 }
 
-MetaHandler::Instance MetaVolume2Wheel::instantiate() {
-    return Instance(new Volume2Wheel, nullptr);
+void MetaVolume2Wheel::setContent(HandlerProxy& proxy) {
+    proxy.setContent(new Volume2Wheel);
 }
 
 //==============

@@ -31,16 +31,15 @@ MetaChannelMapper::MetaChannelMapper(QObject* parent) : MetaHandler(parent) {
     setIdentifier("ChannelMapper");
 }
 
-MetaChannelMapper::Instance MetaChannelMapper::instantiate() {
-    auto handler = new ChannelMapper;
-    return Instance(handler, new ChannelMapperEditor(handler));
+void MetaChannelMapper::setContent(HandlerProxy& proxy) {
+    proxy.setContent(new ChannelMapperEditor);
 }
 
 //=====================
 // ChannelMapperEditor
 //=====================
 
-ChannelMapperEditor::ChannelMapperEditor(ChannelMapper* handler) : HandlerEditor(), mHandler(handler) {
+ChannelMapperEditor::ChannelMapperEditor() : HandlerEditor(), mHandler(std::make_unique<ChannelMapper>()) {
 
     auto checkBoxLayout = new QGridLayout;
     checkBoxLayout->setMargin(0);
@@ -99,6 +98,10 @@ ChannelMapperEditor::ChannelMapperEditor(ChannelMapper* handler) : HandlerEditor
     setLayout(make_vbox(checkBoxLayout, stretch_tag{}, make_hbox(stretch_tag{}, applyButton, resetButton, discardButton)));
 
     updateFromMapper();
+}
+
+Handler* ChannelMapperEditor::getHandler() const {
+    return mHandler.get();
 }
 
 void ChannelMapperEditor::updateMapper() {

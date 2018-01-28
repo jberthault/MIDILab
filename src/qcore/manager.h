@@ -23,6 +23,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "qcore/core.h"
 #include "qcore/editors.h"
+#include "qcore/configuration.h"
+#include "qtools/displayer.h"
 
 //======================
 // HandlerConfiguration
@@ -50,57 +52,42 @@ class Manager : public Context {
     Q_OBJECT
 
 public:
-
-    struct Data {
-        HandlerEditor* editor; /*!< editor attached to the handler */
-        QString type; /*!< meta handler name that instantiated the handler */
-        bool owns; /*!< true if handler should be deleted explicitly */
-    };
-
     static Manager* instance;
+
+    // structors
 
     explicit Manager(QObject* parent);
     ~Manager();
 
+    // accessors
+
+    MultiDisplayer* mainDisplayer() const;
     Observer* observer() const;
     MetaHandlerCollector* collector() const;
-    const QMap<Handler*, Data>& storage() const;
-    QWidget* editor(Handler* handler);
+
+    // context
 
     ChannelEditor* channelEditor() override;
-    QList<Handler*> getHandlers() override;
+    const HandlerProxies& getProxies() const override;
     PathRetriever* pathRetriever(const QString& type) override;
 
-public slots:
-    // -----------------------
-    // metahandlers management
-    // -----------------------
+    // configuration
 
-    Handler* loadHandler(MetaHandler* meta, const HandlerConfiguration& config);
-    Handler* loadHandler(const QString& type, const HandlerConfiguration& config);
+    Configuration getConfiguration();
+    void setConfiguration(const Configuration& configuration);
+    void clearConfiguration();
 
-    // -----------------
-    // handlers features
-    // -----------------
+    // proxies
 
-    void setHandlerOpen(Handler* handler, bool open);
-    void setHandlerState(Handler* handler, Handler::state_type state, bool open);
-    void toggleHandler(Handler* handler);
-    void toggleHandler(Handler* handler, Handler::state_type state);
-    void renameHandler(Handler* handler, const QString& name);
-    bool editHandler(Handler* handler); /*!< returns false if handler has no editor */
-    void setParameters(Handler* handler, const HandlerView::Parameters& parameters);
+    HandlerProxy loadHandler(MetaHandler* meta, const HandlerConfiguration& config);
+    HandlerProxy loadHandler(const QString& type, const HandlerConfiguration& config);
 
-    // -------------------
-    // handlers management
-    // -------------------
-
-    void insertHandler(Handler* handler, HandlerEditor* editor, const QString& type, const QString& group);
+    void insertHandler(const HandlerProxy& proxy, const QString& group);
     void removeHandler(Handler* handler);
 
-    // --------------------
-    // listeners management
-    // --------------------
+    // signaling commands
+
+    void renameHandler(Handler* handler, const QString& name);
 
     void setListeners(Handler* handler, Listeners listeners);
 
@@ -115,15 +102,15 @@ signals:
     void handlerListenersChanged(Handler* handler);
 
 private:
+    HandlerProxy takeProxy(const Handler* handler);
+    Holder* getHolder(const QString& group);
     void quit();
 
-    Holder* holderAt(const QString& group);
-
-    QMap<QString, PathRetriever*> mPathRetrievers;
-    QMap<Handler*, Data> mStorage;
-    std::vector<std::unique_ptr<StandardHolder>> mHolders; /*!< holder-pool */
+    HandlerProxies mHandlers;
+    std::vector<StandardHolder*> mHolders;
+    std::map<QString, PathRetriever*> mPathRetrievers;
     MetaHandlerCollector* mCollector;
-    GraphicalHolder* mGUIHolder; /*!< holder using Qt event loop */
+    GraphicalHolder* mGUIHolder;
     ChannelEditor* mChannelEditor;
     DefaultReceiver* mReceiver;
 

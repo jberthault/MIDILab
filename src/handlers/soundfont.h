@@ -50,6 +50,7 @@ public:
     static Event reverb_event(const optional_reverb_type& reverb);
 
     explicit SoundFontHandler();
+    ~SoundFontHandler();
 
     double gain() const;
     std::string file() const;

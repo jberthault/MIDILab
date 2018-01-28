@@ -62,8 +62,8 @@ MetaGuitar::MetaGuitar(QObject* parent) : MetaInstrument(parent) {
     addParameter("capo", ":ULong", "capo position, no capo if 0", "0");
 }
 
-MetaHandler::Instance MetaGuitar::instantiate() {
-    return Instance(new Guitar, nullptr);
+void MetaGuitar::setContent(HandlerProxy& proxy) {
+    proxy.setContent(new Guitar);
 }
 
 //========

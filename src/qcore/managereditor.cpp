@@ -400,7 +400,7 @@ void HandlerListEditor::renameHandler(Handler* handler) {
 }
 
 void HandlerListEditor::removeHandler(Handler* handler) {
-    QTreeWidgetItem* item = mItems.value(handler, nullptr);
+    QTreeWidgetItem* item = mItems.take(handler);
     invisibleRootItem()->removeChild(item);
     delete item;
 }
@@ -422,23 +422,11 @@ void HandlerListEditor::onMessageHandled(Handler* handler, const Message& messag
 }
 
 void HandlerListEditor::onDoubleClick(QTreeWidgetItem* item, int column) {
-    Handler* handler = handlerForItem(item);
-    if (!handler)
-        return;
+    auto proxy = Manager::instance->getProxy(handlerForItem(item));
     switch (column) {
-    case nameColumn:
-        Manager::instance->toggleHandler(handler);
-        break;
-    case forwardColumn:
-        if (handler->mode().any(handler_ns::thru_mode))
-            Manager::instance->toggleHandler(handler);
-        else
-            Manager::instance->toggleHandler(handler, handler_ns::forward_state);
-        break;
-    case receiveColumn:
-        Manager::instance->toggleHandler(handler, handler_ns::receive_state);
-        break;
-    default: break;
+    case nameColumn: proxy.toggleState(); break;
+    case forwardColumn: proxy.toggleState(handler_ns::forward_state); break;
+    case receiveColumn: proxy.toggleState(handler_ns::receive_state); break;
     }
 }
 
@@ -457,22 +445,22 @@ void HandlerListEditor::destroySelection() {
 
 void HandlerListEditor::openSelection() {
     for (Handler* handler : selectedHandlers())
-        Manager::instance->setHandlerOpen(handler, true);
+        Manager::instance->getProxy(handler).setState(true);
 }
 
 void HandlerListEditor::closeSelection() {
     for (Handler* handler : selectedHandlers())
-        Manager::instance->setHandlerOpen(handler, false);
+        Manager::instance->getProxy(handler).setState(false);
 }
 
 void HandlerListEditor::toggleSelection() {
     for (Handler* handler : selectedHandlers())
-        Manager::instance->toggleHandler(handler);
+        Manager::instance->getProxy(handler).toggleState();
 }
 
 void HandlerListEditor::editSelection() {
     for (Handler* handler : selectedHandlers())
-        Manager::instance->editHandler(handler);
+        Manager::instance->getProxy(handler).show();
 }
 
 void HandlerListEditor::renameSelection() {
@@ -528,9 +516,8 @@ void HandlerCatalogEditor::createHandler(MetaHandler* meta) {
     HandlerConfiguration hc(configurator->name());
     hc.group = configurator->group();
     hc.parameters = configurator->parameters();
-    Handler* handler = Manager::instance->loadHandler(meta, hc);
-    if (handler)
-        Manager::instance->editHandler(handler);
+    auto proxy = Manager::instance->loadHandler(meta, hc);
+    proxy.show();
 }
 
 //===============

@@ -40,9 +40,8 @@ MetaSoundFont::MetaSoundFont(QObject* parent) : MetaHandler(parent) {
     setIdentifier("SoundFont");
 }
 
-MetaHandler::Instance MetaSoundFont::instantiate() {
-    auto handler = new SoundFontHandler;
-    return Instance(handler, new SoundFontEditor(handler));
+void MetaSoundFont::setContent(HandlerProxy& proxy) {
+    proxy.setContent(new SoundFontEditor);
 }
 
 //===================
@@ -244,10 +243,10 @@ void ReverbEditor::onToggle(bool activated) {
 // SoundFontEditor
 //=================
 
-SoundFontEditor::SoundFontEditor(SoundFontHandler* handler) : HandlerEditor(), mHandler(handler) {
+SoundFontEditor::SoundFontEditor() : HandlerEditor(), mHandler(std::make_unique<SoundFontHandler>()) {
 
     mReceiver = new SoundFontReceiver(this);
-    handler->set_receiver(mReceiver);
+    mHandler->set_receiver(mReceiver);
     connect(mReceiver, &SoundFontReceiver::fileHandled, this, &SoundFontEditor::updateFile);
 
     mLoadMovie = new QMovie(":/data/load.gif", QByteArray(), this);
@@ -259,7 +258,7 @@ SoundFontEditor::SoundFontEditor(SoundFontHandler* handler) : HandlerEditor(), m
     mFileEditor = new QLineEdit(this);
     mFileEditor->setMinimumWidth(200);
     mFileEditor->setReadOnly(true);
-    mFileEditor->setText(QString::fromStdString(handler->file()));
+    mFileEditor->setText(QString::fromStdString(mHandler->file()));
 
     mFileSelector = new QToolButton(this);
     mFileSelector->setToolTip("Browse SoundFonts");
@@ -268,11 +267,11 @@ SoundFontEditor::SoundFontEditor(SoundFontHandler* handler) : HandlerEditor(), m
     connect(mFileSelector, &QToolButton::clicked, this, &SoundFontEditor::onClick);
 
     mGainEditor = new GainEditor(this);
-    mGainEditor->setGain(handler->gain());
+    mGainEditor->setGain(mHandler->gain());
     connect(mGainEditor, &GainEditor::gainChanged, this, &SoundFontEditor::sendGain);
 
     mReverbEditor = new ReverbEditor(this);
-    mReverbEditor->setReverb(handler->reverb());
+    mReverbEditor->setReverb(mHandler->reverb());
     connect(mReverbEditor, &ReverbEditor::reverbChanged, this, &SoundFontEditor::sendReverb);
 
     QFormLayout* form = new QFormLayout;
@@ -306,6 +305,10 @@ size_t SoundFontEditor::setParameter(const Parameter& parameter) {
     UNSERIALIZE("reverb.level", serial::parseDouble, mReverbEditor->setLevel, parameter);
     UNSERIALIZE("reverb.width", serial::parseDouble, mReverbEditor->setWidth, parameter);
     return HandlerEditor::setParameter(parameter);
+}
+
+Handler* SoundFontEditor::getHandler() const {
+    return mHandler.get();
 }
 
 void SoundFontEditor::setFile(const QString& file) {

@@ -491,7 +491,7 @@ class MetaPlayer : public MetaHandler {
 public:
     explicit MetaPlayer(QObject* parent);
 
-    Instance instantiate() override;
+    void setContent(HandlerProxy& proxy) override;
 
 };
 
@@ -504,7 +504,7 @@ class Player : public HandlerEditor {
     Q_OBJECT
     
 public:
-    explicit Player(SequenceReader* handler);
+    explicit Player();
 
     void setNextSequence(bool play, int offset);
     void setSequence(const NamedSequence& sequence, bool play);
@@ -512,6 +512,8 @@ public:
 
     Parameters getParameters() const override;
     size_t setParameter(const Parameter& parameter) override;
+
+    Handler* getHandler() const override;
 
 protected:
     void updateContext(Context* context) override;
@@ -551,7 +553,7 @@ private:
     QTimer* mRefreshTimer;
     bool mIsPlaying;
 
-    SequenceReader* mPlayer;
+    std::unique_ptr<SequenceReader> mPlayer;
 
     bool mIsStepping;
     timestamp_t mNextStep;

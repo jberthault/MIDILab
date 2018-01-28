@@ -28,6 +28,6 @@ MetaTrackFilter::MetaTrackFilter(QObject* parent) : MetaHandler(parent) {
     setIdentifier("TrackFilter");
 }
 
-MetaHandler::Instance MetaTrackFilter::instantiate() {
-    return Instance(new TrackFilter, nullptr);
+void MetaTrackFilter::setContent(HandlerProxy& proxy) {
+    proxy.setContent(new TrackFilter);
 }

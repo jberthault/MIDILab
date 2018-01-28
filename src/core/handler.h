@@ -394,62 +394,44 @@ public:
   *
   */
 
-#ifndef MIDILAB_MEASUREMENTS
-
-class StandardHolder : public Holder {
-
-public:
-    using data_type = std::pair<Handler*, Message>;
-    using task_type = task_t<data_type>;
-
-    StandardHolder(priority_t priority, std::string name = {});
-    ~StandardHolder();
-
-    std::thread::id get_id() const;
-
-    const std::string& name() const;
-    void set_name(std::string name);
-
-    bool hold_message(Handler* target, const Message& message) override;
-
-private:
-     task_type m_task;
-     std::string m_name;
-
-};
-
-#else
-
 class StandardHolder : public Holder {
 
 public:
     using clock_type = Clock::clock_type;
     using time_type = Clock::time_type;
+#ifdef MIDILAB_MEASUREMENTS
     using data_type = std::tuple<Handler*, Message, time_type>;
+#else
+    using data_type = std::pair<Handler*, Message>;
+#endif
     using task_type = task_t<data_type>;
 
-    StandardHolder(priority_t priority, std::string name = {});
-    ~StandardHolder();
+    StandardHolder(std::string name = {});
+
+    void start(priority_t priority); /*!< (re)activate message processing */
+    void stop(); /*!< deactivate message processing */
 
     std::thread::id get_id() const;
 
     const std::string& name() const;
     void set_name(std::string name);
 
+#ifdef MIDILAB_MEASUREMENTS
     void feed(time_type time);
     void reset(time_type time);
+#endif
 
     bool hold_message(Handler* target, const Message& message) override;
 
 private:
-     task_type m_task;
-     std::string m_name;
-     time_type m_reference; /*!< time reference */
-     std::chrono::microseconds m_delta; /*!< deltatime accumulation */
-     size_t m_count; /*!< number of events fed since the last reset */
+    task_type m_task;
+    std::string m_name;
+#ifdef MIDILAB_MEASUREMENTS
+    time_type m_reference; /*!< time reference */
+    std::chrono::microseconds m_delta; /*!< deltatime accumulation */
+    size_t m_count; /*!< number of events fed since the last reset */
+#endif
 
 };
-
-#endif
 
 #endif // CORE_HANDLER_H

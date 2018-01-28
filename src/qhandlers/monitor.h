@@ -33,7 +33,7 @@ class MetaMonitor : public MetaHandler {
 public:
     explicit MetaMonitor(QObject* parent);
 
-    Instance instantiate() override;
+    void setContent(HandlerProxy& proxy) override;
 
 };
 

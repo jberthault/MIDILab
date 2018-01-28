@@ -34,7 +34,8 @@ class MetaHarmonica : public MetaInstrument {
 public:
     explicit MetaHarmonica(QObject* parent);
 
-    Instance instantiate() override;
+    void setContent(HandlerProxy& proxy) override;
+
 
 };
 

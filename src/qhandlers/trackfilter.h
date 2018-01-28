@@ -33,7 +33,7 @@ class MetaTrackFilter : public MetaHandler {
 public:
     explicit MetaTrackFilter(QObject* parent);
 
-    Instance instantiate() override;
+    void setContent(HandlerProxy& proxy) override;
 
 };
 

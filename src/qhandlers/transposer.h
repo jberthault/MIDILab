@@ -33,7 +33,8 @@ class MetaTransposer : public MetaHandler {
 public:
     explicit MetaTransposer(QObject* parent);
 
-    Instance instantiate() override;
+    void setContent(HandlerProxy& proxy) override;
+
 
 };
 
@@ -46,10 +47,12 @@ class TransposerEditor : public HandlerEditor {
     Q_OBJECT
 
 public:
-    explicit TransposerEditor(Transposer* handler);
+    explicit TransposerEditor();
 
     Parameters getParameters() const override;
     size_t setParameter(const Parameter& parameter) override;
+
+    Handler* getHandler() const override;
 
 protected:
     void updateContext(Context* context) override;
@@ -59,7 +62,7 @@ private slots:
     void updateText(channels_t channels);
 
 private:
-    Transposer* mHandler;
+    std::unique_ptr<Transposer> mHandler;
     ChannelsSlider* mSlider;
     channel_map_t<int> mKeys;
 

@@ -35,7 +35,7 @@ class MetaRecorder : public MetaHandler {
 public:
     explicit MetaRecorder(QObject* parent);
 
-    Instance instantiate() override;
+    void setContent(HandlerProxy& proxy) override;
 
 };
 
@@ -48,7 +48,9 @@ class RecorderEditor : public HandlerEditor {
     Q_OBJECT
 
 public:
-    explicit RecorderEditor(SequenceWriter* handler);
+    explicit RecorderEditor();
+
+    Handler* getHandler() const override;
 
 public slots:
     void setRecording(bool recording);
@@ -59,7 +61,7 @@ private slots:
     void stopRecording();
 
 private:
-    SequenceWriter* mWriter;
+    std::unique_ptr<SequenceWriter> mWriter;
     QPushButton* mRecordButton;
     QLabel* mLabel;
 

@@ -207,10 +207,125 @@ private:
 };
 
 //=============
-// MetaHandler
+// HandlerView
 //=============
 
-class HandlerEditor;
+class Context;
+class ChannelEditor;
+
+class HandlerView : public QWidget {
+
+    Q_OBJECT
+
+public:
+    struct Parameter {
+        QString name;
+        QString value;
+    };
+
+    using Parameters = std::vector<Parameter>;
+
+    explicit HandlerView();
+
+    ChannelEditor* channelEditor(); /*!< shortcut for context()->channelEditor() */
+
+    Context* context();
+    void setContext(Context* context);
+
+    virtual Parameters getParameters() const;
+    virtual size_t setParameter(const Parameter& parameter);
+
+protected:
+    virtual void updateContext(Context* context);
+
+private:
+    Context* mContext;
+
+};
+
+//=================
+// EditableHandler
+//=================
+
+class EditableHandler : public HandlerView, public Handler {
+
+    Q_OBJECT
+
+public:
+    explicit EditableHandler(mode_type mode);
+
+};
+
+//===============
+// HandlerEditor
+//===============
+
+class HandlerEditor : public HandlerView {
+
+    Q_OBJECT
+
+public:
+    explicit HandlerEditor() = default;
+
+    virtual Handler* getHandler() const = 0;
+
+};
+
+//==============
+// HandlerProxy
+//==============
+
+class HandlerProxy {
+
+public:
+    using Parameter = HandlerView::Parameter;
+    using Parameters = HandlerView::Parameters;
+
+    HandlerProxy();
+
+    Handler* handler() const;
+    HandlerView* view() const;
+    EditableHandler* editable() const;
+    HandlerEditor* editor() const;
+
+    void setContent(Handler* handler);
+    void setContent(HandlerEditor* editor);
+
+    QString identifier() const;
+    void setIdentifier(const QString& identifier);
+
+    void setReceiver(DefaultReceiver* receiver) const;
+
+    QString name() const;
+    void setName(const QString& name) const;
+
+    Handler::state_type currentState() const;
+    Handler::state_type supportedState() const;
+    void setState(bool open, Handler::state_type state = handler_ns::endpoints_state) const;
+    void toggleState(Handler::state_type state = handler_ns::endpoints_state) const;
+
+    Parameters getParameters() const;
+    void setParameter(const Parameter& parameter) const;
+    void setParameters(const Parameters& parameters) const;
+
+    Context* context() const;
+    void setContext(Context* context) const;
+
+    void show() const;
+    void destroy();
+
+private:
+    Handler* mHandler;
+    HandlerView* mView;
+    QString mIdentifier;
+
+};
+
+using HandlerProxies = std::vector<HandlerProxy>;
+
+//=============
+// MetaHandler
+//=============
 
 class MetaHandler : public QObject {
 
@@ -227,24 +342,17 @@ public:
 
     using MetaParameters = std::vector<MetaParameter>;
 
-    struct Parameter {
-        QString name; /*!< identifier of the supported MetaParameter */
-        QString value; /*!< encoded value of the parameter (depending on its MetaParameter's type) */
-    };
-
-    using Parameters = std::vector<Parameter>;
-
-    using Instance = std::pair<Handler*, HandlerEditor*>;
-
     using QObject::QObject;
 
     const QString& identifier() const;
     const QString& description() const;
     const MetaParameters& parameters() const;
 
-    virtual Instance instantiate() = 0;
+    HandlerProxy instantiate();
 
 protected:
+    virtual void setContent(HandlerProxy& proxy) = 0;
+
     void setIdentifier(const QString& identifier);
     void setDescription(const QString& description);
     void addParameters(const MetaParameters& parameters);
@@ -304,8 +412,6 @@ private:
 // Context
 //=========
 
-class ChannelEditor;
-
 class Context : public QObject {
 
     Q_OBJECT
@@ -314,53 +420,10 @@ public:
     using QObject::QObject;
 
     virtual ChannelEditor* channelEditor() = 0;
-    virtual QList<Handler*> getHandlers() = 0;
+    virtual const HandlerProxies& getProxies() const = 0;
     virtual PathRetriever* pathRetriever(const QString& type) = 0;
 
-};
-
-//=============
-// HandlerView
-//=============
-
-class HandlerView : public QWidget {
-
-    Q_OBJECT
-
-public:
-
-    using Parameter = MetaHandler::Parameter;
-    using Parameters = MetaHandler::Parameters;
-
-    explicit HandlerView();
-
-    ChannelEditor* channelEditor(); /*!< shortcut for context()->channelEditor() */
-
-    Context* context();
-    void setContext(Context* context);
-
-    virtual Parameters getParameters() const;
-    virtual size_t setParameter(const Parameter& Parameter);
-    size_t setParameters(const Parameters& parameters);
-
-protected:
-    virtual void updateContext(Context* context);
-
-private:
-    Context* mContext;
-
-};
-
-//===============
-// HandlerEditor
-//===============
-
-class HandlerEditor : public HandlerView {
-
-    Q_OBJECT
-
-public:
-    explicit HandlerEditor() = default;
+    HandlerProxy getProxy(const Handler* handler) const;
 
 };
 
@@ -381,7 +444,7 @@ public:
 // GraphicalHandler
 //==================
 
-class GraphicalHandler : public HandlerView, public Handler {
+class GraphicalHandler : public EditableHandler {
 
     Q_OBJECT
 

@@ -77,7 +77,7 @@ class MetaControllerWheel : public MetaWheel {
 public:
     explicit MetaControllerWheel(QObject* parent);
 
-    Instance instantiate() override;
+    void setContent(HandlerProxy& proxy) override;
 
 };
 
@@ -128,7 +128,7 @@ class MetaPitchWheel : public MetaWheel {
 public:
     explicit MetaPitchWheel(QObject* parent);
 
-    Instance instantiate() override;
+    void setContent(HandlerProxy& proxy) override;
 
 };
 
@@ -184,7 +184,8 @@ class MetaProgramWheel : public MetaWheel {
 public:
     explicit MetaProgramWheel(QObject* parent);
 
-    Instance instantiate() override;
+    void setContent(HandlerProxy& proxy) override;
+
 };
 
 //==============
@@ -221,7 +222,7 @@ class MetaVolume1Wheel : public MetaWheel {
 public:
     explicit MetaVolume1Wheel(QObject* parent);
 
-    Instance instantiate() override;
+    void setContent(HandlerProxy& proxy) override;
 
 };
 
@@ -251,7 +252,7 @@ class MetaVolume2Wheel : public MetaWheel {
 public:
     explicit MetaVolume2Wheel(QObject* parent);
 
-    Instance instantiate() override;
+    void setContent(HandlerProxy& proxy) override;
 
 };
 

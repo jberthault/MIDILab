@@ -155,9 +155,6 @@ bool parseOrientation(const QString& data, Qt::Orientation& orientation) {
     return ok;
 }
 
-
-
-
 }
 
 //==============
@@ -242,6 +239,186 @@ void CustomReceiver::setObserver(Observer* observer) {
 }
 
 //=============
+// HandlerView
+//=============
+
+HandlerView::HandlerView() : QWidget(nullptr), mContext(nullptr) {
+
+}
+
+ChannelEditor* HandlerView::channelEditor() {
+    return context() ? context()->channelEditor() : nullptr;
+}
+
+Context* HandlerView::context() {
+    return mContext;
+}
+
+void HandlerView::setContext(Context* context) {
+    updateContext(context);
+    mContext = context;
+}
+
+HandlerView::Parameters HandlerView::getParameters() const {
+    return {};
+}
+
+size_t HandlerView::setParameter(const Parameter& /*parameter*/) {
+    return 0;
+}
+
+void HandlerView::updateContext(Context* /*context*/) {
+
+}
+
+//=================
+// EditableHandler
+//=================
+
+EditableHandler::EditableHandler(mode_type mode) : HandlerView(), Handler(mode) {
+
+}
+
+//==============
+// HandlerProxy
+//==============
+
+HandlerProxy::HandlerProxy() : mHandler(nullptr), mView(nullptr) {
+
+}
+
+Handler* HandlerProxy::handler() const {
+    return mHandler;
+}
+
+HandlerView* HandlerProxy::view() const {
+    return mView;
+}
+
+EditableHandler* HandlerProxy::editable() const {
+    return dynamic_cast<EditableHandler*>(mHandler);
+}
+
+HandlerEditor* HandlerProxy::editor() const {
+    return dynamic_cast<HandlerEditor*>(mView);
+}
+
+void HandlerProxy::setContent(Handler* handler) {
+    mHandler = handler;
+    mView = dynamic_cast<EditableHandler*>(handler);
+}
+
+void HandlerProxy::setContent(HandlerEditor* editor) {
+    mHandler = editor->getHandler();
+    mView = editor;
+    Q_ASSERT(editable() == nullptr);
+}
+
+QString HandlerProxy::identifier() const {
+    return mIdentifier;
+}
+
+void HandlerProxy::setIdentifier(const QString& identifier) {
+    mIdentifier = identifier;
+}
+
+void HandlerProxy::setReceiver(DefaultReceiver* receiver) const {
+    if (mHandler) {
+        auto customReceiver = dynamic_cast<CustomReceiver*>(mHandler->receiver());
+        if (customReceiver)
+            customReceiver->setObserver(receiver);
+        else
+            mHandler->set_receiver(receiver);
+    }
+}
+
+QString HandlerProxy::name() const {
+    return handlerName(mHandler);
+}
+
+void HandlerProxy::setName(const QString& name) const {
+    if (mHandler)
+        mHandler->set_name(qstring2name(name));
+}
+
+Handler::state_type HandlerProxy::currentState() const {
+    return mHandler ? mHandler->state() : Handler::state_type{};
+}
+
+Handler::state_type HandlerProxy::supportedState() const {
+    Handler::state_type state;
+    if (mHandler) {
+        if (mHandler->mode().any(handler_ns::forward_mode))
+            state |= handler_ns::forward_state;
+        if (mHandler->mode().any(handler_ns::receive_mode))
+            state |= handler_ns::receive_state;
+    }
+    return state;
+}
+
+void HandlerProxy::setState(bool open, Handler::state_type state) const {
+    if (mHandler) {
+        if (mHandler->mode().any(handler_ns::thru_mode)) {
+            // thru mode should process all states at once
+            state = handler_ns::endpoints_state;
+        } else {
+            // do not process states that are not supported
+            state &= supportedState();
+        }
+        if (mHandler->state().all(state) == open) {
+            TRACE_WARNING(name() << " handler already " << (open ? "opened" : "closed"));
+            return;
+        }
+        mHandler->send_message(open ? Handler::open_event(state) : Handler::close_event(state));
+    }
+}
+
+void HandlerProxy::toggleState(Handler::state_type state) const {
+    bool isOpen = currentState().all(state & supportedState());
+    setState(!isOpen, state);
+}
+
+HandlerProxy::Parameters HandlerProxy::getParameters() const {
+    return mView ? mView->getParameters() : Parameters{};
+}
+
+void HandlerProxy::setParameter(const Parameter& parameter) const {
+    if (mView && !mView->setParameter(parameter))
+        TRACE_WARNING("unable to set parameter " << parameter.name);
+}
+
+void HandlerProxy::setParameters(const Parameters& parameters) const {
+    for (const auto& parameter : parameters)
+        setParameter(parameter);
+}
+
+Context* HandlerProxy::context() const {
+    return mView ? mView->context() : nullptr;
+}
+
+void HandlerProxy::setContext(Context* context) const {
+    if (mView)
+        mView->setContext(context);
+}
+
+void HandlerProxy::show() const {
+    if (mView) {
+        mView->window()->show();
+        mView->activateWindow();
+        mView->raise();
+    }
+}
+
+void HandlerProxy::destroy() {
+    if (mView)
+        mView->deleteLater();
+    else if (mHandler)
+        delete mHandler;
+    mHandler = nullptr;
+    mView = nullptr;
+}
+
+//=============
 // MetaHandler
 //=============
 
@@ -263,6 +440,13 @@ void MetaHandler::setDescription(const QString& description) {
 
 const MetaHandler::MetaParameters& MetaHandler::parameters() const {
     return mParameters;
+}
+
+HandlerProxy MetaHandler::instantiate() {
+    HandlerProxy proxy;
+    proxy.setIdentifier(mIdentifier);
+    setContent(proxy);
+    return proxy;
 }
 
 void MetaHandler::addParameters(const MetaParameters& parameters) {
@@ -332,48 +516,14 @@ size_t MetaHandlerCollector::addPlugins(const QDir& dir) {
     return count;
 }
 
-//=============
-// HandlerView
-//=============
+//=========
+// Context
+//=========
 
-HandlerView::HandlerView() : QWidget(nullptr), mContext(nullptr) {
-
-}
-
-ChannelEditor* HandlerView::channelEditor() {
-    return context() ? context()->channelEditor() : nullptr;
-}
-
-Context* HandlerView::context() {
-    return mContext;
-}
-
-void HandlerView::setContext(Context* context) {
-    updateContext(context);
-    mContext = context;
-}
-
-HandlerView::Parameters HandlerView::getParameters() const {
-    return {};
-}
-
-size_t HandlerView::setParameter(const Parameter& /*parameter*/) {
-    return 0;
-}
-
-size_t HandlerView::setParameters(const Parameters& parameters) {
-    size_t results = 0;
-    for (const auto& parameter : parameters) {
-        size_t count = setParameter(parameter);
-        if (!count)
-            TRACE_WARNING("unable to set parameter " << parameter.name.toStdString());
-        results += count;
-    }
-    return results;
-}
-
-void HandlerView::updateContext(Context* /*context*/) {
-
+HandlerProxy Context::getProxy(const Handler* handler) const {
+    const auto& proxies = getProxies();
+    auto it = std::find_if(proxies.begin(), proxies.end(), [=](const auto& proxy) { return proxy.handler() == handler; });
+    return it != proxies.end() ? *it : HandlerProxy{};
 }
 
 //======================
@@ -388,19 +538,19 @@ MetaGraphicalHandler::MetaGraphicalHandler(QObject* parent) : MetaHandler(parent
 // GraphicalHandler
 //==================
 
-GraphicalHandler::GraphicalHandler(mode_type mode) : HandlerView(), Handler(mode), mTrack(Message::no_track) {
+GraphicalHandler::GraphicalHandler(mode_type mode) : EditableHandler(mode), mTrack(Message::no_track) {
 
 }
 
 HandlerView::Parameters GraphicalHandler::getParameters() const {
-    auto result = HandlerView::getParameters();
+    auto result = EditableHandler::getParameters();
     SERIALIZE("track", serial::serializeNumber, mTrack, result);
     return result;
 }
 
 size_t GraphicalHandler::setParameter(const Parameter& parameter) {
     UNSERIALIZE("track", serial::parseULong, setTrack, parameter);
-    return HandlerView::setParameter(parameter);
+    return EditableHandler::setParameter(parameter);
 }
 
 track_t GraphicalHandler::track() const {

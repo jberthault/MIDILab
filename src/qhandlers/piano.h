@@ -105,7 +105,8 @@ class MetaPiano : public MetaInstrument {
 public:
     explicit MetaPiano(QObject* parent);
 
-    Instance instantiate() override;
+    void setContent(HandlerProxy& proxy) override;
+
 
 };
 

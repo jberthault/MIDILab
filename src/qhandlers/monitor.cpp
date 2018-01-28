@@ -43,8 +43,8 @@ MetaMonitor::MetaMonitor(QObject* parent) : MetaHandler(parent) {
     setIdentifier("Monitor");
 }
 
-MetaHandler::Instance MetaMonitor::instantiate() {
-    return Instance(new Monitor, nullptr);
+void MetaMonitor::setContent(HandlerProxy& proxy) {
+    proxy.setContent(new Monitor);
 }
 
 //=========

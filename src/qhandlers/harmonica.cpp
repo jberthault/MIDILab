@@ -38,8 +38,8 @@ MetaHarmonica::MetaHarmonica(QObject* parent) : MetaInstrument(parent) {
     addParameter("tonality", ":note", "tonality of the harmonica with the octave, the harmonica is tuned with the richter system", "C3");
 }
 
-MetaHandler::Instance MetaHarmonica::instantiate() {
-    return Instance(new Harmonica, nullptr);
+void MetaHarmonica::setContent(HandlerProxy& proxy) {
+    proxy.setContent(new Harmonica);
 }
 
 //===========

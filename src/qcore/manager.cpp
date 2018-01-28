@@ -24,6 +24,214 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "qcore/manager.h"
 #include "qtools/displayer.h"
 
+namespace {
+
+//=====================
+// ConfigurationPuller
+//=====================
+
+class ConfigurationPuller {
+
+public:
+    void addConfiguration(const Configuration& configuration) {
+        // add frames
+        auto mainDisplayer = Manager::instance->mainDisplayer();
+        if (!configuration.frames.empty())
+            setFrame(mainDisplayer, configuration.frames[0], true);
+        for (int i=1 ; i < configuration.frames.size() ; i++)
+            addFrame(mainDisplayer, configuration.frames[i], true);
+        // add handlers
+        for (const auto& handler : configuration.handlers)
+            addHandler(handler);
+        // add connections
+        for (const auto& connection : configuration.connections)
+            addConnection(connection);
+        // set colors
+        for (channel_t c=0 ; c < qMin(0x10, configuration.colors.size()) ; ++c)
+            Manager::instance->channelEditor()->setColor(c, configuration.colors.at(c));
+        // display visible frames created
+        for (auto displayer : mVisibleDisplayers)
+            displayer->show();
+    }
+
+    void addConnection(const Configuration::Connection& connection) {
+        bool hasSource = !connection.source.isEmpty();
+        Handler* tail = mHandlersReferences.value(connection.tail, nullptr);
+        Handler* head = mHandlersReferences.value(connection.head, nullptr);
+        Handler* source = hasSource ? mHandlersReferences.value(connection.source, nullptr) : nullptr;
+        if (!tail || !head || hasSource && !source) {
+            TRACE_WARNING("wrong connection handlers: " << handlerName(tail) << ' ' << handlerName(head) << ' ' << handlerName(source));
+            return;
+        }
+        Manager::instance->insertConnection(tail, head, hasSource ? Filter::handler(source) : Filter());
+    }
+
+    void addHandler(const Configuration::Handler& handler) {
+        // special treatment for system handlers (just register the id)
+        if (handler.type == "System") {
+            for (const auto& proxy : Manager::instance->getProxies()) {
+                if (proxy.name() == handler.name) {
+                    mHandlersReferences[handler.id] = proxy.handler();
+                    return;
+                }
+            }
+            TRACE_WARNING("Unknown system handler");
+            return;
+        }
+        // prepare config
+        HandlerConfiguration hc(handler.name);
+        hc.host = mViewReferences.value(handler.id, nullptr);
+        for (const auto& prop : handler.properties)
+            hc.parameters.push_back(HandlerView::Parameter{prop.key, prop.value});
+        hc.group = handler.group;
+        // create the handler
+        auto proxy = Manager::instance->loadHandler(handler.type, hc);
+        if (proxy.handler())
+            mHandlersReferences[handler.id] = proxy.handler();
+    }
+
+    void addWidget(MultiDisplayer* parent, const Configuration::Widget& widget) {
+        if (widget.isFrame)
+            addFrame(parent, widget.frame, false);
+        else
+            addView(parent, widget.view);
+    }
+
+    void addFrame(MultiDisplayer* parent, const Configuration::Frame& frame, bool isTopLevel) {
+        MultiDisplayer* displayer = isTopLevel ? parent->insertDetached() : parent->insertMulti();
+        setFrame(displayer, frame, isTopLevel);
+        if (isTopLevel && frame.visible)
+            mVisibleDisplayers.push_back(displayer);
+    }
+
+    void setFrame(MultiDisplayer* displayer, const Configuration::Frame& frame, bool isTopLevel) {
+        displayer->setOrientation(frame.layout);
+        for (const auto& widget : frame.widgets)
+            addWidget(displayer, widget);
+        if (isTopLevel) {
+            auto window = displayer->window();
+            window->setWindowTitle(frame.name);
+            if (frame.size.isValid())
+                window->resize(frame.size);
+            if (!frame.pos.isNull())
+                window->move(frame.pos);
+        }
+    }
+
+    void addView(MultiDisplayer* parent, const Configuration::View& view) {
+        mViewReferences[view.ref] = parent->insertSingle();
+    }
+
+private:
+    MultiDisplayer* mMainDisplayer;
+    QMap<QString, Handler*> mHandlersReferences;
+    QMap<QString, SingleDisplayer*> mViewReferences;
+    std::vector<MultiDisplayer*> mVisibleDisplayers;
+
+};
+
+//=====================
+// ConfigurationPuller
+//=====================
+
+class ConfigurationPusher {
+
+public:
+
+    struct Info {
+        HandlerProxy proxy;
+        Configuration::Handler parsingData;
+    };
+
+    ConfigurationPusher() {
+        int id=0;
+        const auto& proxies = Manager::instance->getProxies();
+        auto it = proxies.begin();
+        mCache.resize(proxies.size());
+        for (auto& info : mCache) {
+            info.proxy = *it;
+            info.parsingData.type = info.proxy.identifier();
+            info.parsingData.id = QString("#%1").arg(id++);
+            info.parsingData.name = info.proxy.name();
+            auto holder = dynamic_cast<StandardHolder*>(info.proxy.handler()->holder());
+            if (holder)
+                info.parsingData.group = QString::fromStdString(holder->name());
+            for (const auto& parameter : info.proxy.getParameters())
+                info.parsingData.properties.push_back(Configuration::Property{parameter.name, parameter.value});
+            ++it;
+        }
+    }
+
+    auto getSource(const Filter& filter) const {
+        QStringList sources;
+        if (boost::logic::indeterminate(filter.match_nothing()))
+            for(const auto& info : mCache)
+                if (filter.match_handler(info.proxy.handler()))
+                    sources.append(info.parsingData.id);
+        return sources.join("|");
+    }
+
+    const Info& getInfo(const Handler* handler) const {
+        return *std::find_if(mCache.begin(), mCache.end(), [=](const auto& info) { return handler == info.proxy.handler(); });
+    }
+
+    Configuration::Connection getConnection(const QString& tailId, const Listener& listener) const {
+        return {tailId, getInfo(listener.handler).parsingData.id, getSource(listener.filter)};
+    }
+
+    Configuration::View getView(SingleDisplayer* displayer) const {
+        for (const auto& info : mCache)
+            if (displayer->widget() == info.proxy.view())
+                return {info.parsingData.id};
+    }
+
+    Configuration::Frame getFrame(MultiDisplayer* displayer) const {
+        auto window = displayer->window();
+        Configuration::Frame frame;
+        frame.layout = displayer->orientation();
+        frame.name = window->windowTitle();
+        frame.pos = window->pos();
+        frame.size = window->size();
+        frame.visible = window->isVisible();
+        for (Displayer* child : displayer->directChildren())
+            frame.widgets.append(getWidget(child));
+        return frame;
+    }
+
+    Configuration::Widget getWidget(Displayer* displayer) const {
+        auto multiDisplayer = dynamic_cast<MultiDisplayer*>(displayer);
+        if (multiDisplayer)
+            return {true, getFrame(multiDisplayer), {}};
+        else
+            return {false, {}, getView(static_cast<SingleDisplayer*>(displayer))};
+    }
+
+    auto getConfiguration() const {
+        Configuration config;
+        // handlers
+        for(const auto& info : mCache)
+            config.handlers.append(info.parsingData);
+        // connections
+        for(const auto& info : mCache)
+            for (const auto& listener : info.proxy.handler()->listeners())
+                config.connections.append(getConnection(info.parsingData.id, listener));
+        // frames
+        config.frames.append(getFrame(Manager::instance->mainDisplayer()));
+        for (auto displayer : MultiDisplayer::topLevelDisplayers())
+            config.frames.append(getFrame(displayer));
+        // colors
+        for (channel_t c=0 ; c < 0x10 ; ++c)
+            config.colors.append(Manager::instance->channelEditor()->color(c));
+        return config;
+    }
+
+private:
+     std::vector<Info> mCache;
+
+};
+
+}
+
 //======================
 // HandlerConfiguration
 //======================
@@ -74,13 +282,13 @@ Manager::Manager(QObject* parent) : Context(parent) {
 }
 
 Manager::~Manager() {
-    QMapIterator<Handler*, Data> it(mStorage);
-    while (it.hasNext()) {
-        it.next();
-        if (it.value().owns)
-            delete it.key();
-    }
+    Q_ASSERT(mHandlers.empty());
+    Q_ASSERT(mHolders.empty());
     instance = nullptr;
+}
+
+MultiDisplayer* Manager::mainDisplayer() const {
+    return dynamic_cast<MultiDisplayer*>(static_cast<QMainWindow*>(parent())->centralWidget());
 }
 
 Observer* Manager::observer() const {
@@ -91,179 +299,116 @@ MetaHandlerCollector* Manager::collector() const {
     return mCollector;
 }
 
-const QMap<Handler*, Manager::Data>& Manager::storage() const {
-    return mStorage;
-}
-
-QWidget* Manager::editor(Handler* handler) {
-    auto it = mStorage.find(handler);
-    return it != mStorage.end() ? it.value().editor : nullptr;
-}
-
 ChannelEditor* Manager::channelEditor() {
     return mChannelEditor;
 }
 
-QList<Handler*> Manager::getHandlers() {
-    QList<Handler*> result;
-    QMapIterator<Handler*, Data> it(mStorage);
-    while (it.hasNext())
-        result.push_back(it.next().key());
-    return result;
+const HandlerProxies& Manager::getProxies() const {
+    return mHandlers;
 }
 
 PathRetriever* Manager::pathRetriever(const QString& type) {
     auto it = mPathRetrievers.find(type);
-    return it == mPathRetrievers.end() ? nullptr : it.value();
+    return it == mPathRetrievers.end() ? nullptr : it->second;
 }
 
-Handler* Manager::loadHandler(MetaHandler* meta, const HandlerConfiguration& config) {
-    MetaHandler::Instance instance(nullptr, nullptr);
-    if (meta) {
-        instance = meta->instantiate();
-        // set handler's name
-        instance.first->set_name(qstring2name(config.name));
-        // get instance view
-        HandlerView* view = dynamic_cast<GraphicalHandler*>(instance.first);
-        if (!view)
-            view = instance.second;
-        // set view's parent
-        if (view) {
-            auto displayer = dynamic_cast<SingleDisplayer*>(config.host);
-            if (displayer) {
-                displayer->setWidget(view);
-            } else {
-                auto mainWindow = static_cast<QMainWindow*>(parent());
-                auto container = static_cast<MultiDisplayer*>(mainWindow->centralWidget())->insertDetached();
-                displayer = container->insertSingle();
-                displayer->setWidget(view);
-                container->show();
-            }
+Configuration Manager::getConfiguration() {
+    TRACE_MEASURE("get configuration");
+    ConfigurationPusher pusher;
+    return pusher.getConfiguration();
+}
+
+void Manager::setConfiguration(const Configuration& configuration) {
+    TRACE_MEASURE("set configuration");
+    ConfigurationPuller puller;
+    puller.addConfiguration(configuration);
+}
+
+void Manager::clearConfiguration() {
+    TRACE_MEASURE("clear configuration");
+    // clear listeners
+    for (const auto& proxy : mHandlers)
+        setListeners(proxy.handler(), {});
+    // notify listening slots
+    for(const auto& proxy : mHandlers)
+        emit handlerRemoved(proxy.handler());
+    // stop holders
+    for(auto holder : mHolders)
+        holder->stop();
+    // delete handlers
+    for(auto& proxy : mHandlers)
+        proxy.destroy();
+    mHandlers.clear();
+    // delete holders
+    for(auto holder : mHolders)
+        delete holder;
+    mHolders.clear();
+    // delete all displayers
+    if (auto displayer = mainDisplayer())
+        displayer->deleteLater();
+    for (auto displayer : MultiDisplayer::topLevelDisplayers())
+        displayer->deleteLater();
+}
+
+HandlerProxy Manager::loadHandler(MetaHandler* meta, const HandlerConfiguration& config) {
+    auto proxy = meta ? meta->instantiate() : HandlerProxy{};
+    // set view's parent
+    if (auto view = proxy.view()) {
+        if (config.host) {
+            config.host->setWidget(view);
+        } else {
+            auto container = mainDisplayer()->insertDetached();
+            container->insertSingle()->setWidget(view);
+            container->show();
         }
-        // insert the handler
-        insertHandler(instance.first, instance.second, metaHandlerName(meta), config.group);
-        // set handler parameters
-        setParameters(instance.first, config.parameters);
     }
-    return instance.first;
+    // rename handler
+    proxy.setName(config.name);
+    // insert the handler
+    insertHandler(proxy, config.group);
+    // set parameters @note done after insertions to wait for a holder if the parameter calls send_message
+    proxy.setParameters(config.parameters);
+    return proxy;
 }
 
-Handler* Manager::loadHandler(const QString& type, const HandlerConfiguration& config) {
+HandlerProxy Manager::loadHandler(const QString& type, const HandlerConfiguration& config) {
     return loadHandler(mCollector->metaHandler(type), config);
 }
 
-void Manager::setHandlerOpen(Handler* handler, bool open) {
-    setHandlerState(handler, handler_ns::endpoints_state, open);
-}
-
-void Manager::setHandlerState(Handler* handler, Handler::state_type state, bool open) {
-    Q_ASSERT(handler);
-    if (handler->mode().none(handler_ns::forward_mode))
-        state &= ~handler_ns::forward_state;
-    if (handler->mode().none(handler_ns::receive_mode))
-        state &= ~handler_ns::receive_state;
-    if (handler->state().all(state) == open) {
-        TRACE_WARNING(handlerName(handler) << " handler already " << (open ? "opened" : "closed"));
-        return;
+void Manager::insertHandler(const HandlerProxy& proxy, const QString& group) {
+    if (proxy.handler()) {
+        Q_ASSERT(!proxy.handler()->holder());
+        proxy.handler()->set_holder(proxy.editable() ? mGUIHolder : getHolder(group));
+        proxy.setReceiver(mReceiver);
+        proxy.setContext(this);
+        proxy.setState(true);
+        mHandlers.push_back(proxy);
+        emit handlerInserted(proxy.handler());
     }
-    handler->send_message(open ? Handler::open_event(state) : Handler::close_event(state));
 }
 
-void Manager::toggleHandler(Handler* handler) {
+void Manager::removeHandler(Handler* handler) {
     Q_ASSERT(handler);
-    bool forward_ok = handler->mode().none(handler_ns::forward_mode) || handler->state().any(handler_ns::forward_state);
-    bool receive_ok = handler->mode().none(handler_ns::receive_mode) || handler->state().any(handler_ns::receive_state);
-    bool is_open = forward_ok && receive_ok;
-    setHandlerOpen(handler, !is_open);
-}
-
-void Manager::toggleHandler(Handler* handler, Handler::state_type state) {
-    Q_ASSERT(handler);
-    setHandlerState(handler, state, !handler->state().all(state));
+    // take proxy
+    auto px = takeProxy(handler);
+    // clear related listeners
+    setListeners(handler, {});
+    for (const auto& proxy : mHandlers) {
+        auto listeners = proxy.handler()->listeners();
+        if (listeners.remove_usage(handler))
+            setListeners(proxy.handler(), std::move(listeners));
+    }
+    // notify listening slots
+    emit handlerRemoved(handler);
+    // @todo stop event processing before destroying
+    // destroy handler
+    px.destroy();
 }
 
 void Manager::renameHandler(Handler* handler, const QString& name) {
     Q_ASSERT(handler);
     handler->set_name(qstring2name(name));
     emit handlerRenamed(handler);
-}
-
-bool Manager::editHandler(Handler* handler) {
-    QWidget* widget = editor(handler);
-    if (!widget)
-        widget = dynamic_cast<QWidget*>(handler); // handler is its own editor
-    if (!widget)
-        return false;
-    QWidget* window = widget->window();
-    if (window)
-        window->show();
-    widget->activateWindow();
-    widget->raise();
-    return true;
-}
-
-void Manager::setParameters(Handler* handler, const HandlerView::Parameters& parameters) {
-    Q_ASSERT(handler);
-    HandlerView* view = dynamic_cast<GraphicalHandler*>(handler);
-    if (!view)
-        view = dynamic_cast<HandlerView*>(editor(handler));
-    if (view)
-        view->setParameters(parameters);
-    else
-        TRACE_WARNING("no suitable class for setting " << handlerName(handler) << " parameters");
-}
-
-void Manager::insertHandler(Handler* handler, HandlerEditor* editor, const QString& type, const QString& group) {
-    Q_ASSERT(handler && !handler->holder());
-    auto graphicalHandler = dynamic_cast<GraphicalHandler*>(handler);
-    // set context
-    if (graphicalHandler)
-        graphicalHandler->setContext(this);
-    if (editor)
-        editor->setContext(this);
-    // set holder
-    handler->set_holder(graphicalHandler ? mGUIHolder : holderAt(group));
-    // set receiver
-    auto customReceiver = dynamic_cast<CustomReceiver*>(handler->receiver());
-    if (customReceiver)
-        customReceiver->setObserver(mReceiver);
-    else
-        handler->set_receiver(mReceiver);
-    // register instance
-    Data& data = mStorage[handler];
-    data.editor = editor;
-    data.type = type;
-    data.owns = graphicalHandler == nullptr;
-    // opens it
-    setHandlerOpen(handler, true);
-    // notify listeners
-    emit handlerInserted(handler);
-}
-
-void Manager::removeHandler(Handler* handler) {
-    Q_ASSERT(handler);
-    // remove from known handlers
-    Data data = mStorage.take(handler);
-    // clear listeners
-    setListeners(handler, {});
-    // clear usages
-    for (Handler* h : getHandlers()) {
-        auto listeners = h->listeners();
-        if (listeners.remove_usage(handler))
-            setListeners(h, std::move(listeners));
-    }
-    // notify listeners
-    emit handlerRemoved(handler);
-    // delete editor
-    if (data.editor)
-        data.editor->deleteLater();
-    // delete object
-    QObject* qobject = dynamic_cast<QObject*>(handler);
-    if (qobject) {
-        qobject->deleteLater();
-    } else {
-        delete handler;
-    }
 }
 
 void Manager::setListeners(Handler* handler, Listeners listeners) {
@@ -296,32 +441,32 @@ void Manager::removeConnection(Handler* tail, Handler* head, Handler* source) {
         setListeners(tail, std::move(listeners));
 }
 
-Holder* Manager::holderAt(const QString& group) {
+HandlerProxy Manager::takeProxy(const Handler* handler) {
+    HandlerProxy proxy;
+    auto it = std::find_if(mHandlers.begin(), mHandlers.end(), [=](const auto& proxy) { return proxy.handler() == handler; });
+    if (it != mHandlers.end()) {
+        proxy = *it;
+        mHandlers.erase(it);
+    }
+    return proxy;
+}
+
+Holder* Manager::getHolder(const QString& group) {
     std::string name = group.toStdString();
-    for (std::unique_ptr<StandardHolder>& holder : mHolders)
+    for (auto holder : mHolders)
         if (holder->name() == name)
-            return holder.get();
-    StandardHolder* holder = new StandardHolder(priority_t::highest, name); // let SF threads the opportunity to be realtime
+            return holder;
+    auto holder = new StandardHolder(name);
+    holder->start(priority_t::highest); // let SF threads the opportunity to be realtime
     TRACE_DEBUG("creating holder " << name << " (" << holder->get_id() << ") ...");
     mHolders.emplace_back(holder);
     return holder;
 }
 
 void Manager::quit() {
-    // ensure being called only once
-    // it seems lastWindowClosed can be emitted multiple times
-    static bool visited = false;
-    if (visited)
-        return;
-    visited = true;
-    // auto disconnect
-    TRACE_DEBUG("disconnecting handlers ...");
-    for (Handler* handler : getHandlers())
-        handler->set_listeners({});
-    // delete orphan displayers
-    TRACE_DEBUG("deleting displayers ...");
-    for (MultiDisplayer* multiDisplayer : MultiDisplayer::topLevelDisplayers())
-        multiDisplayer->deleteLater();
+    TRACE_DEBUG("quit");
+    // actual cleanup
+    clearConfiguration();
     // save path settings
     QSettings settings;
     settings.setValue("paths/midi", mPathRetrievers["midi"]->dir());

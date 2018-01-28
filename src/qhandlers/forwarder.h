@@ -33,7 +33,8 @@ class MetaForwarder : public MetaHandler {
 public:
     explicit MetaForwarder(QObject* parent);
 
-    Instance instantiate() override;
+    void setContent(HandlerProxy& proxy) override;
+
 
 };
 

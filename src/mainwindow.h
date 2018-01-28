@@ -87,21 +87,26 @@ public:
     explicit MainWindow(QWidget* parent);
 
 public slots:
-    QStringList getConfigs() const; /*!< get existing configurations */
-    void readLastConfig(); /*!< set current state from the last configuration */
-    bool readConfig(const QString& fileName); /*!< set current state from the given configuration */
-    void loadConfig(); /*!< reload application asking for the configuration */
-    void loadConfig(const QString& fileName); /*!< reload application using the given fileName */
-    void writeConfig(); /*!< save current state in a configuration */
-    void raiseConfig(const QString& fileName); /*!< put the configuration on top */
-    void updateConfigs(); /*!< update the recent configuration menu */
+    QStringList getConfigs() const;
+    void unloadConfig();
+    void loadConfig();
+    void saveConfig();
+    void clearConfig();
+    void readLastConfig();
+    void readConfig(const QString& fileName, bool raise, bool select);
+    void writeConfig(const QString& fileName);
+    void raiseConfig(const QString& fileName);
+    void updateMenu(const QStringList &configs);
 
     void about();
     void panic();
     void newDisplayer();
     void unimplemented();
-    void setupMenu();
     void addFiles(const QStringList& files); /*!< add files to an existing playlist */
+
+private:
+    void setupMainDisplayer();
+    void setupMenu();
 
 private slots:
     void onConfigSelection(QAction* action);
@@ -113,6 +118,7 @@ private:
     ProgramEditor* mProgramEditor;
     ManagerEditor* mManagerEditor;
     QMenu* mConfigMenu;
+    QAction* mLockAction;
 
 };
 

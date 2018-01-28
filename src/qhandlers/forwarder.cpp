@@ -29,6 +29,6 @@ MetaForwarder::MetaForwarder(QObject* parent) : MetaHandler(parent) {
     setDescription("Connection Tool");
 }
 
-MetaHandler::Instance MetaForwarder::instantiate() {
-    return Instance(new ForwardHandler, nullptr);
+void MetaForwarder::setContent(HandlerProxy& proxy) {
+    proxy.setContent(new ForwardHandler);
 }

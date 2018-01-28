@@ -290,6 +290,8 @@ SoundFontHandler::SoundFontHandler() : Handler(handler_ns::out_mode), m_pimpl(st
 
 }
 
+SoundFontHandler::~SoundFontHandler() = default;
+
 double SoundFontHandler::gain() const {
     return m_pimpl->gain();
 }

@@ -35,16 +35,15 @@ MetaTransposer::MetaTransposer(QObject* parent) : MetaHandler(parent) {
     setIdentifier("Transposer");
 }
 
-MetaHandler::Instance MetaTransposer::instantiate() {
-    auto handler = new Transposer;
-    return Instance(handler, new TransposerEditor(handler));
+void MetaTransposer::setContent(HandlerProxy& proxy) {
+    proxy.setContent(new TransposerEditor);
 }
 
 //==================
 // TransposerEditor
 //==================
 
-TransposerEditor::TransposerEditor(Transposer* handler) : HandlerEditor(), mHandler(handler) {
+TransposerEditor::TransposerEditor() : HandlerEditor(), mHandler(std::make_unique<Transposer>()) {
 
     mKeys.fill(0);
 
@@ -74,6 +73,10 @@ HandlerView::Parameters TransposerEditor::getParameters() const {
 size_t TransposerEditor::setParameter(const Parameter& parameter) {
     UNSERIALIZE("orientation", serial::parseOrientation, mSlider->setOrientation, parameter);
     return HandlerEditor::setParameter(parameter);
+}
+
+Handler* TransposerEditor::getHandler() const {
+    return mHandler.get();
 }
 
 void TransposerEditor::onMove(channels_t channels, qreal ratio) {

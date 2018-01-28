@@ -32,7 +32,7 @@ class MetaGuitar : public MetaInstrument {
 public:
     explicit MetaGuitar(QObject* parent);
 
-    Instance instantiate() override;
+    void setContent(HandlerProxy& proxy) override;
 
 };
 

@@ -26,229 +26,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "mainwindow.h"
 #include "qhandlers/handlers.h"
 #include "handlers/systemhandler.h"
-#include "qcore/configuration.h"
 #include "qtools/displayer.h"
 
-namespace {
-
-//=====================
-// ConfigurationPuller
-//=====================
-
-class ConfigurationPuller {
-
-public:
-    ConfigurationPuller(MultiDisplayer* mainDisplayer) : mMainDisplayer(mainDisplayer) {
-
-    }
-
-    void addConfiguration(const Configuration& configuration) {
-        TRACE_MEASURE("applying configuration");
-        // add frames
-        if (!configuration.frames.empty())
-            setFrame(mMainDisplayer, configuration.frames[0], true);
-        for (int i=1 ; i < configuration.frames.size() ; i++)
-            addFrame(mMainDisplayer, configuration.frames[i], true);
-        // add handlers
-        for (const auto& handler : configuration.handlers)
-            addHandler(handler);
-        // add connections
-        for (const auto& connection : configuration.connections)
-            addConnection(connection);
-        // set colors
-        for (channel_t c=0 ; c < qMin(0x10, configuration.colors.size()) ; ++c)
-            Manager::instance->channelEditor()->setColor(c, configuration.colors.at(c));
-        // display visible frames created
-        for (auto displayer : mVisibleDisplayers)
-            displayer->show();
-    }
-
-    void addConnection(const Configuration::Connection& connection) {
-        bool hasSource = !connection.source.isEmpty();
-        Handler* tail = mHandlersReferences.value(connection.tail, nullptr);
-        Handler* head = mHandlersReferences.value(connection.head, nullptr);
-        Handler* source = hasSource ? mHandlersReferences.value(connection.source, nullptr) : nullptr;
-        if (!tail || !head || hasSource && !source) {
-            TRACE_WARNING("wrong connection handlers: " << handlerName(tail) << ' ' << handlerName(head) << ' ' << handlerName(source));
-            return;
-        }
-        Manager::instance->insertConnection(tail, head, hasSource ? Filter::handler(source) : Filter());
-    }
-
-    void addHandler(const Configuration::Handler& handler) {
-        // special treatment for system handlers (just register the id)
-        if (handler.type == "System") {
-            for (Handler* h : Manager::instance->getHandlers()) {
-                if (handlerName(h) == handler.name) {
-                    mHandlersReferences[handler.id] = h;
-                    return;
-                }
-            }
-            TRACE_WARNING("Unknown system handler");
-            return;
-        }
-        // prepare config
-        HandlerConfiguration hc(handler.name);
-        hc.host = mViewReferences.value(handler.id, nullptr);
-        for (const auto& prop : handler.properties)
-            hc.parameters.push_back(HandlerView::Parameter{prop.key, prop.value});
-        hc.group = handler.group;
-        // create the handler
-        Handler* h = Manager::instance->loadHandler(handler.type, hc);
-        if (h)
-            mHandlersReferences[handler.id] = h;
-    }
-
-    void addWidget(MultiDisplayer* parent, const Configuration::Widget& widget) {
-        if (widget.isFrame)
-            addFrame(parent, widget.frame, false);
-        else
-            addView(parent, widget.view);
-    }
-
-    void addFrame(MultiDisplayer* parent, const Configuration::Frame& frame, bool isTopLevel) {
-        MultiDisplayer* displayer = isTopLevel ? parent->insertDetached() : parent->insertMulti();
-        setFrame(displayer, frame, isTopLevel);
-        if (isTopLevel && frame.visible)
-            mVisibleDisplayers.push_back(displayer);
-    }
-
-    void setFrame(MultiDisplayer* displayer, const Configuration::Frame& frame, bool isTopLevel) {
-        displayer->setOrientation(frame.layout);
-        for (const auto& widget : frame.widgets)
-            addWidget(displayer, widget);
-        if (isTopLevel) {
-            auto window = displayer->window();
-            window->setWindowTitle(frame.name);
-            if (frame.size.isValid())
-                window->resize(frame.size);
-            if (!frame.pos.isNull())
-                window->move(frame.pos);
-        }
-    }
-
-    void addView(MultiDisplayer* parent, const Configuration::View& view) {
-        mViewReferences[view.ref] = parent->insertSingle();
-    }
-
-private:
-    MultiDisplayer* mMainDisplayer;
-    QMap<QString, Handler*> mHandlersReferences;
-    QMap<QString, SingleDisplayer*> mViewReferences;
-    std::vector<MultiDisplayer*> mVisibleDisplayers;
-
-};
-
-//=====================
-// ConfigurationPuller
-//=====================
-
-class ConfigurationPusher {
-
-public:
-
-    struct Info {
-        Handler* handler;
-        Manager::Data data;
-        Configuration::Handler parsingData;
-    };
-
-    ConfigurationPusher(MultiDisplayer* mainDisplayer) : mMainDisplayer(mainDisplayer) {
-        int id=0;
-        const auto& storage = Manager::instance->storage();
-        QMapIterator<Handler*, Manager::Data> it(storage);
-        mCache.resize(storage.size());
-        for (auto& info : mCache) {
-            it.next();
-            info.handler = it.key();
-            info.data = it.value();
-            info.parsingData.type = info.data.type;
-            info.parsingData.id = QString("#%1").arg(id++);
-            info.parsingData.name = handlerName(info.handler);
-            auto holder = dynamic_cast<StandardHolder*>(info.handler->holder());
-            if (holder)
-                info.parsingData.group = QString::fromStdString(holder->name());
-            HandlerView* view = dynamic_cast<GraphicalHandler*>(info.handler);
-            if (!view)
-                view = dynamic_cast<HandlerView*>(info.data.editor);
-            if (view)
-                for (const auto& parameter : view->getParameters())
-                    info.parsingData.properties.push_back(Configuration::Property{parameter.name, parameter.value});
-        }
-    }
-
-    auto getSource(const Filter& filter) const {
-        QStringList sources;
-        if (boost::logic::indeterminate(filter.match_nothing()))
-            for(const auto& info : mCache)
-                if (filter.match_handler(info.handler))
-                    sources.append(info.parsingData.id);
-        return sources.join("|");
-    }
-
-    const Info& getInfo(const Handler* handler) const {
-        return *std::find_if(mCache.begin(), mCache.end(), [=](const auto& info) { return handler == info.handler; });
-    }
-
-    Configuration::Connection getConnection(const QString& tailId, const Listener& listener) const {
-        return {tailId, getInfo(listener.handler).parsingData.id, getSource(listener.filter)};
-    }
-
-    Configuration::View getView(SingleDisplayer* displayer) const {
-        for (const auto& info : mCache)
-            if (displayer->widget() == dynamic_cast<GraphicalHandler*>(info.handler) || displayer->widget() == info.data.editor)
-                return {info.parsingData.id};
-    }
-
-    Configuration::Frame getFrame(MultiDisplayer* displayer) const {
-        auto window = displayer->window();
-        Configuration::Frame frame;
-        frame.layout = displayer->orientation();
-        frame.name = window->windowTitle();
-        frame.pos = window->pos();
-        frame.size = window->size();
-        frame.visible = window->isVisible();
-        for (Displayer* child : displayer->directChildren())
-            frame.widgets.append(getWidget(child));
-        return frame;
-    }
-
-    Configuration::Widget getWidget(Displayer* displayer) const {
-        auto multiDisplayer = dynamic_cast<MultiDisplayer*>(displayer);
-        if (multiDisplayer)
-            return {true, getFrame(multiDisplayer), {}};
-        else
-            return {false, {}, getView(static_cast<SingleDisplayer*>(displayer))};
-    }
-
-     auto getConfiguration() const {
-         Configuration config;
-         // handlers
-         for(const auto& info : mCache)
-             config.handlers.append(info.parsingData);
-         // connections
-         for(const auto& info : mCache)
-             for (const auto& listener : info.handler->listeners())
-                 config.connections.append(getConnection(info.parsingData.id, listener));
-         // frames
-         config.frames.append(getFrame(mMainDisplayer));
-         for (auto displayer : MultiDisplayer::topLevelDisplayers())
-             config.frames.append(getFrame(displayer));
-         // colors
-         for (channel_t c=0 ; c < 0x10 ; ++c)
-             config.colors.append(Manager::instance->channelEditor()->color(c));
-         return config;
-    }
-
-private:
-     std::vector<Info> mCache;
-     MultiDisplayer* mMainDisplayer;
-
-};
-
 const QVariant discardConfigsData = 1;
-
-}
 
 // ============
 // AboutWindow
@@ -306,8 +86,8 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     Manager::instance->collector()->addFactory(new StandardFactory(this));
     mManagerEditor = new ManagerEditor(this);
     mProgramEditor = new ProgramEditor(Manager::instance->channelEditor(), this);
-    setCentralWidget(new MultiDisplayer(Qt::Horizontal, this));
     setupMenu();
+    setupMainDisplayer();
 }
 
 QStringList MainWindow::getConfigs() const {
@@ -315,60 +95,75 @@ QStringList MainWindow::getConfigs() const {
     return settings.value("config").toStringList();
 }
 
+void MainWindow::unloadConfig() {
+    if (QMessageBox::question(this, {}, "Do you want to unload the current configuration ?") == QMessageBox::Yes)
+        clearConfig();
+}
+
+void MainWindow::loadConfig() {
+    auto fileName = Manager::instance->pathRetriever("configuration")->getReadFile(this);
+    if (!fileName.isEmpty())
+        readConfig(fileName, true, false);
+}
+
+void MainWindow::saveConfig() {
+    auto fileName = Manager::instance->pathRetriever("configuration")->getWriteFile(this);
+    if (!fileName.isEmpty())
+        writeConfig(fileName);
+}
+
+void MainWindow::clearConfig() {
+    Manager::instance->clearConfiguration();
+    // we need a new main displayer after clearing configuration
+    setupMainDisplayer();
+    // insert system handlers
+    for (auto handler : create_system()) {
+        HandlerProxy proxy;
+        proxy.setIdentifier("System");
+        proxy.setContent(handler);
+        Manager::instance->insertHandler(proxy, "default");
+    }
+}
+
 void MainWindow::readLastConfig() {
     auto configurations = getConfigs();
     auto fileName = configurations.empty() ? QString(":/data/config.xml") : configurations.front();
-    if (readConfig(fileName) && !configurations.empty())
-        Manager::instance->pathRetriever("configuration")->setSelection(fileName);
+    readConfig(fileName, false, !configurations.empty());
 }
 
-bool MainWindow::readConfig(const QString& fileName) {
+void MainWindow::readConfig(const QString& fileName, bool raise, bool select) {
+    /// @warning ...
+    /// system handlers won't be available if parsing fails
+    /// it will be fixed with the Meta System Handler
     Configuration config;
-    // make system handlers
-    auto system_handlers = create_system();
-    for (Handler* handler : system_handlers)
-        Manager::instance->insertHandler(handler, nullptr, "System", "default");
     // read configuration
     try {
         QFile file(fileName);
         config = Configuration::read(&file);
     } catch (const QString& error) {
-        QMessageBox::critical(this, QString(), QString("Failed reading configuration file\n%1\n\n%2").arg(fileName, error));
-        return false;
+        QMessageBox::critical(this, {}, QString("Failed reading configuration file\n%1\n\n%2").arg(fileName, error));
+        return;
     }
-    // apply configuration
-    ConfigurationPuller puller(static_cast<MultiDisplayer*>(centralWidget()));
-    puller.addConfiguration(config);
+    // clear previous configuration
+    clearConfig();
+    // set the new configuration
+    Manager::instance->setConfiguration(config);
     // redo the layout
     mManagerEditor->graphEditor()->graph()->doLayout();
-    return true;
+    // update config order and retriever
+    if (raise)
+        raiseConfig(fileName);
+    if (select)
+        Manager::instance->pathRetriever("configuration")->setSelection(fileName);
 }
 
-void MainWindow::loadConfig() {
-    QString fileName = Manager::instance->pathRetriever("configuration")->getReadFile(this);
-    if (!fileName.isEmpty())
-        loadConfig(fileName);
-}
-
-void MainWindow::loadConfig(const QString& fileName) {
-    raiseConfig(fileName);
-    close();
-    QProcess::startDetached(QString("\"%1\"").arg(qApp->arguments()[0]));
-}
-
-void MainWindow::writeConfig() {
-    QString fileName = Manager::instance->pathRetriever("configuration")->getWriteFile(this);
-    if (fileName.isEmpty())
-        return;
-    ConfigurationPusher pusher(static_cast<MultiDisplayer*>(centralWidget()));
-    auto config = pusher.getConfiguration();
+void MainWindow::writeConfig(const QString& fileName) {
+    auto config = Manager::instance->getConfiguration();
     QSaveFile saveFile(fileName);
     saveFile.open(QSaveFile::WriteOnly);
     Configuration::write(&saveFile, config);
-    if (saveFile.commit()) {
+    if (saveFile.commit())
         raiseConfig(fileName);
-        updateConfigs();
-    }
 }
 
 void MainWindow::raiseConfig(const QString& fileName) {
@@ -382,10 +177,11 @@ void MainWindow::raiseConfig(const QString& fileName) {
     while (configurations.size() > 8)
         configurations.removeLast();
     settings.setValue("config", configurations);
+    // update menu
+    updateMenu(configurations);
 }
 
-void MainWindow::updateConfigs() {
-    auto configs = getConfigs();
+void MainWindow::updateMenu(const QStringList& configs) {
     mConfigMenu->clear();
     if (!configs.isEmpty()) {
         for (const QString& configurationFile : configs) {
@@ -400,25 +196,44 @@ void MainWindow::updateConfigs() {
     clearAction->setEnabled(!configs.isEmpty());
 }
 
-void MainWindow::onConfigSelection(QAction* action) {
-    auto fileName = action->data().toString();
-    if (fileName.isNull()) { // clear action triggerred
-        auto result = QMessageBox::question(this, QString(), "Do you want to clear configurations ?");
-        if (result == QMessageBox::Yes) {
-            QSettings settings;
-            settings.remove("config");
-            updateConfigs();
-         }
-    } else {
-        auto result = QMessageBox::question(this, QString(), "Do you want to reload the application ?");
-        if (result == QMessageBox::Yes)
-            loadConfig(fileName);
+void MainWindow::about() {
+    auto aboutWindow = new AboutWindow(this);
+    aboutWindow->setAttribute(Qt::WA_DeleteOnClose);
+    aboutWindow->exec();
+}
+
+void MainWindow::panic() {
+    for (const auto& proxy : Manager::instance->getProxies())
+        proxy.setState(false);
+}
+
+void MainWindow::newDisplayer() {
+    Manager::instance->mainDisplayer()->insertDetached()->show();
+}
+
+void MainWindow::unimplemented() {
+    QMessageBox::warning(this, {}, "Feature not implemented yet");
+}
+
+void MainWindow::addFiles(const QStringList& files) {
+    if (files.empty())
+        return;
+    for (const auto& proxy : Manager::instance->getProxies()) {
+        if (proxy.identifier() == "Player") {
+            proxy.setParameter({"playlist", files.join(";")});
+            return;
+        }
     }
 }
 
-void MainWindow::setupMenu() {
+void MainWindow::setupMainDisplayer() {
+    auto mainDisplayer = new MultiDisplayer(Qt::Horizontal, this);
+    mainDisplayer->setLocked(mLockAction->isChecked());
+    setCentralWidget(mainDisplayer);
+    connect(mLockAction, &QAction::toggled, mainDisplayer, &MultiDisplayer::setLocked);
+}
 
-    MultiDisplayer* displayer = static_cast<MultiDisplayer*>(centralWidget());
+void MainWindow::setupMenu() {
 
 //    QToolBar* toolbar = addToolBar("quick actions");
 
@@ -427,12 +242,13 @@ void MainWindow::setupMenu() {
 
     // extends menu
     QMenu* fileMenu = menu->addMenu("File");
+    fileMenu->addAction(QIcon(":/data/rain.svg"), "Unload configuration", this, SLOT(unloadConfig()));
     fileMenu->addAction(QIcon(":/data/cloud-download.svg"), "Load configuration", this, SLOT(loadConfig()));
-    fileMenu->addAction(QIcon(":/data/cloud-upload.svg"), "Save configuration", this, SLOT(writeConfig()));
+    fileMenu->addAction(QIcon(":/data/cloud-upload.svg"), "Save configuration", this, SLOT(saveConfig()));
     mConfigMenu = fileMenu->addMenu(QIcon(":/data/cloud.svg"), "Recent configurations");
     mConfigMenu->setToolTipsVisible(true);
     connect(mConfigMenu, &QMenu::triggered, this, &MainWindow::onConfigSelection);
-    updateConfigs();
+    updateMenu(getConfigs());
 
     // add recent config / midi files loaded
     fileMenu->addSeparator();
@@ -451,11 +267,10 @@ void MainWindow::setupMenu() {
     QIcon lockIcon;
     lockIcon.addFile(":/data/lock-locked.svg", QSize(), QIcon::Normal, QIcon::On);
     lockIcon.addFile(":/data/lock-unlocked.svg", QSize(), QIcon::Normal, QIcon::Off);
-    QAction* lockAction = new QAction(lockIcon, "Lock Layout", this);
-    lockAction->setCheckable(true);
-    lockAction->setChecked(displayer->isLocked());
-    connect(lockAction, &QAction::toggled, displayer, &MultiDisplayer::setLocked);
-    interfaceMenu->addAction(lockAction);
+    mLockAction = new QAction(lockIcon, "Lock Layout", this);
+    mLockAction->setCheckable(true);
+    mLockAction->setChecked(true);
+    interfaceMenu->addAction(mLockAction);
 
     interfaceMenu->addAction(QIcon(":/data/plus.svg"), "Add Container", this, SLOT(newDisplayer()));
 
@@ -469,16 +284,17 @@ void MainWindow::setupMenu() {
 
 }
 
-void MainWindow::addFiles(const QStringList& files) {
-    if (files.empty())
-        return;
-    QMapIterator<Handler*, Manager::Data> it(Manager::instance->storage());
-    while (it.hasNext()) {
-        it.next();
-        if (it.value().type == "Player") {
-            Manager::instance->setParameters(it.key(), {HandlerView::Parameter{"playlist", files.join(";")}});
-            return;
+void MainWindow::onConfigSelection(QAction* action) {
+    auto fileName = action->data().toString();
+    if (fileName.isNull()) { // clear action triggerred
+        if (QMessageBox::question(this, {}, "Do you want to clear configurations ?") == QMessageBox::Yes) {
+            QSettings settings;
+            settings.remove("config");
+            updateMenu({});
         }
+    } else {
+        if (QMessageBox::question(this, {}, "Do you want to load this configuration ?") == QMessageBox::Yes)
+            readConfig(fileName, true, true);
     }
 }
 
@@ -486,23 +302,4 @@ void MainWindow::closeEvent(QCloseEvent* event) {
     for (auto displayer : MultiDisplayer::topLevelDisplayers())
         displayer->close();
     QMainWindow::closeEvent(event);
-}
-
-void MainWindow::newDisplayer() {
-    static_cast<MultiDisplayer*>(centralWidget())->insertDetached()->show();
-}
-
-void MainWindow::about() {
-    auto aboutWindow = new AboutWindow(this);
-    aboutWindow->setAttribute(Qt::WA_DeleteOnClose);
-    aboutWindow->exec();
-}
-
-void MainWindow::panic() {
-    for (Handler* handler : Manager::instance->getHandlers())
-        Manager::instance->setHandlerOpen(handler, false);
-}
-
-void MainWindow::unimplemented() {
-    QMessageBox::warning(this, QString(), "Feature not implemented yet");
 }

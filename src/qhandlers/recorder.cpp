@@ -29,16 +29,15 @@ MetaRecorder::MetaRecorder(QObject* parent) : MetaHandler(parent) {
     setIdentifier("Recorder");
 }
 
-MetaHandler::Instance MetaRecorder::instantiate() {
-    auto handler = new SequenceWriter;
-    return Instance(handler, new RecorderEditor(handler));
+void MetaRecorder::setContent(HandlerProxy& proxy) {
+    proxy.setContent(new RecorderEditor);
 }
 
 //================
 // RecorderEditor
 //================
 
-RecorderEditor::RecorderEditor(SequenceWriter* handler) : HandlerEditor(), mWriter(handler) {
+RecorderEditor::RecorderEditor() : HandlerEditor(), mWriter(std::make_unique<SequenceWriter>()) {
 
     mRecordButton = new QPushButton("Status", this);
     QIcon icon;
@@ -53,6 +52,10 @@ RecorderEditor::RecorderEditor(SequenceWriter* handler) : HandlerEditor(), mWrit
     mLabel->setText("");
 
     setLayout(make_vbox(mRecordButton, mLabel));
+}
+
+Handler* RecorderEditor::getHandler() const {
+    return mWriter.get();
 }
 
 void RecorderEditor::setRecording(bool recording) {

@@ -33,7 +33,7 @@ class MetaChannelMapper : public MetaHandler {
 public:
     explicit MetaChannelMapper(QObject* parent);
 
-    Instance instantiate() override;
+    void setContent(HandlerProxy& proxy) override;
 
 };
 
@@ -46,7 +46,9 @@ class ChannelMapperEditor : public HandlerEditor {
     Q_OBJECT
 
 public:
-    explicit ChannelMapperEditor(ChannelMapper* handler);
+    explicit ChannelMapperEditor();
+
+    Handler* getHandler() const override;
 
 public slots:
     void updateMapper();
@@ -54,7 +56,7 @@ public slots:
     void resetMapper();
 
 private:
-    ChannelMapper* mHandler;
+    std::unique_ptr<ChannelMapper> mHandler;
     channel_map_t<channel_map_t<QCheckBox*>> mCheckBoxes;
 
 };

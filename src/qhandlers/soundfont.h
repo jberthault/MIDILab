@@ -39,7 +39,7 @@ class MetaSoundFont : public MetaHandler {
 public:
     explicit MetaSoundFont(QObject* parent);
 
-    Instance instantiate() override;
+    void setContent(HandlerProxy& proxy) override;
 
 };
 
@@ -142,10 +142,12 @@ class SoundFontEditor : public HandlerEditor {
     Q_OBJECT
 
 public:
-    explicit SoundFontEditor(SoundFontHandler* handler);
+    explicit SoundFontEditor();
 
     Parameters getParameters() const override;
     size_t setParameter(const Parameter& parameter) override;
+
+    Handler* getHandler() const override;
 
 public slots:
     void setFile(const QString& file);
@@ -159,7 +161,7 @@ private slots:
     void sendReverb(const SoundFontHandler::optional_reverb_type& reverb);
 
 private:
-    SoundFontHandler* mHandler;
+    std::unique_ptr<SoundFontHandler> mHandler;
     SoundFontReceiver* mReceiver;
     QMovie* mLoadMovie;
     QLabel* mLoadLabel;

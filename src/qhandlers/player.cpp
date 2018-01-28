@@ -634,9 +634,9 @@ void PlaylistTable::browseFiles() {
 void PlaylistTable::browseRecorders() {
     // get all sequence writers
     QList<Handler*> handlers;
-    for (Handler* handler : mContext->getHandlers())
-        if (dynamic_cast<SequenceWriter*>(handler))
-            handlers << handler;
+    for (const auto& proxy : mContext->getProxies())
+        if (dynamic_cast<SequenceWriter*>(proxy.handler()))
+            handlers << proxy.handler();
     if (handlers.empty()) {
         QMessageBox::information(this, QString(), "No recorder available");
         return;
@@ -1218,17 +1218,16 @@ MetaPlayer::MetaPlayer(QObject* parent) : MetaHandler(parent) {
     setIdentifier("Player");
 }
 
-MetaPlayer::Instance MetaPlayer::instantiate() {
-    auto handler = new SequenceReader;
-    return Instance(handler, new Player(handler));
+void MetaPlayer::setContent(HandlerProxy& proxy) {
+    proxy.setContent(new Player);
 }
 
 //========
 // Player
 //========
 
-Player::Player(SequenceReader* handler) :
-    HandlerEditor(), mIsPlaying(false), mPlayer(handler), mIsStepping(false) {
+Player::Player() :
+    HandlerEditor(), mIsPlaying(false), mPlayer(std::make_unique<SequenceReader>()), mIsStepping(false) {
 
     mPlaylist = new PlaylistTable(this);
     connect(mPlaylist, SIGNAL(doubleClicked(QModelIndex)), SLOT(launch(QModelIndex)));
@@ -1280,6 +1279,10 @@ size_t Player::setParameter(const Parameter& parameter) {
         return 1;
     }
     return HandlerEditor::setParameter(parameter);
+}
+
+Handler* Player::getHandler() const {
+    return mPlayer.get();
 }
 
 void Player::updateContext(Context* context) {
@@ -1438,7 +1441,7 @@ void Player::pauseSequence() {
 
 void Player::resetSequence() {
     mPlayer->stop_playing(true);
-    mPlayer->forward_message({Event::reset(), mPlayer}); // force reset
+    mPlayer->forward_message({Event::reset(), mPlayer.get()}); // force reset
     if (mIsPlaying) {
         mIsPlaying = false;
         mIsStepping = false;

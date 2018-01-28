@@ -193,8 +193,8 @@ MetaPiano::MetaPiano(QObject* parent) : MetaInstrument(parent) {
     addParameter("range", ":NoteRange", "closed range \"<first_note>:<last_note>\" of notes composing the keyboard", "A0:C8");
 }
 
-MetaHandler::Instance MetaPiano::instantiate() {
-    return Instance(new Piano, nullptr);
+void MetaPiano::setContent(HandlerProxy& proxy) {
+    proxy.setContent(new Piano);
 }
 
 //=======
