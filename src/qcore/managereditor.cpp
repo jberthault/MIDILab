@@ -234,11 +234,9 @@ void HandlerGraphEditor::insertHandler(Handler* handler) {
 }
 
 void HandlerGraphEditor::removeHandler(Handler* handler) {
-    HandlerNode* node = getNode(handler);
-    if (node != nullptr) {
-        mNodes.remove(handler);
+    HandlerNode* node = mNodes.take(handler);
+    if (node != nullptr)
         mGraph->deleteNode(node);
-    }
     mSelector->removeHandler(handler);
 }
 
@@ -262,7 +260,8 @@ void HandlerGraphEditor::updateListeners(Handler* handler) {
         updateEdgeVisibility(edge);
     }
     // delete old edges that no longer exist
-    for (Edge* edge : tailNode->edges())
+    auto edges = tailNode->edges(); // makes a copy as the list may change
+    for (Edge* edge : edges)
         if (edge->tail() == tailNode && listeners.count(static_cast<EdgeWrapper*>(edge)->receiver()->handler()) == 0)
             mGraph->deleteEdge(edge);
 }
