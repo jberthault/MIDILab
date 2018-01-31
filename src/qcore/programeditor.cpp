@@ -397,7 +397,7 @@ Handler* ProgramEditor::currentHandler() {
 }
 
 void ProgramEditor::insertHandler(Handler* handler) {
-    if (asMode(handler, handler_ns::out_mode)) {
+    if (handler->mode().any(handler_ns::out_mode)) {
         mRecords[handler] = HandlerData(0, QMap<channel_t, byte_t>());
         mHandlerSelector->insertHandler(handler);
     }

@@ -25,22 +25,6 @@ using namespace controller_ns;
 using namespace family_ns;
 using namespace handler_ns;
 
-//==========
-// misc ...
-//==========
-
-bool asMode(Handler* handler, Handler::mode_type mode) {
-    return handler->mode().any(mode);
-}
-
-bool asTail(Handler* handler) {
-    return asMode(handler, in_mode);
-}
-
-bool asHead(Handler* handler) {
-    return asMode(handler, out_mode);
-}
-
 //============
 // NoteMemory
 //============

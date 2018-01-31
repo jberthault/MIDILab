@@ -30,8 +30,16 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QFileDialog>
 #include "tools/trace.h"
 
+namespace qoperators {
+
+std::ostream& operator<<(std::ostream& stream, const QByteArray& byteArray) {
+    return stream << byteArray.constData();
+}
+
 std::ostream& operator<<(std::ostream& stream, const QString& string) {
-    return stream << string.toLocal8Bit().constData();
+    return stream << string.toLocal8Bit();
+}
+
 }
 
 //===============

@@ -78,16 +78,19 @@ public:
             TRACE_WARNING("Unknown system handler");
             return;
         }
-        // prepare config
-        HandlerConfiguration hc(handler.name);
-        hc.host = mViewReferences.value(handler.id, nullptr);
-        for (const auto& prop : handler.properties)
-            hc.parameters.push_back(HandlerView::Parameter{prop.key, prop.value});
-        hc.group = handler.group;
         // create the handler
-        auto proxy = Manager::instance->loadHandler(handler.type, hc);
-        if (proxy.handler())
+        auto host = mViewReferences.value(handler.id, nullptr);
+        auto proxy = Manager::instance->loadHandler(handler.type, handler.name, host, handler.group);
+        if (proxy.handler()) {
+            // register handler
             mHandlersReferences[handler.id] = proxy.handler();
+            // set handler parameters
+            for (const auto& prop : handler.properties)
+                proxy.setParameter({prop.key, prop.value});
+            // if the view does not belong to a frame, make it visible
+            if (!host && proxy.view())
+                mVisibleDisplayers.push_back(proxy.view()->window());
+        }
     }
 
     void addWidget(MultiDisplayer* parent, const Configuration::Widget& widget) {
@@ -126,7 +129,7 @@ private:
     MultiDisplayer* mMainDisplayer;
     QMap<QString, Handler*> mHandlersReferences;
     QMap<QString, SingleDisplayer*> mViewReferences;
-    std::vector<MultiDisplayer*> mVisibleDisplayers;
+    std::vector<QWidget*> mVisibleDisplayers;
 
 };
 
@@ -229,15 +232,6 @@ private:
      std::vector<Info> mCache;
 
 };
-
-}
-
-//======================
-// HandlerConfiguration
-//======================
-
-HandlerConfiguration::HandlerConfiguration(QString name) :
-    name(std::move(name)), host(nullptr), group("default"), parameters() {
 
 }
 
@@ -350,29 +344,23 @@ void Manager::clearConfiguration() {
         displayer->deleteLater();
 }
 
-HandlerProxy Manager::loadHandler(MetaHandler* meta, const HandlerConfiguration& config) {
+HandlerProxy Manager::loadHandler(MetaHandler* meta, const QString& name, SingleDisplayer* host, const QString& group) {
     auto proxy = meta ? meta->instantiate() : HandlerProxy{};
+    // rename handler
+    proxy.setName(name);
     // set view's parent
     if (auto view = proxy.view()) {
-        if (config.host) {
-            config.host->setWidget(view);
-        } else {
-            auto container = mainDisplayer()->insertDetached();
-            container->insertSingle()->setWidget(view);
-            container->show();
-        }
+        if (!host)
+            host = mainDisplayer()->insertDetached()->insertSingle();
+        host->setWidget(view);
     }
-    // rename handler
-    proxy.setName(config.name);
     // insert the handler
-    insertHandler(proxy, config.group);
-    // set parameters @note done after insertions to wait for a holder if the parameter calls send_message
-    proxy.setParameters(config.parameters);
+    insertHandler(proxy, group);
     return proxy;
 }
 
-HandlerProxy Manager::loadHandler(const QString& type, const HandlerConfiguration& config) {
-    return loadHandler(mCollector->metaHandler(type), config);
+HandlerProxy Manager::loadHandler(const QString& type, const QString& name, SingleDisplayer* host, const QString& group) {
+    return loadHandler(mCollector->metaHandler(type), name, host, group);
 }
 
 void Manager::insertHandler(const HandlerProxy& proxy, const QString& group) {

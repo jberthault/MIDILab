@@ -26,26 +26,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "qcore/configuration.h"
 #include "qtools/displayer.h"
 
-//======================
-// HandlerConfiguration
-//======================
-
-class SingleDisplayer;
-
-struct HandlerConfiguration {
-
-    HandlerConfiguration(QString name);
-
-    QString name; /*!< handler's name */
-    SingleDisplayer* host; /*!< widget receiving the handler, new detached handler if null */
-    QString group;
-    HandlerView::Parameters parameters; /*!< parameters to apply to the handler */
-
-};
-
 //=========
 // Manager
 //=========
+
+class SingleDisplayer;
 
 class Manager : public Context {
 
@@ -79,8 +64,8 @@ public:
 
     // proxies
 
-    HandlerProxy loadHandler(MetaHandler* meta, const HandlerConfiguration& config);
-    HandlerProxy loadHandler(const QString& type, const HandlerConfiguration& config);
+    HandlerProxy loadHandler(MetaHandler* meta, const QString& name, SingleDisplayer* host, const QString& group);
+    HandlerProxy loadHandler(const QString& type, const QString& name, SingleDisplayer* host, const QString& group);
 
     void insertHandler(const HandlerProxy& proxy, const QString& group);
     void removeHandler(Handler* handler);

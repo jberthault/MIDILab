@@ -35,8 +35,8 @@ namespace {
 
 auto findCodecs() {
     QList<QTextCodec*> codecs;
-    for (const auto& name : QTextCodec::availableCodecs()) {
-        auto codec = QTextCodec::codecForName(name);
+    for (auto mib : QTextCodec::availableMibs()) {
+        auto codec = QTextCodec::codecForMib(mib);
         if (!codecs.contains(codec))
             codecs.append(codec);
     }

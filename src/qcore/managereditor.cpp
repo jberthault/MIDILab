@@ -228,7 +228,7 @@ void HandlerGraphEditor::insertHandler(Handler* handler) {
         mNodes[handler] = node;
         mGraph->insertNode(node);
     }
-    if (asMode(handler, handler_ns::in_mode))
+    if (handler->mode().any(handler_ns::in_mode))
         mSelector->insertHandler(handler);
     /// @todo change style of nodes for type
 }
@@ -271,20 +271,20 @@ void HandlerGraphEditor::forwardEdgeCreation(Node* tail, Node* head) {
     Handler* receiver = static_cast<HandlerNode*>(head)->handler();
     if (!sender || !receiver) { // by construction  sender != receiver
         QMessageBox::critical(this, QString(), "Undefined sender or receiver");
-    } else if (!asMode(receiver, handler_ns::receive_mode)) {
+    } else if (receiver->mode().none(handler_ns::receive_mode)) {
         QMessageBox::warning(this, QString(), "Receiver can not handle event");
     } else {
         if (mFilter->isChecked()) {
             Handler* source = mSelector->currentHandler();
-            if (!source || !asMode(source, handler_ns::in_mode)) {
+            if (!source || source->mode().none(handler_ns::in_mode)) {
                 QMessageBox::critical(this, QString(), "Undefined source");
-            } else if (sender != source && !asMode(sender, handler_ns::thru_mode)) {
+            } else if (sender != source && sender->mode().none(handler_ns::thru_mode)) {
                 QMessageBox::warning(this, QString(), "Sender must be THRU or source");
             } else {
                 Manager::instance->insertConnection(sender, receiver, Filter::handler(source));
             }
         } else {
-            if (!asMode(sender, handler_ns::forward_mode)) {
+            if (sender->mode().none(handler_ns::forward_mode)) {
                 QMessageBox::information(this, QString(), "Sender can not forward event");
             } else {
                 Manager::instance->insertConnection(sender, receiver);
@@ -512,10 +512,8 @@ void HandlerCatalogEditor::createHandler(MetaHandler* meta) {
     DialogContainer ask(configurator, this);
     if (ask.exec() != QDialog::Accepted)
         return;
-    HandlerConfiguration hc(configurator->name());
-    hc.group = configurator->group();
-    hc.parameters = configurator->parameters();
-    auto proxy = Manager::instance->loadHandler(meta, hc);
+    auto proxy = Manager::instance->loadHandler(meta, configurator->name(), nullptr, configurator->group());
+    proxy.setParameters(configurator->parameters());
     proxy.show();
 }
 

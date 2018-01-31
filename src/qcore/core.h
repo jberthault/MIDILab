@@ -31,6 +31,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 Q_DECLARE_METATYPE(Message)
 Q_DECLARE_METATYPE(Handler*)
 
+/*!< enable QString support for std::stream */
+using namespace qoperators;
+
 //=================
 // Name Conversion
 //=================

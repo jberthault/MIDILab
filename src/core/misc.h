@@ -24,16 +24,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "event.h"
 #include "handler.h"
 
-//==========
-// misc ...
-//==========
-
-bool asMode(Handler* handler, Handler::mode_type mode);
-
-bool asTail(Handler* handler);
-
-bool asHead(Handler* handler);
-
 //============
 // NoteMemory
 //============
