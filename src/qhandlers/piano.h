@@ -21,7 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef QHANDLERS_PIANO_H
 #define QHANDLERS_PIANO_H
 
-#include "qcore/core.h"
+#include "qhandlers/common.h"
 
 //==========
 // PianoKey

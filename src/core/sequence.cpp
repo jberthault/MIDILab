@@ -564,7 +564,7 @@ bool Sequence::empty() const {
     return m_events.empty();
 }
 
-const std::set<track_t> Sequence::tracks() const {
+std::set<track_t> Sequence::tracks() const {
     std::set<track_t> results;
     for (const Item& item : m_events)
         results.insert(item.track);

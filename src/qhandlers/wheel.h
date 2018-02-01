@@ -21,7 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef QHANDLERS_WHEEL_H
 #define QHANDLERS_WHEEL_H
 
-#include "qcore/editors.h"
+#include "qhandlers/common.h"
 
 //===========
 // MetaWheel

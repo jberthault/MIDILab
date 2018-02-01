@@ -23,7 +23,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QHelpEvent>
 #include <QMouseEvent>
 #include "qhandlers/guitar.h"
-#include "qcore/editors.h"
 
 namespace {
 

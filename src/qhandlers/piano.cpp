@@ -21,7 +21,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QHelpEvent>
 #include <QToolTip>
 #include "qhandlers/piano.h"
-#include "qcore/editors.h"
 
 //==========
 // PianoKey

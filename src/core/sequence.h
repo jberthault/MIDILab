@@ -242,7 +242,7 @@ public:
     // observers
     const container_type& events() const; /*!< event accessor read only */
     bool empty() const;
-    const std::set<track_t> tracks() const; /*!< compute the tracks assigned to events */
+    std::set<track_t> tracks() const; /*!< compute the tracks assigned to events */
 
     timestamp_t first_timestamp() const; /*!< timestamp of the first event (expected to be 0) */
     timestamp_t last_timestamp() const; /*!< maximum event's timestamp in all the tracks */

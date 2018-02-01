@@ -86,25 +86,13 @@ namespace {
 
 namespace visitors {
 
-template<typename T>
-struct filter_visitor : public boost::static_visitor<T> {
-    using HandlerFilter = Filter::HandlerFilter;
-    using TrackFilter = Filter::TrackFilter;
-    using ChannelFilter = Filter::ChannelFilter;
-    using FamilyFilter = Filter::FamilyFilter;
-    using AnyFilter = Filter::AnyFilter;
-    using AllFilter = Filter::AllFilter;
-    using data_type = Filter::data_type;
-    using match_type = Filter::match_type;
-};
-
 auto negate_all(const std::vector<Filter>& filters) {
     std::vector<Filter> result(filters.size());
     std::transform(filters.begin(), filters.end(), result.begin(), [](const auto& filter) { return ~filter; });
     return result;
 }
 
-struct Negate : public filter_visitor<Filter::data_type> {
+struct Negate : public Filter::visitor_type<Filter::data_type> {
 
     auto operator()(const HandlerFilter& f) const { return HandlerFilter{f.handler, !f.reversed}; }
     auto operator()(const TrackFilter& f) const { return TrackFilter{f.track, !f.reversed}; }
@@ -115,7 +103,7 @@ struct Negate : public filter_visitor<Filter::data_type> {
 
 };
 
-struct Match : public filter_visitor<bool> {
+struct Match : public Filter::visitor_type<bool> {
 
     const Message& message;
 
@@ -132,7 +120,7 @@ struct Match : public filter_visitor<bool> {
 
 };
 
-struct MatchNothing : public filter_visitor<Filter::match_type> {
+struct MatchNothing : public Filter::visitor_type<Filter::match_type> {
 
     match_type operator()(const AnyFilter& f) const { return !f.filters.empty() && match_type(boost::logic::indeterminate); }
     match_type operator()(const AllFilter& f) const { return f.filters.empty() || match_type(boost::logic::indeterminate); }
@@ -141,7 +129,7 @@ struct MatchNothing : public filter_visitor<Filter::match_type> {
 
 };
 
-struct MatchHandler : public filter_visitor<Filter::match_type> {
+struct MatchHandler : public Filter::visitor_type<Filter::match_type> {
 
     const Handler* handler;
 
@@ -157,7 +145,7 @@ struct MatchHandler : public filter_visitor<Filter::match_type> {
 
 };
 
-struct Write : public filter_visitor<void> {
+struct Write : public Filter::visitor_type<void> {
 
     std::ostream& stream;
     bool surround;
@@ -197,8 +185,7 @@ struct Write : public filter_visitor<void> {
 
 };
 
-
-struct RemoveUsage : public filter_visitor<boost::optional<Filter::data_type>> {
+struct RemoveUsage : public Filter::visitor_type<boost::optional<Filter::data_type>> {
 
     const Handler* m_handler;
 
@@ -269,7 +256,7 @@ struct RemoveUsage : public filter_visitor<boost::optional<Filter::data_type>> {
 };
 
 template<typename T>
-struct Merge : public filter_visitor<Filter> {
+struct Merge : public Filter::visitor_type<Filter> {
 
     Filter operator()(T f1, const T& f2) const {
         f1.filters.insert(f1.filters.end(), f2.filters.begin(), f2.filters.end());
@@ -295,7 +282,7 @@ struct Merge : public filter_visitor<Filter> {
 
 };
 
-struct Cover : public filter_visitor<bool> {
+struct Cover : public Filter::visitor_type<bool> {
 
     bool apply(const data_type& f1, const data_type& f2) const {
         return apply_visitor(*this, f1, f2);

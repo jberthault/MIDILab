@@ -43,12 +43,6 @@ auto findCodecs() {
     return codecs;
 }
 
-template<typename IntegralT>
-auto modulo(IntegralT a, IntegralT b) {
-    const auto result = a % b;
-    return result >= 0 ? result : result + b;
-}
-
 }
 
 //===============
@@ -618,7 +612,7 @@ NamedSequence PlaylistTable::loadRelative(int offset, bool wrap) {
     if (mCurrentItem) {
         row = mCurrentItem->row() + offset;
         if (wrap)
-            row = modulo(row, rowCount());
+            row = safe_modulo(row, rowCount());
     }
     return loadRow(row);
 }

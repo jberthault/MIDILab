@@ -23,7 +23,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <QAbstractButton>
 #include <QMultiMap>
-#include "qcore/core.h"
+#include "qhandlers/common.h"
 
 //===============
 // MetaHarmonica

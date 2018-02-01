@@ -77,14 +77,9 @@ struct Message final {
  *
  */
 
-class Filter final {
+class Filter;
 
-public:
-
-    //-----------------
-    // data definition
-    //-----------------
-
+struct filter_traits {
     struct HandlerFilter { const Handler* handler; bool reversed; };
     struct TrackFilter { track_t track; bool reversed; };
     struct ChannelFilter { channels_t channels; };
@@ -92,9 +87,22 @@ public:
     struct AnyFilter { std::vector<Filter> filters; };
     struct AllFilter { std::vector<Filter> filters; };
 
+    using data_type = boost::variant<HandlerFilter, TrackFilter, ChannelFilter, FamilyFilter, AnyFilter, AllFilter>;
+
     using match_type = boost::logic::tribool;
 
-    using data_type = boost::variant<HandlerFilter, TrackFilter, ChannelFilter, FamilyFilter, AnyFilter, AllFilter>;
+};
+
+class Filter final : public filter_traits {
+
+public:
+
+    //-----------------
+    // data definition
+    //-----------------
+
+    template<typename T>
+    struct visitor_type : public boost::static_visitor<T>, public filter_traits {};
 
     //-------------------
     // creation features

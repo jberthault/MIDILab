@@ -115,6 +115,16 @@ constexpr std::enable_if_t<std::is_floating_point<T>::value, T> decay_value(doub
     return (T)value;
 }
 
+template<typename T, typename = std::enable_if_t<std::is_integral<T>::value>>
+constexpr auto safe_div(T a, T b) {
+    return (a >= 0 ? a : (a - b + 1)) / b; // same as: (a - safe_modulo(a, b)) / b
+}
+
+template<typename T, typename = std::enable_if_t<std::is_integral<T>::value>>
+constexpr auto safe_modulo(T a, T b) {
+    return ((a % b) + b) % b; // same as: a - b*safe_div(a, b)
+}
+
 // =====
 // range
 // =====

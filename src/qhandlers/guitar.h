@@ -21,7 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef QHANDLERS_GUITAR_H
 #define QHANDLERS_GUITAR_H
 
-#include "qcore/core.h"
+#include "qhandlers/common.h"
 
 //============
 // MetaGuitar

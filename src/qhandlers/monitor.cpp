@@ -20,7 +20,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <QPushButton>
 #include "qhandlers/monitor.h"
-#include "qcore/editors.h"
 #include "qtools/misc.h"
 
 //=========

@@ -27,11 +27,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace {
 
-template<typename T, typename = std::enable_if_t<std::is_integral<T>::value>>
-constexpr auto safe_div(T num, T den) {
-    return (num >= 0 ? num : (num - den + 1)) / den;
-}
-
 constexpr int code_offset = 12; /*!< midi code of Note(tonalities[0], 0) */
 
 }
