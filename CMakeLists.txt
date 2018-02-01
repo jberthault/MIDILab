@@ -6,7 +6,16 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 
-option(ENABLE_MEASUREMENTS "embed time measurements for debbugging purposes")
+# -------
+# options
+# -------
+
+option(ENABLE_PACKAGING "collects DLLs after a successul build in order to make a standalone installer (MinGW only)")
+option(ENABLE_LOG_DEBUG "allows 'debug' messages to appear on the standard output")
+option(ENABLE_LOG_INFO "allows 'info' messages to appear on the standard output" ON)
+option(ENABLE_LOG_WARNING "allows 'warning' messages to appear on the standard output" ON)
+option(ENABLE_LOG_ERROR "allows 'error' messages to appear on the standard output" ON)
+option(ENABLE_LOG_TIMING "embed time measurements for debugging purposes")
 
 # -------------------
 # target dependencies
@@ -35,10 +44,14 @@ add_executable(${PROJECT_NAME} ${SRC_FILES} ${QRC_FILES} ${TXT_FILES})
 # target configuration
 # --------------------
 
-if (ENABLE_MEASUREMENTS)
-    message(STATUS "measurements are enabled")
-    target_compile_definitions(${PROJECT_NAME} PUBLIC "-DMIDILAB_MEASUREMENTS")
-endif()
+foreach(LEVEL IN ITEMS DEBUG INFO WARNING ERROR TIMING)
+    if (ENABLE_LOG_${LEVEL})
+        message(STATUS "${LEVEL} messages enabled")
+        target_compile_definitions(${PROJECT_NAME} PUBLIC "-DMIDILAB_ENABLE_${LEVEL}")
+    else()
+        message(STATUS "${LEVEL} messages disabled")
+    endif()
+endforeach()
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_relaxed_constexpr) # triggers >= c++14
 target_include_directories(${PROJECT_NAME} PUBLIC "src")
@@ -80,7 +93,7 @@ endif()
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION ".")
 install(FILES "LICENSE" DESTINATION ".")
 
-if (MINGW)
+if (MINGW AND ENABLE_PACKAGING)
     # look for windeployqt to gather qt libs
     find_program(WINDEPLOYQT_EXECUTABLE "windeployqt")
     # we assume dll will be found in the same directory as windeployqt

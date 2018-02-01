@@ -407,7 +407,7 @@ class StandardHolder : public Holder {
 public:
     using clock_type = Clock::clock_type;
     using time_type = Clock::time_type;
-#ifdef MIDILAB_MEASUREMENTS
+#ifdef MIDILAB_ENABLE_TIMING
     using data_type = std::tuple<Handler*, Message, time_type>;
 #else
     using data_type = std::pair<Handler*, Message>;
@@ -424,7 +424,7 @@ public:
     const std::string& name() const;
     void set_name(std::string name);
 
-#ifdef MIDILAB_MEASUREMENTS
+#ifdef MIDILAB_ENABLE_TIMING
     void feed(time_type time);
     void reset(time_type time);
 #endif
@@ -434,7 +434,7 @@ public:
 private:
     task_type m_task;
     std::string m_name;
-#ifdef MIDILAB_MEASUREMENTS
+#ifdef MIDILAB_ENABLE_TIMING
     time_type m_reference; /*!< time reference */
     std::chrono::microseconds m_delta; /*!< deltatime accumulation */
     size_t m_count; /*!< number of events fed since the last reset */

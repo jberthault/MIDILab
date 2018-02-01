@@ -653,7 +653,7 @@ StandardHolder::StandardHolder(std::string name) : Holder(), m_task(512), m_name
 }
 
 void StandardHolder::start(priority_t priority) {
-#ifdef MIDILAB_MEASUREMENTS
+#ifdef MIDILAB_ENABLE_TIMING
     reset(clock_type::now());
     m_task.start(priority, [this](data_type&& data) {
         feed(std::move(std::get<2>(data)));
@@ -682,7 +682,7 @@ void StandardHolder::set_name(std::string name) {
     m_name = std::move(name);
 }
 
-#ifdef MIDILAB_MEASUREMENTS
+#ifdef MIDILAB_ENABLE_TIMING
 
 void StandardHolder::feed(time_type time) {
     auto now = clock_type::now();
@@ -705,7 +705,7 @@ void StandardHolder::reset(time_type time) {
 #endif
 
 bool StandardHolder::hold_message(Handler* target, const Message& message) {
-#ifdef MIDILAB_MEASUREMENTS
+#ifdef MIDILAB_ENABLE_TIMING
     return m_task.push(data_type{target, message, clock_type::now()});
 #else
     return m_task.push(data_type{target, message});

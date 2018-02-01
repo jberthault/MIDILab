@@ -45,18 +45,13 @@ struct logging_tools {
 
 };
 
-#define TRACE(level, what)\
+#define TRACE(level, ...)\
     do {\
         if (logging_tools::enable) {\
             std::lock_guard<std::recursive_mutex> __trace_lock(logging_tools::mutex);\
-            std::cout << '[' << logging_tools::level_type::level << "] " << what << std::endl;\
+            std::cout << '[' << logging_tools::level_type::level << "] " << __VA_ARGS__ << std::endl;\
         }\
     } while (false)
-
-#define TRACE_DEBUG(what) TRACE(debug, what)
-#define TRACE_INFO(what) TRACE(info, what)
-#define TRACE_WARNING(what) TRACE(warning, what)
-#define TRACE_ERROR(what) TRACE(error, what)
 
 //=========
 // Measure
@@ -72,17 +67,47 @@ struct measure_t {
     inline ~measure_t() {
         auto t1 = clock_type::now();
         auto dt = std::chrono::duration_cast<duration_type>(t1-t0);
-        TRACE_INFO(text << ": " << dt.count() << " ms");
+        TRACE(debug, text << ": " << dt.count() << " ms");
     }
 
     const char* text;
     clock_type::time_point t0;
 };
 
-#ifdef MIDILAB_MEASUREMENTS
+//========
+// MACROS
+//========
+
+#define TRACE_IGNORE(...) do {} while (false)
+
+#ifdef MIDILAB_ENABLE_DEBUG
+    #define TRACE_DEBUG(...) TRACE(debug, __VA_ARGS__)
+#else
+    #define TRACE_DEBUG TRACE_IGNORE
+#endif
+
+#ifdef MIDILAB_ENABLE_INFO
+    #define TRACE_INFO(...) TRACE(info, __VA_ARGS__)
+#else
+    #define TRACE_INFO TRACE_IGNORE
+#endif
+
+#ifdef MIDILAB_ENABLE_WARNING
+    #define TRACE_WARNING(...) TRACE(warning, __VA_ARGS__)
+#else
+    #define TRACE_WARNING TRACE_IGNORE
+#endif
+
+#ifdef MIDILAB_ENABLE_ERROR
+    #define TRACE_ERROR(...) TRACE(error, __VA_ARGS__)
+#else
+    #define TRACE_ERROR TRACE_IGNORE
+#endif
+
+#ifdef MIDILAB_ENABLE_TIMING
     #define TRACE_MEASURE(...) measure_t __measure {__VA_ARGS__}
 #else
-    #define TRACE_MEASURE(...)
+    #define TRACE_MEASURE TRACE_IGNORE
 #endif
 
 #endif // TOOLS_TRACE_H
