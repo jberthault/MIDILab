@@ -18,47 +18,26 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#ifndef QHANDLERS_MONITOR_H
-#define QHANDLERS_MONITOR_H
+#include "qhandlers/system.h"
 
-#include <QTextEdit>
-#include "qhandlers/common.h"
+//============
+// MetaSystem
+//============
 
-//=============
-// MetaMonitor
-//=============
+MetaSystem::MetaSystem(QObject* parent) : ClosedMetaHandler(parent) {
+    setIdentifier("System");
+}
 
-class MetaMonitor : public OpenMetaHandler {
+QStringList MetaSystem::instantiables() {
+    QStringList result;
+    mFactory.update();
+    for(const auto& name : mFactory.available())
+        result.append(QString::fromStdString(name));
+    return result;
+}
 
-public:
-    explicit MetaMonitor(QObject* parent);
-
-    void setContent(HandlerProxy& proxy) override;
-
-};
-
-//=========
-// Monitor
-//=========
-
-class Monitor : public GraphicalHandler {
-
-    Q_OBJECT
-
-public:
-    explicit Monitor();
-
-    void setFamilies(families_t families);
-
-    result_type handle_message(const Message& message) override;
-
-protected slots:
-    void onFilterClick();
-
-private:
-    QTextEdit* mEditor;
-    FamilySelector* mFamilySelector;
-
-};
-
-#endif // QHANDLERS_MONITOR_H
+HandlerProxy MetaSystem::instantiate(const QString& name) {
+    HandlerProxy proxy(this);
+    proxy.setContent(mFactory.instantiate(name.toStdString()));
+    return proxy;
+}

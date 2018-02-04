@@ -67,17 +67,6 @@ public:
     }
 
     void addHandler(const Configuration::Handler& handler) {
-        // special treatment for system handlers (just register the id)
-        if (handler.type == "System") {
-            for (const auto& proxy : Manager::instance->getProxies()) {
-                if (proxy.name() == handler.name) {
-                    mHandlersReferences[handler.id] = proxy.handler();
-                    return;
-                }
-            }
-            TRACE_WARNING("Unknown system handler");
-            return;
-        }
         // create the handler
         auto host = mViewReferences.value(handler.id, nullptr);
         auto proxy = Manager::instance->loadHandler(handler.type, handler.name, host, handler.group);
@@ -90,6 +79,8 @@ public:
             // if the view does not belong to a frame, make it visible
             if (!host && proxy.view())
                 mVisibleDisplayers.push_back(proxy.view()->window());
+        } else {
+            TRACE_ERROR("Unable to build handler " << handler.type << "(\"" << handler.name << "\")");
         }
     }
 
@@ -153,7 +144,7 @@ public:
         mCache.resize(proxies.size());
         for (auto& info : mCache) {
             info.proxy = *it;
-            info.parsingData.type = info.proxy.identifier();
+            info.parsingData.type = info.proxy.metaHandler()->identifier();
             info.parsingData.id = QString("#%1").arg(id++);
             info.parsingData.name = info.proxy.name();
             auto holder = dynamic_cast<StandardHolder*>(info.proxy.handler()->holder());
@@ -345,9 +336,7 @@ void Manager::clearConfiguration() {
 }
 
 HandlerProxy Manager::loadHandler(MetaHandler* meta, const QString& name, SingleDisplayer* host, const QString& group) {
-    auto proxy = meta ? meta->instantiate() : HandlerProxy{};
-    // rename handler
-    proxy.setName(name);
+    auto proxy = meta ? meta->instantiate(name) : HandlerProxy{};
     // set view's parent
     if (auto view = proxy.view()) {
         if (!host)

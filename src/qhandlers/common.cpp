@@ -24,7 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // MetaGraphicalHandler
 //======================
 
-MetaGraphicalHandler::MetaGraphicalHandler(QObject* parent) : MetaHandler(parent) {
+MetaGraphicalHandler::MetaGraphicalHandler(QObject* parent) : OpenMetaHandler(parent) {
     addParameter("track", ":uint", "message's track of generated events", "0");
 }
 

@@ -36,7 +36,7 @@ static constexpr exp_range_t<double> widthRange = {{0., 100.}, 10.};
 // MetaSoundFont
 //===============
 
-MetaSoundFont::MetaSoundFont(QObject* parent) : MetaHandler(parent) {
+MetaSoundFont::MetaSoundFont(QObject* parent) : OpenMetaHandler(parent) {
     setIdentifier("SoundFont");
 }
 

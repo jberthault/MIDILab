@@ -27,7 +27,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // MetaChannelMapper
 //===================
 
-MetaChannelMapper::MetaChannelMapper(QObject* parent) : MetaHandler(parent) {
+MetaChannelMapper::MetaChannelMapper(QObject* parent) : OpenMetaHandler(parent) {
     setIdentifier("ChannelMapper");
 }
 

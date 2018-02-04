@@ -27,7 +27,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // MetaGraphicalHandler
 //======================
 
-class MetaGraphicalHandler : public MetaHandler {
+class MetaGraphicalHandler : public OpenMetaHandler {
 
     Q_OBJECT
 

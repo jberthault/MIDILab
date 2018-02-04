@@ -61,5 +61,6 @@
         <file>data/wood.jpg</file>
         <file>data/grid-three-up.svg</file>
         <file>data/rain.svg</file>
+        <file>data/reload.svg</file>
     </qresource>
 </RCC>

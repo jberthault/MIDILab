@@ -31,6 +31,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "qhandlers/player.h"
 #include "qhandlers/trackfilter.h"
 #include "qhandlers/guitar.h"
+#include "qhandlers/system.h"
 
 //=================
 // StandardFactory
@@ -51,6 +52,7 @@ StandardFactory::StandardFactory(QObject* parent) : QObject(parent), MetaHandler
              // editors for basic handlers
              << new MetaTransposer(this)
              << new MetaRecorder(this)
+             << new MetaSystem(this)
             #ifdef MIDILAB_FLUIDSYNTH_VERSION
              << new MetaSoundFont(this)
             #endif // MIDILAB_FLUIDSYNTH_VERSION

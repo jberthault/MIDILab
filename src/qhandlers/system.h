@@ -18,47 +18,28 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#ifndef QHANDLERS_MONITOR_H
-#define QHANDLERS_MONITOR_H
+#ifndef QHANDLERS_SYSTEM_H
+#define QHANDLERS_SYSTEM_H
 
-#include <QTextEdit>
-#include "qhandlers/common.h"
+#include "handlers/systemhandler.h"
+#include "qcore/editors.h"
 
-//=============
-// MetaMonitor
-//=============
+//============
+// MetaSystem
+//============
 
-class MetaMonitor : public OpenMetaHandler {
-
-public:
-    explicit MetaMonitor(QObject* parent);
-
-    void setContent(HandlerProxy& proxy) override;
-
-};
-
-//=========
-// Monitor
-//=========
-
-class Monitor : public GraphicalHandler {
-
-    Q_OBJECT
+class MetaSystem : public ClosedMetaHandler {
 
 public:
-    explicit Monitor();
+    explicit MetaSystem(QObject* parent);
 
-    void setFamilies(families_t families);
+    QStringList instantiables() override;
 
-    result_type handle_message(const Message& message) override;
-
-protected slots:
-    void onFilterClick();
+    HandlerProxy instantiate(const QString& name) override;
 
 private:
-    QTextEdit* mEditor;
-    FamilySelector* mFamilySelector;
+    SystemHandlerFactory mFactory;
 
 };
 
-#endif // QHANDLERS_MONITOR_H
+#endif // QHANDLERS_SYSTEM_H

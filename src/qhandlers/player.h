@@ -486,7 +486,7 @@ private:
 // MetaPlayer
 //============
 
-class MetaPlayer : public MetaHandler {
+class MetaPlayer : public OpenMetaHandler {
 
 public:
     explicit MetaPlayer(QObject* parent);

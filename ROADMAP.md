@@ -19,10 +19,6 @@ The editor should let the user configure **banks** and **chorus** for instance.
 
 Apart from SoundFonts, the **VSTi** tecnhology is a must-have and should definitely be part of MidiLab.
 
-System handlers are loaded at startup and some of them may slow down the whole process.
-We should avoid loading the handlers that are not part of the configuration.
-But there should be ways of exploring dynamically those devices as well.
-
 Dealing with multiple devices with different latencies is almost impossible.
 MidiLab should provide some **latency compensation**.
 

@@ -24,7 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // MetaTrackFilter
 //=================
 
-MetaTrackFilter::MetaTrackFilter(QObject* parent) : MetaHandler(parent) {
+MetaTrackFilter::MetaTrackFilter(QObject* parent) : OpenMetaHandler(parent) {
     setIdentifier("TrackFilter");
 }
 

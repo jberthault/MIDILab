@@ -246,55 +246,92 @@ private:
 
 };
 
-/// @note do not build the MAPPER
-std::list<Handler*> create_system() {
-    /// @todo optimization & check that name is unique
-    std::list<Handler*> handlers;
-    std::set<std::string> names;
-    std::unordered_map<std::string, UINT> in, out;
-    MIDIOUTCAPSA moc;
-    MIDIINCAPSA mic;
-    MMRESULT result;
-    char text[MAXERRORLENGTH];
-    for (UINT i=0 ; i < midiOutGetNumDevs() ; i++) {
-        result = midiOutGetDevCapsA(i, &moc, sizeof(MIDIOUTCAPSA));
-        if (result != MMSYSERR_NOERROR) {
-            midiOutGetErrorTextA(result, text, MAXERRORLENGTH);
-            TRACE_WARNING(text);
+struct SystemHandlerFactory::Impl {
+
+    struct identifier_type {
+
+        UINT ivalue() const { return in.empty() ? 0u : *in.begin(); }
+        UINT ovalue() const { return out.empty() ? 0u : *out.begin(); }
+
+        auto imode() const { return in.empty() ? handler_ns::mode_t{} : handler_ns::in_mode; }
+        auto omode() const { return out.empty() ? handler_ns::mode_t{} : handler_ns::out_mode; }
+
+        Handler* instantiate() const {
+            auto handler = new WinSystemHandler(imode() | omode(), ivalue(), ovalue());
+            handler->set_name(name);
+            return handler;
+        }
+
+        void update(const identifier_type& rhs) {
+            in.insert(rhs.in .begin(), rhs.in.end());
+            out.insert(rhs.out.begin(), rhs.out.end());
+        }
+
+        std::string name;
+        std::set<UINT> in;
+        std::set<UINT> out;
+
+    };
+
+    auto find(const std::string& name) {
+        return std::find_if(identifiers.begin(), identifiers.end(), [&](const auto& id) { return id.name == name; });
+    }
+
+    std::vector<std::string> available() const {
+        std::vector<std::string> names(identifiers.size());
+        std::transform(identifiers.begin(), identifiers.end(), names.begin(), [](const auto& id) { return id.name; });
+        return names;
+    }
+
+    void insert(identifier_type id) {
+        auto it = find(id.name);
+        if (it != identifiers.end())
+            it->update(id);
+        else
+            identifiers.push_back(std::move(id));
+    }
+
+    void insert_out(UINT value) {
+        MIDIOUTCAPSA moc;
+        MMRESULT result = midiOutGetDevCapsA(value, &moc, sizeof(MIDIOUTCAPSA));
+        if (result == MMSYSERR_NOERROR) {
+            insert({moc.szPname, {}, {value}});
         } else {
-            names.insert(moc.szPname);
-            out[moc.szPname] = i;
+            char buffer[MAXERRORLENGTH];
+            midiOutGetErrorTextA(result, buffer, MAXERRORLENGTH);
+            TRACE_WARNING(buffer);
         }
     }
-    for (UINT i=0 ; i < midiInGetNumDevs() ; i++) {
-        result = midiInGetDevCapsA(i, &mic, sizeof(MIDIINCAPSA));
-        if (result != MMSYSERR_NOERROR) {
-            midiInGetErrorTextA(result, text, MAXERRORLENGTH);
-            TRACE_WARNING(text);
+
+    void insert_in(UINT value) {
+        MIDIINCAPSA mic;
+        MMRESULT result = midiInGetDevCapsA(value, &mic, sizeof(MIDIINCAPSA));
+        if (result == MMSYSERR_NOERROR) {
+            insert({mic.szPname, {value}, {}});
         } else {
-            names.insert(mic.szPname);
-            in[mic.szPname] = i;
+            char buffer[MAXERRORLENGTH];
+            midiInGetErrorTextA(result, buffer, MAXERRORLENGTH);
+            TRACE_WARNING(buffer);
         }
     }
-    for (const std::string& name: names) {
-        Handler::mode_type mode;
-        UINT id_in = 0, id_out = 0;
-        auto in_pos = in.find(name);
-        if (in_pos != in.end()) {
-            mode |= handler_ns::in_mode;
-            id_in = in_pos->second;
-        }
-        auto out_pos = out.find(name);
-        if (out_pos != out.end()) {
-            mode |= handler_ns::out_mode;
-            id_out = out_pos->second;
-        }
-        Handler* handler = new WinSystemHandler(mode, id_in, id_out);
-        handler->set_name(name);
-        handlers.push_back(handler);
+
+    void update() {
+        identifiers.clear();
+        insert_out(-1);
+        for (UINT i=0 ; i < midiOutGetNumDevs() ; i++)
+            insert_out(i);
+        for (UINT i=0 ; i < midiInGetNumDevs() ; i++)
+            insert_in(i);
     }
-    return handlers;
-}
+
+    Handler* instantiate(const std::string& name) {
+        auto it = find(name);
+        return it == identifiers.end() ? nullptr : it->instantiate();
+    }
+
+    std::vector<identifier_type> identifiers;
+
+};
 
 #elif defined(__linux__)
 
@@ -326,10 +363,6 @@ class LinuxSystemHandler : public Handler {
                 handle_reset();
                 close_system(handler_ns::endpoints_state);
             }
-        }
-
-        std::string hardware_name() const {
-            return m_hardware_name;
         }
 
         result_type on_open(state_type state) override {
@@ -505,100 +538,158 @@ class LinuxSystemHandler : public Handler {
 
 };
 
-std::list<Handler*> create_system() {
-    // {(HardwareName, HandlerName): Mode}
-    std::map<std::pair<std::string, std::string>, handler_ns::mode_t> names;
-    // Start with first card
-    int cardNum = -1;
-    while (true) {
-        int err;
-        snd_ctl_t *cardHandle;
-        // Get next sound card's card number. When "cardNum" == -1, then ALSA fetches the first card
-        if ((err = snd_card_next(&cardNum)) < 0) {
-            TRACE_WARNING("Can't get the next card number: " << snd_strerror(err));
-            break;
+struct SystemHandlerFactory::Impl {
+
+    struct identifier_type {
+
+        Handler* instantiate() const {
+            auto handler = new LinuxSystemHandler(mode, hardware_name);
+            handler->set_name(name);
+            return handler;
         }
-        // No more cards? ALSA sets "cardNum" to -1 if so
-        if (cardNum < 0)
-            break;
-        // Open this card's control interface. We specify only the card number -- not any device nor sub-device too
-        {
-            char str[64];
-            sprintf(str, "hw:%i", cardNum);
-            if ((err = snd_ctl_open(&cardHandle, str, 0)) < 0) {
-                TRACE_WARNING("Can't open card " << cardNum << ": " << snd_strerror(err));
-                continue;
+
+        std::string name;
+        std::string hardware_name;
+        handler_ns::mode_t mode;
+
+    };
+
+    auto find(const std::string& name) {
+        return std::find_if(identifiers.begin(), identifiers.end(), [&](const auto& id) { return id.name == name; });
+    }
+
+    std::vector<std::string> available() const {
+        std::vector<std::string> names(identifiers.size());
+        std::transform(identifiers.begin(), identifiers.end(), names.begin(), [](const auto& id) { return id.name; });
+        return names;
+    }
+
+    void insert(identifier_type id) {
+        auto it = find(id.name);
+        if (it != identifiers.end())
+            it->mode |= id.mode;
+        else
+            identifiers.push_back(std::move(id));
+    }
+
+    void update() {
+        identifiers.clear();
+        // Start with first card
+        int cardNum = -1;
+        while (true) {
+            int err;
+            snd_ctl_t *cardHandle;
+            // Get next sound card's card number. When "cardNum" == -1, then ALSA fetches the first card
+            if ((err = snd_card_next(&cardNum)) < 0) {
+                TRACE_WARNING("Can't get the next card number: " << snd_strerror(err));
+                break;
             }
-        }
-        {
-            // Start with the first MIDI device on this card
-            int devNum = -1;
-            while (true) {
-                // Get the number of the next MIDI device on this card
-                if ((err = snd_ctl_rawmidi_next_device(cardHandle, &devNum)) < 0) {
-                    TRACE_WARNING("Can't get next MIDI device number: " << snd_strerror(err));
-                    break;
+            // No more cards? ALSA sets "cardNum" to -1 if so
+            if (cardNum < 0)
+                break;
+            // Open this card's control interface. We specify only the card number -- not any device nor sub-device too
+            {
+                char str[64];
+                sprintf(str, "hw:%i", cardNum);
+                if ((err = snd_ctl_open(&cardHandle, str, 0)) < 0) {
+                    TRACE_WARNING("Can't open card " << cardNum << ": " << snd_strerror(err));
+                    continue;
                 }
-                // No more MIDI devices on this card? ALSA sets "devNum" to -1 if so.
-                if (devNum < 0)
-                    break;
-                // To get some info about the subdevices of this MIDI device (on the card), we need a
-                // snd_rawmidi_info_t, so let's allocate one on the stack
-                snd_rawmidi_info_t *rawMidiInfo;
-                snd_rawmidi_info_alloca(&rawMidiInfo);
-                memset(rawMidiInfo, 0, snd_rawmidi_info_sizeof());
-
-                // Tell ALSA which device (number) we want info about
-                snd_rawmidi_info_set_device(rawMidiInfo, devNum);
-
-                handler_ns::mode_t mode = handler_ns::out_mode;
-
-                while (mode) {
-                    snd_rawmidi_info_set_stream(rawMidiInfo, mode == handler_ns::in_mode ? SND_RAWMIDI_STREAM_INPUT : SND_RAWMIDI_STREAM_OUTPUT);
-                    int i = -1;
-                    int subDevCount = 1;
-                    while (++i < subDevCount) {
-                        snd_rawmidi_info_set_subdevice(rawMidiInfo, i);
-                        if ((err = snd_ctl_rawmidi_info(cardHandle, rawMidiInfo)) < 0) {
-                            TRACE_WARNING("Can't get info for MIDI subdevice " << cardNum << "," << devNum << "," << i << ": " << snd_strerror(err));
-                            continue;
-                        }
-                        if (!i)
-                            subDevCount = snd_rawmidi_info_get_subdevices_count(rawMidiInfo);
-                        const char* name = snd_rawmidi_info_get_name(rawMidiInfo);
-                        std::stringstream hw_stream;
-                        hw_stream << "hw:" << cardNum << ',' << devNum << ',' << i;
-                        std::pair<std::string, std::string> key(hw_stream.str(), name);
-                        // std::cout << key.first << " " << key.second;
-                        names[key] |= mode;
+            }
+            {
+                // Start with the first MIDI device on this card
+                int devNum = -1;
+                while (true) {
+                    // Get the number of the next MIDI device on this card
+                    if ((err = snd_ctl_rawmidi_next_device(cardHandle, &devNum)) < 0) {
+                        TRACE_WARNING("Can't get next MIDI device number: " << snd_strerror(err));
+                        break;
                     }
-                    mode = (mode == handler_ns::out_mode) ? handler_ns::in_mode : handler_ns::mode_t{};
+                    // No more MIDI devices on this card? ALSA sets "devNum" to -1 if so.
+                    if (devNum < 0)
+                        break;
+                    // To get some info about the subdevices of this MIDI device (on the card), we need a
+                    // snd_rawmidi_info_t, so let's allocate one on the stack
+                    snd_rawmidi_info_t *rawMidiInfo;
+                    snd_rawmidi_info_alloca(&rawMidiInfo);
+                    memset(rawMidiInfo, 0, snd_rawmidi_info_sizeof());
+
+                    // Tell ALSA which device (number) we want info about
+                    snd_rawmidi_info_set_device(rawMidiInfo, devNum);
+
+                    handler_ns::mode_t mode = handler_ns::out_mode;
+
+                    while (mode) {
+                        snd_rawmidi_info_set_stream(rawMidiInfo, mode == handler_ns::in_mode ? SND_RAWMIDI_STREAM_INPUT : SND_RAWMIDI_STREAM_OUTPUT);
+                        int i = -1;
+                        int subDevCount = 1;
+                        while (++i < subDevCount) {
+                            snd_rawmidi_info_set_subdevice(rawMidiInfo, i);
+                            if ((err = snd_ctl_rawmidi_info(cardHandle, rawMidiInfo)) < 0) {
+                                TRACE_WARNING("Can't get info for MIDI subdevice " << cardNum << "," << devNum << "," << i << ": " << snd_strerror(err));
+                                continue;
+                            }
+                            if (!i)
+                                subDevCount = snd_rawmidi_info_get_subdevices_count(rawMidiInfo);
+                            const char* name = snd_rawmidi_info_get_name(rawMidiInfo);
+                            std::stringstream hw_stream;
+                            hw_stream << "hw:" << cardNum << ',' << devNum << ',' << i;
+                            insert(identifier_type{name, hw_stream.str(), mode});
+                        }
+                        mode = (mode == handler_ns::out_mode) ? handler_ns::in_mode : handler_ns::mode_t{};
+                    }
                 }
             }
+            // Close the card's control interface after we're done with it
+            snd_ctl_close(cardHandle);
         }
-        // Close the card's control interface after we're done with it
-        snd_ctl_close(cardHandle);
+        // ALSA allocates some mem to load its config file when we call some of the
+        // above functions. Now that we're done getting the info, let's tell ALSA
+        // to unload the info and free up that mem
+        snd_config_update_free_global();
     }
-    // ALSA allocates some mem to load its config file when we call some of the
-    // above functions. Now that we're done getting the info, let's tell ALSA
-    // to unload the info and free up that mem
-    snd_config_update_free_global();
-    // Fill handler list
-    std::list<Handler*> handlers;
-    for (const auto& entry : names) {
-        LinuxSystemHandler* handler = new LinuxSystemHandler(entry.second, entry.first.first);
-        handler->set_name(entry.first.second);
-        handlers.push_back(handler);
-        TRACE_DEBUG("found device " << handler->name() << " at " << handler->hardware_name());
+
+    Handler* instantiate(const std::string& name) {
+        auto it = find(name);
+        return it == identifiers.end() ? nullptr : it->instantiate();
     }
-    return handlers;
-}
+
+    std::vector<identifier_type> identifiers;
+
+};
 
 #else
 
 #pragma message ("no system handler available for the current platform")
-std::list<Handler*> create_system() {
-    return std::list<Handler*>();
-}
+
+struct SystemHandlerFactory::Impl {
+    std::vector<std::string> available() const { return {}; }
+    void update() { }
+    Handler* instantiate(const std::string& /*name*/) { return nullptr; }
+};
 
 #endif
+
+//======================
+// SystemHandlerFactory
+//======================
+
+SystemHandlerFactory::SystemHandlerFactory() : m_impl(std::make_unique<Impl>()) {
+    update();
+}
+
+SystemHandlerFactory::~SystemHandlerFactory() {
+
+}
+
+std::vector<std::string> SystemHandlerFactory::available() const {
+    return m_impl->available();
+}
+
+void SystemHandlerFactory::update() {
+    m_impl->update();
+}
+
+Handler* SystemHandlerFactory::instantiate(const std::string& name) {
+    return m_impl->instantiate(name);
+}

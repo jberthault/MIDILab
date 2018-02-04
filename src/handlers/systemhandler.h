@@ -21,7 +21,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef HANDLERS_SYSTEM_HANDLER_H
 #define HANDLERS_SYSTEM_HANDLER_H
 
-#include <list>
 #include "core/handler.h"
 
 /**
@@ -32,6 +31,26 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 Event volume_event(uint16_t left, uint16_t right);
 
-std::list<Handler*> create_system();
+//======================
+// SystemHandlerFactory
+//======================
+
+class SystemHandlerFactory {
+
+public:
+    SystemHandlerFactory();
+    ~SystemHandlerFactory();
+
+    std::vector<std::string> available() const; /*!< list available system handlers */
+
+    void update(); /*!< update the list of available handlers */
+
+    Handler* instantiate(const std::string& name); /*!< get a new handler by its name */
+
+private:
+    struct Impl;
+    std::unique_ptr<Impl> m_impl;
+
+};
 
 #endif // HANDLERS_SYSTEM_HANDLER_H

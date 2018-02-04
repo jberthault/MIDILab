@@ -169,7 +169,6 @@ protected slots:
 private:
     QMap<Handler*, QTreeWidgetItem*> mItems;
     QMenu* mMenu;
-    QAction* mEditAction;
     QAction* mRenameAction;
 
 };
@@ -186,8 +185,13 @@ public:
     explicit HandlerCatalogEditor(QWidget* parent);
 
 protected slots:
+    void showMenu(const QPoint& point);
     void onDoubleClick(QTreeWidgetItem* item, int column);
-    void createHandler(MetaHandler* meta);
+
+    void refreshMeta(QTreeWidgetItem* item, const QStringList& instantiables);
+    void createHandler(MetaHandler* metaHandler, const QString& fixedName);
+
+    MetaHandler* metaHandlerForItem(QTreeWidgetItem* item);
 
 };
 

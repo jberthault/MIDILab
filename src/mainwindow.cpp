@@ -25,7 +25,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QPushButton>
 #include "mainwindow.h"
 #include "qhandlers/handlers.h"
-#include "handlers/systemhandler.h"
 #include "qtools/displayer.h"
 
 const QVariant discardConfigsData = 1;
@@ -116,13 +115,6 @@ void MainWindow::clearConfig() {
     Manager::instance->clearConfiguration();
     // we need a new main displayer after clearing configuration
     setupMainDisplayer();
-    // insert system handlers
-    for (auto handler : create_system()) {
-        HandlerProxy proxy;
-        proxy.setIdentifier("System");
-        proxy.setContent(handler);
-        Manager::instance->insertHandler(proxy, "default");
-    }
 }
 
 void MainWindow::readLastConfig() {
@@ -132,9 +124,6 @@ void MainWindow::readLastConfig() {
 }
 
 void MainWindow::readConfig(const QString& fileName, bool raise, bool select) {
-    /// @warning ...
-    /// system handlers won't be available if parsing fails
-    /// it will be fixed with the Meta System Handler
     Configuration config;
     // read configuration
     try {
@@ -219,7 +208,7 @@ void MainWindow::addFiles(const QStringList& files) {
     if (files.empty())
         return;
     for (const auto& proxy : Manager::instance->getProxies()) {
-        if (proxy.identifier() == "Player") {
+        if (proxy.metaHandler()->identifier() == "Player") {
             proxy.setParameter({"playlist", files.join(";")});
             return;
         }
@@ -273,8 +262,6 @@ void MainWindow::setupMenu() {
     interfaceMenu->addAction(mLockAction);
 
     interfaceMenu->addAction(QIcon(":/data/plus.svg"), "Add Container", this, SLOT(newDisplayer()));
-
-    /// show windows opened ...
 
     QMenu* helpMenu = menu->addMenu("Help");
     helpMenu->addAction(QIcon(":/data/question-mark.svg"), "Help", this, SLOT(unimplemented()));

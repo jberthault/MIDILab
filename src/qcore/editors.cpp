@@ -749,6 +749,11 @@ HandlerView::Parameters HandlerConfigurator::parameters() const {
     return result;
 }
 
+void HandlerConfigurator::setFixedName(const QString& name) {
+    mNameEditor->setText(name);
+    mNameEditor->setReadOnly(true);
+}
+
 QLineEdit* HandlerConfigurator::addField(const MetaHandler::MetaParameter& param) {
     auto editor = addLine(param.name, param.description, param.defaultValue);
     mEditors.insert(param.name, editor);

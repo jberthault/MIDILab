@@ -30,7 +30,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // MetaRecorder
 //==============
 
-class MetaRecorder : public MetaHandler {
+class MetaRecorder : public OpenMetaHandler {
 
 public:
     explicit MetaRecorder(QObject* parent);

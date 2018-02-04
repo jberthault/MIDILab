@@ -28,7 +28,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // MetaChannelMapper
 //===================
 
-class MetaChannelMapper : public MetaHandler {
+class MetaChannelMapper : public OpenMetaHandler {
 
 public:
     explicit MetaChannelMapper(QObject* parent);

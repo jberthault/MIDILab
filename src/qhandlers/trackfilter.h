@@ -28,7 +28,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // MetaTrackFilter
 //=================
 
-class MetaTrackFilter : public MetaHandler {
+class MetaTrackFilter : public OpenMetaHandler {
 
 public:
     explicit MetaTrackFilter(QObject* parent);

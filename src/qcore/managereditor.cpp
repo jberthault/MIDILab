@@ -365,7 +365,7 @@ HandlerListEditor::HandlerListEditor(QWidget* parent) : QTreeWidget(parent) {
     mMenu->addSeparator();
     mMenu->addAction(QIcon(":/data/delete.svg"), "Delete", this, SLOT(destroySelection()));
     mRenameAction = mMenu->addAction(QIcon(":/data/text.svg"), "Rename", this, SLOT(renameSelection()));
-    mEditAction = mMenu->addAction(QIcon(":/data/eye.svg"), "Edit", this, SLOT(editSelection()));
+    mMenu->addAction(QIcon(":/data/eye.svg"), "Edit", this, SLOT(editSelection()));
     connect(this, &HandlerListEditor::customContextMenuRequested, this, &HandlerListEditor::showMenu);
 
     connect(Manager::instance, &Manager::handlerInserted, this, &HandlerListEditor::insertHandler);
@@ -430,9 +430,13 @@ void HandlerListEditor::onDoubleClick(QTreeWidgetItem* item, int column) {
 }
 
 void HandlerListEditor::showMenu(const QPoint& point) {
-    bool singleton = selectedHandlers().size() == 1;
-    mEditAction->setEnabled(singleton);
-    mRenameAction->setEnabled(singleton);
+    auto handlers = selectedHandlers();
+    if (handlers.size() == 1) {
+        auto proxy = Manager::instance->getProxy(*handlers.begin());
+        mRenameAction->setEnabled(!dynamic_cast<ClosedMetaHandler*>(proxy.metaHandler()));
+    } else {
+        mRenameAction->setEnabled(false);
+    }
     mMenu->exec(mapToGlobal(point));
 }
 
@@ -492,29 +496,78 @@ HandlerCatalogEditor::HandlerCatalogEditor(QWidget* parent) : QTreeWidget(parent
     setColumnCount(1);
     setSelectionMode(QAbstractItemView::SingleSelection);
     setAlternatingRowColors(true);
+    setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(this, &HandlerCatalogEditor::customContextMenuRequested, this, &HandlerCatalogEditor::showMenu);
     connect(this, &HandlerCatalogEditor::itemDoubleClicked, this, &HandlerCatalogEditor::onDoubleClick);
-    for (auto meta : Manager::instance->collector()->metaHandlers()) {
+    for (auto metaHandler : Manager::instance->collector()->metaHandlers()) {
         auto item = new QTreeWidgetItem;
-        item->setText(0, metaHandlerName(meta));
-        item->setToolTip(0, meta->description());
-        item->setData(0, Qt::UserRole, qVariantFromValue(meta));
+        item->setText(0, metaHandlerName(metaHandler));
+        item->setToolTip(0, metaHandler->description());
+        item->setData(0, Qt::UserRole, qVariantFromValue(metaHandler));
         item->setFlags(item->flags() & ~Qt::ItemIsEditable);
         invisibleRootItem()->addChild(item);
+        if (auto closedMetaHandler = dynamic_cast<ClosedMetaHandler*>(metaHandler))
+            refreshMeta(item, closedMetaHandler->instantiables());
+    }
+}
+
+void HandlerCatalogEditor::showMenu(const QPoint& point) {
+    if(auto item = itemAt(point)) {
+        if (auto closedMetaHandler = dynamic_cast<ClosedMetaHandler*>(metaHandlerForItem(item))) {
+            QMenu menu;
+            auto reloadAction = menu.addAction(QIcon(":/data/reload.svg"), "Reload");
+            if (menu.exec(mapToGlobal(point)) == reloadAction)
+                refreshMeta(item, closedMetaHandler->instantiables());
+        }
     }
 }
 
 void HandlerCatalogEditor::onDoubleClick(QTreeWidgetItem* item, int column) {
-    createHandler(item->data(column, Qt::UserRole).value<MetaHandler*>());
+    QString fixedName;
+    auto metaHandler = metaHandlerForItem(item);
+    if (dynamic_cast<ClosedMetaHandler*>(metaHandler))
+        return;
+    if (!metaHandler) {
+        metaHandler = metaHandlerForItem(item->parent());
+        fixedName = item->text(column);
+        for(const auto& proxy : Manager::instance->getProxies()) {
+            if (proxy.metaHandler() == metaHandler && proxy.name() == fixedName) {
+                QMessageBox::warning(this, {}, tr("This handler already exists"));
+                return;
+            }
+        }
+    }
+    createHandler(metaHandler, fixedName);
 }
 
-void HandlerCatalogEditor::createHandler(MetaHandler* meta) {
-    auto configurator = new HandlerConfigurator(meta, this);
+void HandlerCatalogEditor::refreshMeta(QTreeWidgetItem *item, const QStringList& instantiables) {
+    // remove previous children
+    auto previousChildren = item->takeChildren();
+    qDeleteAll(previousChildren);
+    // make new children
+    for(const auto& name : instantiables) {
+        auto child = new QTreeWidgetItem;
+        child->setText(0, name);
+        child->setFlags(item->flags() & ~Qt::ItemIsEditable);
+        item->addChild(child);
+    }
+    item->setExpanded(true);
+}
+
+void HandlerCatalogEditor::createHandler(MetaHandler* metaHandler, const QString& fixedName) {
+    auto configurator = new HandlerConfigurator(metaHandler, this);
+    if (!fixedName.isNull())
+        configurator->setFixedName(fixedName);
     DialogContainer ask(configurator, this);
     if (ask.exec() != QDialog::Accepted)
         return;
-    auto proxy = Manager::instance->loadHandler(meta, configurator->name(), nullptr, configurator->group());
+    auto proxy = Manager::instance->loadHandler(metaHandler, configurator->name(), nullptr, configurator->group());
     proxy.setParameters(configurator->parameters());
     proxy.show();
+}
+
+MetaHandler* HandlerCatalogEditor::metaHandlerForItem(QTreeWidgetItem* item) {
+    return item->data(0, Qt::UserRole).value<MetaHandler*>();
 }
 
 //===============

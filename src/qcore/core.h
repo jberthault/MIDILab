@@ -278,24 +278,24 @@ public:
 // HandlerProxy
 //==============
 
+class MetaHandler;
+
 class HandlerProxy {
 
 public:
     using Parameter = HandlerView::Parameter;
     using Parameters = HandlerView::Parameters;
 
-    HandlerProxy();
+    HandlerProxy(MetaHandler* metaHandler = nullptr);
 
     Handler* handler() const;
     HandlerView* view() const;
     EditableHandler* editable() const;
     HandlerEditor* editor() const;
+    MetaHandler* metaHandler() const;
 
     void setContent(Handler* handler);
     void setContent(HandlerEditor* editor);
-
-    QString identifier() const;
-    void setIdentifier(const QString& identifier);
 
     void setReceiver(DefaultReceiver* receiver) const;
 
@@ -320,7 +320,7 @@ public:
 private:
     Handler* mHandler;
     HandlerView* mView;
-    QString mIdentifier;
+    MetaHandler* mMetaHandler;
 
 };
 
@@ -351,11 +351,9 @@ public:
     const QString& description() const;
     const MetaParameters& parameters() const;
 
-    HandlerProxy instantiate();
+    virtual HandlerProxy instantiate(const QString& name) = 0;
 
 protected:
-    virtual void setContent(HandlerProxy& proxy) = 0;
-
     void setIdentifier(const QString& identifier);
     void setDescription(const QString& description);
     void addParameters(const MetaParameters& parameters);
@@ -366,6 +364,39 @@ private:
     QString mIdentifier;
     QString mDescription;
     MetaParameters mParameters;
+
+};
+
+//=================
+// OpenMetaHandler
+//=================
+
+class OpenMetaHandler : public MetaHandler {
+
+    Q_OBJECT
+
+public:
+    using MetaHandler::MetaHandler;
+
+    HandlerProxy instantiate(const QString& name) final;
+
+protected:
+    virtual void setContent(HandlerProxy& proxy) = 0;
+
+};
+
+//===================
+// ClosedMetaHandler
+//===================
+
+class ClosedMetaHandler : public MetaHandler {
+
+    Q_OBJECT
+
+public:
+    using MetaHandler::MetaHandler;
+
+    virtual QStringList instantiables() = 0;
 
 };
 

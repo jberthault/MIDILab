@@ -28,7 +28,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // MetaTransposer
 //================
 
-class MetaTransposer : public MetaHandler {
+class MetaTransposer : public OpenMetaHandler {
 
 public:
     explicit MetaTransposer(QObject* parent);

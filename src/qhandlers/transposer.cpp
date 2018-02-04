@@ -31,7 +31,7 @@ static constexpr size_t transpositionCardinality = 25;
 // MetaTransposer
 //================
 
-MetaTransposer::MetaTransposer(QObject* parent) : MetaHandler(parent) {
+MetaTransposer::MetaTransposer(QObject* parent) : OpenMetaHandler(parent) {
     setIdentifier("Transposer");
 }
 

@@ -28,7 +28,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // MetaForwarder
 //===============
 
-class MetaForwarder : public MetaHandler {
+class MetaForwarder : public OpenMetaHandler {
 
 public:
     explicit MetaForwarder(QObject* parent);

@@ -283,7 +283,7 @@ EditableHandler::EditableHandler(mode_type mode) : HandlerView(), Handler(mode) 
 // HandlerProxy
 //==============
 
-HandlerProxy::HandlerProxy() : mHandler(nullptr), mView(nullptr) {
+HandlerProxy::HandlerProxy(MetaHandler* metaHandler) : mHandler(nullptr), mView(nullptr), mMetaHandler(metaHandler) {
 
 }
 
@@ -303,6 +303,10 @@ HandlerEditor* HandlerProxy::editor() const {
     return dynamic_cast<HandlerEditor*>(mView);
 }
 
+MetaHandler* HandlerProxy::metaHandler() const {
+    return mMetaHandler;
+}
+
 void HandlerProxy::setContent(Handler* handler) {
     mHandler = handler;
     mView = dynamic_cast<EditableHandler*>(handler);
@@ -312,14 +316,6 @@ void HandlerProxy::setContent(HandlerEditor* editor) {
     mHandler = editor->getHandler();
     mView = editor;
     Q_ASSERT(editable() == nullptr);
-}
-
-QString HandlerProxy::identifier() const {
-    return mIdentifier;
-}
-
-void HandlerProxy::setIdentifier(const QString& identifier) {
-    mIdentifier = identifier;
 }
 
 void HandlerProxy::setReceiver(DefaultReceiver* receiver) const {
@@ -366,7 +362,7 @@ void HandlerProxy::setState(bool open, Handler::state_type state) const {
             state &= supportedState();
         }
         if (mHandler->state().all(state) == open) {
-            TRACE_WARNING(name() << " handler already " << (open ? "opened" : "closed"));
+            TRACE_WARNING(name() << " handler already " << (open ? "open" : "closed"));
             return;
         }
         mHandler->send_message(open ? Handler::open_event(state) : Handler::close_event(state));
@@ -442,13 +438,6 @@ const MetaHandler::MetaParameters& MetaHandler::parameters() const {
     return mParameters;
 }
 
-HandlerProxy MetaHandler::instantiate() {
-    HandlerProxy proxy;
-    proxy.setIdentifier(mIdentifier);
-    setContent(proxy);
-    return proxy;
-}
-
 void MetaHandler::addParameters(const MetaParameters& parameters) {
     mParameters.insert(mParameters.end(), parameters.begin(), parameters.end());
 }
@@ -459,6 +448,17 @@ void MetaHandler::addParameter(const MetaParameter& parameter) {
 
 void MetaHandler::addParameter(const QString& name, const QString& type, const QString& description, const QString& defaultValue) {
     addParameter(MetaParameter{name, type, description, defaultValue});
+}
+
+//=================
+// OpenMetaHandler
+//=================
+
+HandlerProxy OpenMetaHandler::instantiate(const QString& name) {
+    HandlerProxy proxy(this);
+    setContent(proxy);
+    proxy.setName(name);
+    return proxy;
 }
 
 //======================

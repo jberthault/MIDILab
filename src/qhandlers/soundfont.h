@@ -34,7 +34,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // MetaSoundFont
 //===============
 
-class MetaSoundFont : public MetaHandler {
+class MetaSoundFont : public OpenMetaHandler {
 
 public:
     explicit MetaSoundFont(QObject* parent);

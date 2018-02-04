@@ -38,7 +38,7 @@ QString specialText(const QString& text) {
 // MetaMonitor
 //=============
 
-MetaMonitor::MetaMonitor(QObject* parent) : MetaHandler(parent) {
+MetaMonitor::MetaMonitor(QObject* parent) : OpenMetaHandler(parent) {
     setIdentifier("Monitor");
 }
 

@@ -24,7 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // MetaForwarder
 //===============
 
-MetaForwarder::MetaForwarder(QObject* parent) : MetaHandler(parent) {
+MetaForwarder::MetaForwarder(QObject* parent) : OpenMetaHandler(parent) {
     setIdentifier("Forwarder");
     setDescription("Connection Tool");
 }

@@ -1208,7 +1208,7 @@ void TempoView::updateDistorted() {
 // MetaPlayer
 //============
 
-MetaPlayer::MetaPlayer(QObject* parent) : MetaHandler(parent) {
+MetaPlayer::MetaPlayer(QObject* parent) : OpenMetaHandler(parent) {
     setIdentifier("Player");
 }
 

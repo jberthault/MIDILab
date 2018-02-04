@@ -25,7 +25,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // MetaRecorder
 //==============
 
-MetaRecorder::MetaRecorder(QObject* parent) : MetaHandler(parent) {
+MetaRecorder::MetaRecorder(QObject* parent) : OpenMetaHandler(parent) {
     setIdentifier("Recorder");
 }
 

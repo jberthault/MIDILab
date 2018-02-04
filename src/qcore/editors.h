@@ -329,6 +329,8 @@ public:
     QString group() const;
     HandlerView::Parameters parameters() const;
 
+    void setFixedName(const QString& name);
+
 private:
     QLineEdit* addField(const MetaHandler::MetaParameter& param);
     QLineEdit* addLine(const QString& label, const QString& tooltip, const QString& placeHolder);
