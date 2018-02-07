@@ -1178,6 +1178,19 @@ void TempoView::setSequence(const Sequence& sequence) {
     mDistordedClock.setClock(sequence.clock());
 }
 
+double TempoView::distorsion() const {
+    return mDistordedClock.distorsion();
+}
+
+void TempoView::setDistorsion(double distorsion) {
+    if (distorsionRange.min <= distorsion && distorsion <= distorsionRange.max) {
+        mDistordedClock.setDistorsion(distorsion);
+        mDistorsionSlider->setRatio(distorsionRange.reduce(distorsion));
+        updateDistorted();
+        emit distorsionChanged(distorsion);
+    }
+}
+
 void TempoView::setTempo(const Event& event) {
     if (event == mLastTempo)
         return;
@@ -1224,7 +1237,7 @@ Player::Player() :
     HandlerEditor(), mIsPlaying(false), mPlayer(std::make_unique<SequenceReader>()), mIsStepping(false) {
 
     mPlaylist = new PlaylistTable(this);
-    connect(mPlaylist, SIGNAL(doubleClicked(QModelIndex)), SLOT(launch(QModelIndex)));
+    connect(mPlaylist, &PlaylistTable::itemActivated, this, &Player::launch);
 
     mSequenceView = new SequenceView(this);
     connect(mSequenceView, &SequenceView::positionSelected, this, &Player::onPositionSelected);
@@ -1263,6 +1276,7 @@ HandlerView::Parameters Player::getParameters() const {
     auto paths = mPlaylist->paths();
     if (!paths.empty())
         result.push_back(Parameter{"playlist", paths.join(';')});
+    SERIALIZE("distorsion", serial::serializeNumber, mTempoView->distorsion(), result);
     return result;
 }
 
@@ -1272,6 +1286,7 @@ size_t Player::setParameter(const Parameter& parameter) {
         mPlaylist->addPaths(parameter.value.split(';'));
         return 1;
     }
+    UNSERIALIZE("distorsion", serial::parseDouble, mTempoView->setDistorsion, parameter);
     return HandlerEditor::setParameter(parameter);
 }
 
@@ -1381,8 +1396,8 @@ void Player::saveSequence() {
     }
 }
 
-void Player::launch(QModelIndex index) {
-    auto sequence = mPlaylist->loadRow(index.row());
+void Player::launch(QTableWidgetItem* item) {
+    auto sequence = mPlaylist->loadRow(item->row());
     if (!sequence.sequence.empty()) {
         setSequence(sequence, true);
     } else { /// @todo get reason from model

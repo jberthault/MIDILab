@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.1.3)
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTORCC ON)
 
 # -------
 # options
@@ -35,7 +36,7 @@ endif()
 # -----------------
 
 file(GLOB_RECURSE SRC_FILES "src/*.cpp" "src/*.h")
-qt5_add_resources(QRC_FILES "src/data.qrc")
+set(QRC_FILES "src/data.qrc")
 set(TXT_FILES "README.md" "ROADMAP.md" "LICENSE")
 
 add_executable(${PROJECT_NAME} ${SRC_FILES} ${QRC_FILES} ${TXT_FILES})

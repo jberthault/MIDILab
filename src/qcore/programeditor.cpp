@@ -367,6 +367,7 @@ ProgramEditor::ProgramEditor(ChannelEditor* channelEditor, QWidget* parent) : QW
     table->setModel(mProgramModel);
     table->setAlternatingRowColors(true);
     table->setColumnWidth(0, 20);
+    table->verticalHeader()->setDefaultAlignment(Qt::AlignHCenter);
     table->verticalHeader()->setDefaultSectionSize(20);
     table->verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
     table->horizontalHeader()->setStretchLastSection(true);

@@ -224,6 +224,11 @@ private:
 
 };
 
+void initializePathRetriever(PathRetriever* pathRetriever, const QString& caption, const QString& filters) {
+    pathRetriever->setCaption(caption);
+    pathRetriever->setFilter(QString("%1 (%2);;All Files (*)").arg(caption, filters));
+}
+
 }
 
 //=========
@@ -244,22 +249,15 @@ Manager::Manager(QObject* parent) : Context(parent) {
     mGUIHolder = new GraphicalHolder(this);
     mReceiver = new DefaultReceiver(this);
 
+    initializePathRetriever(pathRetriever("midi"), "MIDI Files", "*.mid *.midi *.kar");
+    initializePathRetriever(pathRetriever("soundfont"), "SoundFont Files", "*.sf2");
+    initializePathRetriever(pathRetriever("configuration"), "Configuration Files", "*.xml");
+
     QSettings settings;
-
-    mPathRetrievers["midi"] = new PathRetriever(this);
-    mPathRetrievers["midi"]->setCaption("MIDI files");
-    mPathRetrievers["midi"]->setFilter("MIDI Files (*.mid *.midi *.kar);;All Files (*)");
-    mPathRetrievers["midi"]->setDir(settings.value("paths/midi").toString());
-
-    mPathRetrievers["soundfont"] = new PathRetriever(this);
-    mPathRetrievers["soundfont"]->setCaption("SoundFont Files");
-    mPathRetrievers["soundfont"]->setFilter("SoundFont Files (*.sf2);;All Files (*)");
-    mPathRetrievers["soundfont"]->setDir(settings.value("paths/soundfont").toString());
-
-    mPathRetrievers["configuration"] = new PathRetriever(this);
-    mPathRetrievers["configuration"]->setCaption("Configuration Files");
-    mPathRetrievers["configuration"]->setFilter("Configuration Files (*.xml);;All Files (*)");
-    mPathRetrievers["configuration"]->setDir(settings.value("paths/configuration").toString());
+    settings.beginGroup("paths");
+    for(const auto& key : settings.childKeys())
+        pathRetriever(key)->setDir(settings.value(key).toString());
+    settings.endGroup();
 
     qApp->setQuitOnLastWindowClosed(false);
     connect(qApp, &QApplication::lastWindowClosed, this, &Manager::quit);
@@ -293,8 +291,10 @@ const HandlerProxies& Manager::getProxies() const {
 }
 
 PathRetriever* Manager::pathRetriever(const QString& type) {
-    auto it = mPathRetrievers.find(type);
-    return it == mPathRetrievers.end() ? nullptr : it->second;
+    auto& retriever = mPathRetrievers[type];
+    if (!retriever)
+        retriever = new PathRetriever(this);
+    return retriever;
 }
 
 Configuration Manager::getConfiguration() {
@@ -344,15 +344,6 @@ HandlerProxy Manager::loadHandler(MetaHandler* meta, const QString& name, Single
         host->setWidget(view);
     }
     // insert the handler
-    insertHandler(proxy, group);
-    return proxy;
-}
-
-HandlerProxy Manager::loadHandler(const QString& type, const QString& name, SingleDisplayer* host, const QString& group) {
-    return loadHandler(mCollector->metaHandler(type), name, host, group);
-}
-
-void Manager::insertHandler(const HandlerProxy& proxy, const QString& group) {
     if (proxy.handler()) {
         Q_ASSERT(!proxy.handler()->holder());
         proxy.handler()->set_holder(proxy.editable() ? mGUIHolder : getHolder(group));
@@ -362,6 +353,11 @@ void Manager::insertHandler(const HandlerProxy& proxy, const QString& group) {
         mHandlers.push_back(proxy);
         emit handlerInserted(proxy.handler());
     }
+    return proxy;
+}
+
+HandlerProxy Manager::loadHandler(const QString& type, const QString& name, SingleDisplayer* host, const QString& group) {
+    return loadHandler(mCollector->metaHandler(type), name, host, group);
 }
 
 void Manager::removeHandler(Handler* handler) {
@@ -446,9 +442,10 @@ void Manager::quit() {
     clearConfiguration();
     // save path settings
     QSettings settings;
-    settings.setValue("paths/midi", mPathRetrievers["midi"]->dir());
-    settings.setValue("paths/soundfont", mPathRetrievers["soundfont"]->dir());
-    settings.setValue("paths/configuration", mPathRetrievers["configuration"]->dir());
+    settings.beginGroup("paths");
+    for(const auto& pair : mPathRetrievers)
+        settings.setValue(pair.first, pair.second->dir());
+    settings.endGroup();
     // now we can quit
     qApp->quit();
 }

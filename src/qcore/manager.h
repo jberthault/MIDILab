@@ -66,8 +66,6 @@ public:
 
     HandlerProxy loadHandler(MetaHandler* meta, const QString& name, SingleDisplayer* host, const QString& group);
     HandlerProxy loadHandler(const QString& type, const QString& name, SingleDisplayer* host, const QString& group);
-
-    void insertHandler(const HandlerProxy& proxy, const QString& group);
     void removeHandler(Handler* handler);
 
     // signaling commands

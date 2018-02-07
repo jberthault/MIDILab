@@ -463,6 +463,9 @@ public slots:
     void updateTimestamp(timestamp_t timestamp);
     void setSequence(const Sequence& sequence);
 
+    double distorsion() const;
+    void setDistorsion(double distorsion);
+
 private slots:
     void updateSliderText(qreal ratio);
     void onSliderMove(qreal ratio);
@@ -522,7 +525,7 @@ protected slots:
 
     void saveSequence();
 
-    void launch(QModelIndex index);
+    void launch(QTableWidgetItem *item);
     void onPositionSelected(timestamp_t timestamp, Qt::MouseButton button);
 
     /// subwidgets signals modifying handler
