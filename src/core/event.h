@@ -36,19 +36,41 @@ class Event;
 
 /// @todo find a better name
 
-struct short_tools {
+namespace short_ns {
 
-static const uint16_t maximum_value = 0x3fff;
+static constexpr uint16_t maximum_value = 0x3fff;
 
-static uint16_t glue(byte_t coarse, byte_t fine);
+static constexpr byte_t coarse(uint16_t value) {
+    return (value >> 7) & 0x7f;
+}
 
-static byte_t coarse(uint16_t value);
-static byte_t fine(uint16_t value);
+static constexpr byte_t fine(uint16_t value) {
+    return value & 0x7f;
+}
 
-static uint16_t alter_coarse(uint16_t value, byte_t coarse);
-static uint16_t alter_fine(uint16_t value, byte_t fine);
+static constexpr uint16_t alter_coarse(uint16_t value, byte_t coarse) {
+    return ((coarse & 0x7f) << 7) | (value & 0x007f);
+}
 
+static constexpr uint16_t alter_fine(uint16_t value, byte_t fine) {
+    return (value & 0x3f80) | (fine & 0x7f);
+}
+
+struct uint14_t {
+    byte_t coarse;
+    byte_t fine;
 };
+
+static constexpr uint14_t cut(uint16_t value) {
+    return {coarse(value), fine(value)};
+}
+
+static constexpr uint16_t glue(uint14_t value) {
+    return (value.coarse << 7) | value.fine;
+}
+
+
+}
 
 //=========
 // Channel
@@ -208,46 +230,20 @@ static constexpr byte_t open_surdo_drum(87);
 //============
 // undefined controllers: (0x03 0x23) (0x09 0x29) (0x0e 0x2e) (0x0f 0x2f) [0x14 0x1f] [0x54 0x5a] [0x66 0x77]
 
-struct controller_tools {
-
-    struct info_type {
-        std::string name;
-        byte_t default_value;
-        bool is_action;
-    };
-
-    using storage_type = std::map<byte_t, info_type>;
-
-    static const storage_type& info();
-
-};
-
 namespace controller_ns {
 
-static constexpr byte_t bank_select_coarse_controller(0x00);
-static constexpr byte_t bank_select_fine_controller(0x20);
-static constexpr byte_t modulation_wheel_coarse_controller(0x01);
-static constexpr byte_t modulation_wheel_fine_controller(0x21);
-static constexpr byte_t breath_coarse_controller(0x02);
-static constexpr byte_t breath_fine_controller(0x22);
-static constexpr byte_t foot_pedal_coarse_controller(0x04);
-static constexpr byte_t foot_pedal_fine_controller(0x24);
-static constexpr byte_t portamento_time_coarse_controller(0x05);
-static constexpr byte_t portamento_time_fine_controller(0x25);
-static constexpr byte_t data_entry_coarse_controller(0x06);
-static constexpr byte_t data_entry_fine_controller(0x26);
-static constexpr byte_t volume_coarse_controller(0x07);
-static constexpr byte_t volume_fine_controller(0x27);
-static constexpr byte_t balance_coarse_controller(0x08);
-static constexpr byte_t balance_fine_controller(0x28);
-static constexpr byte_t pan_position_coarse_controller(0x0a);
-static constexpr byte_t pan_position_fine_controller(0x2a);
-static constexpr byte_t expression_coarse_controller(0x0b);
-static constexpr byte_t expression_fine_controller(0x2b);
-static constexpr byte_t effect_control_1_coarse_controllers(0x0c);
-static constexpr byte_t effect_control_1_fine_controllers(0x2c);
-static constexpr byte_t effect_control_2_coarse_controllers(0x0d);
-static constexpr byte_t effect_control_2_fine_controllers(0x2d);
+static constexpr short_ns::uint14_t bank_select_controller = {0x00, 0x20};
+static constexpr short_ns::uint14_t modulation_wheel_controller = {0x01, 0x21};
+static constexpr short_ns::uint14_t breath_controller = {0x02, 0x22};
+static constexpr short_ns::uint14_t foot_pedal_controller = {0x04, 0x24};
+static constexpr short_ns::uint14_t portamento_time_controller = {0x05, 0x25};
+static constexpr short_ns::uint14_t data_entry_controller = {0x06, 0x26};
+static constexpr short_ns::uint14_t volume_controller = {0x07, 0x27};
+static constexpr short_ns::uint14_t balance_controller = {0x08, 0x28};
+static constexpr short_ns::uint14_t pan_position_controller = {0x0a, 0x2a};
+static constexpr short_ns::uint14_t expression_controller = {0x0b, 0x2b};
+static constexpr short_ns::uint14_t effect_control_1_controllers = {0x0c, 0x2c};
+static constexpr short_ns::uint14_t effect_control_2_controllers = {0x0d, 0x2d};
 static constexpr byte_t general_purpose_slider_controllers[] = {0x10, 0x11, 0x12, 0x13};
 static constexpr byte_t hold_pedal_controller(0x40);
 static constexpr byte_t portamento_controller(0x41);
@@ -269,10 +265,8 @@ static constexpr byte_t celeste_level_controller(0x5e);
 static constexpr byte_t phaser_level_controller(0x5f);
 static constexpr byte_t data_button_increment_controller(0x60);
 static constexpr byte_t data_button_decrement_controller(0x61);
-static constexpr byte_t non_registered_parameter_coarse_controller(0x63);
-static constexpr byte_t non_registered_parameter_fine_controller(0x62);
-static constexpr byte_t registered_parameter_coarse_controller(0x65);
-static constexpr byte_t registered_parameter_fine_controller(0x64);
+static constexpr short_ns::uint14_t non_registered_parameter_controller = {0x63, 0x62};
+static constexpr short_ns::uint14_t registered_parameter_controller = {0x65, 0x64};
 static constexpr byte_t all_sound_off_controller(0x78);
 static constexpr byte_t all_controllers_off_controller(0x79);
 static constexpr byte_t local_keyboard_controller(0x7a);
@@ -281,6 +275,40 @@ static constexpr byte_t omni_mode_off_controller(0x7c);
 static constexpr byte_t omni_mode_on_controller(0x7d);
 static constexpr byte_t mono_operation_controller(0x7e);
 static constexpr byte_t poly_operation_controller(0x7f);
+
+constexpr bool is_channel_mode_message(byte_t controller) {
+    return controller >= 0x78;
+}
+
+constexpr byte_t default_value(byte_t controller) {
+    switch (controller) {
+    case volume_controller.coarse:
+        return 0x64;
+    case balance_controller.coarse:
+    case pan_position_controller.coarse:
+    case sound_controllers[0]:
+    case sound_controllers[1]:
+    case sound_controllers[2]:
+    case sound_controllers[3]:
+    case sound_controllers[4]:
+    case sound_controllers[5]:
+    case sound_controllers[6]:
+    case sound_controllers[7]:
+    case sound_controllers[8]:
+    case sound_controllers[9]:
+        return 0x40;
+    case expression_controller.coarse:
+    case non_registered_parameter_controller.coarse:
+    case non_registered_parameter_controller.fine:
+    case registered_parameter_controller.coarse:
+    case registered_parameter_controller.fine:
+        return 0x7f;
+    default:
+        return 0x00;
+    };
+}
+
+const std::map<byte_t, std::string>& controller_names();
 
 }
 
@@ -357,22 +385,6 @@ enum class family_t : uint8_t {
 
 using families_t = flags_t<uint64_t, family_t>;
 
-struct family_tools {
-
-    using printer_type = std::ostream& (*)(std::ostream& stream, const Event& event);
-
-    struct info_type {
-        std::string name;
-        printer_type printer;
-        bool has_channels;
-    };
-
-    static std::ostream& print_event(std::ostream& stream, const Event& event);
-
-    static const info_type& info(family_t family);
-
-};
-
 namespace family_ns {
 
 static constexpr families_t note_families = families_t::merge(family_t::note_off, family_t::note_on, family_t::aftertouch);
@@ -409,7 +421,11 @@ static constexpr families_t string_families = families_t::merge(
         family_t::device_name
 );
 
+std::string family_name(family_t family);
+
 }
+
+std::ostream& operator<<(std::ostream& stream, family_t family);
 
 //=======
 // Event
@@ -438,7 +454,8 @@ public:
     static Event note_off(channels_t channels, byte_t note, byte_t velocity = 0);
     static Event note_on(channels_t channels, byte_t note, byte_t velocity);
     static Event aftertouch(channels_t channels, byte_t note, byte_t pressure);
-    static Event controller(channels_t channels, byte_t controller, byte_t value = 0);
+    static Event controller(channels_t channels, byte_t controller);
+    static Event controller(channels_t channels, byte_t controller, byte_t value);
     static Event program_change(channels_t channels, byte_t program);
     static Event channel_pressure(channels_t channels, byte_t pressure);
     static Event pitch_wheel(channels_t channels, uint16_t pitch);

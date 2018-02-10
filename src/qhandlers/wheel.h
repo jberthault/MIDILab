@@ -120,7 +120,6 @@ private:
     QComboBox* mControllerBox;
     byte_t mController;
     std::array<channel_map_t<byte_t>, 0x80> mValues;
-    std::array<byte_t, 0x80> mDefaultValues;
 
 };
 

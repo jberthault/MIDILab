@@ -24,9 +24,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "handler.h"
 #include "note.h"
 
-using namespace family_ns;
-using namespace handler_ns;
-
 namespace  {
 
 template<typename It, typename P>
@@ -34,10 +31,10 @@ auto tribool_all_of(It first, It last, P predicate) {
     using namespace boost::logic;
     tribool result(true);
     for ( ; first != last ; ++first) {
-        switch(predicate(*first).value) {
+        switch (predicate(*first).value) {
             case tribool::true_value: break;
             case tribool::false_value: return tribool(false);
-            case tribool::indeterminate_value: result = indeterminate;; break;
+            case tribool::indeterminate_value: result = indeterminate; break;
         }
     }
     return result;
@@ -48,7 +45,7 @@ auto tribool_any_of(It first, It last, P predicate) {
     using namespace boost::logic;
     tribool result(false);
     for ( ; first != last ; ++first) {
-        switch(predicate(*first).value) {
+        switch (predicate(*first).value) {
             case tribool::true_value: return tribool(true);
             case tribool::false_value: break;
             case tribool::indeterminate_value: result = indeterminate; break;
@@ -97,7 +94,7 @@ struct Negate : public Filter::visitor_type<Filter::data_type> {
     auto operator()(const HandlerFilter& f) const { return HandlerFilter{f.handler, !f.reversed}; }
     auto operator()(const TrackFilter& f) const { return TrackFilter{f.track, !f.reversed}; }
     auto operator()(const ChannelFilter& f) const { return ChannelFilter{all_channels & ~f.channels}; }
-    auto operator()(const FamilyFilter& f) const { return FamilyFilter{all_families & ~f.families}; }
+    auto operator()(const FamilyFilter& f) const { return FamilyFilter{family_ns::all_families & ~f.families}; }
     auto operator()(const AnyFilter& f) const { return AllFilter{negate_all(f.filters)}; }
     auto operator()(const AllFilter& f) const { return AnyFilter{negate_all(f.filters)}; }
 
@@ -563,11 +560,11 @@ void Handler::alter_state(state_type state, bool on) {
 }
 
 families_t Handler::handled_families() const {
-    return all_families;
+    return family_ns::all_families;
 }
 
 families_t Handler::input_families() const {
-    return all_families;
+    return family_ns::all_families;
 }
 
 Handler::result_type Handler::handle_open(const Message& message) {

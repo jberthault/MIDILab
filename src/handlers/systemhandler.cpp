@@ -198,17 +198,17 @@ private:
         size_t errors = 0;
         errors += handle_voice(Event::controller(all_channels, controller_ns::all_sound_off_controller));
         errors += handle_voice(Event::controller(all_channels, controller_ns::all_controllers_off_controller));
-        errors += handle_voice(Event::controller(all_channels, controller_ns::volume_coarse_controller, 100));
-        errors += handle_voice(Event::controller(all_channels, controller_ns::volume_fine_controller, 0));
-        errors += handle_voice(Event::controller(all_channels, controller_ns::pan_position_coarse_controller, 64));
-        errors += handle_voice(Event::controller(all_channels, controller_ns::pan_position_fine_controller, 0));
+        errors += handle_voice(Event::controller(all_channels, controller_ns::volume_controller.coarse));
+        errors += handle_voice(Event::controller(all_channels, controller_ns::volume_controller.fine));
+        errors += handle_voice(Event::controller(all_channels, controller_ns::pan_position_controller.coarse));
+        errors += handle_voice(Event::controller(all_channels, controller_ns::pan_position_controller.fine));
         for (byte_t controller : controller_ns::sound_controllers)
-            errors += handle_voice(Event::controller(all_channels, controller, 64));
-        errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_coarse_controller, 0));
-        errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_fine_controller, 0));
-        errors += handle_voice(Event::controller(all_channels, controller_ns::data_entry_coarse_controller, 2));
-        errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_coarse_controller, 0x7f));
-        errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_fine_controller, 0x7f));
+            errors += handle_voice(Event::controller(all_channels, controller));
+        errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_controller.coarse, 0));
+        errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_controller.fine, 0));
+        errors += handle_voice(Event::controller(all_channels, controller_ns::data_entry_controller.coarse, 2));
+        errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_controller.coarse, 0x7f));
+        errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_controller.fine, 0x7f));
         return errors;
     }
 
@@ -483,17 +483,17 @@ class LinuxSystemHandler : public Handler {
             size_t errors = 0;
             errors += handle_voice(Event::controller(all_channels, controller_ns::all_sound_off_controller));
             errors += handle_voice(Event::controller(all_channels, controller_ns::all_controllers_off_controller));
-            errors += handle_voice(Event::controller(all_channels, controller_ns::volume_coarse_controller, 100));
-            errors += handle_voice(Event::controller(all_channels, controller_ns::volume_fine_controller, 0));
-            errors += handle_voice(Event::controller(all_channels, controller_ns::pan_position_coarse_controller, 64));
-            errors += handle_voice(Event::controller(all_channels, controller_ns::pan_position_fine_controller, 0));
+            errors += handle_voice(Event::controller(all_channels, controller_ns::volume_controller.coarse));
+            errors += handle_voice(Event::controller(all_channels, controller_ns::volume_controller.fine));
+            errors += handle_voice(Event::controller(all_channels, controller_ns::pan_position_controller.coarse));
+            errors += handle_voice(Event::controller(all_channels, controller_ns::pan_position_controller.fine));
             for (byte_t controller : controller_ns::sound_controllers)
-                errors += handle_voice(Event::controller(all_channels, controller, 64));
-            errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_coarse_controller, 0));
-            errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_fine_controller, 0));
-            errors += handle_voice(Event::controller(all_channels, controller_ns::data_entry_coarse_controller, 2));
-            errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_coarse_controller, 0x7f));
-            errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_fine_controller, 0x7f));
+                errors += handle_voice(Event::controller(all_channels, controller));
+            errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_controller.coarse, 0));
+            errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_controller.fine, 0));
+            errors += handle_voice(Event::controller(all_channels, controller_ns::data_entry_controller.coarse, 2));
+            errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_controller.coarse, 0x7f));
+            errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_controller.fine, 0x7f));
             return errors;
         }
 

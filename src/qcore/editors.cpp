@@ -611,7 +611,7 @@ QTreeWidgetItem* FamilySelector::makeNode(QTreeWidgetItem* root, families_t fami
 }
 
 QTreeWidgetItem* FamilySelector::makeLeaf(QTreeWidgetItem* root, family_t family) {
-    return makeNode(root, families_t::merge(family), QString::fromStdString(family_tools::info(family).name));
+    return makeNode(root, families_t::merge(family), QString::fromStdString(family_ns::family_name(family)));
 }
 
 families_t FamilySelector::families() const {

@@ -159,7 +159,7 @@ public:
     auto getSource(const Filter& filter) const {
         QStringList sources;
         if (boost::logic::indeterminate(filter.match_nothing()))
-            for(const auto& info : mCache)
+            for (const auto& info : mCache)
                 if (filter.match_handler(info.proxy.handler()))
                     sources.append(info.parsingData.id);
         return sources.join("|");
@@ -203,10 +203,10 @@ public:
     auto getConfiguration() const {
         Configuration config;
         // handlers
-        for(const auto& info : mCache)
+        for (const auto& info : mCache)
             config.handlers.append(info.parsingData);
         // connections
-        for(const auto& info : mCache)
+        for (const auto& info : mCache)
             for (const auto& listener : info.proxy.handler()->listeners())
                 config.connections.append(getConnection(info.parsingData.id, listener));
         // frames
@@ -255,7 +255,7 @@ Manager::Manager(QObject* parent) : Context(parent) {
 
     QSettings settings;
     settings.beginGroup("paths");
-    for(const auto& key : settings.childKeys())
+    for (const auto& key : settings.childKeys())
         pathRetriever(key)->setDir(settings.value(key).toString());
     settings.endGroup();
 
@@ -315,17 +315,17 @@ void Manager::clearConfiguration() {
     for (const auto& proxy : mHandlers)
         setListeners(proxy.handler(), {});
     // notify listening slots
-    for(const auto& proxy : mHandlers)
+    for (const auto& proxy : mHandlers)
         emit handlerRemoved(proxy.handler());
     // stop holders
-    for(auto holder : mHolders)
+    for (auto holder : mHolders)
         holder->stop();
     // delete handlers
-    for(auto& proxy : mHandlers)
+    for (auto& proxy : mHandlers)
         proxy.destroy();
     mHandlers.clear();
     // delete holders
-    for(auto holder : mHolders)
+    for (auto holder : mHolders)
         delete holder;
     mHolders.clear();
     // delete all displayers
@@ -443,7 +443,7 @@ void Manager::quit() {
     // save path settings
     QSettings settings;
     settings.beginGroup("paths");
-    for(const auto& pair : mPathRetrievers)
+    for (const auto& pair : mPathRetrievers)
         settings.setValue(pair.first, pair.second->dir());
     settings.endGroup();
     // now we can quit

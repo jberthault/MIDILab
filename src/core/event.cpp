@@ -23,33 +23,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "event.h"
 #include "tools/trace.h"
 
-using namespace family_ns;
-using namespace controller_ns;
-
-//=======
-// Short
-//=======
-
-uint16_t short_tools::glue(byte_t coarse, byte_t fine) {
-    return (coarse << 7) | fine;
-}
-
-byte_t short_tools::coarse(uint16_t value) {
-    return (value >> 7) & 0x7f;
-}
-
-byte_t short_tools::fine(uint16_t value) {
-    return value & 0x7f;
-}
-
-uint16_t short_tools::alter_coarse(uint16_t value, byte_t coarse) {
-    return ((coarse & 0x7f) << 7) | (value & 0x007f);
-}
-
-uint16_t short_tools::alter_fine(uint16_t value, byte_t fine) {
-    return (value & 0x3f80) | (fine & 0x7f);
-}
-
 //=========
 // Channel
 //=========
@@ -152,76 +125,75 @@ std::ostream& print_drum(std::ostream& stream, byte_t byte) {
 // Controller
 //============
 
-const controller_tools::storage_type& controller_tools::info() {
-    /// @todo find a better way to store info (group coarse/fine)
-    static storage_type info_ = {
-        {bank_select_coarse_controller, {"Bank Select (coarse)", 0x00, false}},
-        {bank_select_fine_controller, {"Bank Select (fine)", 0x00, false}},
-        {modulation_wheel_coarse_controller, {"Modulation Wheel (coarse)", 0x00, false}},
-        {modulation_wheel_fine_controller, {"Modulation Wheel (fine)", 0x00, false}},
-        {breath_coarse_controller, {"Breath controller (coarse)", 0x00, false}},
-        {breath_fine_controller, {"Breath controller (fine)", 0x00, false}},
-        {foot_pedal_coarse_controller, {"Foot Pedal (coarse)", 0x00, false}},
-        {foot_pedal_fine_controller, {"Foot Pedal (fine)", 0x00, false}},
-        {portamento_time_coarse_controller, {"Portamento Time (coarse)", 0x00, false}},
-        {portamento_time_fine_controller, {"Portamento Time (fine)", 0x00, false}},
-        {data_entry_coarse_controller, {"Data Entry (coarse)", 0x00, false}},
-        {data_entry_fine_controller, {"Data Entry (fine)", 0x00, false}},
-        {volume_coarse_controller, {"Volume (coarse)", 0x64, false}},
-        {volume_fine_controller, {"Volume (fine)", 0x00, false}},
-        {balance_coarse_controller, {"Balance (coarse)", 0x40, false}},
-        {balance_fine_controller, {"Balance (fine)", 0x00, false}},
-        {pan_position_coarse_controller, {"Pan Position (coarse)", 0x40, false}},
-        {pan_position_fine_controller, {"Pan position (fine)", 0x00, false}},
-        {expression_coarse_controller, {"Expression (coarse)", 0x7f, false}},
-        {expression_fine_controller, {"Expression (fine)", 0x00, false}},
-        {effect_control_1_coarse_controllers, {"Effect Control 1 (coarse)", 0x00, false}},
-        {effect_control_1_fine_controllers, {"Effect Control 1 (fine)", 0x00, false}},
-        {effect_control_2_coarse_controllers, {"Effect Control 2 (coarse)", 0x00, false}},
-        {effect_control_2_fine_controllers, {"Effect Control 2 (fine)", 0x00, false}},
-        {general_purpose_slider_controllers[0], {"General Purpose Slider 1", 0x00, false}},
-        {general_purpose_slider_controllers[1], {"General Purpose Slider 2", 0x00, false}},
-        {general_purpose_slider_controllers[2], {"General Purpose Slider 3", 0x00, false}},
-        {general_purpose_slider_controllers[3], {"General Purpose Slider 4", 0x00, false}},
-        {hold_pedal_controller, {"Hold Pedal (on/off)", 0x00, false}},
-        {portamento_controller, {"Portamento (on/off)", 0x00, false}},
-        {sustenuto_pedal_controller, {"Sustenuto Pedal (on/off)", 0x00, false}},
-        {soft_pedal_controller, {"Soft Pedal (on/off)", 0x00, false}},
-        {legato_pedal_controller, {"Legato Pedal (on/off)", 0x00, false}},
-        {hold_2_pedal_controller, {"Hold 2 Pedal (on/off)", 0x00, false}},
-        {sound_controllers[0], {"Sound Variation", 0x40, false}},
-        {sound_controllers[1], {"Sound Timbre", 0x40, false}},
-        {sound_controllers[2], {"Sound Release Time", 0x40, false}},
-        {sound_controllers[3], {"Sound Attack Time", 0x40, false}},
-        {sound_controllers[4], {"Sound Brightness", 0x40, false}},
-        {sound_controllers[5], {"Sound Control 6", 0x40, false}},
-        {sound_controllers[6], {"Sound Control 7", 0x40, false}},
-        {sound_controllers[7], {"Sound Control 8", 0x40, false}},
-        {sound_controllers[8], {"Sound Control 9", 0x40, false}},
-        {sound_controllers[9], {"Sound Control 10", 0x40, false}},
-        {general_purpose_button_controllers[0], {"General Purpose Button 1 (on/off)", 0x00, false}},
-        {general_purpose_button_controllers[1], {"General Purpose Button 2 (on/off)", 0x00, false}},
-        {general_purpose_button_controllers[2], {"General Purpose Button 3 (on/off)", 0x00, false}},
-        {general_purpose_button_controllers[3], {"General Purpose Button 4 (on/off)", 0x00, false}},
-        {effects_level_controller, {"Effects Level", 0x00, false}},
-        {tremulo_level_controller, {"Tremulo Level", 0x00, false}},
-        {chorus_level_controller, {"Chorus Level", 0x00, false}},
-        {celeste_level_controller, {"Celeste Level", 0x00, false}},
-        {phaser_level_controller, {"Phaser Level", 0x00, false}},
-        {data_button_increment_controller, {"Data Button increment", 0x00, false}},
-        {data_button_decrement_controller, {"Data Button decrement", 0x00, false}},
-        {non_registered_parameter_coarse_controller, {"Non-registered Parameter (coarse)", 0x7f, false}},
-        {non_registered_parameter_fine_controller, {"Non-registered Parameter (fine)", 0x7f, false}},
-        {registered_parameter_coarse_controller, {"Registered Parameter (coarse)", 0x7f, false}},
-        {registered_parameter_fine_controller, {"Registered Parameter (fine)", 0x7f, false}},
-        {all_sound_off_controller, {"All Sound Off", 0x00, true}},
-        {all_controllers_off_controller, {"All Controllers Off", 0x00, true}},
-        {local_keyboard_controller, {"Local Keyboard (on/off)", 0x00, true}},
-        {all_notes_off_controller, {"All Notes Off", 0x00, true}},
-        {omni_mode_off_controller, {"Omni Mode Off", 0x00, true}},
-        {omni_mode_on_controller, {"Omni Mode On", 0x00, true}},
-        {mono_operation_controller, {"Mono Operation", 0x00, true}},
-        {poly_operation_controller, {"Poly Operation", 0x00, true}},
+const std::map<byte_t, std::string>& controller_ns::controller_names() {
+    static std::map<byte_t, std::string> info_ = {
+        {bank_select_controller.coarse, "Bank Select (coarse)"},
+        {bank_select_controller.fine, "Bank Select (fine)"},
+        {modulation_wheel_controller.coarse, "Modulation Wheel (coarse)"},
+        {modulation_wheel_controller.fine, "Modulation Wheel (fine)"},
+        {breath_controller.coarse, "Breath controller (coarse)"},
+        {breath_controller.fine, "Breath controller (fine)"},
+        {foot_pedal_controller.coarse, "Foot Pedal (coarse)"},
+        {foot_pedal_controller.fine, "Foot Pedal (fine)"},
+        {portamento_time_controller.coarse, "Portamento Time (coarse)"},
+        {portamento_time_controller.fine, "Portamento Time (fine)"},
+        {data_entry_controller.coarse, "Data Entry (coarse)"},
+        {data_entry_controller.fine, "Data Entry (fine)"},
+        {volume_controller.coarse, "Volume (coarse)"},
+        {volume_controller.fine, "Volume (fine)"},
+        {balance_controller.coarse, "Balance (coarse)"},
+        {balance_controller.fine, "Balance (fine)"},
+        {pan_position_controller.coarse, "Pan Position (coarse)"},
+        {pan_position_controller.fine, "Pan position (fine)"},
+        {expression_controller.coarse, "Expression (coarse)"},
+        {expression_controller.fine, "Expression (fine)"},
+        {effect_control_1_controllers.coarse, "Effect Control 1 (coarse)"},
+        {effect_control_1_controllers.fine, "Effect Control 1 (fine)"},
+        {effect_control_2_controllers.coarse, "Effect Control 2 (coarse)"},
+        {effect_control_2_controllers.fine, "Effect Control 2 (fine)"},
+        {general_purpose_slider_controllers[0], "General Purpose Slider 1"},
+        {general_purpose_slider_controllers[1], "General Purpose Slider 2"},
+        {general_purpose_slider_controllers[2], "General Purpose Slider 3"},
+        {general_purpose_slider_controllers[3], "General Purpose Slider 4"},
+        {hold_pedal_controller, "Hold Pedal (on/off)"},
+        {portamento_controller, "Portamento (on/off)"},
+        {sustenuto_pedal_controller, "Sustenuto Pedal (on/off)"},
+        {soft_pedal_controller, "Soft Pedal (on/off)"},
+        {legato_pedal_controller, "Legato Pedal (on/off)"},
+        {hold_2_pedal_controller, "Hold 2 Pedal (on/off)"},
+        {sound_controllers[0], "Sound Variation"},
+        {sound_controllers[1], "Sound Timbre"},
+        {sound_controllers[2], "Sound Release Time"},
+        {sound_controllers[3], "Sound Attack Time"},
+        {sound_controllers[4], "Sound Brightness"},
+        {sound_controllers[5], "Sound Control 6"},
+        {sound_controllers[6], "Sound Control 7"},
+        {sound_controllers[7], "Sound Control 8"},
+        {sound_controllers[8], "Sound Control 9"},
+        {sound_controllers[9], "Sound Control 10"},
+        {general_purpose_button_controllers[0], "General Purpose Button 1 (on/off)"},
+        {general_purpose_button_controllers[1], "General Purpose Button 2 (on/off)"},
+        {general_purpose_button_controllers[2], "General Purpose Button 3 (on/off)"},
+        {general_purpose_button_controllers[3], "General Purpose Button 4 (on/off)"},
+        {effects_level_controller, "Effects Level"},
+        {tremulo_level_controller, "Tremulo Level"},
+        {chorus_level_controller, "Chorus Level"},
+        {celeste_level_controller, "Celeste Level"},
+        {phaser_level_controller, "Phaser Level"},
+        {data_button_increment_controller, "Data Button increment"},
+        {data_button_decrement_controller, "Data Button decrement"},
+        {non_registered_parameter_controller.coarse, "Non-registered Parameter (coarse)"},
+        {non_registered_parameter_controller.fine, "Non-registered Parameter (fine)"},
+        {registered_parameter_controller.coarse, "Registered Parameter (coarse)"},
+        {registered_parameter_controller.fine, "Registered Parameter (fine)"},
+        {all_sound_off_controller, "All Sound Off"},
+        {all_controllers_off_controller, "All Controllers Off"},
+        {local_keyboard_controller, "Local Keyboard (on/off)"},
+        {all_notes_off_controller, "All Notes Off"},
+        {omni_mode_off_controller, "Omni Mode Off"},
+        {omni_mode_on_controller, "Omni Mode On"},
+        {mono_operation_controller, "Mono Operation"},
+        {poly_operation_controller, "Poly Operation"},
     };
     return info_;
 }
@@ -230,7 +202,69 @@ const controller_tools::storage_type& controller_tools::info() {
 // Family
 //========
 
-static const std::array<const char*, 0x80> program_names = {
+namespace family_ns {
+
+std::string family_name(family_t family) {
+    switch (family) {
+    case family_t::invalid: return "Invalid Event";
+    case family_t::custom: return "Custom Event";
+    case family_t::note_off: return "Note Off";
+    case family_t::note_on: return "Note On";
+    case family_t::aftertouch: return "Aftertouch";
+    case family_t::controller: return "Controller";
+    case family_t::program_change: return "Program Change";
+    case family_t::channel_pressure: return "Channel Pressure";
+    case family_t::pitch_wheel: return "Pitch Wheel";
+    case family_t::sysex: return "System Exclusive";
+    case family_t::mtc_frame: return "MTC Quarter Frame Message";
+    case family_t::song_position: return "Song Position Pointer";
+    case family_t::song_select: return "Song Select";
+    case family_t::xf4: return "System Common 0xf4";
+    case family_t::xf5: return "System Common 0xf5";
+    case family_t::tune_request: return "Tune Request";
+    case family_t::end_of_sysex: return "End Of Sysex";
+    case family_t::clock: return "MIDI Clock";
+    case family_t::tick: return "Tick";
+    case family_t::start: return "MIDI Start";
+    case family_t::continue_: return "MIDI Continue";
+    case family_t::stop: return "MIDI Stop";
+    case family_t::xfd: return "System Realtime 0xfd";
+    case family_t::active_sense: return "Active Sense";
+    case family_t::reset: return "Reset";
+    case family_t::sequence_number: return "Sequence Number";
+    case family_t::text: return "Text Event";
+    case family_t::copyright: return "Copyright Notice";
+    case family_t::track_name: return "Track Name";
+    case family_t::instrument_name: return "Instrument Name";
+    case family_t::lyrics: return "Lyrics";
+    case family_t::marker: return "Marker";
+    case family_t::cue_point: return "Cue Point";
+    case family_t::program_name: return "Program Name";
+    case family_t::device_name: return "Device Name";
+    case family_t::channel_prefix: return "Channel Prefix";
+    case family_t::port: return "MIDI Port";
+    case family_t::end_of_track: return "End Of Track";
+    case family_t::tempo: return "Set Tempo";
+    case family_t::smpte_offset: return "SMPTE Offset";
+    case family_t::time_signature: return "Time Signature";
+    case family_t::key_signature: return "Key Signature";
+    case family_t::proprietary: return "Proprietary";
+    case family_t::default_meta: return "Unknown MetaEvent";
+    default: return "Unknown Event";
+    }
+}
+
+}
+
+std::ostream& operator<<(std::ostream& stream, family_t family) {
+    return stream << family_ns::family_name(family);
+}
+
+// event printers
+
+namespace {
+
+const std::array<const char*, 0x80> program_names = {
     "Acoustic Grand Piano",
     "Bright Acoustic Piano",
     "Electric Grand Piano",
@@ -361,24 +395,14 @@ static const std::array<const char*, 0x80> program_names = {
     "Gunshot"
 };
 
-namespace {
-
-std::ostream& print_bytes(std::ostream& stream, const Event& event) {
-    return ::print_bytes(stream, event.begin(), event.end());
-}
-
 std::ostream& print_controller(std::ostream& stream, const Event& event) {
     byte_t id = event.at(1);
-    auto it = controller_tools::info().find(id);
-    if (it != controller_tools::info().end())
-        stream << it->second.name;
+    auto it = controller_ns::controller_names().find(id);
+    if (it != controller_ns::controller_names().end())
+        stream << it->second;
     else
         stream << "Unknown Controller " << byte_string(id);
     return stream << " (" << (int)event.at(2) << ')';
-}
-
-std::ostream& print_program(std::ostream& stream, const Event& event) {
-    return stream << program_names[event.at(1) & 0x7f] << " (" << (int)event.at(1) << ')';
 }
 
 std::ostream& print_note(std::ostream& stream, const Event& event) {
@@ -389,14 +413,6 @@ std::ostream& print_note(std::ostream& stream, const Event& event) {
         stream << Note::from_code(note);
     }
     return stream << " (" << (int)event.at(2) << ')'; /// add velocity/aftertouch
-}
-
-std::ostream& print_8bits(std::ostream& stream, const Event& event) {
-    return stream << (int)event.at(1);
-}
-
-std::ostream& print_14bits(std::ostream& stream, const Event& event) {
-    return stream << event.get_14bits();
 }
 
 std::ostream& print_key_signature(std::ostream& stream, const Event& event) {
@@ -435,83 +451,57 @@ std::ostream& print_smpte_offset(std::ostream& stream, const Event& event) {
     return stream << " fps " << hours << "h " << minutes << "m " << seconds << "s " << frames + subframes/100. << " frames";
 }
 
-std::ostream& print_meta_string(std::ostream& stream, const Event& event) {
-    return stream << event.get_meta_string();
+std::ostream& print_event(std::ostream& stream, const Event& event) {
+    switch (event.family()) {
+    case family_t::custom:
+        return stream << event.get_custom_key();
+    case family_t::note_off:
+    case family_t::note_on:
+    case family_t::aftertouch:
+        return print_note(stream, event);
+    case family_t::controller:
+        return print_controller(stream, event);
+    case family_t::program_change:
+        return stream << program_names[event.at(1) & 0x7f] << " (" << (int)event.at(1) << ')';
+    case family_t::channel_pressure:
+    case family_t::song_select:
+        return stream << (int)event.at(1);
+    case family_t::pitch_wheel:
+    case family_t::song_position:
+        return stream << event.get_14bits();
+    case family_t::mtc_frame:
+        return print_mtc_frame(stream, event);
+    case family_t::smpte_offset:
+        return print_smpte_offset(stream, event);
+    case family_t::time_signature:
+        return print_time_signature(stream, event);
+    case family_t::key_signature:
+        return print_key_signature(stream, event);
+    case family_t::tempo:
+        return stream << decay_value<int>(10. * event.get_bpm()) / 10. << " bpm";
+    case family_t::text:
+    case family_t::copyright:
+    case family_t::track_name:
+    case family_t::instrument_name:
+    case family_t::lyrics:
+    case family_t::marker:
+    case family_t::cue_point:
+    case family_t::program_name:
+    case family_t::device_name:
+        return stream << event.get_meta_string();
+    case family_t::sequence_number:
+    case family_t::channel_prefix:
+    case family_t::port:
+        return stream << event.get_meta_int();
+    case family_t::sysex:
+    case family_t::proprietary:
+    case family_t::default_meta:
+        return print_bytes(stream, event.begin(), event.end());
+    default:
+        return stream;
+    }
 }
 
-std::ostream& print_meta_int(std::ostream& stream, const Event& event) {
-    return stream << event.get_meta_int();
-}
-
-std::ostream& print_bpm(std::ostream& stream, const Event& event) {
-    return stream << decay_value<int>(10. * event.get_bpm()) / 10. << " bpm";
-}
-
-std::ostream& print_noop(std::ostream& stream, const Event&) {
-    return stream;
-}
-
-std::ostream& print_custom(std::ostream& stream, const Event& event) {
-    return stream << event.get_custom_key();
-}
-
-static const std::unordered_map<family_t, family_tools::info_type> family_infos = {
-    {family_t::invalid, {"Invalid Event", print_noop, false}},
-    {family_t::custom, {"Custom Event", print_custom, true}},
-    {family_t::note_off, {"Note Off", print_note, true}},
-    {family_t::note_on, {"Note On", print_note, true}},
-    {family_t::aftertouch, {"Aftertouch", print_note, true}},
-    {family_t::controller, {"Controller", print_controller, true}},
-    {family_t::program_change, {"Program Change", print_program, true}},
-    {family_t::channel_pressure, {"Channel Pressure", print_8bits, true}},
-    {family_t::pitch_wheel, {"Pitch Wheel", print_14bits, true}},
-    {family_t::sysex, {"System Exclusive", print_bytes, false}},
-    {family_t::mtc_frame, {"MTC Quarter Frame Message", print_mtc_frame, false}},
-    {family_t::song_position, {"Song Position Pointer", print_14bits, false}},
-    {family_t::song_select, {"Song Select", print_8bits, false}},
-    {family_t::xf4, {"System Common 0xf4", print_noop, false}},
-    {family_t::xf5, {"System Common 0xf5", print_noop, false}},
-    {family_t::tune_request, {"Tune Request", print_noop, false}},
-    {family_t::end_of_sysex, {"End Of Sysex", print_noop, false}},
-    {family_t::clock, {"MIDI Clock", print_noop, false}},
-    {family_t::tick, {"Tick", print_noop, false}},
-    {family_t::start, {"MIDI Start", print_noop, false}},
-    {family_t::continue_, {"MIDI Continue", print_noop, false}},
-    {family_t::stop, {"MIDI Stop", print_noop, false}},
-    {family_t::xfd, {"System Realtime 0xfd", print_noop, false}},
-    {family_t::active_sense, {"Active Sense", print_noop, false}},
-    {family_t::reset, {"Reset", print_noop, false}},
-    {family_t::sequence_number, {"Sequence Number", print_meta_int, false}},
-    {family_t::text, {"Text Event", print_meta_string, false}},
-    {family_t::copyright, {"Copyright Notice", print_meta_string, false}},
-    {family_t::track_name, {"Track Name", print_meta_string, false}},
-    {family_t::instrument_name, {"Instrument Name", print_meta_string, false}},
-    {family_t::lyrics, {"Lyrics", print_meta_string, false}},
-    {family_t::marker, {"Marker", print_meta_string, false}},
-    {family_t::cue_point, {"Cue Point", print_meta_string, false}},
-    {family_t::program_name, {"Program Name", print_meta_string, false}},
-    {family_t::device_name, {"Device Name", print_meta_string, false}},
-    {family_t::channel_prefix, {"Channel Prefix", print_meta_int, false}},
-    {family_t::port, {"MIDI Port", print_meta_int, false}},
-    {family_t::end_of_track, {"End Of Track", print_noop, false}},
-    {family_t::tempo, {"Set Tempo", print_bpm, false}},
-    {family_t::smpte_offset, {"SMPTE Offset", print_smpte_offset, false}},
-    {family_t::time_signature, {"Time Signature", print_time_signature, false}},
-    {family_t::key_signature, {"Key Signature", print_key_signature, false}},
-    {family_t::proprietary, {"Proprietary", print_bytes, false}},
-    {family_t::default_meta, {"Unknown MetaEvent", print_bytes, false}},
-};
-
-}
-
-std::ostream& family_tools::print_event(std::ostream& stream, const Event& event) {
-    return info(event.family()).printer(stream, event);
-}
-
-const family_tools::info_type& family_tools::info(family_t family) {
-    static const info_type default_info {"Unknown Event", print_bytes, false};
-    auto it = family_infos.find(family);
-    return it == family_infos.end() ? default_info : it->second;
 }
 
 //=======
@@ -532,6 +522,10 @@ Event Event::aftertouch(channels_t channels, byte_t note, byte_t pressure) {
     return {family_t::aftertouch, channels, {0xa0, to_data_byte(note), to_data_byte(pressure)}};
 }
 
+Event Event::controller(channels_t channels, byte_t controller) {
+    return {family_t::controller, channels, {0xb0, to_data_byte(controller), controller_ns::default_value(controller)}};
+}
+
 Event Event::controller(channels_t channels, byte_t controller, byte_t value) {
     return {family_t::controller, channels, {0xb0, to_data_byte(controller), to_data_byte(value)}};
 }
@@ -545,7 +539,7 @@ Event Event::channel_pressure(channels_t channels, byte_t pressure) {
 }
 
 Event Event::pitch_wheel(channels_t channels, uint16_t pitch) {
-    return {family_t::pitch_wheel, channels, {0xe0, short_tools::fine(pitch), short_tools::coarse(pitch)}};
+    return {family_t::pitch_wheel, channels, {0xe0, short_ns::fine(pitch), short_ns::coarse(pitch)}};
 }
 
 Event Event::sys_ex(data_type data) {
@@ -555,7 +549,7 @@ Event Event::sys_ex(data_type data) {
 }
 
 Event Event::master_volume(uint16_t volume, byte_t sysex_channel) {
-    return {family_t::sysex, {}, {0xf0, 0x7f, sysex_channel, 0x04, 0x01, short_tools::fine(volume), short_tools::coarse(volume), 0xf7}};
+    return {family_t::sysex, {}, {0xf0, 0x7f, sysex_channel, 0x04, 0x01, short_ns::fine(volume), short_ns::coarse(volume), 0xf7}};
 }
 
 Event Event::mtc_frame(byte_t value) {
@@ -563,7 +557,7 @@ Event Event::mtc_frame(byte_t value) {
 }
 
 Event Event::song_position(uint16_t value) {
-    return {family_t::song_position, {}, {0xf2, short_tools::fine(value), short_tools::coarse(value)}};
+    return {family_t::song_position, {}, {0xf2, short_ns::fine(value), short_ns::coarse(value)}};
 }
 
 Event Event::song_select(byte_t value) {
@@ -636,7 +630,7 @@ Event Event::raw(bool is_realtime, data_type data) {
     // get family
     event.m_family = event.extract_family(is_realtime);
     // get channel mask
-    if (event.is(voice_families))
+    if (event.is(family_ns::voice_families))
         event.m_channels = channels_t::merge(channel);
     return event;
 }
@@ -661,7 +655,7 @@ bool Event::equivalent(const Event& lhs, const Event& rhs) {
     auto ilhs = lhs.begin();
     auto irhs = rhs.begin();
     // skip status byte
-    if (lhs.is(midi_families)) {
+    if (lhs.is(family_ns::midi_families)) {
         ++ilhs;
         ++irhs;
     }
@@ -679,12 +673,12 @@ bool operator!=(const Event& lhs, const Event& rhs) {
 // string
 
 std::string Event::name() const {
-    return family_tools::info(m_family).name;
+    return family_ns::family_name(m_family);
 }
 
 std::string Event::description() const {
     std::stringstream stream;
-    family_tools::print_event(stream, *this);
+    print_event(stream, *this);
     return stream.str();
 }
 
@@ -829,7 +823,7 @@ Note Event::get_note() const {
 }
 
 uint16_t Event::get_14bits() const {
-    return short_tools::glue(at(2), at(1));
+    return short_ns::glue({at(2), at(1)});
 }
 
 double Event::get_bpm() const {

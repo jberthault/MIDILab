@@ -114,14 +114,11 @@ void MetaControllerWheel::setContent(HandlerProxy& proxy) {
 //=================
 
 ControllerWheel::ControllerWheel() : AbstractWheel(handler_ns::io_mode) {
-    mDefaultValues.fill(0);
-    for (const auto& value : controller_tools::info())
-        mDefaultValues[value.first] = value.second.default_value;
     resetAll();
     mControllerBox = new QComboBox(this);
-    for (const auto& value : controller_tools::info())
-        if (!value.second.is_action)
-            mControllerBox->addItem(QString::fromStdString(value.second.name), QVariant(value.first));
+    for (const auto& value : controller_ns::controller_names())
+        if (!controller_ns::is_channel_mode_message(value.first))
+            mControllerBox->addItem(QString::fromStdString(value.second), QVariant(value.first));
     connect(mControllerBox, SIGNAL(currentIndexChanged(int)), SLOT(onControlChange()));
     onControlChange(); // update controller
     static_cast<QVBoxLayout*>(layout())->insertWidget(0, mControllerBox);
@@ -174,7 +171,7 @@ void ControllerWheel::onControlChange() {
     channel_map_t<qreal> ratios;
     for (channel_t c=0 ; c < 0x10 ; c++)
         ratios[c] = data7Range.reduce(mValues[mController][c]);
-    slider()->setDefaultRatio(data7Range.reduce(mDefaultValues[mController]));
+    slider()->setDefaultRatio(data7Range.reduce(controller_ns::default_value(mController)));
     slider()->setRatios(ratios);
 }
 
@@ -186,22 +183,18 @@ void ControllerWheel::onMove(channels_t channels, qreal ratio) {
 }
 
 void ControllerWheel::updateText(channels_t channels) {
-    switch (mController) {
-    case controller_ns::pan_position_coarse_controller:
-    case controller_ns::balance_coarse_controller:
+    if (controller_ns::default_value(mController) == 0x40) { // Centered
         for (const auto& pair : channel_ns::reverse(mValues[mController], channels))
             slider()->setText(pair.second, number2string(panRange.rescale(data7Range, pair.first)));
-        break;
-    default:
+    } else {
         for (const auto& pair : channel_ns::reverse(mValues[mController], channels))
             slider()->setText(pair.second, stringForRatio(data7Range.reduce(pair.first)));
-        break;
     }
 }
 
 void ControllerWheel::resetAll() {
     for (byte_t b=0 ; b < 0x80 ; b++)
-        mValues[b].fill(mDefaultValues[b]);
+        mValues[b].fill(controller_ns::default_value(b));
 }
 
 void ControllerWheel::setControllerValue(channels_t channels, byte_t controller, byte_t value) {
@@ -211,24 +204,24 @@ void ControllerWheel::setControllerValue(channels_t channels, byte_t controller,
 }
 
 void ControllerWheel::resetControllerValue(channels_t channels, byte_t controller) {
-    setControllerValue(channels, controller, mDefaultValues[controller]);
+    setControllerValue(channels, controller, controller_ns::default_value(controller));
 }
 
 Handler::result_type ControllerWheel::handleController(channels_t channels, byte_t controller, byte_t value) {
     setControllerValue(channels, controller, value);
     if (controller == controller_ns::all_controllers_off_controller) {
-        resetControllerValue(channels, controller_ns::modulation_wheel_coarse_controller);
-        resetControllerValue(channels, controller_ns::modulation_wheel_fine_controller);
-        resetControllerValue(channels, controller_ns::expression_coarse_controller);
-        resetControllerValue(channels, controller_ns::expression_fine_controller);
+        resetControllerValue(channels, controller_ns::modulation_wheel_controller.coarse);
+        resetControllerValue(channels, controller_ns::modulation_wheel_controller.fine);
+        resetControllerValue(channels, controller_ns::expression_controller.coarse);
+        resetControllerValue(channels, controller_ns::expression_controller.fine);
         resetControllerValue(channels, controller_ns::hold_pedal_controller);
         resetControllerValue(channels, controller_ns::portamento_controller);
         resetControllerValue(channels, controller_ns::sustenuto_pedal_controller);
         resetControllerValue(channels, controller_ns::soft_pedal_controller);
-        resetControllerValue(channels, controller_ns::registered_parameter_coarse_controller);
-        resetControllerValue(channels, controller_ns::registered_parameter_fine_controller);
-        resetControllerValue(channels, controller_ns::non_registered_parameter_coarse_controller);
-        resetControllerValue(channels, controller_ns::non_registered_parameter_fine_controller);
+        resetControllerValue(channels, controller_ns::registered_parameter_controller.coarse);
+        resetControllerValue(channels, controller_ns::registered_parameter_controller.fine);
+        resetControllerValue(channels, controller_ns::non_registered_parameter_controller.coarse);
+        resetControllerValue(channels, controller_ns::non_registered_parameter_controller.fine);
     }
     return result_type::success;
 }
@@ -278,11 +271,11 @@ Handler::result_type PitchWheel::handle_message(const Message& message) {
     switch (message.event.family()) {
     case family_t::controller:
         switch (message.event.at(1)) {
-        case controller_ns::registered_parameter_coarse_controller: return handleCoarseRPN(message.event.channels(), message.event.at(2));
-        case controller_ns::registered_parameter_fine_controller: return handleFineRPN(message.event.channels(), message.event.at(2));
-        case controller_ns::non_registered_parameter_coarse_controller: return handleCoarseRPN(message.event.channels(), 0x7f);
-        case controller_ns::non_registered_parameter_fine_controller: return handleFineRPN(message.event.channels(), 0x7f);
-        case controller_ns::data_entry_coarse_controller: return handleCoarseDataEntry(message.event.channels(), message.event.at(2));
+        case controller_ns::registered_parameter_controller.coarse: return handleCoarseRPN(message.event.channels(), message.event.at(2));
+        case controller_ns::registered_parameter_controller.fine: return handleFineRPN(message.event.channels(), message.event.at(2));
+        case controller_ns::non_registered_parameter_controller.coarse: return handleCoarseRPN(message.event.channels(), 0x7f);
+        case controller_ns::non_registered_parameter_controller.fine: return handleFineRPN(message.event.channels(), 0x7f);
+        case controller_ns::data_entry_controller.coarse: return handleCoarseDataEntry(message.event.channels(), message.event.at(2));
         case controller_ns::all_controllers_off_controller: return handleAllControllersOff(message.event.channels());
         }
         break;
@@ -314,7 +307,7 @@ void PitchWheel::onMove(channels_t channels, qreal ratio) {
         if (canGenerate() && channels) {
             channels_t channelsNotReady = channels & ~channel_ns::find(mRegisteredParameters, pitchBendRangeRPN);
             generateRegisteredParameter(channelsNotReady, pitchBendRangeRPN);
-            generate(Event::controller(channels, controller_ns::data_entry_coarse_controller, semitones));
+            generate(Event::controller(channels, controller_ns::data_entry_controller.coarse, semitones));
             generateRegisteredParameter(channelsNotReady, defaultRPN);
         }
     } else {
@@ -355,8 +348,8 @@ bool PitchWheel::rangeDisplayed() const {
 void PitchWheel::generateRegisteredParameter(channels_t channels, uint16_t value) {
     channel_ns::store(mRegisteredParameters, channels, value);
     if (channels) {
-        generate(Event::controller(channels, controller_ns::registered_parameter_coarse_controller, short_tools::coarse(value)));
-        generate(Event::controller(channels, controller_ns::registered_parameter_fine_controller, short_tools::fine(value)));
+        generate(Event::controller(channels, controller_ns::registered_parameter_controller.coarse, short_ns::coarse(value)));
+        generate(Event::controller(channels, controller_ns::registered_parameter_controller.fine, short_ns::fine(value)));
     }
 }
 
@@ -382,13 +375,13 @@ void PitchWheel::resetAll() {
 
 Handler::result_type PitchWheel::handleCoarseRPN(channels_t channels, byte_t byte) {
     for (channel_t c : channels)
-        mRegisteredParameters[c] = short_tools::alter_coarse(mRegisteredParameters[c], byte);
+        mRegisteredParameters[c] = short_ns::alter_coarse(mRegisteredParameters[c], byte);
     return result_type::success;
 }
 
 Handler::result_type PitchWheel::handleFineRPN(channels_t channels, byte_t byte) {
     for (channel_t c : channels)
-        mRegisteredParameters[c] = short_tools::alter_fine(mRegisteredParameters[c], byte);
+        mRegisteredParameters[c] = short_ns::alter_fine(mRegisteredParameters[c], byte);
     return result_type::success;
 }
 

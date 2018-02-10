@@ -31,7 +31,7 @@ MetaSystem::MetaSystem(QObject* parent) : ClosedMetaHandler(parent) {
 QStringList MetaSystem::instantiables() {
     QStringList result;
     mFactory.update();
-    for(const auto& name : mFactory.available())
+    for (const auto& name : mFactory.available())
         result.append(QString::fromStdString(name));
     return result;
 }

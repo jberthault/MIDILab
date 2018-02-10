@@ -21,10 +21,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <sstream>
 #include "misc.h"
 
-using namespace controller_ns;
-using namespace family_ns;
-using namespace handler_ns;
-
 //============
 // NoteMemory
 //============
@@ -42,7 +38,7 @@ void NoteMemory::feed(const Event& event) {
         set_off(event.channels(), event.at(1));
         break;
     case family_t::controller:
-        if (event.at(1) == all_sound_off_controller || event.at(1) == all_notes_off_controller)
+        if (event.at(1) == controller_ns::all_sound_off_controller || event.at(1) == controller_ns::all_notes_off_controller)
             clear(event.channels());
         break;
     default:

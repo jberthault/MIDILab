@@ -151,10 +151,14 @@ struct SoundFontHandler::Impl {
         return result_type::success;
     }
 
-    result_type handle_controller(channels_t channels, byte_t controller, int value = 0x00) {
+    result_type handle_controller(channels_t channels, byte_t controller, int value) {
         for (channel_t channel : channels)
             fluid_synth_cc(synth, channel, controller, value);
         return result_type::success;
+    }
+
+    result_type handle_default_controller(channels_t channels, byte_t controller) {
+        return handle_controller(channels, controller, controller_ns::default_value(controller));
     }
 
     result_type handle_channel_type(channels_t channels, int type) {
@@ -183,14 +187,14 @@ struct SoundFontHandler::Impl {
     result_type handle_reset() {
         handle_channel_type(all_channels & ~drum_channels, CHANNEL_TYPE_MELODIC);
         handle_channel_type(drum_channels, CHANNEL_TYPE_DRUM);
-        handle_controller(all_channels, controller_ns::all_sound_off_controller);
-        handle_controller(all_channels, controller_ns::all_controllers_off_controller);
-        handle_controller(all_channels, controller_ns::volume_coarse_controller, 100);
-        handle_controller(all_channels, controller_ns::volume_fine_controller, 0);
-        handle_controller(all_channels, controller_ns::pan_position_coarse_controller, 64);
-        handle_controller(all_channels, controller_ns::pan_position_fine_controller, 0);
+        handle_default_controller(all_channels, controller_ns::all_sound_off_controller);
+        handle_default_controller(all_channels, controller_ns::all_controllers_off_controller);
+        handle_default_controller(all_channels, controller_ns::volume_controller.coarse);
+        handle_default_controller(all_channels, controller_ns::volume_controller.fine);
+        handle_default_controller(all_channels, controller_ns::pan_position_controller.coarse);
+        handle_default_controller(all_channels, controller_ns::pan_position_controller.fine);
         for (byte_t controller : controller_ns::sound_controllers)
-            handle_controller(all_channels, controller, 64);
+            handle_default_controller(all_channels, controller);
         for (channel_t channel : all_channels)
             fluid_synth_pitch_wheel_sens(synth, channel, 2);
         return result_type::success;

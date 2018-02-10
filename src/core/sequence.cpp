@@ -25,8 +25,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "sequence.h"
 #include "tools/trace.h"
 
-using namespace family_ns;
-
 //=========
 // details
 //=========
@@ -309,9 +307,9 @@ size_t write_event(uint32_t deltatime, const Event& event, std::ostream& stream,
     // check event type
     if (!event)
         throw std::invalid_argument("can't write null event");
-    if (event.is(~midi_families | system_realtime_families))
+    if (event.is(~family_ns::midi_families | family_ns::system_realtime_families))
         throw std::invalid_argument("can't write custom or realtime events");
-    if (event.is(voice_families)) {
+    if (event.is(family_ns::voice_families)) {
         // transform note off to note on
         if (event.family() == family_t::note_off && event.at(2) == 0)
             status = 0x90;

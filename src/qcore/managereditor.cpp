@@ -512,7 +512,7 @@ HandlerCatalogEditor::HandlerCatalogEditor(QWidget* parent) : QTreeWidget(parent
 }
 
 void HandlerCatalogEditor::showMenu(const QPoint& point) {
-    if(auto item = itemAt(point)) {
+    if (auto item = itemAt(point)) {
         if (auto closedMetaHandler = dynamic_cast<ClosedMetaHandler*>(metaHandlerForItem(item))) {
             QMenu menu;
             auto reloadAction = menu.addAction(QIcon(":/data/reload.svg"), "Reload");
@@ -530,7 +530,7 @@ void HandlerCatalogEditor::onDoubleClick(QTreeWidgetItem* item, int column) {
     if (!metaHandler) {
         metaHandler = metaHandlerForItem(item->parent());
         fixedName = item->text(column);
-        for(const auto& proxy : Manager::instance->getProxies()) {
+        for (const auto& proxy : Manager::instance->getProxies()) {
             if (proxy.metaHandler() == metaHandler && proxy.name() == fixedName) {
                 QMessageBox::warning(this, {}, tr("This handler already exists"));
                 return;
@@ -545,7 +545,7 @@ void HandlerCatalogEditor::refreshMeta(QTreeWidgetItem *item, const QStringList&
     auto previousChildren = item->takeChildren();
     qDeleteAll(previousChildren);
     // make new children
-    for(const auto& name : instantiables) {
+    for (const auto& name : instantiables) {
         auto child = new QTreeWidgetItem;
         child->setText(0, name);
         child->setFlags(item->flags() & ~Qt::ItemIsEditable);
