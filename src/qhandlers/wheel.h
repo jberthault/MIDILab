@@ -100,6 +100,7 @@ public:
 
     families_t handled_families() const override;
     result_type handle_message(const Message& message) override;
+    result_type on_close(state_type state) override;
 
 protected slots:
     void onMove(channels_t channels, qreal ratio) override;
@@ -108,8 +109,12 @@ protected slots:
     void onControlChange();
 
 private:
-    void receiveController(channels_t channels, byte_t controller, byte_t value);
-    void resetController(channels_t channels);
+    void resetAll();
+    void setControllerValue(channels_t channels, byte_t controller, byte_t value);
+    void resetControllerValue(channels_t channels, byte_t controller);
+
+    result_type handleController(channels_t channels, byte_t controller, byte_t value);
+    result_type handleReset();
 
 private:
     QComboBox* mControllerBox;
@@ -159,13 +164,14 @@ private:
     void generateRegisteredParameter(channels_t channels, uint16_t value);
     void updatePitchRangeText(channels_t channels);
     void updatePitchValueText(channels_t channels);
-    void resetAll(channels_t channels);
+    void resetAll();
 
     result_type handleCoarseRPN(channels_t channels, byte_t byte);
     result_type handleFineRPN(channels_t channels, byte_t byte);
     result_type handleCoarseDataEntry(channels_t channels, byte_t byte);
     result_type handlePitchValue(channels_t channels, uint16_t value);
-    result_type handleReset(channels_t channels);
+    result_type handleAllControllersOff(channels_t channels);
+    result_type handleReset();
 
 private:
     QComboBox* mTypeBox;

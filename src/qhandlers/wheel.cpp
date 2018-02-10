@@ -27,7 +27,9 @@ static constexpr range_t<byte_t> data7Range = {0, 0x7f};
 static constexpr range_t<uint16_t> data14Range = {0, 0x3fff};
 static constexpr range_t<int> panRange = {-50, 50};
 
+static constexpr byte_t defaultSemitones = 2;
 static constexpr uint16_t defaultRPN = 0x3fff;
+static constexpr uint16_t defaultPitch = 0x2000;
 static constexpr uint16_t pitchBendRangeRPN = 0x0000;
 
 namespace {
@@ -112,21 +114,16 @@ void MetaControllerWheel::setContent(HandlerProxy& proxy) {
 //=================
 
 ControllerWheel::ControllerWheel() : AbstractWheel(handler_ns::io_mode) {
-
     mDefaultValues.fill(0);
     for (const auto& value : controller_tools::info())
         mDefaultValues[value.first] = value.second.default_value;
-
-    for (byte_t b=0 ; b < 0x80 ; b++)
-        mValues[b].fill(mDefaultValues[b]);
-
+    resetAll();
     mControllerBox = new QComboBox(this);
     for (const auto& value : controller_tools::info())
         if (!value.second.is_action)
             mControllerBox->addItem(QString::fromStdString(value.second.name), QVariant(value.first));
     connect(mControllerBox, SIGNAL(currentIndexChanged(int)), SLOT(onControlChange()));
     onControlChange(); // update controller
-
     static_cast<QVBoxLayout*>(layout())->insertWidget(0, mControllerBox);
 }
 
@@ -161,10 +158,15 @@ Handler::result_type ControllerWheel::handle_message(const Message& message) {
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_RECEIVE;
     switch (message.event.family()) {
-    case family_t::controller: receiveController(message.event.channels(), message.event.at(1), message.event.at(2)); return result_type::success;
-    case family_t::reset: resetController(all_channels); return result_type::success;
+    case family_t::controller: return handleController(message.event.channels(), message.event.at(1), message.event.at(2));
+    case family_t::reset: return handleReset();
     }
     return result_type::unhandled;
+}
+
+Handler::result_type ControllerWheel::on_close(state_type state) {
+    resetAll();
+    return AbstractWheel::on_close(state);
 }
 
 void ControllerWheel::onControlChange() {
@@ -197,20 +199,44 @@ void ControllerWheel::updateText(channels_t channels) {
     }
 }
 
-void ControllerWheel::receiveController(channels_t channels, byte_t controller, byte_t value) {
-    if (controller == controller_ns::all_controllers_off_controller) {
-        resetController(channels);
-    } else {
-        channel_ns::store(mValues[controller], channels, value);
-        if (controller == mController)
-            slider()->setRatio(channels, data7Range.reduce(value));
-    }
+void ControllerWheel::resetAll() {
+    for (byte_t b=0 ; b < 0x80 ; b++)
+        mValues[b].fill(mDefaultValues[b]);
 }
 
-void ControllerWheel::resetController(channels_t channels) {
-    for (byte_t b=0 ; b < 0x80 ; b++)
-        channel_ns::store(mValues[b], channels, mDefaultValues[b]);
-    slider()->setDefault(channels);
+void ControllerWheel::setControllerValue(channels_t channels, byte_t controller, byte_t value) {
+    channel_ns::store(mValues[controller], channels, value);
+    if (controller == mController)
+        slider()->setRatio(channels, data7Range.reduce(value));
+}
+
+void ControllerWheel::resetControllerValue(channels_t channels, byte_t controller) {
+    setControllerValue(channels, controller, mDefaultValues[controller]);
+}
+
+Handler::result_type ControllerWheel::handleController(channels_t channels, byte_t controller, byte_t value) {
+    setControllerValue(channels, controller, value);
+    if (controller == controller_ns::all_controllers_off_controller) {
+        resetControllerValue(channels, controller_ns::modulation_wheel_coarse_controller);
+        resetControllerValue(channels, controller_ns::modulation_wheel_fine_controller);
+        resetControllerValue(channels, controller_ns::expression_coarse_controller);
+        resetControllerValue(channels, controller_ns::expression_fine_controller);
+        resetControllerValue(channels, controller_ns::hold_pedal_controller);
+        resetControllerValue(channels, controller_ns::portamento_controller);
+        resetControllerValue(channels, controller_ns::sustenuto_pedal_controller);
+        resetControllerValue(channels, controller_ns::soft_pedal_controller);
+        resetControllerValue(channels, controller_ns::registered_parameter_coarse_controller);
+        resetControllerValue(channels, controller_ns::registered_parameter_fine_controller);
+        resetControllerValue(channels, controller_ns::non_registered_parameter_coarse_controller);
+        resetControllerValue(channels, controller_ns::non_registered_parameter_fine_controller);
+    }
+    return result_type::success;
+}
+
+Handler::result_type ControllerWheel::handleReset() {
+    resetAll();
+    slider()->setDefault(all_channels);
+    return result_type::success;
 }
 
 //================
@@ -236,7 +262,7 @@ PitchWheel::PitchWheel() : AbstractWheel(handler_ns::io_mode) {
     connect(mTypeBox, SIGNAL(currentIndexChanged(int)), SLOT(onTypeChange(int)));
     connect(slider(), &ChannelsSlider::knobPressed, this, &PitchWheel::onPress);
     connect(slider(), &ChannelsSlider::knobReleased, this, &PitchWheel::onRelease);
-    resetAll(all_channels);
+    resetAll();
     prepare(.5);
     static_cast<QVBoxLayout*>(layout())->insertWidget(0, mTypeBox);
 }
@@ -257,17 +283,17 @@ Handler::result_type PitchWheel::handle_message(const Message& message) {
         case controller_ns::non_registered_parameter_coarse_controller: return handleCoarseRPN(message.event.channels(), 0x7f);
         case controller_ns::non_registered_parameter_fine_controller: return handleFineRPN(message.event.channels(), 0x7f);
         case controller_ns::data_entry_coarse_controller: return handleCoarseDataEntry(message.event.channels(), message.event.at(2));
-        case controller_ns::all_controllers_off_controller: return handleReset(message.event.channels());
+        case controller_ns::all_controllers_off_controller: return handleAllControllersOff(message.event.channels());
         }
         break;
     case family_t::pitch_wheel: return handlePitchValue(message.event.channels(), message.event.get_14bits());
-    case family_t::reset: return handleReset(all_channels);
+    case family_t::reset: return handleReset();
     }
     return result_type::unhandled;
 }
 
 Handler::result_type PitchWheel::on_close(state_type state) {
-    resetAll(all_channels);
+    resetAll();
     return AbstractWheel::on_close(state);
 }
 
@@ -310,7 +336,7 @@ void PitchWheel::onTypeChange(int index) {
     qreal defaultRatio;
     channel_map_t<qreal> ratios;
     if (index == 1) {
-        defaultRatio = semitonesRange.reduce(2);
+        defaultRatio = semitonesRange.reduce(defaultSemitones);
         for (channel_t c=0 ; c < 0x10 ; c++)
             ratios[c] = semitonesRange.reduce(mPitchRanges[c]);
     } else {
@@ -348,10 +374,10 @@ void PitchWheel::updatePitchValueText(channels_t channels) {
     }
 }
 
-void PitchWheel::resetAll(channels_t channels) {
-    channel_ns::store(mRegisteredParameters, channels, defaultRPN);
-    channel_ns::store(mPitchRanges, channels, 2);
-    channel_ns::store(mPitchValues, channels, 0x2000);
+void PitchWheel::resetAll() {
+    mRegisteredParameters.fill(defaultRPN);
+    mPitchRanges.fill(defaultSemitones);
+    mPitchValues.fill(defaultPitch);
 }
 
 Handler::result_type PitchWheel::handleCoarseRPN(channels_t channels, byte_t byte) {
@@ -385,9 +411,14 @@ Handler::result_type PitchWheel::handlePitchValue(channels_t channels, uint16_t 
     return result_type::success;
 }
 
-Handler::result_type PitchWheel::handleReset(channels_t channels) {
-    resetAll(channels);
-    slider()->setDefault(channels);
+Handler::result_type PitchWheel::handleAllControllersOff(channels_t channels) {
+    channel_ns::store(mRegisteredParameters, channels, defaultRPN);
+    return handlePitchValue(channels, defaultPitch);
+}
+
+Handler::result_type PitchWheel::handleReset() {
+    resetAll();
+    slider()->setDefault(all_channels);
     return result_type::success;
 }
 

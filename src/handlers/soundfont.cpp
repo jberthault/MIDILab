@@ -152,32 +152,8 @@ struct SoundFontHandler::Impl {
     }
 
     result_type handle_controller(channels_t channels, byte_t controller, int value = 0x00) {
-        if (controller == controller_ns::all_controllers_off_controller) {
-            handle_channel_type(channels & ~drum_channels, CHANNEL_TYPE_MELODIC);
-            handle_channel_type(channels & drum_channels, CHANNEL_TYPE_DRUM);
-            for (channel_t channel : channels) {
-                fluid_synth_cc(synth, channel, controller_ns::modulation_wheel_coarse_controller, 0);
-                fluid_synth_cc(synth, channel, controller_ns::modulation_wheel_fine_controller, 0);
-                fluid_synth_cc(synth, channel, controller_ns::expression_coarse_controller, 0x7f);
-                fluid_synth_cc(synth, channel, controller_ns::expression_fine_controller, 0x7f);
-                fluid_synth_cc(synth, channel, controller_ns::hold_pedal_controller, 0);
-                fluid_synth_cc(synth, channel, controller_ns::portamento_controller, 0);
-                fluid_synth_cc(synth, channel, controller_ns::sustenuto_pedal_controller, 0);
-                fluid_synth_cc(synth, channel, controller_ns::soft_pedal_controller, 0);
-                fluid_synth_cc(synth, channel, controller_ns::legato_pedal_controller, 0);
-                fluid_synth_cc(synth, channel, controller_ns::hold_2_pedal_controller, 0);
-                fluid_synth_cc(synth, channel, controller_ns::volume_coarse_controller, 100);
-                fluid_synth_cc(synth, channel, controller_ns::volume_fine_controller, 0);
-                fluid_synth_cc(synth, channel, controller_ns::pan_position_coarse_controller, 64);
-                fluid_synth_cc(synth, channel, controller_ns::pan_position_fine_controller, 0);
-                fluid_synth_pitch_wheel_sens(synth, channel, 2);
-                fluid_synth_pitch_bend(synth, channel, 0x2000);
-                fluid_synth_channel_pressure(synth, channel, 0);
-            }
-        } else {
-            for (channel_t channel : channels)
-                fluid_synth_cc(synth, channel, controller, value);
-        }
+        for (channel_t channel : channels)
+            fluid_synth_cc(synth, channel, controller, value);
         return result_type::success;
     }
 
@@ -205,16 +181,25 @@ struct SoundFontHandler::Impl {
     }
 
     result_type handle_reset() {
+        handle_channel_type(all_channels & ~drum_channels, CHANNEL_TYPE_MELODIC);
+        handle_channel_type(drum_channels, CHANNEL_TYPE_DRUM);
         handle_controller(all_channels, controller_ns::all_sound_off_controller);
         handle_controller(all_channels, controller_ns::all_controllers_off_controller);
+        handle_controller(all_channels, controller_ns::volume_coarse_controller, 100);
+        handle_controller(all_channels, controller_ns::volume_fine_controller, 0);
+        handle_controller(all_channels, controller_ns::pan_position_coarse_controller, 64);
+        handle_controller(all_channels, controller_ns::pan_position_fine_controller, 0);
+        for (byte_t controller : controller_ns::sound_controllers)
+            handle_controller(all_channels, controller, 64);
+        for (channel_t channel : all_channels)
+            fluid_synth_pitch_wheel_sens(synth, channel, 2);
         return result_type::success;
     }
 
     result_type handle_sysex(const Event& event) {
         /// @note master volume does not seem to be handled correctly
         // roland handling
-        auto channels = use_for_rhythm_part(event);
-        if (channels)
+        if (auto channels = use_for_rhythm_part(event))
             return handle_channel_type(channels, CHANNEL_TYPE_DRUM);
         // default handling
         std::vector<char> sys_ex_data(event.begin()+1, event.end()-1);
