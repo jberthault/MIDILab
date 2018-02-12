@@ -69,7 +69,6 @@ static constexpr uint16_t glue(uint14_t value) {
     return (value.coarse << 7) | value.fine;
 }
 
-
 }
 
 //=========
@@ -242,8 +241,7 @@ static constexpr short_ns::uint14_t volume_controller = {0x07, 0x27};
 static constexpr short_ns::uint14_t balance_controller = {0x08, 0x28};
 static constexpr short_ns::uint14_t pan_position_controller = {0x0a, 0x2a};
 static constexpr short_ns::uint14_t expression_controller = {0x0b, 0x2b};
-static constexpr short_ns::uint14_t effect_control_1_controllers = {0x0c, 0x2c};
-static constexpr short_ns::uint14_t effect_control_2_controllers = {0x0d, 0x2d};
+static constexpr short_ns::uint14_t effect_control_controllers[] = {{0x0c, 0x2c}, {0x0d, 0x2d}};
 static constexpr byte_t general_purpose_slider_controllers[] = {0x10, 0x11, 0x12, 0x13};
 static constexpr byte_t hold_pedal_controller(0x40);
 static constexpr byte_t portamento_controller(0x41);
@@ -252,17 +250,8 @@ static constexpr byte_t soft_pedal_controller(0x43);
 static constexpr byte_t legato_pedal_controller(0x44);
 static constexpr byte_t hold_2_pedal_controller(0x45);
 static constexpr byte_t sound_controllers[] = {0x46, 0x47, 0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f};
-static constexpr byte_t variation_controller = sound_controllers[0];
-static constexpr byte_t timbre_controller = sound_controllers[1];
-static constexpr byte_t sound_release_time = sound_controllers[2];
-static constexpr byte_t sound_attack_time = sound_controllers[3];
-static constexpr byte_t sound_brightness = sound_controllers[4];
 static constexpr byte_t general_purpose_button_controllers[] = {0x50, 0x51, 0x52, 0x53};
-static constexpr byte_t effects_level_controller(0x5b);
-static constexpr byte_t tremulo_level_controller(0x5c);
-static constexpr byte_t chorus_level_controller(0x5d);
-static constexpr byte_t celeste_level_controller(0x5e);
-static constexpr byte_t phaser_level_controller(0x5f);
+static constexpr byte_t effects_depth_controllers[] = {0x5b, 0x5c, 0x5d, 0x5e, 0x5f};
 static constexpr byte_t data_button_increment_controller(0x60);
 static constexpr byte_t data_button_decrement_controller(0x61);
 static constexpr short_ns::uint14_t non_registered_parameter_controller = {0x63, 0x62};
@@ -309,6 +298,82 @@ constexpr byte_t default_value(byte_t controller) {
 }
 
 const std::map<byte_t, std::string>& controller_names();
+
+/**
+ * The list of controllers that should be reset when
+ * all_controllers_off_controller is received (according to RP-015).
+ *
+ * @warning pitch_wheel, channel_pressure and aftertouch should also be reset
+ *
+ */
+
+static constexpr byte_t off_controllers[] = {
+    modulation_wheel_controller.coarse,
+    modulation_wheel_controller.fine,
+    expression_controller.coarse,
+    expression_controller.fine,
+    hold_pedal_controller,
+    portamento_controller,
+    sustenuto_pedal_controller,
+    soft_pedal_controller,
+    legato_pedal_controller,
+    hold_2_pedal_controller,
+    registered_parameter_controller.coarse,
+    registered_parameter_controller.fine,
+    non_registered_parameter_controller.coarse,
+    non_registered_parameter_controller.fine
+};
+
+/**
+ * The list of controllers that should be reset (or sent) when
+ * a reset event is received.
+ *
+ * @note sending all_controllers_off_controller will reset a part
+ *
+ * @note the following controllers won't be reset:
+ * - bank_select_controller
+ * - breath_controller
+ * - foot_pedal_controller
+ * - portamento_time_controller
+ * - data_entry_controller
+ * - general_purpose_slider_controllers
+ * - general_purpose_button_controllers
+ * - data_button_increment_controller
+ * - data_button_decrement_controller
+ *
+ * @warning registered and non-registered parameters should also be reset
+ *
+ */
+
+static constexpr byte_t reset_controllers[] = {
+    all_sound_off_controller,
+    all_controllers_off_controller,
+    volume_controller.coarse,
+    volume_controller.fine,
+    balance_controller.coarse,
+    balance_controller.fine,
+    pan_position_controller.coarse,
+    pan_position_controller.fine,
+    effect_control_controllers[0].coarse,
+    effect_control_controllers[0].fine,
+    effect_control_controllers[1].coarse,
+    effect_control_controllers[1].fine,
+    sound_controllers[0],
+    sound_controllers[1],
+    sound_controllers[2],
+    sound_controllers[3],
+    sound_controllers[4],
+    sound_controllers[5],
+    sound_controllers[6],
+    sound_controllers[7],
+    sound_controllers[8],
+    sound_controllers[9],
+    effects_depth_controllers[0],
+    effects_depth_controllers[1],
+    effects_depth_controllers[2],
+    effects_depth_controllers[3],
+    effects_depth_controllers[4]
+};
 
 }
 

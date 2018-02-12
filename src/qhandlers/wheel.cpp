@@ -188,13 +188,13 @@ void ControllerWheel::updateText(channels_t channels) {
             slider()->setText(pair.second, number2string(panRange.rescale(data7Range, pair.first)));
     } else {
         for (const auto& pair : channel_ns::reverse(mValues[mController], channels))
-            slider()->setText(pair.second, stringForRatio(data7Range.reduce(pair.first)));
+            slider()->setText(pair.second, QString::number(pair.first));
     }
 }
 
 void ControllerWheel::resetAll() {
-    for (byte_t b=0 ; b < 0x80 ; b++)
-        mValues[b].fill(controller_ns::default_value(b));
+    for (byte_t cc=0 ; cc < 0x80 ; cc++)
+        mValues[cc].fill(controller_ns::default_value(cc));
 }
 
 void ControllerWheel::setControllerValue(channels_t channels, byte_t controller, byte_t value) {
@@ -203,32 +203,18 @@ void ControllerWheel::setControllerValue(channels_t channels, byte_t controller,
         slider()->setRatio(channels, data7Range.reduce(value));
 }
 
-void ControllerWheel::resetControllerValue(channels_t channels, byte_t controller) {
-    setControllerValue(channels, controller, controller_ns::default_value(controller));
-}
-
 Handler::result_type ControllerWheel::handleController(channels_t channels, byte_t controller, byte_t value) {
-    setControllerValue(channels, controller, value);
-    if (controller == controller_ns::all_controllers_off_controller) {
-        resetControllerValue(channels, controller_ns::modulation_wheel_controller.coarse);
-        resetControllerValue(channels, controller_ns::modulation_wheel_controller.fine);
-        resetControllerValue(channels, controller_ns::expression_controller.coarse);
-        resetControllerValue(channels, controller_ns::expression_controller.fine);
-        resetControllerValue(channels, controller_ns::hold_pedal_controller);
-        resetControllerValue(channels, controller_ns::portamento_controller);
-        resetControllerValue(channels, controller_ns::sustenuto_pedal_controller);
-        resetControllerValue(channels, controller_ns::soft_pedal_controller);
-        resetControllerValue(channels, controller_ns::registered_parameter_controller.coarse);
-        resetControllerValue(channels, controller_ns::registered_parameter_controller.fine);
-        resetControllerValue(channels, controller_ns::non_registered_parameter_controller.coarse);
-        resetControllerValue(channels, controller_ns::non_registered_parameter_controller.fine);
-    }
+    if (controller == controller_ns::all_controllers_off_controller)
+        for (byte_t cc : controller_ns::off_controllers)
+            setControllerValue(channels, cc, controller_ns::default_value(cc));
+    else
+        setControllerValue(channels, controller, value);
     return result_type::success;
 }
 
 Handler::result_type ControllerWheel::handleReset() {
-    resetAll();
-    slider()->setDefault(all_channels);
+    for (byte_t cc : controller_ns::reset_controllers)
+        handleController(all_channels, cc, controller_ns::default_value(cc));
     return result_type::success;
 }
 

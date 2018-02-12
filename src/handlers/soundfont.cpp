@@ -157,10 +157,6 @@ struct SoundFontHandler::Impl {
         return result_type::success;
     }
 
-    result_type handle_default_controller(channels_t channels, byte_t controller) {
-        return handle_controller(channels, controller, controller_ns::default_value(controller));
-    }
-
     result_type handle_channel_type(channels_t channels, int type) {
         channels_t old_drum_channels = drums;
         drums.commute(channels, type == CHANNEL_TYPE_DRUM);
@@ -187,14 +183,8 @@ struct SoundFontHandler::Impl {
     result_type handle_reset() {
         handle_channel_type(all_channels & ~drum_channels, CHANNEL_TYPE_MELODIC);
         handle_channel_type(drum_channels, CHANNEL_TYPE_DRUM);
-        handle_default_controller(all_channels, controller_ns::all_sound_off_controller);
-        handle_default_controller(all_channels, controller_ns::all_controllers_off_controller);
-        handle_default_controller(all_channels, controller_ns::volume_controller.coarse);
-        handle_default_controller(all_channels, controller_ns::volume_controller.fine);
-        handle_default_controller(all_channels, controller_ns::pan_position_controller.coarse);
-        handle_default_controller(all_channels, controller_ns::pan_position_controller.fine);
-        for (byte_t controller : controller_ns::sound_controllers)
-            handle_default_controller(all_channels, controller);
+        for (byte_t controller : controller_ns::reset_controllers)
+            handle_controller(all_channels, controller, controller_ns::default_value(controller));
         for (channel_t channel : all_channels)
             fluid_synth_pitch_wheel_sens(synth, channel, 2);
         return result_type::success;

@@ -111,7 +111,6 @@ protected slots:
 private:
     void resetAll();
     void setControllerValue(channels_t channels, byte_t controller, byte_t value);
-    void resetControllerValue(channels_t channels, byte_t controller);
 
     result_type handleController(channels_t channels, byte_t controller, byte_t value);
     result_type handleReset();

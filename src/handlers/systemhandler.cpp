@@ -196,13 +196,7 @@ private:
 
     size_t handle_reset() {
         size_t errors = 0;
-        errors += handle_voice(Event::controller(all_channels, controller_ns::all_sound_off_controller));
-        errors += handle_voice(Event::controller(all_channels, controller_ns::all_controllers_off_controller));
-        errors += handle_voice(Event::controller(all_channels, controller_ns::volume_controller.coarse));
-        errors += handle_voice(Event::controller(all_channels, controller_ns::volume_controller.fine));
-        errors += handle_voice(Event::controller(all_channels, controller_ns::pan_position_controller.coarse));
-        errors += handle_voice(Event::controller(all_channels, controller_ns::pan_position_controller.fine));
-        for (byte_t controller : controller_ns::sound_controllers)
+        for (byte_t controller : controller_ns::reset_controllers)
             errors += handle_voice(Event::controller(all_channels, controller));
         errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_controller.coarse, 0));
         errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_controller.fine, 0));
@@ -481,13 +475,7 @@ class LinuxSystemHandler : public Handler {
 
         size_t handle_reset() {
             size_t errors = 0;
-            errors += handle_voice(Event::controller(all_channels, controller_ns::all_sound_off_controller));
-            errors += handle_voice(Event::controller(all_channels, controller_ns::all_controllers_off_controller));
-            errors += handle_voice(Event::controller(all_channels, controller_ns::volume_controller.coarse));
-            errors += handle_voice(Event::controller(all_channels, controller_ns::volume_controller.fine));
-            errors += handle_voice(Event::controller(all_channels, controller_ns::pan_position_controller.coarse));
-            errors += handle_voice(Event::controller(all_channels, controller_ns::pan_position_controller.fine));
-            for (byte_t controller : controller_ns::sound_controllers)
+            for (byte_t controller : controller_ns::reset_controllers)
                 errors += handle_voice(Event::controller(all_channels, controller));
             errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_controller.coarse, 0));
             errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_controller.fine, 0));
