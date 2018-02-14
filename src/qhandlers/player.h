@@ -509,8 +509,8 @@ class Player : public HandlerEditor {
 public:
     explicit Player();
 
-    void setNextSequence(bool play, int offset);
-    void setSequence(const NamedSequence& sequence, bool play);
+    bool setNextSequence(int offset); /*!< returns true if a sequence has been set */
+    void setSequence(const NamedSequence& sequence);
     void setTrackFilter(Handler* handler);
 
     Parameters getParameters() const override;
@@ -534,7 +534,7 @@ protected slots:
     void changeUpper(timestamp_t timestamp);
     void changeDistorsion(double distorsion);
 
-    void playSequence(bool resetStepping=true);
+    void playSequence();
     void playCurrentSequence(bool resetStepping=true);
     void pauseSequence();
     void resetSequence();

@@ -590,31 +590,42 @@ bool PlaylistTable::isLoaded() const {
 }
 
 NamedSequence PlaylistTable::loadRow(int row) {
-    NamedSequence sequence;
-    auto playlistItem = dynamic_cast<PlaylistItem*>(item(row, 0));
-    if (playlistItem) {
-        sequence = playlistItem->loadSequence();
-        if (!sequence.sequence.empty()) {
+    NamedSequence namedSequence;
+    if (auto playlistItem = dynamic_cast<PlaylistItem*>(item(row, 0))) {
+        namedSequence = playlistItem->loadSequence();
+        if (!namedSequence.sequence.empty()) {
             // change status
             setCurrentStatus(NO_STATUS);
             mCurrentItem = playlistItem;
             // set duration
-            item(row, 1)->setText(DistordedClock(sequence.sequence.clock()).toString(sequence.sequence.last_timestamp()));
+            item(row, 1)->setText(DistordedClock(namedSequence.sequence.clock()).toString(namedSequence.sequence.last_timestamp()));
             // ensure line is visible
             scrollToItem(playlistItem);
+        } else {
+            item(row, 1)->setText("\u00d8");
         }
     }
-    return sequence;
+    return namedSequence;
 }
 
 NamedSequence PlaylistTable::loadRelative(int offset, bool wrap) {
-    int row = 0;
-    if (mCurrentItem) {
-        row = mCurrentItem->row() + offset;
-        if (wrap)
-            row = safe_modulo(row, rowCount());
+    NamedSequence namedSequence;
+    const int rows = rowCount(); // number of rows available
+    int row = mCurrentItem ? mCurrentItem->row() + offset : 0; // next row to test
+    if (wrap) { // with wrapping, we check all available rows (the current one may be reloaded)
+        for(int i=0 ; i < rows ; ++i, row += offset) {
+            namedSequence = loadRow(safe_modulo(row, rows));
+            if (!namedSequence.sequence.empty())
+                break;
+        }
+    } else { // without wrapping, we continue until the row is no longer valid
+        for ( ; 0 <= row && row < rows ; row += offset) {
+            namedSequence = loadRow(row);
+            if (!namedSequence.sequence.empty())
+                break;
+        }
     }
-    return loadRow(row);
+    return namedSequence;
 }
 
 void PlaylistTable::setContext(Context* context) {
@@ -1327,22 +1338,15 @@ void Player::setTrackFilter(Handler* handler) {
     mSequenceView->setTrackFilter(handler);
 }
 
-void Player::setNextSequence(bool play, int offset) {
+bool Player::setNextSequence(int offset) {
     resetSequence();
-    if (mMediaView->isSingle() && mPlaylist->isLoaded()) {
-        if (mMediaView->isLooping()) {
-            if (play)
-                playCurrentSequence();
-            return;
-        }
-    } else {
-        auto nextSequence = mPlaylist->loadRelative(offset, mMediaView->isLooping());
-        if (!nextSequence.sequence.empty()) {
-            setSequence(nextSequence, play);
-            return;
-        }
-    }
-    TRACE_DEBUG("no more sequence to play");
+    if (mMediaView->isSingle() && mPlaylist->isLoaded())
+        return mMediaView->isLooping();
+    auto namedSequence = mPlaylist->loadRelative(offset, mMediaView->isLooping());
+    if (namedSequence.sequence.empty())
+        return false;
+    setSequence(namedSequence);
+    return true;
 }
 
 void Player::updatePosition() {
@@ -1368,15 +1372,12 @@ void Player::refreshPosition() {
     }
 }
 
-void Player::setSequence(const NamedSequence& sequence, bool play) {
-    resetSequence();
+void Player::setSequence(const NamedSequence& sequence) {
     window()->setWindowTitle(sequence.name);
     mPlayer->set_sequence(sequence.sequence);
     mTempoView->setSequence(sequence.sequence);
     mSequenceView->setSequence(sequence.sequence, mPlayer->lower(), mPlayer->upper());
     mTracker->setSequence(sequence.sequence, mPlayer->lower(), mPlayer->upper());
-    if (play)
-        playCurrentSequence();
 }
 
 void Player::saveSequence() {
@@ -1397,9 +1398,11 @@ void Player::saveSequence() {
 }
 
 void Player::launch(QTableWidgetItem* item) {
-    auto sequence = mPlaylist->loadRow(item->row());
-    if (!sequence.sequence.empty()) {
-        setSequence(sequence, true);
+    auto namedSequence = mPlaylist->loadRow(item->row());
+    if (!namedSequence.sequence.empty()) {
+        resetSequence();
+        setSequence(namedSequence);
+        playCurrentSequence();
     } else { /// @todo get reason from model
         QMessageBox::critical(this, QString(), "Can't read MIDI File");
     }
@@ -1414,21 +1417,16 @@ void Player::onPositionSelected(timestamp_t timestamp, Qt::MouseButton button) {
     }
 }
 
-void Player::playSequence(bool resetStepping) {
-    if (!mIsPlaying) {
-        if (mPlaylist->isLoaded())
-            playCurrentSequence(resetStepping);
-        else
-            playNextSequence();
-    }
+void Player::playSequence() {
+    if (!mIsPlaying)
+        if (mPlaylist->isLoaded() || setNextSequence(1))
+            playCurrentSequence();
 }
 
 void Player::playCurrentSequence(bool resetStepping) {
     if (!mIsPlaying) {
         if (resetStepping)
             mIsStepping = false;
-        /// @warning why ??
-        // mPlayer->forward_message({Event::controller(all_channels, all_notes_off_controller), mPlayer});
         if (mPlayer->start_playing(false)) {
             mIsPlaying = true;
             mRefreshTimer->start();
@@ -1462,11 +1460,13 @@ void Player::resetSequence() {
 }
 
 void Player::playNextSequence() {
-    setNextSequence(true, 1);
+    if (setNextSequence(1))
+        playCurrentSequence();
 }
 
 void Player::playLastSequence() {
-    setNextSequence(true, -1);
+    if (setNextSequence(-1))
+        playCurrentSequence();
 }
 
 void Player::stepForward() {
