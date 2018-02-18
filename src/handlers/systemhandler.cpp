@@ -49,7 +49,7 @@ public:
     }
 
     families_t handled_families() const override {
-        return family_ns::voice_families | families_t::merge(family_t::custom, family_t::reset);
+        return family_ns::voice_families | families_t::merge(family_t::custom, family_t::sysex, family_t::reset);
     }
 
     result_type handle_message(const Message& message) override {

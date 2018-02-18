@@ -59,7 +59,7 @@ public:
         Handler* tail = mHandlersReferences.value(connection.tail, nullptr);
         Handler* head = mHandlersReferences.value(connection.head, nullptr);
         Handler* source = hasSource ? mHandlersReferences.value(connection.source, nullptr) : nullptr;
-        if (!tail || !head || hasSource && !source) {
+        if (!tail || !head || (hasSource && !source)) {
             TRACE_WARNING("wrong connection handlers: " << handlerName(tail) << ' ' << handlerName(head) << ' ' << handlerName(source));
             return;
         }
@@ -117,7 +117,6 @@ public:
     }
 
 private:
-    MultiDisplayer* mMainDisplayer;
     QMap<QString, Handler*> mHandlersReferences;
     QMap<QString, SingleDisplayer*> mViewReferences;
     std::vector<QWidget*> mVisibleDisplayers;
@@ -177,6 +176,7 @@ public:
         for (const auto& info : mCache)
             if (displayer->widget() == info.proxy.view())
                 return {info.parsingData.id};
+        return {};
     }
 
     Configuration::Frame getFrame(MultiDisplayer* displayer) const {

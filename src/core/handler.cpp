@@ -657,7 +657,7 @@ void StandardHolder::start(priority_t priority) {
         std::get<0>(data)->receive_message(std::get<1>(data));
     });
 #else
-    m_task.start(priority, [this](data_type&& data) {
+    m_task.start(priority, [](data_type&& data) {
         data.first->receive_message(data.second);
     });
 #endif

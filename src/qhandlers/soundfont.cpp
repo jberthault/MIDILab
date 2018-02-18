@@ -24,11 +24,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace {
 
-static constexpr exp_range_t<double> gainRange = {{0., 10.}, 1.};
-static constexpr range_t<double> roomsizeRange = {0., 1.2};
-static constexpr range_t<double> dampRange = {0., 1.};
-static constexpr range_t<double> levelRange = {0., 1.};
-static constexpr exp_range_t<double> widthRange = {{0., 100.}, 10.};
+constexpr exp_range_t<double> gainRange = {{0., 10.}, 1.};
+constexpr range_t<double> roomsizeRange = {0., 1.2};
+constexpr range_t<double> dampRange = {0., 1.};
+constexpr range_t<double> levelRange = {0., 1.};
+constexpr exp_range_t<double> widthRange = {{0., 100.}, 10.};
 
 }
 

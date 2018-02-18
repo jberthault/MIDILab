@@ -29,9 +29,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "handlers/trackfilter.h"
 #include "qcore/manager.h"
 
-static constexpr range_t<double> distorsionRange = {0., 4.};
-
 namespace {
+
+constexpr range_t<double> distorsionRange = {0., 4.};
 
 auto findCodecs() {
     QList<QTextCodec*> codecs;
@@ -613,7 +613,7 @@ NamedSequence PlaylistTable::loadRelative(int offset, bool wrap) {
     const int rows = rowCount(); // number of rows available
     int row = mCurrentItem ? mCurrentItem->row() + offset : 0; // next row to test
     if (wrap) { // with wrapping, we check all available rows (the current one may be reloaded)
-        for(int i=0 ; i < rows ; ++i, row += offset) {
+        for (int i=0 ; i < rows ; ++i, row += offset) {
             namedSequence = loadRow(safe_modulo(row, rows));
             if (!namedSequence.sequence.empty())
                 break;

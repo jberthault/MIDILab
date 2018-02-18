@@ -473,7 +473,6 @@ MetaHandler* MetaHandlerCollector::metaHandler(const QString& type) {
     for (MetaHandler* meta : mMetaHandlers)
         if (meta->identifier() == type)
             return meta;
-    TRACE_WARNING("unknown metahandler named " << type);
     return nullptr;
 }
 

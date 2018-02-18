@@ -42,8 +42,8 @@ constexpr alteration_t alteration(tonality_t tonality) {
     case A:  case B:  case C:  case D:  case E:  case F:  case G:  return alteration_t::natural;
     case Ad: case Bd: case Cd: case Dd: case Ed: case Fd: case Gd: return alteration_t::sharp;
     case Ab: case Bb: case Cb: case Db: case Eb: case Fb: case Gb: return alteration_t::flat;
+    default: return alteration_t::natural;
     }
-    return alteration_t::natural;
 }
 
 const char* to_string(tonality_t tonality) {
@@ -69,8 +69,8 @@ const char* to_string(tonality_t tonality) {
     case Eb: return "Eb";
     case Fb: return "Fb";
     case Gb: return "Gb";
+    default: return "";
     }
-    return "";
 }
 
 constexpr int index(tonality_t tonality) {
@@ -87,8 +87,8 @@ constexpr int index(tonality_t tonality) {
     case A:           return 9;
     case Ad: case Bb: return 10;
     case B:  case Cb: return 11;
+    default: return 0;
     }
-    return 0;
 }
 
 constexpr bool is_black(tonality_t tonality) {
@@ -101,8 +101,9 @@ constexpr bool is_black(tonality_t tonality) {
     case F: case Ed:
     case G:
         return false;
+    default:
+        return true;
     }
-    return true;
 }
 
 constexpr int16_t merge(char base, alteration_t alteration) {

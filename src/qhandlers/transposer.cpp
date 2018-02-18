@@ -22,8 +22,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace {
 
-static constexpr range_t<int> transpositionRange = {-12, 12};
-static constexpr size_t transpositionCardinality = 25;
+constexpr range_t<int> transpositionRange = {-12, 12};
+constexpr size_t transpositionCardinality = 25;
 
 }
 

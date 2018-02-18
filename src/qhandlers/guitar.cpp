@@ -171,7 +171,7 @@ void Guitar::enterEvent(QEvent*) {
         setCursor(Qt::PointingHandCursor);
 }
 
-void Guitar::leaveEvent(QEvent* event) {
+void Guitar::leaveEvent(QEvent*) {
     unsetCursor();
 }
 
@@ -203,7 +203,7 @@ void Guitar::mouseMoveEvent(QMouseEvent* event) {
     }
 }
 
-void Guitar::paintEvent(QPaintEvent* event) {
+void Guitar::paintEvent(QPaintEvent*) {
 
     const auto stringsCount = mTuning.size();
     const auto r = rect();

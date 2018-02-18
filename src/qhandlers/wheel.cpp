@@ -21,18 +21,19 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "qhandlers/wheel.h"
 #include "handlers/systemhandler.h"
 
-static constexpr range_t<uint16_t> volumeRange = {0, 0xffff};
-static constexpr range_t<byte_t> semitonesRange = {0, 24};
-static constexpr range_t<byte_t> data7Range = {0, 0x7f};
-static constexpr range_t<uint16_t> data14Range = {0, 0x3fff};
-static constexpr range_t<int> panRange = {-50, 50};
-
-static constexpr byte_t defaultSemitones = 2;
-static constexpr uint16_t defaultRPN = 0x3fff;
-static constexpr uint16_t defaultPitch = 0x2000;
-static constexpr uint16_t pitchBendRangeRPN = 0x0000;
 
 namespace {
+
+constexpr range_t<uint16_t> volumeRange = {0, 0xffff};
+constexpr range_t<byte_t> semitonesRange = {0, 24};
+constexpr range_t<byte_t> data7Range = {0, 0x7f};
+constexpr range_t<uint16_t> data14Range = {0, 0x3fff};
+constexpr range_t<int> panRange = {-50, 50};
+
+constexpr byte_t defaultSemitones = 2;
+constexpr uint16_t defaultRPN = 0x3fff;
+constexpr uint16_t defaultPitch = 0x2000;
+constexpr uint16_t pitchBendRangeRPN = 0x0000;
 
 QString stringForRatio(qreal ratio) {
     return QString::number(decay_value<int>(100*ratio)) + "%";
@@ -157,8 +158,8 @@ Handler::result_type ControllerWheel::handle_message(const Message& message) {
     switch (message.event.family()) {
     case family_t::controller: return handleController(message.event.channels(), message.event.at(1), message.event.at(2));
     case family_t::reset: return handleReset();
+    default: return result_type::unhandled;
     }
-    return result_type::unhandled;
 }
 
 Handler::result_type ControllerWheel::on_close(state_type state) {

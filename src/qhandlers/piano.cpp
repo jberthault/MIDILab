@@ -285,7 +285,7 @@ void Piano::enterEvent(QEvent*) {
         setCursor(Qt::PointingHandCursor);
 }
 
-void Piano::leaveEvent(QEvent* event) {
+void Piano::leaveEvent(QEvent*) {
     unsetCursor();
 }
 
