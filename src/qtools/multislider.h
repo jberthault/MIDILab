@@ -24,8 +24,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QGraphicsItem>
 #include <QGraphicsView>
 #include <QBoxLayout>
+#include <boost/format.hpp>
 #include "tools/bytes.h"
-
 
 struct Scale {
 
@@ -242,15 +242,13 @@ public:
     QRectF visibleRect() const;
 
     template<typename T = Knob>
-    std::vector<T*> knobs() const {
+    auto knobs() const {
         std::vector<T*> result;
         auto items = scene()->items();
         result.reserve(items.size());
-        for (auto item : items) {
-            T* knob = dynamic_cast<T*>(item);
-            if (knob)
+        for (auto item : items)
+            if (auto knob = dynamic_cast<T*>(item))
                 result.push_back(knob);
-        }
         return result;
     }
 
@@ -325,6 +323,9 @@ class SimpleSlider : public MultiSlider {
 public:
     explicit SimpleSlider(Qt::Orientation orientation, QWidget* parent);
 
+    size_t cardinality() const;
+    void setCardinality(size_t cardinality);
+
     qreal defaultRatio() const;
     void setDefaultRatio(qreal ratio);
 
@@ -347,5 +348,65 @@ private:
     TextKnob* mText;
 
 };
+
+//==============
+// RangedSlider
+//==============
+
+template<typename RangeT>
+class RangedSlider : public SimpleSlider {
+
+public:
+    using value_type = typename RangeT::value_type;
+
+    explicit RangedSlider(RangeT range, Qt::Orientation orientation, QWidget* parent) :
+        SimpleSlider(orientation, parent), mRange(std::move(range)), mFormat("%1%") {
+
+        if (std::is_integral<value_type>::value)
+            setCardinality(mRange.span() + 1);
+
+        connect(this, &RangedSlider::knobMoved, this, &RangedSlider::updateText);
+    }
+
+    void setFormat(const std::string& string) {
+        mFormat.parse(string);
+    }
+
+    value_type defaultValue() const {
+        return mRange.expand(defaultRatio());
+    }
+
+    void setDefaultValue(value_type value) {
+        setDefaultRatio(mRange.reduce(value));
+        setDefault();
+        setText(textForValue(value));
+    }
+
+    value_type value() const {
+        return mRange.expand(ratio());
+    }
+
+    void setValue(value_type value) {
+        setRatio(mRange.reduce(value));
+        setText(textForValue(value));
+    }
+
+    void updateText(qreal ratio) {
+        setText(textForValue(mRange.expand(ratio)));
+    }
+
+    QString textForValue(value_type value) {
+        return QString::fromStdString(boost::str(mFormat % value));
+    }
+
+private:
+    RangeT mRange;
+    boost::format mFormat;
+
+};
+
+using DiscreteSlider = RangedSlider<range_t<int>>;
+using ContinuousSlider = RangedSlider<range_t<double>>;
+using ExpSlider = RangedSlider<exp_range_t<double>>;
 
 #endif // QTOOLS_MULTISLIDER_H

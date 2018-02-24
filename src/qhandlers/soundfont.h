@@ -52,7 +52,7 @@ class SoundFontReceiver : public CustomReceiver {
     Q_OBJECT
 
 public:
-    explicit SoundFontReceiver(QObject* parent);
+    using CustomReceiver::CustomReceiver;
 
     result_type receive_message(Handler* target, const Message& message) final;
 
@@ -76,14 +76,13 @@ public slots:
     void setGain(double gain);
 
 protected slots:
-    void onMove(qreal ratio);
-    void updateText(qreal ratio);
+    void notify();
 
 signals:
     void gainChanged(double gain);
 
 private:
-    SimpleSlider* mSlider;
+    ExpSlider* mSlider;
 
 };
 
@@ -98,12 +97,10 @@ class ReverbEditor : public QGroupBox {
 public:
     explicit ReverbEditor(QWidget* parent);
 
-    bool isActive() const;
     SoundFontHandler::optional_reverb_type reverb() const;
     SoundFontHandler::reverb_type rawReverb() const;
 
 public slots:
-    void setActive(bool active);
     void setRoomSize(double value);
     void setDamp(double value);
     void setLevel(double value);
@@ -114,22 +111,14 @@ signals:
     void reverbChanged(SoundFontHandler::optional_reverb_type reverb);
 
 private slots:
-    void onRoomsizeChanged(qreal ratio);
-    void onRoomsizeMoved(qreal ratio);
-    void onDampChanged(qreal ratio);
-    void onDampMoved(qreal ratio);
-    void onLevelChanged(qreal ratio);
-    void onLevelMoved(qreal ratio);
-    void onWidthChanged(qreal ratio);
-    void onWidthMoved(qreal ratio);
-    void onToggle(bool activated);
+    void notifyChecked();
+    void notify();
 
 private:
-    SimpleSlider* mRoomsizeSlider;
-    SimpleSlider* mDampSlider;
-    SimpleSlider* mLevelSlider;
-    SimpleSlider* mWidthSlider;
-    SoundFontHandler::reverb_type mReverb;
+    ContinuousSlider* mRoomsizeSlider;
+    ContinuousSlider* mDampSlider;
+    ContinuousSlider* mLevelSlider;
+    ExpSlider* mWidthSlider;
 
 };
 
@@ -144,12 +133,10 @@ class ChorusEditor : public QGroupBox {
 public:
     explicit ChorusEditor(QWidget* parent);
 
-    bool isActive() const;
     SoundFontHandler::optional_chorus_type chorus() const;
     SoundFontHandler::chorus_type rawChorus() const;
 
 public slots:
-    void setActive(bool active);
     void setType(int value);
     void setNr(int value);
     void setLevel(double value);
@@ -161,24 +148,15 @@ signals:
     void chorusChanged(SoundFontHandler::optional_chorus_type chorus);
 
 private slots:
-    void onTypeMoved(int type);
-    void onNrChanged(qreal ratio);
-    void onNrMoved(qreal ratio);
-    void onLevelChanged(qreal ratio);
-    void onLevelMoved(qreal ratio);
-    void onSpeedChanged(qreal ratio);
-    void onSpeedMoved(qreal ratio);
-    void onDepthChanged(qreal ratio);
-    void onDepthMoved(qreal ratio);
-    void onToggle(bool activated);
+    void notifyChecked();
+    void notify();
 
 private:
     QComboBox* mTypeBox;
-    SimpleSlider* mNrSlider;
-    SimpleSlider* mLevelSlider;
-    SimpleSlider* mSpeedSlider;
-    SimpleSlider* mDepthSlider;
-    SoundFontHandler::chorus_type mChorus;
+    DiscreteSlider* mNrSlider;
+    ExpSlider* mLevelSlider;
+    ContinuousSlider* mSpeedSlider;
+    ContinuousSlider* mDepthSlider;
 
 };
 

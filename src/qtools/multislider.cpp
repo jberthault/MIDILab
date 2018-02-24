@@ -621,6 +621,14 @@ SimpleSlider::SimpleSlider(Qt::Orientation orientation, QWidget* parent) : Multi
     updateDimensions();
 }
 
+size_t SimpleSlider::cardinality() const {
+    return knobScale(mParticle).cardinality;
+}
+
+void SimpleSlider::setCardinality(size_t cardinality) {
+    knobScale(mParticle).cardinality = cardinality;
+}
+
 qreal SimpleSlider::defaultRatio() const {
     return mDefaultRatio;
 }

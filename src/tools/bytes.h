@@ -132,20 +132,26 @@ constexpr auto safe_modulo(T a, T b) {
 template <typename T>
 struct range_t {
 
+    using value_type = T;
+
     constexpr explicit operator bool() const {
         return min != max;
     }
 
-    constexpr double reduce(T value) const {
-        return (double)(value - min) / (max - min);
+    constexpr auto span() const {
+        return max - min;
     }
 
-    constexpr T expand(double value) const {
-        return decay_value<T>(min + value * (max - min));
+    constexpr auto reduce(T value) const {
+        return (double)(value - min) / span();
+    }
+
+    constexpr auto expand(double value) const {
+        return decay_value<T>(min + value * span());
     }
 
     template<typename U>
-    constexpr T rescale(const range_t<U>& src, U value) const {
+    constexpr auto rescale(const range_t<U>& src, U value) const {
         return expand(src.reduce(value));
     }
 
@@ -154,9 +160,15 @@ struct range_t {
 
 };
 
+template<typename T>
+constexpr auto make_range(T min, T max) {
+    return range_t<T>{min, max};
+}
 
 template<typename T>
 struct exp_range_t {
+
+    using value_type = T;
 
     range_t<T> range;
     T pivot; /*!< value that will be at 50% on the scale */
@@ -173,6 +185,10 @@ struct exp_range_t {
         return range;
     }
 
+    constexpr auto span() const {
+        return range.span();
+    }
+
     constexpr double reduce(T value) const {
         return std::log(expRange().rescale(range, value)) / factor();
     }
@@ -186,9 +202,12 @@ struct exp_range_t {
         return expand(src.reduce(value));
     }
 
-
 };
 
+template<typename T>
+constexpr auto make_exp_range(T min, T pivot, T max) {
+    return exp_range_t<T>{{min, max}, pivot};
+}
 
 // ======
 // string

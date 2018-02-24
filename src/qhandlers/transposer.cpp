@@ -23,7 +23,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 namespace {
 
 constexpr range_t<int> transpositionRange = {-12, 12};
-constexpr size_t transpositionCardinality = 25;
 
 }
 
@@ -52,7 +51,7 @@ TransposerEditor::TransposerEditor() : HandlerEditor(), mHandler(std::make_uniqu
     mSlider->setExpanded(false);
     mSlider->setSelection(all_channels & ~drum_channels);
     mSlider->setDefaultRatio(.5);
-    mSlider->setCardinality(transpositionCardinality);
+    mSlider->setCardinality(transpositionRange.span() + 1);
     connect(mSlider, &ChannelsSlider::knobChanged, this, &TransposerEditor::updateText);
     connect(mSlider, &ChannelsSlider::knobMoved, this, &TransposerEditor::onMove);
     mSlider->setDefault(all_channels); // will call updateText
