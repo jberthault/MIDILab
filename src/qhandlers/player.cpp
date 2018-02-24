@@ -25,6 +25,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QPushButton>
 #include <QTextCodec>
 #include <QTimer>
+#include <QMenu>
 #include "qhandlers/player.h"
 #include "handlers/trackfilter.h"
 #include "qcore/manager.h"
@@ -73,19 +74,28 @@ void DistordedClock::setDistorsion(double distorsion) {
 }
 
 QString DistordedClock::toString(timestamp_t timestamp) const {
-    return fromTimestamp(timestamp).toString(timeFormat);
+    return toTime(timestamp).toString(timeFormat);
 }
 
-QTime DistordedClock::fromTimestamp(timestamp_t timestamp) const {
-    /// @note no duration_cast to avoid rounding errors
-    QTime time;
-    if (mDistorsion != 0.)
-        time = QTime(0, 0).addMSecs(decay_value<int>(mClock.timestamp2time(timestamp).count() * 1.e-3 / mDistorsion));
-    return time;
+QTime DistordedClock::toTime(timestamp_t t0, timestamp_t t1) const {
+    return durationCast(mClock.timestamp2time(t1) - mClock.timestamp2time(t0));
+}
+
+QTime DistordedClock::toTime(timestamp_t timestamp) const {
+    return durationCast(mClock.timestamp2time(timestamp));
+}
+
+timestamp_t DistordedClock::toTimestamp(const QTime& t0, const QTime& t1) const {
+    return mClock.time2timestamp(Clock::duration_type((double)t0.msecsTo(t1) * 1.e3 * mDistorsion));
 }
 
 timestamp_t DistordedClock::toTimestamp(const QTime& time) const {
-    return mClock.time2timestamp(Clock::duration_type((double)QTime(0, 0).msecsTo(time) * 1.e3 * mDistorsion));
+    return toTimestamp(QTime(0, 0), time);
+}
+
+QTime DistordedClock::durationCast(const Clock::duration_type& time) const {
+    /// @note no std::duration_cast to avoid rounding errors
+    return mDistorsion != 0. ? QTime(0, 0).addMSecs(decay_value<int>(time.count() * 1.e-3 / mDistorsion)) : QTime();
 }
 
 //==============
@@ -411,8 +421,7 @@ void SequenceView::addNextEvent() {
 }
 
 void SequenceView::addEvent(const Sequence::Item& item) {
-    SequenceViewTrackItem* trackItem = itemForTrack(item.track);
-    if (trackItem)
+    if (auto trackItem = itemForTrack(item.track))
         updateItemVisibility(new SequenceViewItem(item, trackItem));
 }
 
@@ -427,11 +436,9 @@ void SequenceView::onItemChange(QTreeWidgetItem* item, int /*column*/) {
 }
 
 void SequenceView::onItemDoubleClick(QTreeWidgetItem* item, int column) {
-    if (column == 0) { // timestamp column
-        auto eventItem = dynamic_cast<SequenceViewItem*>(item);
-        if (eventItem)
+    if (column == 0) // timestamp column
+        if (auto eventItem = dynamic_cast<SequenceViewItem*>(item))
             emit positionSelected(eventItem->timestamp(), mLastButton);
-    }
 }
 
 void SequenceView::onFamilyFilterClick() {
@@ -545,11 +552,9 @@ void PlaylistTable::insertItem(int row, PlaylistItem* playlistItem) {
 
 QStringList PlaylistTable::paths() const {
     QStringList result;
-    for (int i=0 ; i < rowCount() ; i++) {
-        auto fileItem = dynamic_cast<FileItem*>(item(i, 0));
-        if (fileItem)
+    for (int i=0 ; i < rowCount() ; i++)
+        if (auto fileItem = dynamic_cast<FileItem*>(item(i, 0)))
             result.append(fileItem->fileInfo().absoluteFilePath());
-    }
     return result;
 }
 
@@ -654,11 +659,10 @@ void PlaylistTable::browseRecorders() {
     // run it
     DialogContainer ask(selector, this);
     if (ask.exec() == QDialog::Accepted) {
-        auto sw = dynamic_cast<SequenceWriter*>(selector->currentHandler());
-        if (sw == nullptr) {
-            QMessageBox::warning(this, QString(), "No recorder selected");
-        } else {
+        if (auto sw = dynamic_cast<SequenceWriter*>(selector->currentHandler())) {
             insertItem(new WriterItem(sw));
+        } else {
+            QMessageBox::warning(this, QString(), "No recorder selected");
         }
     }
 }
@@ -826,13 +830,9 @@ void MarkerKnob::onClick(Qt::MouseButton button) {
 }
 
 TrackedKnob::TrackedKnob(QWidget* parent) :
-    QTimeEdit(parent), mKnob(nullptr), mTimestamp(0.), mMaxTimestamp(1.), mDistordedClock(), mIsTracking(false) {
+    QTimeEdit(parent), mKnob(nullptr), mTimestamp(0.), mMaxTimestamp(1.), mDistordedClock(), mIsTracking(false), mIsReversed(false) {
 
     connect(this, &TrackedKnob::timeChanged, this, &TrackedKnob::onTimeChange);
-}
-
-Knob* TrackedKnob::handle() {
-    return mKnob;
 }
 
 void TrackedKnob::setKnob(Knob* knob) {
@@ -844,6 +844,15 @@ void TrackedKnob::setKnob(Knob* knob) {
     connect(mKnob, &Knob::knobPressed, this, &TrackedKnob::onPress);
     connect(mKnob, &Knob::knobReleased, this, &TrackedKnob::onRelease);
     connect(mKnob, &Knob::knobDoubleClicked, this, &TrackedKnob::onClick);
+}
+
+bool TrackedKnob::isReversed() const {
+    return mIsReversed;
+}
+
+void TrackedKnob::setReversed(bool reversed) {
+    mIsReversed = reversed;
+    updateTime();
 }
 
 timestamp_t TrackedKnob::timestamp() const {
@@ -882,9 +891,21 @@ void TrackedKnob::initialize(Clock clock, timestamp_t timestamp, timestamp_t max
     updateHandle();
 }
 
+QTime TrackedKnob::toTime(timestamp_t timestamp) const {
+    if (mIsReversed)
+        return mDistordedClock.toTime(timestamp, mMaxTimestamp);
+    return mDistordedClock.toTime(timestamp);
+}
+
+timestamp_t TrackedKnob::toTimestamp(const QTime& time) const {
+    if (mIsReversed)
+        return mDistordedClock.toTimestamp(time, maximumTime());
+    return mDistordedClock.toTimestamp(time);
+}
+
 void TrackedKnob::onMove(qreal xvalue, qreal /*yvalue*/) {
     mTimestamp = xvalue * mMaxTimestamp;
-    setTime(mDistordedClock.fromTimestamp(mTimestamp));
+    setTime(toTime(mTimestamp));
 }
 
 void TrackedKnob::onPress(Qt::MouseButton button) {
@@ -911,21 +932,19 @@ void TrackedKnob::onClick(Qt::MouseButton button) {
 }
 
 void TrackedKnob::onTimeChange(const QTime& time) {
-    mTimestamp = mDistordedClock.toTimestamp(time);
+    mTimestamp = toTimestamp(time);
     updateHandle();
     emit timestampChanged(mTimestamp);
 }
 
 void TrackedKnob::updateTime() {
-    blockSignals(true);
-    setTime(mDistordedClock.fromTimestamp(mTimestamp));
-    blockSignals(false);
+    QSignalBlocker guard(this);
+    setTime(toTime(mTimestamp));
 }
 
 void TrackedKnob::updateMaximumTime() {
-    blockSignals(true);
-    setMaximumTime(mDistordedClock.fromTimestamp(mMaxTimestamp));
-    blockSignals(false);
+    QSignalBlocker guard(this);
+    setMaximumTime(mDistordedClock.toTime(mMaxTimestamp));
 }
 
 void TrackedKnob::updateHandle() {
@@ -985,7 +1004,21 @@ Trackbar::Trackbar(QWidget* parent) : QWidget(parent) {
     mKnobView->insertKnob(mLowerKnob);
     mKnobView->insertKnob(mUpperKnob);
 
-    setLayout(make_vbox(margin_tag{0}, mKnobView, make_hbox(margin_tag{0}, mLowerEdit, mPositionEdit, mUpperEdit, mLastEdit)));
+    // Menu
+
+    auto buttonMenu = new QMenu(this);
+
+    auto reverseAction = buttonMenu->addAction("Reverse Time");
+    reverseAction->setCheckable(true);
+    connect(reverseAction, &QAction::toggled, mPositionEdit, &TrackedKnob::setReversed);
+
+    auto button = new QToolButton(this);
+    button->setAutoRaise(true);
+    button->setIcon(QIcon(":/data/menu.svg"));
+    button->setPopupMode(QToolButton::InstantPopup);
+    button->setMenu(buttonMenu);
+
+    setLayout(make_vbox(margin_tag{0}, mKnobView, make_hbox(margin_tag{0}, button, mLowerEdit, mPositionEdit, mUpperEdit, mLastEdit)));
 }
 
 const QBrush& Trackbar::knobColor() const {
@@ -1178,7 +1211,7 @@ TempoView::TempoView(QWidget* parent) : QWidget(parent) {
 }
 
 void TempoView::clearTempo() {
-    setTempo(Event());
+    setTempo({});
 }
 
 void TempoView::updateTimestamp(timestamp_t timestamp) {

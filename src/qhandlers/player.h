@@ -57,8 +57,13 @@ public:
 
     QString toString(timestamp_t timestamp) const;
 
-    QTime fromTimestamp(timestamp_t timestamp) const;
+    QTime toTime(timestamp_t t0, timestamp_t t1) const;
+    QTime toTime(timestamp_t timestamp) const;
+    timestamp_t toTimestamp(const QTime& t0, const QTime& t1) const;
     timestamp_t toTimestamp(const QTime& time) const;
+
+protected:
+    QTime durationCast(const Clock::duration_type& time) const;
 
 private:
     Clock mClock;
@@ -318,8 +323,10 @@ class TrackedKnob : public QTimeEdit {
 public:
     explicit TrackedKnob(QWidget* parent);
 
-    Knob* handle();
     void setKnob(Knob* knob);
+
+    bool isReversed() const;
+    void setReversed(bool reversed); /*!< if true, time left is displayed */
 
     timestamp_t timestamp() const;
     void setTimestamp(timestamp_t timestamp);
@@ -327,6 +334,10 @@ public:
 
     void setDistorsion(double distorsion);
     void initialize(Clock clock, timestamp_t timestamp, timestamp_t maxTimestamp);
+
+protected:
+    QTime toTime(timestamp_t timestamp) const;
+    timestamp_t toTimestamp(const QTime& time) const;
 
 protected slots:
     void onMove(qreal xvalue, qreal yvalue);
@@ -350,6 +361,7 @@ private:
     timestamp_t mMaxTimestamp;
     DistordedClock mDistordedClock;
     bool mIsTracking;
+    bool mIsReversed;
 
 };
 

@@ -37,6 +37,10 @@ Trackbar {
     qproperty-knobWidth: 3;
 }
 
+Trackbar > QToolButton:menu-indicator {
+    image: none;
+}
+
 HandlerGraphEditor {
     qproperty-nodeColor : white;
     qproperty-nodeBackgroundColor : qlineargradient(x1:0, y1:0, x2:1, y2:1, stop: 0 #434343, stop: 1 #a8a8a8);

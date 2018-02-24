@@ -62,5 +62,6 @@
         <file>data/grid-three-up.svg</file>
         <file>data/rain.svg</file>
         <file>data/reload.svg</file>
+        <file>data/menu.svg</file>
     </qresource>
 </RCC>
