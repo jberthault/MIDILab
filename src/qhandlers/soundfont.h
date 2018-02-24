@@ -133,6 +133,55 @@ private:
 
 };
 
+//==============
+// ChorusEditor
+//==============
+
+class ChorusEditor : public QGroupBox {
+
+    Q_OBJECT
+
+public:
+    explicit ChorusEditor(QWidget* parent);
+
+    bool isActive() const;
+    SoundFontHandler::optional_chorus_type chorus() const;
+    SoundFontHandler::chorus_type rawChorus() const;
+
+public slots:
+    void setActive(bool active);
+    void setType(int value);
+    void setNr(int value);
+    void setLevel(double value);
+    void setSpeed(double value);
+    void setDepth(double value);
+    void setChorus(const SoundFontHandler::optional_chorus_type& chorus);
+
+signals:
+    void chorusChanged(SoundFontHandler::optional_chorus_type chorus);
+
+private slots:
+    void onTypeMoved(int type);
+    void onNrChanged(qreal ratio);
+    void onNrMoved(qreal ratio);
+    void onLevelChanged(qreal ratio);
+    void onLevelMoved(qreal ratio);
+    void onSpeedChanged(qreal ratio);
+    void onSpeedMoved(qreal ratio);
+    void onDepthChanged(qreal ratio);
+    void onDepthMoved(qreal ratio);
+    void onToggle(bool activated);
+
+private:
+    QComboBox* mTypeBox;
+    SimpleSlider* mNrSlider;
+    SimpleSlider* mLevelSlider;
+    SimpleSlider* mSpeedSlider;
+    SimpleSlider* mDepthSlider;
+    SoundFontHandler::chorus_type mChorus;
+
+};
+
 //=================
 // SoundFontEditor
 //=================
@@ -153,12 +202,14 @@ public slots:
     void setFile(const QString& file);
     void setGain(double gain);
     void setReverb(const SoundFontHandler::optional_reverb_type& reverb);
+    void setChorus(const SoundFontHandler::optional_chorus_type& chorus);
 
 private slots:
     void onClick();
     void updateFile();
     void sendGain(double gain);
     void sendReverb(const SoundFontHandler::optional_reverb_type& reverb);
+    void sendChorus(const SoundFontHandler::optional_chorus_type& chorus);
 
 private:
     std::unique_ptr<SoundFontHandler> mHandler;
@@ -169,6 +220,7 @@ private:
     QToolButton* mFileSelector;
     GainEditor* mGainEditor;
     ReverbEditor* mReverbEditor;
+    ChorusEditor* mChorusEditor;
 
 };
 

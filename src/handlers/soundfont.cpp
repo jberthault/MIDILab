@@ -39,10 +39,30 @@ struct unmarshalling_traits<SoundFontHandler::reverb_type> {
     auto operator()(const std::string& string) {
         SoundFontHandler::reverb_type reverb;
         std::stringstream ss(string);
-        ss >> reverb.roomsize >> reverb.damp  >> reverb.level >> reverb.width;
+        ss >> reverb.roomsize >> reverb.damp >> reverb.level >> reverb.width;
         return reverb;
     }
 };
+
+template<>
+struct marshalling_traits<SoundFontHandler::chorus_type> {
+    auto operator()(const SoundFontHandler::chorus_type& chorus) {
+        std::stringstream ss;
+        ss << chorus.type << ' ' << chorus.nr << ' ' << chorus.level << ' ' << chorus.speed << ' ' << chorus.depth;
+        return ss.str();
+    }
+};
+
+template<>
+struct unmarshalling_traits<SoundFontHandler::chorus_type> {
+    auto operator()(const std::string& string) {
+        SoundFontHandler::chorus_type chorus;
+        std::stringstream ss(string);
+        ss >> chorus.type >> chorus.nr >> chorus.level >> chorus.speed >> chorus.depth;
+        return chorus;
+    }
+};
+
 
 namespace {
 
@@ -69,20 +89,21 @@ struct SoundFontHandler::Impl {
 
     using result_type = Handler::result_type;
     using reverb_type = SoundFontHandler::reverb_type;
+    using chorus_type = SoundFontHandler::chorus_type;
 
     // ---------
     // structors
     // ---------
 
-    Impl() {
+    Impl() : drums(drum_channels), has_reverb(true), has_chorus(true) {
         settings = new_fluid_settings();
         fluid_settings_setint(settings, "synth.threadsafe-api", 0);
         fluid_settings_setint(settings, "audio.jack.autoconnect", 1);
         fluid_settings_setstr(settings, "audio.jack.id", "MIDILab");
         synth = new_fluid_synth(settings);
         adriver = new_fluid_audio_driver(settings, synth);
-        has_reverb = true;
-        drums = drum_channels;
+        // chorus seems to be zero until a value is set, so we force the default settings
+        fluid_synth_set_chorus(synth, FLUID_CHORUS_DEFAULT_N, FLUID_CHORUS_DEFAULT_LEVEL, FLUID_CHORUS_DEFAULT_SPEED, FLUID_CHORUS_DEFAULT_DEPTH, FLUID_CHORUS_DEFAULT_TYPE);
     }
 
     ~Impl() {
@@ -95,17 +116,35 @@ struct SoundFontHandler::Impl {
     // accessors
     // ---------
 
-    double gain() const {
+    auto gain() const {
         return (double)fluid_synth_get_gain(synth);
     }
 
-    reverb_type reverb() const {
-        SoundFontHandler::reverb_type reverb;
-        reverb.roomsize = fluid_synth_get_reverb_roomsize(synth);
-        reverb.damp = fluid_synth_get_reverb_damp(synth);
-        reverb.level = fluid_synth_get_reverb_level(synth);
-        reverb.width = fluid_synth_get_reverb_width(synth);
-        return reverb;
+    static auto default_reverb() {
+        return reverb_type{FLUID_REVERB_DEFAULT_ROOMSIZE, FLUID_REVERB_DEFAULT_DAMP, FLUID_REVERB_DEFAULT_LEVEL, FLUID_REVERB_DEFAULT_WIDTH};
+    }
+
+    auto reverb() const {
+        return reverb_type{
+            fluid_synth_get_reverb_roomsize(synth),
+            fluid_synth_get_reverb_damp(synth),
+            fluid_synth_get_reverb_level(synth),
+            fluid_synth_get_reverb_width(synth)
+        };
+    }
+
+    static auto default_chorus() {
+        return chorus_type{FLUID_CHORUS_DEFAULT_TYPE, FLUID_CHORUS_DEFAULT_N, FLUID_CHORUS_DEFAULT_LEVEL, FLUID_CHORUS_DEFAULT_SPEED, FLUID_CHORUS_DEFAULT_DEPTH};
+    }
+
+    auto chorus() const {
+        return chorus_type{
+            fluid_synth_get_chorus_type(synth),
+            fluid_synth_get_chorus_nr(synth),
+            fluid_synth_get_chorus_level(synth),
+            fluid_synth_get_chorus_speed_Hz(synth),
+            fluid_synth_get_chorus_depth_ms(synth)
+        };
     }
 
     // --------------
@@ -126,6 +165,7 @@ struct SoundFontHandler::Impl {
             auto k = event.get_custom_key();
             if (k == "SoundFont.gain") return handle_gain(event.get_custom_value());
             if (k == "SoundFont.reverb") return handle_reverb(event.get_custom_value());
+            if (k == "SoundFont.chorus") return handle_chorus(event.get_custom_value());
             if (k == "SoundFont.file") return handle_file(event.get_custom_value());
             break;
         }
@@ -201,18 +241,28 @@ struct SoundFontHandler::Impl {
         return result_type::success;
     }
 
-    result_type handle_gain(std::string string) {
+    result_type handle_gain(const std::string& string) {
         fluid_synth_set_gain(synth, (float)unmarshall<double>(string));
         return result_type::success;
     }
 
-    result_type handle_reverb(std::string string) {
+    result_type handle_reverb(const std::string& string) {
         has_reverb = !string.empty();
         if (has_reverb) {
-            auto reverb = unmarshall<SoundFontHandler::reverb_type>(string);
+            auto reverb = unmarshall<reverb_type>(string);
             fluid_synth_set_reverb(synth, reverb.roomsize, reverb.damp, reverb.width, reverb.level);
         }
         fluid_synth_set_reverb_on(synth, (int)has_reverb);
+        return result_type::success;
+    }
+
+    result_type handle_chorus(const std::string& string) {
+        has_chorus = !string.empty();
+        if (has_chorus) {
+            auto chorus = unmarshall<chorus_type>(string);
+            fluid_synth_set_chorus(synth, chorus.nr, chorus.level, chorus.speed, chorus.depth, chorus.type);
+        }
+        fluid_synth_set_chorus_on(synth, (int)has_chorus);
         return result_type::success;
     }
 
@@ -239,6 +289,7 @@ struct SoundFontHandler::Impl {
     std::string file;
     channels_t drums;
     bool has_reverb;
+    bool has_chorus;
 
 };
 
@@ -247,7 +298,11 @@ struct SoundFontHandler::Impl {
 //==================
 
 SoundFontHandler::reverb_type SoundFontHandler::default_reverb() {
-    return {FLUID_REVERB_DEFAULT_ROOMSIZE, FLUID_REVERB_DEFAULT_DAMP, FLUID_REVERB_DEFAULT_LEVEL, FLUID_REVERB_DEFAULT_WIDTH};
+    return Impl::default_reverb();
+}
+
+SoundFontHandler::chorus_type SoundFontHandler::default_chorus() {
+    return Impl::default_chorus();
 }
 
 Event SoundFontHandler::gain_event(double gain) {
@@ -261,15 +316,22 @@ Event SoundFontHandler::file_event(const std::string& file) {
 Event SoundFontHandler::reverb_event(const optional_reverb_type &reverb) {
     if (reverb)
         return Event::custom({}, "SoundFont.reverb", marshall(*reverb));
-    else
-        return Event::custom({}, "SoundFont.reverb");
+    return Event::custom({}, "SoundFont.reverb");
+}
+
+Event SoundFontHandler::chorus_event(const optional_chorus_type& chorus) {
+    if (chorus)
+        return Event::custom({}, "SoundFont.chorus", marshall(*chorus));
+    return Event::custom({}, "SoundFont.chorus");
 }
 
 SoundFontHandler::SoundFontHandler() : Handler(handler_ns::out_mode), m_pimpl(std::make_unique<Impl>()) {
 
 }
 
-SoundFontHandler::~SoundFontHandler() = default;
+SoundFontHandler::~SoundFontHandler() {
+
+}
 
 double SoundFontHandler::gain() const {
     return m_pimpl->gain();
@@ -283,6 +345,13 @@ SoundFontHandler::optional_reverb_type SoundFontHandler::reverb() const {
     SoundFontHandler::optional_reverb_type result;
     if (m_pimpl->has_reverb)
         result = m_pimpl->reverb();
+    return result;
+}
+
+SoundFontHandler::optional_chorus_type SoundFontHandler::chorus() const {
+    SoundFontHandler::optional_chorus_type result;
+    if (m_pimpl->has_chorus)
+        result = m_pimpl->chorus();
     return result;
 }
 

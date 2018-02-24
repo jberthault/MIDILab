@@ -15,7 +15,7 @@ Version checking should also be introduced to prevent regressions when the forma
 ## About Synthesizers & Devices
 
 SoundFont, via fluidsynth, provides many features inaccessible within MidiLab.
-The editor should let the user configure **banks** and **chorus** for instance.
+The editor should let the user configure **banks** and **tuning** for instance.
 
 Apart from SoundFonts, the **VSTi** tecnhology is a must-have and should definitely be part of MidiLab.
 

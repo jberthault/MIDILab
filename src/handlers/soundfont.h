@@ -41,13 +41,24 @@ public:
         double width;
     };
 
+    struct chorus_type {
+        int type;
+        int nr;
+        double level;
+        double speed; // Hz
+        double depth; // ms
+    };
+
     using optional_reverb_type = boost::optional<reverb_type>;
+    using optional_chorus_type = boost::optional<chorus_type>;
 
     static reverb_type default_reverb();
+    static chorus_type default_chorus();
 
     static Event gain_event(double gain); /*!< must be in range [0, 10] */
     static Event file_event(const std::string& file);
     static Event reverb_event(const optional_reverb_type& reverb);
+    static Event chorus_event(const optional_chorus_type& chorus);
 
     explicit SoundFontHandler();
     ~SoundFontHandler();
@@ -55,6 +66,7 @@ public:
     double gain() const;
     std::string file() const;
     optional_reverb_type reverb() const;
+    optional_chorus_type chorus() const;
 
     families_t handled_families() const override;
     result_type handle_message(const Message& message) override;
