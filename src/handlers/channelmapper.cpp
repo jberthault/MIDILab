@@ -33,7 +33,7 @@ Event ChannelMapper::unmap_event(channels_t channels) {
 }
 
 ChannelMapper::ChannelMapper() : Handler(Mode::thru()) {
-    for (channel_t c=0 ; c < channels_t::capacity ; ++c)
+    for (channel_t c=0 ; c < channels_t::capacity() ; ++c)
         m_mapping[c] = channels_t::wrap(c);
 }
 

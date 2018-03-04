@@ -159,3 +159,8 @@ void Instrument::generateNoteOn(channels_t channels, const Note& note) {
 void Instrument::generateNoteOff(channels_t channels, const Note& note) {
     generate(Event::note_off(channels, note.code()));
 }
+
+channels_t Instrument::channelsFromButtons(Qt::MouseButtons buttons) {
+    auto* editor = channelEditor();
+    return editor ? editor->channelsFromButtons(buttons) : channels_t::wrap(0);
+}

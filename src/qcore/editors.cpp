@@ -85,7 +85,7 @@ ChannelEditor::ChannelEditor(QWidget* parent) : QWidget(parent) {
         grid->addWidget(hor, 0, n+1);
         grid->addWidget(ver, n+1, 0);
     }
-    for (channel_t c=0 ; c < channels_t::capacity ; ++c) {
+    for (channel_t c=0 ; c < channels_t::capacity() ; ++c) {
         ColorPicker* picker = new ColorPicker(c, this);
         mPickers[c] = picker;
         grid->addWidget(picker, 1+c/4, 1+c%4);
@@ -100,7 +100,7 @@ ChannelEditor::ChannelEditor(QWidget* parent) : QWidget(parent) {
 }
 
 void ChannelEditor::resetColors() {
-    for (channel_t c=0 ; c < channels_t::capacity ; ++c)
+    for (channel_t c=0 ; c < channels_t::capacity() ; ++c)
         setColor(c, defaultColors[c]);
 }
 
@@ -184,7 +184,7 @@ ChannelsSelector::ChannelsSelector(QWidget* parent) : QWidget(parent) {
 
     TriState* triState = new TriState("All", this);
 
-    for (channel_t c=0 ; c < channels_t::capacity ; c++) {
+    for (channel_t c=0 ; c < channels_t::capacity() ; c++) {
         QCheckBox* checkbox = new QCheckBox(QString::number(c), this);
         triState->addCheckBox(checkbox);
         mGroup->addButton(checkbox);
@@ -201,7 +201,7 @@ ChannelsSelector::ChannelsSelector(QWidget* parent) : QWidget(parent) {
 void ChannelsSelector::setChannelEditor(ChannelEditor* editor) {
     if (editor) {
         connect(editor, &ChannelEditor::colorChanged, this, &ChannelsSelector::setChannelColor);
-        for (channel_t c=0 ; c < channels_t::capacity ; c++)
+        for (channel_t c=0 ; c < channels_t::capacity() ; c++)
             setChannelColor(c, editor->color(c));
     }
 }
@@ -222,16 +222,15 @@ channels_t ChannelsSelector::channels() const {
 void ChannelsSelector::setChannels(channels_t channels) {
     if (channels != mChannels) {
         mChannels = channels;
-        for (channel_t c=0 ; c < channels_t::capacity ; c++)
+        for (channel_t c=0 ; c < channels_t::capacity() ; c++)
             mBoxes[c]->setChecked(mChannels.test(c));
         emit channelsChanged(mChannels);
     }
 }
 
 void ChannelsSelector::updateChannels() {
-    channels_t previousChannels = mChannels;
-    mChannels = channels_t{};
-    for (channel_t c=0 ; c < channels_t::capacity ; c++)
+    auto previousChannels = std::exchange(mChannels, {});
+    for (channel_t c=0 ; c < channels_t::capacity() ; c++)
         if (mBoxes[c]->isChecked())
             mChannels.set(c);
     if (mChannels != previousChannels)
@@ -324,7 +323,7 @@ ChannelsSlider::ChannelsSlider(Qt::Orientation orientation, QWidget* parent) :
 
     insertKnob(mGroupKnob, mGroupLabel, 2., .5);
 
-    for (channel_t c=0 ; c < channels_t::capacity ; c++) {
+    for (channel_t c=0 ; c < channels_t::capacity() ; c++) {
         // knob
         auto knob = new ChannelKnob(channels_t::wrap(c));
         knob->setRadius(6.);
@@ -351,7 +350,7 @@ ChannelsSlider::ChannelsSlider(Qt::Orientation orientation, QWidget* parent) :
 void ChannelsSlider::setChannelEditor(ChannelEditor* editor) {
     mChannelEditor = editor;
     if (editor) {
-        for (channel_t c=0 ; c < channels_t::capacity ; c++) {
+        for (channel_t c=0 ; c < channels_t::capacity() ; c++) {
             connect(editor, &ChannelEditor::colorChanged, this, &ChannelsSlider::updateColor);
             updateColor(c, editor->color(c));
         }
@@ -376,7 +375,7 @@ void ChannelsSlider::setSelection(channels_t channels) {
 }
 
 void ChannelsSlider::setCardinality(size_t cardinality) {
-    for (channel_t c=0 ; c < channels_t::capacity ; ++c)
+    for (channel_t c=0 ; c < channels_t::capacity() ; ++c)
         knobScale(mKnobs[c]).cardinality = cardinality;
     knobScale(mGroupKnob).cardinality = cardinality;
 }
@@ -388,7 +387,7 @@ bool ChannelsSlider::isExpanded() const {
 void ChannelsSlider::setExpanded(bool expanded) {
     if (isExpanded() == expanded)
         return;
-    for (channel_t c=0 ; c < channels_t::capacity ; ++c) {
+    for (channel_t c=0 ; c < channels_t::capacity() ; ++c) {
         mKnobs[c]->setVisible(expanded);
         mLabels[c]->setVisible(expanded);
     }
@@ -414,7 +413,7 @@ void ChannelsSlider::setRatio(channels_t channels, qreal ratio) {
 }
 
 void ChannelsSlider::setRatios(const channel_map_t<qreal>& ratios) {
-    for (channel_t c=0 ; c < channels_t::capacity ; ++c)
+    for (channel_t c=0 ; c < channels_t::capacity() ; ++c)
        setKnobRatio(mKnobs[c], ratios[c]);
     setKnobRatio(mGroupKnob, mDefaultRatio);
     emit knobChanged(channels_t::full());
@@ -499,64 +498,23 @@ channels_t ChannelsSlider::extend(channels_t channels) const {
 //================
 
 FamilySelector::FamilySelector(QWidget* parent) : QTreeWidget(parent) {
-
     setWindowTitle("Type Filter");
     setAlternatingRowColors(true);
     setHeaderHidden(true);
-
-    QTreeWidgetItem* midiItem = makeNode(invisibleRootItem(), families_t::midi(), "MIDI Events");
-    QTreeWidgetItem* voiceItem = makeNode(midiItem, families_t::voice(), "Voice Events");
-    QTreeWidgetItem* noteItem = makeNode(voiceItem, families_t::note(), "Note Events");
-    makeLeaf(noteItem, family_t::note_off);
-    makeLeaf(noteItem, family_t::note_on);
-    makeLeaf(noteItem, family_t::aftertouch);
-    makeLeaf(voiceItem, family_t::controller);
-    makeLeaf(voiceItem, family_t::program_change);
-    makeLeaf(voiceItem, family_t::channel_pressure);
-    makeLeaf(voiceItem, family_t::pitch_wheel);
-    QTreeWidgetItem* systemItem = makeNode(midiItem, families_t::system(), "System Events");
-    QTreeWidgetItem* systemCommonItem = makeNode(systemItem, families_t::system_common(), "System Common Events");
-    makeLeaf(systemCommonItem, family_t::sysex);
-    makeLeaf(systemCommonItem, family_t::mtc_frame);
-    makeLeaf(systemCommonItem, family_t::song_position);
-    makeLeaf(systemCommonItem, family_t::song_select);
-    makeLeaf(systemCommonItem, family_t::xf4);
-    makeLeaf(systemCommonItem, family_t::xf5);
-    makeLeaf(systemCommonItem, family_t::tune_request);
-    makeLeaf(systemCommonItem, family_t::end_of_sysex);
-    QTreeWidgetItem* systemRealtimeItem = makeNode(systemItem, families_t::system_realtime(), "System Realtime Events");
-    makeLeaf(systemRealtimeItem, family_t::clock);
-    makeLeaf(systemRealtimeItem, family_t::tick);
-    makeLeaf(systemRealtimeItem, family_t::start);
-    makeLeaf(systemRealtimeItem, family_t::continue_);
-    makeLeaf(systemRealtimeItem, family_t::stop);
-    makeLeaf(systemRealtimeItem, family_t::xfd);
-    makeLeaf(systemRealtimeItem, family_t::active_sense);
-    makeLeaf(systemRealtimeItem, family_t::reset);
-    QTreeWidgetItem* metaItem = makeNode(midiItem, families_t::meta(), "Meta Events");
-    makeLeaf(metaItem, family_t::sequence_number);
-    makeLeaf(metaItem, family_t::text);
-    makeLeaf(metaItem, family_t::copyright);
-    makeLeaf(metaItem, family_t::track_name);
-    makeLeaf(metaItem, family_t::instrument_name);
-    makeLeaf(metaItem, family_t::lyrics);
-    makeLeaf(metaItem, family_t::marker);
-    makeLeaf(metaItem, family_t::cue_point);
-    makeLeaf(metaItem, family_t::program_name);
-    makeLeaf(metaItem, family_t::device_name);
-    makeLeaf(metaItem, family_t::channel_prefix);
-    makeLeaf(metaItem, family_t::port);
-    makeLeaf(metaItem, family_t::end_of_track);
-    makeLeaf(metaItem, family_t::tempo);
-    makeLeaf(metaItem, family_t::smpte_offset);
-    makeLeaf(metaItem, family_t::time_signature);
-    makeLeaf(metaItem, family_t::key_signature);
-    makeLeaf(metaItem, family_t::proprietary);
-    makeLeaf(metaItem, family_t::default_meta);
-
+    auto* midiItem = makeNode(invisibleRootItem(), families_t::midi(), "MIDI Events");
+    auto* voiceItem = makeNode(midiItem, families_t::voice(), "Voice Events");
+    auto* noteItem = makeNode(voiceItem, families_t::note(), "Note Events");
+    makeLeaves(noteItem, families_t::note());
+    makeLeaves(voiceItem, families_t::voice() & ~families_t::note());
+    auto* systemItem = makeNode(midiItem, families_t::system(), "System Events");
+    makeLeaves(makeNode(systemItem, families_t::system_common(), "System Common Events"), families_t::system_common());
+    makeLeaves(makeNode(systemItem, families_t::system_realtime(), "System Realtime Events"), families_t::system_realtime());
+    makeLeaves(makeNode(midiItem, families_t::meta(), "Meta Events"), families_t::meta());
     connect(this, &QTreeWidget::itemChanged, this, &FamilySelector::onItemChange);
-
     updateFamilies();
+    midiItem->setExpanded(true);
+    voiceItem->setExpanded(true);
+    noteItem->setExpanded(true);
 }
 
 void FamilySelector::onItemChange(QTreeWidgetItem* item, int /*column*/) {
@@ -605,13 +563,14 @@ void FamilySelector::updateAncestors(QTreeWidgetItem* item) {
 QTreeWidgetItem* FamilySelector::makeNode(QTreeWidgetItem* root, families_t families, const QString& name) {
     QStringList texts;
     texts << name;
-    QTreeWidgetItem* child = new QTreeWidgetItem(root, texts);
+    auto* child = new QTreeWidgetItem(root, texts);
     child->setData(0, Qt::UserRole, families.to_integral());
     return child;
 }
 
-QTreeWidgetItem* FamilySelector::makeLeaf(QTreeWidgetItem* root, family_t family) {
-    return makeNode(root, families_t::wrap(family), QString::fromLocal8Bit(family_name(family)));
+void FamilySelector::makeLeaves(QTreeWidgetItem* root, families_t families) {
+    for(auto family : families)
+        makeNode(root, families_t::wrap(family), QString::fromLocal8Bit(family_name(family)));
 }
 
 families_t FamilySelector::families() const {

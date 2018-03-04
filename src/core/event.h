@@ -98,7 +98,7 @@ std::string channels_string(channels_t channels);
 
 // dense map<channel_t, T>
 template<typename T>
-using map_type = std::array<T, channels_t::capacity>;
+using map_type = std::array<T, channels_t::capacity()>;
 
 // channels_t[]
 template<size_t N>
@@ -136,7 +136,7 @@ auto contains(const array_type<N>& array, channels_t channels) {
 template<typename T, typename U>
 auto find(const map_type<T>& map, U value) {
     channels_t channels;
-    for (channel_t c=0 ; c < channels_t::capacity ; c++)
+    for (channel_t c=0 ; c < channels_t::capacity() ; c++)
         if (map[c] == value)
             channels.set(c);
     return channels;

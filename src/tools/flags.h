@@ -85,11 +85,8 @@ struct flags_t {
     // -----
 
     using derived_type = DerivedT;
-
     using value_type = ValueT;
     using value_base_type = typename enum_decay<ValueT>::type;
-
-    static constexpr size_t capacity = Size;
     using storage_type = integral_holder_t<Size>;
 
     struct const_iterator : public std::iterator<std::forward_iterator_tag, value_type> {
@@ -110,6 +107,8 @@ struct flags_t {
         value_base_type value_base;
 
     };
+
+    static constexpr size_t capacity() { return Size; }
 
     // ---------------
     // storage helpers
@@ -137,7 +136,6 @@ struct flags_t {
         return DerivedT{flags_integral_value_tag{}, storage};
     }
 
-    template<typename ... Ts>
     static constexpr auto wrap(value_type value) {
         return DerivedT{flags_homogeneous_values_tag{}, value};
     }

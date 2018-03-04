@@ -105,6 +105,8 @@ protected:
     void generateNoteOn(channels_t channels, const Note& note);
     void generateNoteOff(channels_t channels, const Note& note);
 
+    channels_t channelsFromButtons(Qt::MouseButtons buttons);
+
 private:
     byte_t mVelocity;
 

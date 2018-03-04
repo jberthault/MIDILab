@@ -151,17 +151,19 @@ struct SoundFontHandler::Impl {
     // handle methods
     // --------------
 
-    static constexpr auto handled_families = families_t::fuse(
-        family_t::note_off,
-        family_t::note_on,
-        family_t::program_change,
-        family_t::controller,
-        family_t::channel_pressure,
-        family_t::pitch_wheel,
-        family_t::reset,
-        family_t::sysex,
-        family_t::custom
-    );
+    static constexpr auto handled_families() {
+        return families_t::fuse(
+            family_t::note_off,
+            family_t::note_on,
+            family_t::program_change,
+            family_t::controller,
+            family_t::channel_pressure,
+            family_t::pitch_wheel,
+            family_t::reset,
+            family_t::sysex,
+            family_t::custom
+        );
+    }
 
     Result handle(const Event& event) {
         switch (event.family()) {
@@ -368,7 +370,7 @@ SoundFontHandler::optional_chorus_type SoundFontHandler::chorus() const {
 }
 
 families_t SoundFontHandler::handled_families() const {
-    return Impl::handled_families;
+    return Impl::handled_families();
 }
 
 SoundFontHandler::Result SoundFontHandler::on_close(State state) {

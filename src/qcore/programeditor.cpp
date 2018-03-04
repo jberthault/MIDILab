@@ -243,9 +243,9 @@ void PatchModel::addPatch(QStandardItem* root, const Patch* patch) {
 // ProgramModel
 //==============
 
-ProgramModel::ProgramModel(ChannelEditor* channelEditor, QObject* parent) : QStandardItemModel(channels_t::capacity, 2, parent), mPatch(nullptr) {
+ProgramModel::ProgramModel(ChannelEditor* channelEditor, QObject* parent) : QStandardItemModel(channels_t::capacity(), 2, parent), mPatch(nullptr) {
     QStringList labels;
-    for (channel_t c=0 ; c < channels_t::capacity ; c++) {
+    for (channel_t c=0 ; c < channels_t::capacity() ; c++) {
         labels.append(QString::number(c));
         QStandardItem* head = new QStandardItem;
         head->setFlags(Qt::ItemIsEnabled);
@@ -264,7 +264,7 @@ const Patch* ProgramModel::patch() const {
 
 void ProgramModel::setPatch(const Patch* patch) {
     mPatch = patch;
-    for (channel_t c=0 ; c < channels_t::capacity ; c++)
+    for (channel_t c=0 ; c < channels_t::capacity() ; c++)
         if (hasProgram(c))
             fillProgram(channels_t::wrap(c), program(c)); // change text
 }
@@ -374,7 +374,7 @@ ProgramEditor::ProgramEditor(ChannelEditor* channelEditor, QWidget* parent) : QW
     table->horizontalHeader()->setVisible(false);
     table->setItemDelegateForColumn(1, new PatchDelegate(this));
     table->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    table->setMinimumHeight(20*channels_t::capacity+2); // force the table to show every row, crappy ...
+    table->setMinimumHeight(20 * channels_t::capacity() + 2); // force the table to show every row, crappy ...
     table->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     connect(table, &QTableView::clicked, this, &ProgramEditor::onClick);
     connect(table, &QTableView::doubleClicked, this, &ProgramEditor::onDoubleClick);
@@ -476,7 +476,7 @@ void ProgramEditor::onClick(const QModelIndex& index) {
 void ProgramEditor::onDoubleClick(const QModelIndex& index) {
     if (index.column() == 0) {
         mSelection ^= channels_t::full();
-        for (channel_t c=0 ; c < channels_t::capacity ; c++) {
+        for (channel_t c=0 ; c < channels_t::capacity() ; c++) {
             auto icon = mSelection.test(c) ? QIcon(":/data/link-intact.svg") : QIcon();
             mProgramModel->setData(index.sibling(c, 0), icon, Qt::DecorationRole);
         }

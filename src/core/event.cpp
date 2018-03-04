@@ -37,7 +37,7 @@ std::string channels_string(channels_t channels) {
     switch (channels.size()) {
     case 0: return "";
     case 1: return channel_string(*channels.begin());
-    case channels_t::capacity: return "*";
+    case channels_t::capacity(): return "*";
     default: return "M";
     }
 }

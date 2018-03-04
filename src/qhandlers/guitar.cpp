@@ -286,8 +286,7 @@ void Guitar::clearNotes() {
 }
 
 void Guitar::generateFretOn(const Location& loc, Qt::MouseButtons buttons) {
-    ChannelEditor* editor = channelEditor();
-    channels_t channels = editor ? editor->channelsFromButtons(buttons) : channels_t::wrap(0);
+    auto channels = channelsFromButtons(buttons);
     if (isValid(loc) && channels) {
         generateNoteOn(channels, toNote(loc));
         activate(loc, channels);
@@ -295,8 +294,7 @@ void Guitar::generateFretOn(const Location& loc, Qt::MouseButtons buttons) {
 }
 
 void Guitar::generateFretOff(const Location& loc, Qt::MouseButtons buttons) {
-    ChannelEditor* editor = channelEditor();
-    channels_t channels = editor ? editor->channelsFromButtons(buttons) : channels_t::wrap(0);
+    auto channels = channelsFromButtons(buttons);
     if (isValid(loc) && channels) {
         generateNoteOff(channels, toNote(loc));
         deactivate(loc, channels);

@@ -170,7 +170,7 @@ Handler::Result ControllerWheel::on_close(State state) {
 void ControllerWheel::onControlChange() {
     mController = mControllerBox->currentData().value<byte_t>();
     channel_map_t<qreal> ratios;
-    for (channel_t c=0 ; c < channels_t::capacity ; c++)
+    for (channel_t c=0 ; c < channels_t::capacity() ; c++)
         ratios[c] = data7Range.reduce(mValues[mController][c]);
     slider()->setDefaultRatio(data7Range.reduce(controller_ns::default_value(mController)));
     slider()->setRatios(ratios);
@@ -317,11 +317,11 @@ void PitchWheel::onTypeChange(int index) {
     channel_map_t<qreal> ratios;
     if (index == 1) {
         defaultRatio = semitonesRange.reduce(defaultSemitones);
-        for (channel_t c=0 ; c < channels_t::capacity ; c++)
+        for (channel_t c=0 ; c < channels_t::capacity() ; c++)
             ratios[c] = semitonesRange.reduce(mPitchRanges[c]);
     } else {
         defaultRatio = .5;
-        for (channel_t c=0 ; c < channels_t::capacity ; c++)
+        for (channel_t c=0 ; c < channels_t::capacity() ; c++)
             ratios[c] = data14Range.reduce(mPitchValues[c]);
     }
     slider()->setDefaultRatio(defaultRatio);

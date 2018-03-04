@@ -319,9 +319,7 @@ void Piano::mouseMoveEvent(QMouseEvent* event) {
 
 void Piano::generateKeyOn(PianoKey* key, Qt::MouseButtons buttons) {
     if (key) {
-        ChannelEditor* editor = channelEditor();
-        channels_t channels = editor ? editor->channelsFromButtons(buttons) : channels_t::wrap(0);
-        if (channels) {
+        if (auto channels = channelsFromButtons(buttons)) {
             generateNoteOn(channels, key->note());
             key->activate(channels);
         }
@@ -330,9 +328,7 @@ void Piano::generateKeyOn(PianoKey* key, Qt::MouseButtons buttons) {
 
 void Piano::generateKeyOff(PianoKey* key, Qt::MouseButtons buttons) {
     if (key) {
-        ChannelEditor* editor = channelEditor();
-        channels_t channels = editor ? editor->channelsFromButtons(buttons) : channels_t::wrap(0);
-        if (channels) {
+        if (auto channels = channelsFromButtons(buttons)) {
             generateNoteOff(channels, key->note());
             key->deactivate(channels);
         }

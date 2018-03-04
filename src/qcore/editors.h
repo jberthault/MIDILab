@@ -270,7 +270,7 @@ private slots:
 
 private:
     QTreeWidgetItem* makeNode(QTreeWidgetItem* root, families_t families, const QString& name);
-    QTreeWidgetItem* makeLeaf(QTreeWidgetItem* root, family_t family);
+    void makeLeaves(QTreeWidgetItem* root, families_t families);
 
     families_t mFamilies;
 
