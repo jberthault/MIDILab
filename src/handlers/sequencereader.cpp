@@ -23,8 +23,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace {
 
-const auto stop_sounds = Event::controller(all_channels, controller_ns::all_sound_off_controller);
-const auto stop_notes = Event::controller(all_channels, controller_ns::all_notes_off_controller);
+const auto stop_sounds = Event::controller(channels_t::full(), controller_ns::all_sound_off_controller);
+const auto stop_notes = Event::controller(channels_t::full(), controller_ns::all_notes_off_controller);
 const auto stop_all = Event::reset();
 
 }
@@ -45,7 +45,7 @@ Event SequenceReader::distorsion_event(double distorsion) {
     return Event::custom({}, "SequenceReader.distorsion", marshall(distorsion));
 }
 
-SequenceReader::SequenceReader() : Handler(handler_ns::io_mode), m_distorsion(1.), m_task(1), m_playing(false) {
+SequenceReader::SequenceReader() : Handler(Mode::io()), m_distorsion(1.), m_task(1), m_playing(false) {
     init_positions();
     m_task.start([this](std::promise<void>&& promise){
         run();
@@ -157,7 +157,7 @@ bool SequenceReader::start_playing(bool rewind) {
     // ensure previous run is terminated
     stop_playing(stop_sounds);
     // can't start if unable to generate events
-    if (state().none(handler_ns::forward_state))
+    if (state().none(State::forward()))
         return false;
     // reset position
     if (rewind || m_position.first < m_first_position.first)
@@ -191,16 +191,16 @@ bool SequenceReader::stop_playing(const Event& final_event) {
 }
 
 families_t SequenceReader::handled_families() const {
-    return families_t::merge(family_t::custom, family_t::song_position, family_t::song_select, family_t::start, family_t::continue_, family_t::stop);
+    return families_t::fuse(family_t::custom, family_t::song_position, family_t::song_select, family_t::start, family_t::continue_, family_t::stop);
 }
 
-Handler::result_type SequenceReader::on_close(state_type state) {
-    if (state & handler_ns::forward_state)
+Handler::Result SequenceReader::on_close(State state) {
+    if (state & State::forward())
         stop_playing(stop_all);
     return Handler::on_close(state);
 }
 
-Handler::result_type SequenceReader::handle_message(const Message& message) {
+Handler::Result SequenceReader::handle_message(const Message& message) {
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_RECEIVE;
     switch (message.event.family()) {
@@ -217,33 +217,33 @@ Handler::result_type SequenceReader::handle_message(const Message& message) {
         break;
     }
     }
-    return result_type::unhandled;
+    return Result::unhandled;
 }
 
-Handler::result_type SequenceReader::handle_beat(double beat) {
+Handler::Result SequenceReader::handle_beat(double beat) {
     set_position(m_sequence.clock().beat2timestamp(beat));
-    return result_type::success;
+    return Result::success;
 }
 
-Handler::result_type SequenceReader::handle_sequence(byte_t id) {
+Handler::Result SequenceReader::handle_sequence(byte_t id) {
     if (select_sequence(id))
-        return result_type::success;
+        return Result::success;
     TRACE_WARNING("no song loaded for id: " << (int)id);
-    return result_type::fail;
+    return Result::fail;
 }
 
-Handler::result_type SequenceReader::handle_start(bool rewind) {
-    return start_playing(rewind) ? result_type::success : result_type::fail;
+Handler::Result SequenceReader::handle_start(bool rewind) {
+    return start_playing(rewind) ? Result::success : Result::fail;
 }
 
-Handler::result_type SequenceReader::handle_stop(const Event& final_event) {
+Handler::Result SequenceReader::handle_stop(const Event& final_event) {
     stop_playing(final_event);
-    return result_type::success;
+    return Result::success;
 }
 
-Handler::result_type SequenceReader::handle_distorsion(const std::string& distorsion) {
+Handler::Result SequenceReader::handle_distorsion(const std::string& distorsion) {
     set_distorsion(unmarshall<double>(distorsion));
-    return result_type::success;
+    return Result::success;
 }
 
 /// @todo adopt a strategy to forward settings at 0, when no note is available

@@ -56,8 +56,8 @@ private:
 
 //    PatternHandler(Event target = Event());
 
-//    result_type handle_message(const Message& message) override;
-//    result_type on_open(state_t state) override;
+//    Result handle_message(const Message& message) override;
+//    Result on_open(State state) override;
 
 //private:
 

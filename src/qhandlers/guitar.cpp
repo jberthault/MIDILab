@@ -69,7 +69,7 @@ void MetaGuitar::setContent(HandlerProxy& proxy) {
 // Guitar
 //========
 
-Guitar::Guitar() : Instrument(handler_ns::io_mode), mTuning(defaultTuning), mCapo(0), mState(defaultTuning.size()), mActiveLocation(-1, 0), mBackground(":/data/wood.jpg") {
+Guitar::Guitar() : Instrument(Mode::io()), mTuning(defaultTuning), mCapo(0), mState(defaultTuning.size()), mActiveLocation(-1, 0), mBackground(":/data/wood.jpg") {
     clearNotes();
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
 }
@@ -287,7 +287,7 @@ void Guitar::clearNotes() {
 
 void Guitar::generateFretOn(const Location& loc, Qt::MouseButtons buttons) {
     ChannelEditor* editor = channelEditor();
-    channels_t channels = editor ? editor->channelsFromButtons(buttons) : channels_t::merge(0);
+    channels_t channels = editor ? editor->channelsFromButtons(buttons) : channels_t::wrap(0);
     if (isValid(loc) && channels) {
         generateNoteOn(channels, toNote(loc));
         activate(loc, channels);
@@ -296,7 +296,7 @@ void Guitar::generateFretOn(const Location& loc, Qt::MouseButtons buttons) {
 
 void Guitar::generateFretOff(const Location& loc, Qt::MouseButtons buttons) {
     ChannelEditor* editor = channelEditor();
-    channels_t channels = editor ? editor->channelsFromButtons(buttons) : channels_t::merge(0);
+    channels_t channels = editor ? editor->channelsFromButtons(buttons) : channels_t::wrap(0);
     if (isValid(loc) && channels) {
         generateNoteOff(channels, toNote(loc));
         deactivate(loc, channels);

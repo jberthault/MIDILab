@@ -51,7 +51,7 @@ void MetaSoundFont::setContent(HandlerProxy& proxy) {
 // SoundFontReceiver
 //===================
 
-Receiver::result_type SoundFontReceiver::receive_message(Handler* target, const Message& message) {
+Receiver::Result SoundFontReceiver::receive_message(Handler* target, const Message& message) {
     auto result = observer()->handleMessage(target, message);
     if (message.event.family() == family_t::custom && message.event.get_custom_key() == "SoundFont.file")
         emit fileHandled();

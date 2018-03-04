@@ -37,7 +37,7 @@ std::string channels_string(channels_t channels) {
     switch (channels.size()) {
     case 0: return "";
     case 1: return channel_string(*channels.begin());
-    case 16: return "*";
+    case channels_t::capacity: return "*";
     default: return "M";
     }
 }
@@ -202,9 +202,7 @@ const std::map<byte_t, std::string>& controller_ns::controller_names() {
 // Family
 //========
 
-namespace family_ns {
-
-std::string family_name(family_t family) {
+const char* family_name(family_t family) {
     switch (family) {
     case family_t::invalid: return "Invalid Event";
     case family_t::custom: return "Custom Event";
@@ -254,10 +252,8 @@ std::string family_name(family_t family) {
     }
 }
 
-}
-
 std::ostream& operator<<(std::ostream& stream, family_t family) {
-    return stream << family_ns::family_name(family);
+    return stream << family_name(family);
 }
 
 // event printers
@@ -407,7 +403,7 @@ std::ostream& print_controller(std::ostream& stream, const Event& event) {
 
 std::ostream& print_note(std::ostream& stream, const Event& event) {
     byte_t note = event.at(1);
-    if (event.channels().contains(drum_channel)) {
+    if (event.channels().any(channels_t::drums())) {
         drum_ns::print_drum(stream, note);
     } else {
         stream << Note::from_code(note);
@@ -630,8 +626,8 @@ Event Event::raw(bool is_realtime, data_type data) {
     // get family
     event.m_family = event.extract_family(is_realtime);
     // get channel mask
-    if (event.is(family_ns::voice_families))
-        event.m_channels = channels_t::merge(channel);
+    if (event.is(families_t::voice()))
+        event.m_channels.set(channel);
     return event;
 }
 
@@ -655,7 +651,7 @@ bool Event::equivalent(const Event& lhs, const Event& rhs) {
     auto ilhs = lhs.begin();
     auto irhs = rhs.begin();
     // skip status byte
-    if (lhs.is(family_ns::midi_families)) {
+    if (lhs.is(families_t::midi())) {
         ++ilhs;
         ++irhs;
     }
@@ -672,8 +668,8 @@ bool operator!=(const Event& lhs, const Event& rhs) {
 
 // string
 
-std::string Event::name() const {
-    return family_ns::family_name(m_family);
+const char* Event::name() const {
+    return family_name(m_family);
 }
 
 std::string Event::description() const {
@@ -707,7 +703,7 @@ Event::operator bool() const {
 }
 
 bool Event::is(families_t families) const {
-    return families.contains(m_family);
+    return families.test(m_family);
 }
 
 family_t Event::extract_family(bool is_realtime) const {

@@ -38,9 +38,9 @@ public:
 
     channel_map_t<channels_t> mapping() const;
     void set_mapping(channel_map_t<channels_t> mapping);
-    void reset_mapping(channels_t channels = all_channels);
+    void reset_mapping(channels_t channels = channels_t::full());
 
-    result_type handle_message(const Message& message) override;
+    Result handle_message(const Message& message) override;
 
 private:
     void feed_forward(const Message& message);

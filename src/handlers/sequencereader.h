@@ -72,16 +72,16 @@ public:
     bool stop_playing(const Event& final_event); /*!< return false if already stopped */
 
     families_t handled_families() const override;
-    result_type handle_message(const Message& message) override;
-    result_type on_close(state_type state) override;
+    Result handle_message(const Message& message) override;
+    Result on_close(State state) override;
 
 private:
     // handle callbacks
-    result_type handle_beat(double beat);
-    result_type handle_sequence(byte_t id);
-    result_type handle_start(bool rewind);
-    result_type handle_stop(const Event& final_event);
-    result_type handle_distorsion(const std::string& distorsion);
+    Result handle_beat(double beat);
+    Result handle_sequence(byte_t id);
+    Result handle_start(bool rewind);
+    Result handle_stop(const Event& final_event);
+    Result handle_distorsion(const std::string& distorsion);
 
     // event loop running through the sequence
     void run();

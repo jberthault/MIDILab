@@ -228,9 +228,9 @@ private:
 // Handler
 //=========
 
-#define MIDI_HANDLE_OPEN do { if (handle_open(message) == ::Handler::result_type::success) return ::Handler::result_type::success; } while (false)
-#define MIDI_CHECK_OPEN_RECEIVE do { if (state().none(::handler_ns::receive_state)) return ::Handler::result_type::closed; } while (false)
-#define MIDI_CHECK_OPEN_FORWARD_RECEIVE do { if (!state().all(::handler_ns::endpoints_state)) return ::Handler::result_type::closed; } while (false)
+#define MIDI_HANDLE_OPEN do { if (handle_open(message) == ::Handler::Result::success) return ::Handler::Result::success; } while (false)
+#define MIDI_CHECK_OPEN_RECEIVE do { if (state().none(::Handler::State::receive())) return ::Handler::Result::closed; } while (false)
+#define MIDI_CHECK_OPEN_FORWARD_RECEIVE do { if (!state().all(::Handler::State::endpoints())) return ::Handler::Result::closed; } while (false)
 
 /**
  * The Handler class is the minimum interface required to deal with midi events.
@@ -248,42 +248,49 @@ private:
  *
  */
 
-namespace handler_ns {
-
-// each handler has a mode associated which must be one of:
-// - in_mode: handler can generate messages
-// - out_mode: handler can receive messages
-// - io_mode: handler can both generate and receive messages
-// - thru_mode: handler can forward messages (on reception)
-// it is guaranteed to be constant for each handler
-
-using mode_t = flags_t<>;
-static constexpr mode_t in_mode = mode_t::from_integral(0x1); /*!< can generate events */
-static constexpr mode_t out_mode = mode_t::from_integral(0x2); /*!< can handle events */
-static constexpr mode_t thru_mode = mode_t::from_integral(0x4); /*!< can forward on handling */
-static constexpr mode_t io_mode = in_mode | out_mode;
-static constexpr mode_t forward_mode = in_mode | thru_mode;
-static constexpr mode_t receive_mode = out_mode | thru_mode;
-
-// the handler can store different boolean states
-// handlers use two different states to enable forwarding and receiving messages
-// @note to forward/receive an event, the respective states must be open
-// @warning messages will be handled even if the handler is closed, you must check it.
-
-using state_t = flags_t<>;
-static constexpr state_t forward_state = state_t::from_integral(0x1);
-static constexpr state_t receive_state = state_t::from_integral(0x2);
-static constexpr state_t endpoints_state = forward_state | receive_state; /*!< @note junction may be a better name */
-
-}
-
 class Handler {
 
 public:
-    using mode_type = handler_ns::mode_t;
-    using state_type = handler_ns::state_t;
 
-    enum class result_type {
+    // -----
+    // types
+    // -----
+
+    // each handler has a mode associated which must be one of:
+    // - in: handler can generate messages
+    // - out: handler can receive messages
+    // - thru: handler can forward messages (on reception)
+    // - io: handler can both generate and receive messages
+    // it is guaranteed to be constant for each handler
+
+    struct Mode : flags_t<Mode, size_t, 8> {
+        using flags_t::flags_t;
+
+        static constexpr auto in() { return from_integral(0x1); } /*!< can generate events */
+        static constexpr auto out() { return from_integral(0x2); } /*!< can handle events */
+        static constexpr auto thru() { return from_integral(0x4); } /*!< can forward on handling */
+        static constexpr auto io() { return in() | out(); }
+
+        static constexpr auto forward() { return in() | thru(); }
+        static constexpr auto receive() { return out() | thru(); }
+
+    };
+
+    // the handler can store different boolean states
+    // handlers use two different states to enable forwarding and receiving messages
+    // @note to forward/receive an event, the respective states must be open
+    // @warning messages will be handled even if the handler is closed, you must check it.
+
+    struct State : flags_t<State, size_t, 8> {
+        using flags_t::flags_t;
+
+        static constexpr auto forward() { return from_integral(0x1); }
+        static constexpr auto receive() { return from_integral(0x2); }
+        static constexpr auto endpoints() { return forward() | receive(); } /*!< @note junction may be a better name */
+
+    };
+
+    enum class Result {
         success, /*!< handling was successful */
         fail, /*!< handling failed (general purpose) */
         unhandled, /*!< handling failed (event is not supposed to be handled) */
@@ -291,22 +298,25 @@ public:
         error  /*!< an exception has been thrown while handling */
     };
 
-    static Event open_event(state_type state); /*!< Specific action with key "Open" */
-    static Event close_event(state_type state); /*!< Specific action with key "Close" */
+    static Event open_event(State state); /*!< Specific action with key "Open" */
+    static Event close_event(State state); /*!< Specific action with key "Close" */
 
-    explicit Handler(mode_type mode);
-    virtual ~Handler();
+    // ---------
+    // structors
+    // ---------
 
+    explicit Handler(Mode mode);
     Handler(const Handler&) = delete;
+    virtual ~Handler();
 
     const std::string& name() const;
     void set_name(std::string name);
 
-    mode_type mode() const; /*!< get handler's mode (it is guaranteed to be constant) */
+    Mode mode() const; /*!< get handler's mode (it is guaranteed to be constant) */
 
-    state_type state() const; /*!< get current state */
-    void set_state(state_type state); /*!< replace all states */
-    void alter_state(state_type state, bool on); /*! set all states specified to on or off leaving others */
+    State state() const; /*!< get current state */
+    void set_state(State state); /*!< replace all states */
+    void alter_state(State state, bool on); /*! set all states specified to on or off leaving others */
 
     /**
      * @return the families used when handling a message (default accept any event)
@@ -318,9 +328,9 @@ public:
     virtual families_t handled_families() const;
     virtual families_t input_families() const;
 
-    result_type handle_open(const Message& message);
-    virtual result_type on_open(state_type state);
-    virtual result_type on_close(state_type state);
+    Result handle_open(const Message& message);
+    virtual Result on_open(State state);
+    virtual Result on_close(State state);
 
     // ------------------
     // reception features
@@ -333,8 +343,8 @@ public:
     void set_receiver(Receiver* receiver);
 
     bool send_message(const Message& message);
-    result_type receive_message(const Message& message);
-    virtual result_type handle_message(const Message& message); /*!< endpoint of messages, by default handles open/close actions */
+    Result receive_message(const Message& message);
+    virtual Result handle_message(const Message& message); /*!< endpoint of messages, by default handles open/close actions */
 
     // -------------------
     // forwarding features
@@ -347,14 +357,17 @@ public:
 
 private:
     std::string m_name;
-    const mode_type m_mode;
-    state_type m_state;
+    const Mode m_mode;
+    State m_state;
     Holder* m_holder; /*!< delegate synchronizing messages */
     Receiver* m_receiver; /*!< delegate handling synchronized messages */
     mutable std::mutex m_listeners_mutex;
     Listeners m_listeners;
 
 };
+
+template<> inline auto marshall<Handler::State>(Handler::State state) { return marshall(state.to_integral()); }
+template<> inline auto unmarshall<Handler::State>(const std::string& string) { return Handler::State::from_integral(unmarshall<Handler::State::storage_type>(string)); }
 
 //==========
 // Receiver
@@ -369,10 +382,10 @@ private:
 class Receiver {
 
 public:
-    using result_type = Handler::result_type;
+    using Result = Handler::Result;
 
     virtual ~Receiver() = default;
-    virtual result_type receive_message(Handler* target, const Message& message) = 0;
+    virtual Result receive_message(Handler* target, const Message& message) = 0;
 
 };
 

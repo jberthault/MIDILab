@@ -75,7 +75,7 @@ channels_t use_for_rhythm_part(const Event& event) {
         && (event.at(7) & 0xf0) == 0x10                  //
         && event.at(8) == 0x15                           // 0x40 0x1X 0x15 <=> address of USE_FOR_RHYTHM_PART
         && (event.at(9) == 0x01 || event.at(9) == 0x02)) // value {0x00: OFF, 0x01: MAP1, 0x02: MAP2}
-        return channels_t::merge(event.at(7) & 0x0f);
+        return channels_t::wrap(event.at(7) & 0x0f);
     return {};
 }
 
@@ -87,7 +87,7 @@ channels_t use_for_rhythm_part(const Event& event) {
 
 struct SoundFontHandler::Impl {
 
-    using result_type = Handler::result_type;
+    using Result = Handler::Result;
     using reverb_type = SoundFontHandler::reverb_type;
     using chorus_type = SoundFontHandler::chorus_type;
 
@@ -95,7 +95,7 @@ struct SoundFontHandler::Impl {
     // structors
     // ---------
 
-    Impl() : drums(drum_channels), has_reverb(true), has_chorus(true) {
+    Impl() : drums(channels_t::drums()), has_reverb(true), has_chorus(true) {
         settings = new_fluid_settings();
         fluid_settings_setint(settings, "synth.threadsafe-api", 0);
         fluid_settings_setint(settings, "audio.jack.autoconnect", 1);
@@ -151,7 +151,19 @@ struct SoundFontHandler::Impl {
     // handle methods
     // --------------
 
-    result_type handle(const Event& event) {
+    static constexpr auto handled_families = families_t::fuse(
+        family_t::note_off,
+        family_t::note_on,
+        family_t::program_change,
+        family_t::controller,
+        family_t::channel_pressure,
+        family_t::pitch_wheel,
+        family_t::reset,
+        family_t::sysex,
+        family_t::custom
+    );
+
+    Result handle(const Event& event) {
         switch (event.family()) {
         case family_t::note_off: return handle_note_off(event.channels(), event.at(1));
         case family_t::note_on: return handle_note_on(event.channels(), event.at(1), event.at(2));
@@ -170,34 +182,34 @@ struct SoundFontHandler::Impl {
             break;
         }
         }
-        return result_type::unhandled;
+        return Result::unhandled;
     }
 
-    result_type handle_note_off(channels_t channels, int note) {
+    Result handle_note_off(channels_t channels, int note) {
         for (channel_t channel : channels)
             fluid_synth_noteoff(synth, channel, note);
-        return result_type::success;
+        return Result::success;
     }
 
-    result_type handle_note_on(channels_t channels, int note, int velocity) {
+    Result handle_note_on(channels_t channels, int note, int velocity) {
         for (channel_t channel : channels)
             fluid_synth_noteon(synth, channel, note, velocity);
-        return result_type::success;
+        return Result::success;
     }
 
-    result_type handle_program_change(channels_t channels, int program) {
+    Result handle_program_change(channels_t channels, int program) {
         for (channel_t channel : channels)
             fluid_synth_program_change(synth, channel, program);
-        return result_type::success;
+        return Result::success;
     }
 
-    result_type handle_controller(channels_t channels, byte_t controller, int value) {
+    Result handle_controller(channels_t channels, byte_t controller, int value) {
         for (channel_t channel : channels)
             fluid_synth_cc(synth, channel, controller, value);
-        return result_type::success;
+        return Result::success;
     }
 
-    result_type handle_channel_type(channels_t channels, int type) {
+    Result handle_channel_type(channels_t channels, int type) {
         channels_t old_drum_channels = drums;
         drums.commute(channels, type == CHANNEL_TYPE_DRUM);
         for (channel_t channel : drums ^ old_drum_channels) {
@@ -205,32 +217,32 @@ struct SoundFontHandler::Impl {
             fluid_synth_set_channel_type(synth, channel, type);
             fluid_synth_program_change(synth, channel, 0);
         }
-        return result_type::success;
+        return Result::success;
     }
 
-    result_type handle_channel_pressure(channels_t channels, int pressure) {
+    Result handle_channel_pressure(channels_t channels, int pressure) {
         for (channel_t channel : channels)
             fluid_synth_channel_pressure(synth, channel, pressure);
-        return result_type::success;
+        return Result::success;
     }
 
-    result_type handle_pitch_wheel(channels_t channels, int pitch) {
+    Result handle_pitch_wheel(channels_t channels, int pitch) {
         for (channel_t channel : channels)
             fluid_synth_pitch_bend(synth, channel, pitch);
-        return result_type::success;
+        return Result::success;
     }
 
-    result_type handle_reset() {
-        handle_channel_type(all_channels & ~drum_channels, CHANNEL_TYPE_MELODIC);
-        handle_channel_type(drum_channels, CHANNEL_TYPE_DRUM);
+    Result handle_reset() {
+        handle_channel_type(channels_t::melodic(), CHANNEL_TYPE_MELODIC);
+        handle_channel_type(channels_t::drums(), CHANNEL_TYPE_DRUM);
         for (byte_t controller : controller_ns::reset_controllers)
-            handle_controller(all_channels, controller, controller_ns::default_value(controller));
-        for (channel_t channel : all_channels)
+            handle_controller(channels_t::full(), controller, controller_ns::default_value(controller));
+        for (channel_t channel : channels_t::full())
             fluid_synth_pitch_wheel_sens(synth, channel, 2);
-        return result_type::success;
+        return Result::success;
     }
 
-    result_type handle_sysex(const Event& event) {
+    Result handle_sysex(const Event& event) {
         /// @note master volume does not seem to be handled correctly
         // roland handling
         if (auto channels = use_for_rhythm_part(event))
@@ -238,45 +250,45 @@ struct SoundFontHandler::Impl {
         // default handling
         std::vector<char> sys_ex_data(event.begin()+1, event.end()-1);
         fluid_synth_sysex(synth, sys_ex_data.data(), sys_ex_data.size(), nullptr, nullptr, nullptr, 0);
-        return result_type::success;
+        return Result::success;
     }
 
-    result_type handle_gain(const std::string& string) {
+    Result handle_gain(const std::string& string) {
         fluid_synth_set_gain(synth, (float)unmarshall<double>(string));
-        return result_type::success;
+        return Result::success;
     }
 
-    result_type handle_reverb(const std::string& string) {
+    Result handle_reverb(const std::string& string) {
         has_reverb = !string.empty();
         if (has_reverb) {
             auto reverb = unmarshall<reverb_type>(string);
             fluid_synth_set_reverb(synth, reverb.roomsize, reverb.damp, reverb.width, reverb.level);
         }
         fluid_synth_set_reverb_on(synth, (int)has_reverb);
-        return result_type::success;
+        return Result::success;
     }
 
-    result_type handle_chorus(const std::string& string) {
+    Result handle_chorus(const std::string& string) {
         has_chorus = !string.empty();
         if (has_chorus) {
             auto chorus = unmarshall<chorus_type>(string);
             fluid_synth_set_chorus(synth, chorus.nr, chorus.level, chorus.speed, chorus.depth, chorus.type);
         }
         fluid_synth_set_chorus_on(synth, (int)has_chorus);
-        return result_type::success;
+        return Result::success;
     }
 
-    result_type handle_file(std::string string) {
+    Result handle_file(std::string string) {
         TRACE_MEASURE("SoundFont handle_file");
         if (fluid_synth_sfload(synth, string.c_str(), 1) == -1)
-            return result_type::fail;
+            return Result::fail;
         file = std::move(string);
-        return result_type::success;
+        return Result::success;
     }
 
     void handle_close() {
         fluid_synth_system_reset(synth);
-        drums = drum_channels;
+        drums = channels_t::drums();
     }
 
     // ----------
@@ -325,7 +337,7 @@ Event SoundFontHandler::chorus_event(const optional_chorus_type& chorus) {
     return Event::custom({}, "SoundFont.chorus");
 }
 
-SoundFontHandler::SoundFontHandler() : Handler(handler_ns::out_mode), m_pimpl(std::make_unique<Impl>()) {
+SoundFontHandler::SoundFontHandler() : Handler(Mode::out()), m_pimpl(std::make_unique<Impl>()) {
 
 }
 
@@ -356,16 +368,16 @@ SoundFontHandler::optional_chorus_type SoundFontHandler::chorus() const {
 }
 
 families_t SoundFontHandler::handled_families() const {
-    return families_t::merge(family_t::custom, family_t::sysex, family_t::reset, family_t::note_off, family_t::note_on, family_t::controller, family_t::program_change, family_t::channel_pressure, family_t::pitch_wheel);
+    return Impl::handled_families;
 }
 
-SoundFontHandler::result_type SoundFontHandler::on_close(state_type state) {
-    if (state & handler_ns::receive_state)
+SoundFontHandler::Result SoundFontHandler::on_close(State state) {
+    if (state & State::receive())
         m_pimpl->handle_close();
     return Handler::on_close(state);
 }
 
-SoundFontHandler::result_type SoundFontHandler::handle_message(const Message& message) {
+SoundFontHandler::Result SoundFontHandler::handle_message(const Message& message) {
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_RECEIVE;
     return m_pimpl->handle(message.event);

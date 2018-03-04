@@ -27,6 +27,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <boost/container/small_vector.hpp>
 #include "note.h"
 #include "tools/bytes.h"
+#include "tools/flags.h"
 
 class Event;
 
@@ -76,11 +77,19 @@ static constexpr uint16_t glue(uint14_t value) {
 //=========
 
 using channel_t = uint8_t; /*!< channel type differs from byte type due to its limited range */
-using channels_t = flags_t<uint16_t, channel_t>;
 
-static constexpr channel_t drum_channel = 9;
-static constexpr channels_t drum_channels = channels_t::merge(drum_channel);
-static constexpr channels_t all_channels = channels_t::from_integral(0xffff);
+struct channels_t : flags_t<channels_t, channel_t, 16> {
+    using flags_t::flags_t;
+
+    static constexpr auto full() { return from_integral(0xffff); }
+    static constexpr auto drum() { return channel_t{9}; }
+    static constexpr auto drums() { return wrap(drum()); }
+    static constexpr auto melodic() { return ~drums(); }
+
+};
+
+template<> inline auto marshall<channels_t>(channels_t channels) { return marshall(channels.to_integral()); }
+template<> inline auto unmarshall<channels_t>(const std::string& string) { return channels_t::from_integral(unmarshall<channels_t::storage_type>(string)); }
 
 namespace channel_ns {
 
@@ -89,7 +98,7 @@ std::string channels_string(channels_t channels);
 
 // dense map<channel_t, T>
 template<typename T>
-using map_type = std::array<T, 0x10>;
+using map_type = std::array<T, channels_t::capacity>;
 
 // channels_t[]
 template<size_t N>
@@ -100,9 +109,9 @@ template<typename T>
 using rmap_type = std::unordered_map<T, channels_t>;
 
 template<size_t N>
-void clear(array_type<N>& array, channels_t channels = all_channels) {
-    if (channels == all_channels)
-        array.fill(channels_t{});
+void clear(array_type<N>& array, channels_t channels = channels_t::full()) {
+    if (channels == channels_t::full())
+        array.fill({});
     else
         for (channels_t& cs : array)
             cs &= ~channels;
@@ -127,7 +136,7 @@ auto contains(const array_type<N>& array, channels_t channels) {
 template<typename T, typename U>
 auto find(const map_type<T>& map, U value) {
     channels_t channels;
-    for (channel_t c=0 ; c < 0x10 ; c++)
+    for (channel_t c=0 ; c < channels_t::capacity ; c++)
         if (map[c] == value)
             channels.set(c);
     return channels;
@@ -448,49 +457,51 @@ enum class family_t : uint8_t {
     reserved_20      , //
 };
 
-using families_t = flags_t<uint64_t, family_t>;
+const char* family_name(family_t family);
 
-namespace family_ns {
+std::ostream& operator<<(std::ostream& stream, family_t family);
 
-static constexpr families_t note_families = families_t::merge(family_t::note_off, family_t::note_on, family_t::aftertouch);
+struct families_t : flags_t<families_t, family_t, 64> {
+    using flags_t::flags_t;
 
-static constexpr families_t voice_families = note_families | families_t::merge(family_t::controller, family_t::program_change, family_t::channel_pressure, family_t::pitch_wheel);
+    static constexpr auto note() { return fuse(
+        family_t::note_off, family_t::note_on, family_t::aftertouch
+    ); }
 
-static constexpr families_t system_common_families = families_t::merge(
+    static constexpr auto voice() { return fuse(
+        note(), family_t::controller, family_t::program_change, family_t::channel_pressure, family_t::pitch_wheel
+    ); }
+
+    static constexpr auto system_common() { return fuse(
         family_t::sysex, family_t::mtc_frame, family_t::song_position, family_t::song_select,
         family_t::xf4, family_t::xf5, family_t::tune_request, family_t::end_of_sysex
-);
+    ); }
 
-static constexpr families_t system_realtime_families = families_t::merge(
-        family_t::clock, family_t::tick, family_t::start, family_t::continue_, family_t::stop,
-        family_t::xfd, family_t::active_sense, family_t::reset
-);
+    static constexpr auto system_realtime() { return fuse(
+        family_t::clock, family_t::tick, family_t::start, family_t::continue_,
+        family_t::stop, family_t::xfd, family_t::active_sense, family_t::reset
+    ); }
 
-static constexpr families_t system_families = system_common_families | system_realtime_families;
+    static constexpr auto system() { return system_common() | system_realtime(); }
 
-static constexpr families_t meta_families = families_t::merge(
+    static constexpr auto meta() { return fuse(
         family_t::sequence_number, family_t::text, family_t::copyright, family_t::track_name,
         family_t::instrument_name, family_t::lyrics, family_t::marker, family_t::cue_point,
         family_t::program_name, family_t::device_name, family_t::channel_prefix, family_t::port,
         family_t::end_of_track, family_t::tempo, family_t::smpte_offset, family_t::time_signature,
         family_t::key_signature, family_t::proprietary, family_t::default_meta
-);
+    ); }
 
-static constexpr families_t midi_families = voice_families | system_families | meta_families;
+    static constexpr auto midi() { return voice() | system() | meta(); }
 
-static constexpr families_t all_families = midi_families | families_t::merge(family_t::custom);
+    static constexpr auto full() { return fuse(midi(), family_t::custom); }
 
-static constexpr families_t string_families = families_t::merge(
+    static constexpr auto string() { return fuse(
         family_t::text, family_t::copyright, family_t::track_name, family_t::instrument_name,
-        family_t::lyrics, family_t::marker, family_t::cue_point, family_t::program_name,
-        family_t::device_name
-);
+        family_t::lyrics, family_t::marker, family_t::cue_point, family_t::program_name, family_t::device_name
+    ); }
 
-std::string family_name(family_t family);
-
-}
-
-std::ostream& operator<<(std::ostream& stream, family_t family);
+};
 
 //=======
 // Event
@@ -556,7 +567,7 @@ public:
 
     // string
 
-    std::string name() const; /*!< get event name based on its family */
+    const char* name() const; /*!< get event name based on its family */
     std::string description() const; /*!< get event description based on family & data */
 
     friend std::ostream& operator<<(std::ostream& os, const Event& event);

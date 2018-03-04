@@ -41,7 +41,7 @@ QString handlerName(const Handler* handler) {
 }
 
 QString eventName(const Event& event) {
-    return QString::fromStdString(event.name());
+    return QString::fromLocal8Bit(event.name());
 }
 
 QString metaHandlerName(const MetaHandler* meta) {
@@ -194,9 +194,9 @@ bool GraphicalHolder::event(QEvent* e) {
 // Observer
 //==========
 
-Handler::result_type Observer::handleMessage(Handler* target, const Message& message) {
+Handler::Result Observer::handleMessage(Handler* target, const Message& message) {
     auto result = target->handle_message(message);
-    if (result == Handler::result_type::success && message.event.is(~family_ns::note_families))
+    if (result == Handler::Result::success && message.event.is(~families_t::note()))
         QApplication::postEvent(this, new StorageEvent(target, message));
     return result;
 }
@@ -218,7 +218,7 @@ DefaultReceiver::DefaultReceiver(QObject* parent) : Observer(parent), Receiver()
 
 }
 
-Handler::result_type DefaultReceiver::receive_message(Handler* target, const Message& message) {
+Handler::Result DefaultReceiver::receive_message(Handler* target, const Message& message) {
     return handleMessage(target, message);
 }
 
@@ -275,7 +275,7 @@ void HandlerView::updateContext(Context* /*context*/) {
 // EditableHandler
 //=================
 
-EditableHandler::EditableHandler(mode_type mode) : HandlerView(), Handler(mode) {
+EditableHandler::EditableHandler(Mode mode) : HandlerView(), Handler(mode) {
 
 }
 
@@ -337,26 +337,26 @@ void HandlerProxy::setName(const QString& name) const {
         mHandler->set_name(qstring2name(name));
 }
 
-Handler::state_type HandlerProxy::currentState() const {
-    return mHandler ? mHandler->state() : Handler::state_type{};
+Handler::State HandlerProxy::currentState() const {
+    return mHandler ? mHandler->state() : Handler::State{};
 }
 
-Handler::state_type HandlerProxy::supportedState() const {
-    Handler::state_type state;
+Handler::State HandlerProxy::supportedState() const {
+    Handler::State state;
     if (mHandler) {
-        if (mHandler->mode().any(handler_ns::forward_mode))
-            state |= handler_ns::forward_state;
-        if (mHandler->mode().any(handler_ns::receive_mode))
-            state |= handler_ns::receive_state;
+        if (mHandler->mode().any(Mode::forward()))
+            state |= State::forward();
+        if (mHandler->mode().any(Mode::receive()))
+            state |= State::receive();
     }
     return state;
 }
 
-void HandlerProxy::setState(bool open, Handler::state_type state) const {
+void HandlerProxy::setState(bool open, State state) const {
     if (mHandler) {
-        if (mHandler->mode().any(handler_ns::thru_mode)) {
+        if (mHandler->mode().any(Mode::thru())) {
             // thru mode should process all states at once
-            state = handler_ns::endpoints_state;
+            state = State::endpoints();
         } else {
             // do not process states that are not supported
             state &= supportedState();
@@ -369,7 +369,7 @@ void HandlerProxy::setState(bool open, Handler::state_type state) const {
     }
 }
 
-void HandlerProxy::toggleState(Handler::state_type state) const {
+void HandlerProxy::toggleState(State state) const {
     bool isOpen = currentState().all(state & supportedState());
     setState(!isOpen, state);
 }

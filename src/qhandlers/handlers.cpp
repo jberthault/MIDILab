@@ -78,12 +78,12 @@ const QList<MetaHandler*>& StandardFactory::spawn() const {
 
 //}
 
-//Handler::result_type PatternHandler::on_open(state_t state) {
+//Handler::Result PatternHandler::on_open(State state) {
 //    current_state = 0;
 //    return Handler::on_open(state);
 //}
 
-//Handler::result_type PatternHandler::handle_message(const Message& message) {
+//Handler::Result PatternHandler::handle_message(const Message& message) {
 //    MIDI_HANDLE_OPEN;
 //    MIDI_CHECK_OPEN_FORWARD_RECEIVE;
 //    switch (advance(message.event)) {
@@ -103,7 +103,7 @@ const QList<MetaHandler*>& StandardFactory::spawn() const {
 
 //int PatternHandler::advance(const Event& event) {
 //    static const Note A0(Tonality::A, 0);
-//    if (event.is(family_ns::note_on_family))
+//    if (event.is(family_t::note_on))
 //        return event.get_note() == A0 ? good : bad;
 //    return ignored;
 //}

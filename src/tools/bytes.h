@@ -87,6 +87,22 @@ struct byte_traits {
 
 };
 
+std::string byte_string(byte_t byte);
+
+std::ostream& print_byte(std::ostream& stream, byte_t byte);
+
+template<typename ByteInputIterator>
+std::ostream& print_bytes(std::ostream& stream, ByteInputIterator first, ByteInputIterator last) {
+    if (first != last) {
+        print_byte(stream, *first);
+        for (++first ; first != last ; ++first) {
+            stream << ' ';
+            print_byte(stream, *first);
+        }
+    }
+    return stream;
+}
+
 // ==========
 // algorithms
 // ==========
@@ -209,25 +225,9 @@ constexpr auto make_exp_range(T min, T pivot, T max) {
     return exp_range_t<T>{{min, max}, pivot};
 }
 
-// ======
-// string
-// ======
-
-std::string byte_string(byte_t byte);
-
-std::ostream& print_byte(std::ostream& stream, byte_t byte);
-
-template<typename ByteInputIterator>
-std::ostream& print_bytes(std::ostream& stream, ByteInputIterator first, ByteInputIterator last) {
-    if (first != last) {
-        print_byte(stream, *first);
-        for (++first ; first != last ; ++first) {
-            stream << ' ';
-            print_byte(stream, *first);
-        }
-    }
-    return stream;
-}
+// ===========
+// marshalling
+// ===========
 
 template<typename T> struct marshalling_traits { auto operator()(T value) { return std::to_string(value); } } ;
 
@@ -246,184 +246,7 @@ template<> struct unmarshalling_traits<short> : unmarshalling_traits<long> {};
 template<> struct unmarshalling_traits<unsigned short> : unmarshalling_traits<unsigned long> {};
 template<> struct unmarshalling_traits<unsigned int> : unmarshalling_traits<unsigned long> {};
 
-template<typename T> inline std::string marshall(T value) { return marshalling_traits<T>()(value); }
-template<typename T> inline T unmarshall(const std::string& string) { return unmarshalling_traits<T>()(string); }
-
-// =====
-// flags
-// =====
-
-
-template<typename T, bool = std::is_enum<T>::value, bool = std::is_integral<T>::value>
-struct enum_decay {};
-
-template<typename T>
-struct enum_decay<T, true, false> {
-    using type = std::underlying_type_t<T>;
-};
-
-template<typename T>
-struct enum_decay<T, false, true> {
-    using type = T;
-};
-
-template<typename T = size_t, typename N = size_t>
-class flags_t {
-
-public:
-
-    using storage_type = std::enable_if_t<std::is_integral<T>::value, T>;
-    using value_type = N;
-    using base_type = typename enum_decay<N>::type;
-
-    // ------------
-    // constructors
-    // ------------
-
-    template<typename ... Values>
-    static constexpr flags_t merge(Values&& ... values) { return from_integral(merge_integral(std::forward<Values>(values)...)); }
-
-    constexpr flags_t() : m_storage(0) { }
-
-    // ----------
-    // conversion
-    // ----------
-
-    template<typename IntegralT>
-    static constexpr flags_t from_integral(IntegralT integral) { return flags_t{static_cast<storage_type>(integral)}; }
-
-    constexpr storage_type to_integral() const { return m_storage; }
-
-    constexpr explicit operator bool() const { return m_storage; }
-
-    // ----------
-    // observers
-    // ----------
-
-    constexpr bool contains(value_type value) const { return (m_storage >> static_cast<base_type>(value)) & 1; }
-
-    constexpr size_t size() const {
-        size_t count = 0;
-        for (storage_type storage = m_storage ; storage ; count++)
-            storage &= storage - 1;
-        return count;
-    }
-
-    // better names : intersects, is_superset, disjoints
-    constexpr bool any(flags_t flags) const { return m_storage & flags.m_storage;} /*!< true if intersection is not null */
-    constexpr bool all(flags_t flags) const { return (m_storage & flags.m_storage) == flags.m_storage; } /*!< true if this contains all the mask */
-    constexpr bool none(flags_t flags) const { return !any(flags);} /*!< true if intersection is null */
-
-    // --------
-    // mutators
-    // --------
-
-    constexpr void commute(flags_t flags, bool on) {
-        on ? m_storage |= flags.m_storage : m_storage &= ~flags.m_storage; // m_storage ^= ((-on ^ m_storage) & flags.m_storage);
-    }
-
-    constexpr void reset(value_type value) { m_storage &= ~merge_integral(value); }
-    constexpr void set(value_type value) { m_storage |= merge_integral(value); }
-    constexpr void flip(value_type value) { m_storage ^= merge_integral(value); }
-
-    constexpr void clear() { m_storage = 0; }
-
-    // ---------------
-    // const operators
-    // ---------------
-
-    constexpr flags_t operator|(flags_t rhs) const { return from_integral(m_storage | rhs.m_storage); }
-    constexpr flags_t operator&(flags_t rhs) const { return from_integral(m_storage & rhs.m_storage); }
-    constexpr flags_t operator^(flags_t rhs) const { return from_integral(m_storage ^ rhs.m_storage); }
-    constexpr flags_t operator~() const { return from_integral(~m_storage); }
-
-    constexpr bool operator==(flags_t rhs) const { return m_storage == rhs.m_storage; }
-    constexpr bool operator!=(flags_t rhs) const { return m_storage != rhs.m_storage; }
-    constexpr bool operator<(flags_t rhs) const { return m_storage < rhs.m_storage; }
-    constexpr bool operator<=(flags_t rhs) const { return m_storage <= rhs.m_storage; }
-    constexpr bool operator>(flags_t rhs) const { return m_storage > rhs.m_storage; }
-    constexpr bool operator>=(flags_t rhs) const { return m_storage >= rhs.m_storage; }
-
-    // ------------------
-    // mutable operators
-    // ------------------
-
-    constexpr void operator|=(flags_t rhs) { m_storage |= rhs.m_storage; }
-    constexpr void operator&=(flags_t rhs) { m_storage &= rhs.m_storage; }
-    constexpr void operator^=(flags_t rhs) { m_storage ^= rhs.m_storage; }
-
-    // ---------
-    // iterators
-    // ---------
-
-    struct const_iterator : public std::iterator<std::forward_iterator_tag, value_type> {
-
-        const_iterator(storage_type storage = 0) : storage(storage), base(0) { adjust(); }
-
-        bool operator==(const const_iterator& rhs) const { return storage == rhs.storage; }
-        bool operator!=(const const_iterator& rhs) const { return storage != rhs.storage; }
-
-        const_iterator& operator++() { shift(); adjust(); return *this; }
-        const_iterator operator++(int) { const_iterator it(*this); operator++(); return it; }
-        value_type operator*() const { return static_cast<value_type>(base); }
-
-        void shift() { storage >>= 1; base++; }
-        void adjust() { while (storage && !(storage & 1)) shift(); }
-
-        storage_type storage;
-        base_type base;
-
-    };
-
-    constexpr const_iterator begin() const { return {m_storage}; }
-    constexpr const_iterator end() const { return {}; }
-
-private:
-
-    // ---------------
-    // private details
-    // ---------------
-
-    static constexpr storage_type merge_integral() { return 0; }
-
-    template<typename ... Values>
-    static constexpr storage_type merge_integral(value_type value, Values&& ... values) { return (storage_type(1) << static_cast<base_type>(value)) | merge_integral(std::forward<Values>(values)...); }
-
-    // --------------------
-    // private constructors
-    // --------------------
-
-    constexpr explicit flags_t(storage_type set) : m_storage(set) { }
-
-    //----------------
-    // private members
-    // ---------------
-
-    storage_type m_storage;
-
-};
-
-template<typename T, typename N>
-struct marshalling_traits<flags_t<T, N>> {
-    auto operator()(flags_t<T, N> flags) {
-        return marshall(flags.to_integral());
-    }
-};
-
-template<typename T, typename N>
-struct unmarshalling_traits<flags_t<T, N>> {
-     auto operator()(const std::string& string) {
-        return flags_t<T, N>::from_integral(unmarshall<T>(string));
-    }
-};
-
-namespace std {
-template <typename T, typename N>
-struct hash<flags_t<T, N>> {
-    auto operator()(flags_t<T, N> flags) const {
-        return hash<T>()(flags.to_integral());
-    }
-};
-}
+template<typename T> inline auto marshall(T value) { return std::string{marshalling_traits<T>()(value)}; }
+template<typename T> inline auto unmarshall(const std::string& string) { return static_cast<T>(unmarshalling_traits<T>()(string)); }
 
 #endif // TOOLS_BYTES_H

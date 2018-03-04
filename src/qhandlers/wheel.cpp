@@ -53,7 +53,7 @@ MetaWheel::MetaWheel(QObject* parent) : MetaGraphicalHandler(parent) {
 // AbstractWheel
 //===============
 
-AbstractWheel::AbstractWheel(mode_type mode) : GraphicalHandler(mode) {
+AbstractWheel::AbstractWheel(Mode mode) : GraphicalHandler(mode) {
 
     mSlider = new ChannelsSlider(Qt::Vertical, this);
     mSlider->setTextWidth(40);
@@ -78,14 +78,14 @@ size_t AbstractWheel::setParameter(const Parameter& parameter) {
     return GraphicalHandler::setParameter(parameter);
 }
 
-Handler::result_type AbstractWheel::on_close(state_type state) {
-    mSlider->setDefault(all_channels);
+Handler::Result AbstractWheel::on_close(State state) {
+    mSlider->setDefault(channels_t::full());
     return GraphicalHandler::on_close(state);
 }
 
 void AbstractWheel::prepare(qreal defaultRatio) {
     mSlider->setDefaultRatio(defaultRatio);
-    mSlider->setDefault(all_channels);
+    mSlider->setDefault(channels_t::full());
 }
 
 void AbstractWheel::updateContext(Context* context) {
@@ -114,7 +114,7 @@ void MetaControllerWheel::setContent(HandlerProxy& proxy) {
 // ControllerWheel
 //=================
 
-ControllerWheel::ControllerWheel() : AbstractWheel(handler_ns::io_mode) {
+ControllerWheel::ControllerWheel() : AbstractWheel(Mode::io()) {
     resetAll();
     mControllerBox = new QComboBox(this);
     for (const auto& value : controller_ns::controller_names())
@@ -149,20 +149,20 @@ size_t ControllerWheel::setParameter(const Parameter& parameter) {
 }
 
 families_t ControllerWheel::handled_families() const {
-    return families_t::merge(family_t::custom, family_t::controller, family_t::reset); // channel_pressure;
+    return families_t::fuse(family_t::custom, family_t::controller, family_t::reset); // channel_pressure;
 }
 
-Handler::result_type ControllerWheel::handle_message(const Message& message) {
+Handler::Result ControllerWheel::handle_message(const Message& message) {
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_RECEIVE;
     switch (message.event.family()) {
     case family_t::controller: return handleController(message.event.channels(), message.event.at(1), message.event.at(2));
     case family_t::reset: return handleReset();
-    default: return result_type::unhandled;
+    default: return Result::unhandled;
     }
 }
 
-Handler::result_type ControllerWheel::on_close(state_type state) {
+Handler::Result ControllerWheel::on_close(State state) {
     resetAll();
     return AbstractWheel::on_close(state);
 }
@@ -170,7 +170,7 @@ Handler::result_type ControllerWheel::on_close(state_type state) {
 void ControllerWheel::onControlChange() {
     mController = mControllerBox->currentData().value<byte_t>();
     channel_map_t<qreal> ratios;
-    for (channel_t c=0 ; c < 0x10 ; c++)
+    for (channel_t c=0 ; c < channels_t::capacity ; c++)
         ratios[c] = data7Range.reduce(mValues[mController][c]);
     slider()->setDefaultRatio(data7Range.reduce(controller_ns::default_value(mController)));
     slider()->setRatios(ratios);
@@ -204,19 +204,19 @@ void ControllerWheel::setControllerValue(channels_t channels, byte_t controller,
         slider()->setRatio(channels, data7Range.reduce(value));
 }
 
-Handler::result_type ControllerWheel::handleController(channels_t channels, byte_t controller, byte_t value) {
+Handler::Result ControllerWheel::handleController(channels_t channels, byte_t controller, byte_t value) {
     if (controller == controller_ns::all_controllers_off_controller)
         for (byte_t cc : controller_ns::off_controllers)
             setControllerValue(channels, cc, controller_ns::default_value(cc));
     else
         setControllerValue(channels, controller, value);
-    return result_type::success;
+    return Result::success;
 }
 
-Handler::result_type ControllerWheel::handleReset() {
+Handler::Result ControllerWheel::handleReset() {
     for (byte_t cc : controller_ns::reset_controllers)
-        handleController(all_channels, cc, controller_ns::default_value(cc));
-    return result_type::success;
+        handleController(channels_t::full(), cc, controller_ns::default_value(cc));
+    return Result::success;
 }
 
 //================
@@ -235,7 +235,7 @@ void MetaPitchWheel::setContent(HandlerProxy& proxy) {
 // PitchWheel
 //============
 
-PitchWheel::PitchWheel() : AbstractWheel(handler_ns::io_mode) {
+PitchWheel::PitchWheel() : AbstractWheel(Mode::io()) {
     mTypeBox = new QComboBox(this);
     mTypeBox->addItem("Pitch Bend");
     mTypeBox->addItem("Pitch Bend Range");
@@ -248,10 +248,10 @@ PitchWheel::PitchWheel() : AbstractWheel(handler_ns::io_mode) {
 }
 
 families_t PitchWheel::handled_families() const {
-    return families_t::merge(family_t::custom, family_t::controller, family_t::pitch_wheel, family_t::reset);
+    return families_t::fuse(family_t::custom, family_t::controller, family_t::pitch_wheel, family_t::reset);
 }
 
-Handler::result_type PitchWheel::handle_message(const Message& message) {
+Handler::Result PitchWheel::handle_message(const Message& message) {
     /// @note data_entry_fine_controller is ignored
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_RECEIVE;
@@ -269,10 +269,10 @@ Handler::result_type PitchWheel::handle_message(const Message& message) {
     case family_t::pitch_wheel: return handlePitchValue(message.event.channels(), message.event.get_14bits());
     case family_t::reset: return handleReset();
     }
-    return result_type::unhandled;
+    return Result::unhandled;
 }
 
-Handler::result_type PitchWheel::on_close(state_type state) {
+Handler::Result PitchWheel::on_close(State state) {
     resetAll();
     return AbstractWheel::on_close(state);
 }
@@ -317,11 +317,11 @@ void PitchWheel::onTypeChange(int index) {
     channel_map_t<qreal> ratios;
     if (index == 1) {
         defaultRatio = semitonesRange.reduce(defaultSemitones);
-        for (channel_t c=0 ; c < 0x10 ; c++)
+        for (channel_t c=0 ; c < channels_t::capacity ; c++)
             ratios[c] = semitonesRange.reduce(mPitchRanges[c]);
     } else {
         defaultRatio = .5;
-        for (channel_t c=0 ; c < 0x10 ; c++)
+        for (channel_t c=0 ; c < channels_t::capacity ; c++)
             ratios[c] = data14Range.reduce(mPitchValues[c]);
     }
     slider()->setDefaultRatio(defaultRatio);
@@ -350,7 +350,7 @@ void PitchWheel::updatePitchValueText(channels_t channels) {
         auto scale = (double)mPitchRanges[channel];
         range_t<double> scaleRange = {-scale, scale};
         double semitones = scaleRange.rescale(data14Range, mPitchValues[channel]);
-        slider()->setText(channels_t::merge(channel), number2string(semitones, 'f', 2));
+        slider()->setText(channels_t::wrap(channel), number2string(semitones, 'f', 2));
     }
 }
 
@@ -360,19 +360,19 @@ void PitchWheel::resetAll() {
     mPitchValues.fill(defaultPitch);
 }
 
-Handler::result_type PitchWheel::handleCoarseRPN(channels_t channels, byte_t byte) {
+Handler::Result PitchWheel::handleCoarseRPN(channels_t channels, byte_t byte) {
     for (channel_t c : channels)
         mRegisteredParameters[c] = short_ns::alter_coarse(mRegisteredParameters[c], byte);
-    return result_type::success;
+    return Result::success;
 }
 
-Handler::result_type PitchWheel::handleFineRPN(channels_t channels, byte_t byte) {
+Handler::Result PitchWheel::handleFineRPN(channels_t channels, byte_t byte) {
     for (channel_t c : channels)
         mRegisteredParameters[c] = short_ns::alter_fine(mRegisteredParameters[c], byte);
-    return result_type::success;
+    return Result::success;
 }
 
-Handler::result_type PitchWheel::handleCoarseDataEntry(channels_t channels, byte_t byte) {
+Handler::Result PitchWheel::handleCoarseDataEntry(channels_t channels, byte_t byte) {
     channels &= channel_ns::find(mRegisteredParameters, pitchBendRangeRPN);
     if (channels) {
         channel_ns::store(mPitchRanges, channels, byte);
@@ -381,25 +381,25 @@ Handler::result_type PitchWheel::handleCoarseDataEntry(channels_t channels, byte
         else
             updatePitchValueText(channels);
     }
-    return result_type::success;
+    return Result::success;
 }
 
-Handler::result_type PitchWheel::handlePitchValue(channels_t channels, uint16_t value) {
+Handler::Result PitchWheel::handlePitchValue(channels_t channels, uint16_t value) {
     channel_ns::store(mPitchValues, channels, value);
     if (!rangeDisplayed())
         slider()->setRatio(channels, data14Range.reduce(value));
-    return result_type::success;
+    return Result::success;
 }
 
-Handler::result_type PitchWheel::handleAllControllersOff(channels_t channels) {
+Handler::Result PitchWheel::handleAllControllersOff(channels_t channels) {
     channel_ns::store(mRegisteredParameters, channels, defaultRPN);
     return handlePitchValue(channels, defaultPitch);
 }
 
-Handler::result_type PitchWheel::handleReset() {
+Handler::Result PitchWheel::handleReset() {
     resetAll();
-    slider()->setDefault(all_channels);
-    return result_type::success;
+    slider()->setDefault(channels_t::full());
+    return Result::success;
 }
 
 //==================
@@ -418,23 +418,23 @@ void MetaProgramWheel::setContent(HandlerProxy& proxy) {
 // ProgramWheel
 //==============
 
-ProgramWheel::ProgramWheel() : AbstractWheel(handler_ns::io_mode) {
+ProgramWheel::ProgramWheel() : AbstractWheel(Mode::io()) {
     mPrograms.fill(0);
     prepare(.0);
 }
 
 families_t ProgramWheel::handled_families() const {
-    return families_t::merge(family_t::custom, family_t::program_change);
+    return families_t::fuse(family_t::custom, family_t::program_change);
 }
 
-Handler::result_type ProgramWheel::handle_message(const Message& message) {
+Handler::Result ProgramWheel::handle_message(const Message& message) {
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_RECEIVE;
     if (message.event.family() == family_t::program_change) {
         setProgramChange(message.event.channels(), message.event.at(1));
-        return result_type::success;
+        return Result::success;
     }
-    return result_type::unhandled;
+    return Result::unhandled;
 }
 
 void ProgramWheel::setProgramChange(channels_t channels, byte_t program) {
@@ -470,7 +470,7 @@ void MetaVolume1Wheel::setContent(HandlerProxy& proxy) {
 // Volume1Wheel
 //==============
 
-Volume1Wheel::Volume1Wheel() : AbstractWheel(handler_ns::in_mode) {
+Volume1Wheel::Volume1Wheel() : AbstractWheel(Mode::in()) {
     slider()->setExpanded(false);
     slider()->setOrientation(Qt::Horizontal);
     prepare(.5);
@@ -501,7 +501,7 @@ void MetaVolume2Wheel::setContent(HandlerProxy& proxy) {
 // Volume2Wheel
 //==============
 
-Volume2Wheel::Volume2Wheel() : AbstractWheel(handler_ns::in_mode) {
+Volume2Wheel::Volume2Wheel() : AbstractWheel(Mode::in()) {
     slider()->setExpanded(false);
     slider()->setOrientation(Qt::Horizontal);
     prepare(.5);

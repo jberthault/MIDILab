@@ -32,7 +32,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 class SingleDisplayer;
 
-class Manager : public Context {
+class Manager final : public Context {
 
     Q_OBJECT
 

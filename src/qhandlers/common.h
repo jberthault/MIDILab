@@ -45,7 +45,7 @@ class GraphicalHandler : public EditableHandler {
     Q_OBJECT
 
 public:
-    explicit GraphicalHandler(mode_type mode);
+    explicit GraphicalHandler(Mode mode);
 
     Parameters getParameters() const override;
     size_t setParameter(const Parameter& parameter) override;
@@ -83,11 +83,11 @@ class Instrument : public GraphicalHandler {
     Q_OBJECT
 
 public:
-    explicit Instrument(mode_type mode);
+    explicit Instrument(Mode mode);
 
     families_t handled_families() const override;
-    result_type handle_message(const Message& message) override;
-    result_type on_close(state_type state) override;
+    Result handle_message(const Message& message) override;
+    Result on_close(State state) override;
 
     Parameters getParameters() const override;
     size_t setParameter(const Parameter& parameter) override;

@@ -50,10 +50,10 @@ void MetaMonitor::setContent(HandlerProxy& proxy) {
 // Monitor
 //=========
 
-Monitor::Monitor() : GraphicalHandler(handler_ns::out_mode) {
+Monitor::Monitor() : GraphicalHandler(Mode::out()) {
 
     mFamilySelector = new FamilySelector(this);
-    mFamilySelector->setFamilies(~families_t::merge(family_t::active_sense));
+    mFamilySelector->setFamilies(~families_t::wrap(family_t::active_sense));
     mFamilySelector->setWindowFlags(Qt::Dialog);
     mFamilySelector->setVisible(false);
 
@@ -75,14 +75,14 @@ void Monitor::setFamilies(families_t families) {
     mFamilySelector->setFamilies(families);
 }
 
-Monitor::result_type Monitor::handle_message(const Message& message) {
+Handler::Result Monitor::handle_message(const Message& message) {
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_RECEIVE;
 
     if (!message.event.is(mFamilySelector->families()))
-        return result_type::unhandled;
+        return Result::unhandled;
 
-    QString name = QString::fromStdString(message.event.name());
+    QString name = eventName(message.event);
     name += " ";
 
     channels_t channels = message.event.channels();
@@ -102,7 +102,7 @@ Monitor::result_type Monitor::handle_message(const Message& message) {
 
     mEditor->append(name + description);
 
-    return result_type::success;
+    return Result::success;
 }
 
 void Monitor::onFilterClick() {

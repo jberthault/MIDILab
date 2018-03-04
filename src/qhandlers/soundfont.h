@@ -54,7 +54,7 @@ class SoundFontReceiver : public CustomReceiver {
 public:
     using CustomReceiver::CustomReceiver;
 
-    result_type receive_message(Handler* target, const Message& message) final;
+    Result receive_message(Handler* target, const Message& message) final;
 
 signals:
     void fileHandled();

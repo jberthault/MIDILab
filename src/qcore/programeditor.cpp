@@ -161,7 +161,7 @@ QWidget* PatchDelegate::createEditor(QWidget* parent, const QStyleOptionViewItem
     PatchModel* model = new PatchModel(editor);
     model->setPatch(programModel->patch());
     editor->setModel(model);
-    channels_t channels = channels_t::merge(index.row());
+    channels_t channels = channels_t::wrap(index.row());
     connect(editor, &TreeBox::treeIndexChanged, [=](QModelIndex){
         QVariant data = editor->currentData(Qt::UserRole);
         if (data.isValid())
@@ -243,9 +243,9 @@ void PatchModel::addPatch(QStandardItem* root, const Patch* patch) {
 // ProgramModel
 //==============
 
-ProgramModel::ProgramModel(ChannelEditor* channelEditor, QObject* parent) : QStandardItemModel(16, 2, parent), mPatch(nullptr) {
+ProgramModel::ProgramModel(ChannelEditor* channelEditor, QObject* parent) : QStandardItemModel(channels_t::capacity, 2, parent), mPatch(nullptr) {
     QStringList labels;
-    for (channel_t c=0 ; c < 0x10 ; c++) {
+    for (channel_t c=0 ; c < channels_t::capacity ; c++) {
         labels.append(QString::number(c));
         QStandardItem* head = new QStandardItem;
         head->setFlags(Qt::ItemIsEnabled);
@@ -264,9 +264,9 @@ const Patch* ProgramModel::patch() const {
 
 void ProgramModel::setPatch(const Patch* patch) {
     mPatch = patch;
-    for (channel_t c=0 ; c < 0x10 ; c++)
+    for (channel_t c=0 ; c < channels_t::capacity ; c++)
         if (hasProgram(c))
-            fillProgram(channels_t::merge(c), program(c)); // change text
+            fillProgram(channels_t::wrap(c), program(c)); // change text
 }
 
 bool ProgramModel::hasProgram(channel_t channel) const {
@@ -291,11 +291,11 @@ void ProgramModel::fillProgram(channels_t channels, byte_t program) {
 }
 
 void ProgramModel::setProgram(channel_t channel, byte_t program) {
-    fillProgram(channels_t::merge(channel), program);
+    fillProgram(channels_t::wrap(channel), program);
 }
 
 void ProgramModel::clearPrograms() {
-    fillProgramData(all_channels, "", "", -1);
+    fillProgramData(channels_t::full(), "", "", -1);
 }
 
 void ProgramModel::setProgramData(channel_t channel, const QString& text, const QString& toolTip, const QVariant& data) {
@@ -374,7 +374,7 @@ ProgramEditor::ProgramEditor(ChannelEditor* channelEditor, QWidget* parent) : QW
     table->horizontalHeader()->setVisible(false);
     table->setItemDelegateForColumn(1, new PatchDelegate(this));
     table->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    table->setMinimumHeight(20*16+2); // force the table to show every row, crappy ...
+    table->setMinimumHeight(20*channels_t::capacity+2); // force the table to show every row, crappy ...
     table->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     connect(table, &QTableView::clicked, this, &ProgramEditor::onClick);
     connect(table, &QTableView::doubleClicked, this, &ProgramEditor::onDoubleClick);
@@ -398,7 +398,7 @@ Handler* ProgramEditor::currentHandler() {
 }
 
 void ProgramEditor::insertHandler(Handler* handler) {
-    if (handler->mode().any(handler_ns::out_mode) && handler->handled_families().contains(family_t::program_change)) {
+    if (handler->mode().any(Handler::Mode::out()) && handler->handled_families().test(family_t::program_change)) {
         mRecords[handler] = HandlerData(0, QMap<channel_t, byte_t>());
         mHandlerSelector->insertHandler(handler);
     }
@@ -433,7 +433,7 @@ void ProgramEditor::receiveProgram(Handler* handler, channels_t channels, byte_t
 }
 
 void ProgramEditor::sendProgram(Handler* handler, channels_t channels, byte_t program) {
-    if (handler->mode().any(handler_ns::out_mode))
+    if (handler->mode().any(Handler::Mode::out()))
         handler->send_message(Event::program_change(channels, program));
     else
         QMessageBox::warning(this, QString(), "You can't change program of an non-output handler");
@@ -468,16 +468,16 @@ void ProgramEditor::onClick(const QModelIndex& index) {
     if (index.column() == 0) {
         auto channel = (channel_t)(index.row());
         mSelection.flip(channel);
-        auto icon = mSelection.contains(channel) ? QIcon(":/data/link-intact.svg") : QIcon();
+        auto icon = mSelection.test(channel) ? QIcon(":/data/link-intact.svg") : QIcon();
         mProgramModel->setData(index, icon, Qt::DecorationRole);
     }
 }
 
 void ProgramEditor::onDoubleClick(const QModelIndex& index) {
     if (index.column() == 0) {
-        mSelection ^= all_channels;
-        for (channel_t c=0 ; c < 0x10 ; c++) {
-            auto icon = mSelection.contains(c) ? QIcon(":/data/link-intact.svg") : QIcon();
+        mSelection ^= channels_t::full();
+        for (channel_t c=0 ; c < channels_t::capacity ; c++) {
+            auto icon = mSelection.test(c) ? QIcon(":/data/link-intact.svg") : QIcon();
             mProgramModel->setData(index.sibling(c, 0), icon, Qt::DecorationRole);
         }
     }

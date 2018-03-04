@@ -165,7 +165,7 @@ class Observer : public QObject {
 public:
     using QObject::QObject;
 
-    Handler::result_type handleMessage(Handler* target, const Message& message);
+    Handler::Result handleMessage(Handler* target, const Message& message);
 
 protected:
     bool event(QEvent* e) override;
@@ -186,7 +186,7 @@ class DefaultReceiver : public Observer, public Receiver {
 public:
     explicit DefaultReceiver(QObject* parent);
 
-    result_type receive_message(Handler* target, const Message& message) final;
+    Result receive_message(Handler* target, const Message& message) final;
 
 };
 
@@ -255,7 +255,7 @@ class EditableHandler : public HandlerView, public Handler {
     Q_OBJECT
 
 public:
-    explicit EditableHandler(mode_type mode);
+    explicit EditableHandler(Mode mode);
 
 };
 
@@ -283,6 +283,9 @@ class MetaHandler;
 class HandlerProxy {
 
 public:
+    using Mode = Handler::Mode;
+    using State = Handler::State;
+
     using Parameter = HandlerView::Parameter;
     using Parameters = HandlerView::Parameters;
 
@@ -302,10 +305,10 @@ public:
     QString name() const;
     void setName(const QString& name) const;
 
-    Handler::state_type currentState() const;
-    Handler::state_type supportedState() const;
-    void setState(bool open, Handler::state_type state = handler_ns::endpoints_state) const;
-    void toggleState(Handler::state_type state = handler_ns::endpoints_state) const;
+    State currentState() const;
+    State supportedState() const;
+    void setState(bool open, State state = State::endpoints()) const;
+    void toggleState(State state = State::endpoints()) const;
 
     Parameters getParameters() const;
     void setParameter(const Parameter& parameter) const;

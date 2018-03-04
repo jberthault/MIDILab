@@ -49,7 +49,7 @@ ChannelMapperEditor::ChannelMapperEditor() : HandlerEditor(), mHandler(std::make
 
     static const int offset = 3;
 
-    for (channel_t c=0 ; c < 0x10 ; ++c) {
+    for (channel_t c=0 ; c < channels_t::capacity ; ++c) {
         TriState* inCheck = new TriState(this);
         TriState* outCheck = new TriState(this);
         QLabel* inLabel = new QLabel(QString::number(c), this);
@@ -71,8 +71,8 @@ ChannelMapperEditor::ChannelMapperEditor() : HandlerEditor(), mHandler(std::make
     checkBoxLayout->addWidget(hline, 2, offset, 1, -1);
     checkBoxLayout->addWidget(vline, offset, 2, -1, 1);
 
-    for (channel_t ic=0 ; ic < 0x10 ; ++ic) {
-        for (channel_t oc=0 ; oc < 0x10 ; ++oc) {
+    for (channel_t ic=0 ; ic < channels_t::capacity ; ++ic) {
+        for (channel_t oc=0 ; oc < channels_t::capacity ; ++oc) {
             auto check = new QCheckBox(this);
             mCheckBoxes[ic][oc] = check;
             in[ic]->addCheckBox(check);
@@ -83,7 +83,7 @@ ChannelMapperEditor::ChannelMapperEditor() : HandlerEditor(), mHandler(std::make
 
     auto dgroup = new TriState(this);
     checkBoxLayout->addWidget(dgroup, 1, 1);
-    for (channel_t c=0 ; c < 0x10 ; ++c)
+    for (channel_t c=0 ; c < channels_t::capacity ; ++c)
         dgroup->addCheckBox(mCheckBoxes[c][c]);
 
     auto applyButton = new QPushButton("Apply", this);
@@ -106,9 +106,9 @@ Handler* ChannelMapperEditor::getHandler() const {
 
 void ChannelMapperEditor::updateMapper() {
     channel_map_t<channels_t> mapping;
-    for (channel_t ic=0 ; ic < 0x10 ; ++ic) {
+    for (channel_t ic=0 ; ic < channels_t::capacity ; ++ic) {
         channels_t ocs;
-        for (channel_t oc=0 ; oc < 0x10 ; ++oc)
+        for (channel_t oc=0 ; oc < channels_t::capacity ; ++oc)
             if (mCheckBoxes[ic][oc]->isChecked())
                 ocs.set(oc);
         mapping[ic] = ocs;
@@ -118,9 +118,9 @@ void ChannelMapperEditor::updateMapper() {
 
 void ChannelMapperEditor::updateFromMapper() {
     auto mapping = mHandler->mapping();
-    for (channel_t ic=0 ; ic < 0x10 ; ++ic)
-        for (channel_t oc=0 ; oc < 0x10 ; ++oc)
-            mCheckBoxes[ic][oc]->setChecked(mapping[ic].contains(oc));
+    for (channel_t ic=0 ; ic < channels_t::capacity ; ++ic)
+        for (channel_t oc=0 ; oc < channels_t::capacity ; ++oc)
+            mCheckBoxes[ic][oc]->setChecked(mapping[ic].test(oc));
 }
 
 void ChannelMapperEditor::resetMapper() {

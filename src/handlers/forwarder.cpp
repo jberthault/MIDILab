@@ -24,13 +24,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // ForwardHandler
 //================
 
-ForwardHandler::ForwardHandler() : Handler(handler_ns::thru_mode) {
+ForwardHandler::ForwardHandler() : Handler(Mode::thru()) {
 
 }
 
-Handler::result_type ForwardHandler::handle_message(const Message& message) {
+Handler::Result ForwardHandler::handle_message(const Message& message) {
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_FORWARD_RECEIVE;
     forward_message(message);
-    return result_type::success;
+    return Result::success;
 }

@@ -32,7 +32,7 @@ class ForwardHandler : public Handler {
 public:
     explicit ForwardHandler();
 
-    result_type handle_message(const Message& message) override;
+    Result handle_message(const Message& message) override;
 
 };
 

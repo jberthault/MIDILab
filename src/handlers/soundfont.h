@@ -69,8 +69,8 @@ public:
     optional_chorus_type chorus() const;
 
     families_t handled_families() const override;
-    result_type handle_message(const Message& message) override;
-    result_type on_close(state_type state) override;
+    Result handle_message(const Message& message) override;
+    Result on_close(State state) override;
 
 private:
     struct Impl;

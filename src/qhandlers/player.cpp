@@ -133,13 +133,13 @@ SequenceViewItem::SequenceViewItem(Sequence::Item item, SequenceViewTrackItem *p
     // channels
     setText(1, ChannelsSelector::channelsToStringList(mItem.event.channels()).join(' '));
     // type
-    setText(2, QString::fromStdString(mItem.event.name()));
+    setText(2, eventName(mItem.event));
     // data
     QByteArray rawText = QByteArray::fromStdString(mItem.event.description());  // Qt 5.4+ only
     rawText.replace("\n", "\\n");
     rawText.replace("\r", "\\r");
     rawText.replace("\t", "\\t");
-    if (item.event.is(family_ns::string_families)) {
+    if (item.event.is(families_t::string())) {
         mRawText = rawText;
         setText(3, view()->codec()->toUnicode(mRawText));
     } else {
@@ -166,7 +166,7 @@ void SequenceViewItem::setCodec(QTextCodec* codec) {
 
 void SequenceViewItem::updateVisibiliy(families_t families, channels_t channels, timestamp_t lower, timestamp_t upper) {
     bool familiesVisible = mItem.event.is(families);
-    bool channelsVisible = !mItem.event.is(family_ns::voice_families) || mItem.event.channels().any(channels);
+    bool channelsVisible = !mItem.event.is(families_t::voice()) || mItem.event.channels().any(channels);
     bool boundsVisible = lower <= mItem.timestamp && mItem.timestamp <= upper;
     setHidden(!(familiesVisible && channelsVisible && boundsVisible));
 }
@@ -199,7 +199,7 @@ SequenceView::SequenceView(QWidget *parent) :
     connect(mFamilySelectorButton, &QPushButton::clicked, this, &SequenceView::onFamilyFilterClick);
 
     mFamilySelector = new FamilySelector(this);
-    mFamilySelector->setFamilies(family_ns::all_families);
+    mFamilySelector->setFamilies(families_t::full());
     mFamilySelector->setWindowFlags(Qt::Dialog);
     mFamilySelector->setVisible(false);
     connect(mFamilySelector, &FamilySelector::familiesChanged, this, &SequenceView::onFamiliesChanged);
@@ -209,7 +209,7 @@ SequenceView::SequenceView(QWidget *parent) :
     connect(mChannelSelectorButton, &QPushButton::clicked, this, &SequenceView::onChannelFilterClick);
 
     mChannelsSelector = new ChannelsSelector(this);
-    mChannelsSelector->setChannels(all_channels);
+    mChannelsSelector->setChannels(channels_t::full());
     mChannelsSelector->setWindowFlags(Qt::Dialog);
     mChannelsSelector->setVisible(false);
     connect(mChannelsSelector, &ChannelsSelector::channelsChanged, this, &SequenceView::onChannelsChanged);
@@ -328,7 +328,7 @@ void SequenceView::setSequence(const Sequence& sequence, timestamp_t lower, time
     QMap<track_t, channels_t> trackChannels;
     QMap<track_t, QByteArrayList> trackNames;
     for (const Sequence::Item& item : sequence) {
-        if (item.event.is(family_ns::voice_families))
+        if (item.event.is(families_t::voice()))
             trackChannels[item.track] |= item.event.channels();
         else if (item.event.family() == family_t::track_name)
             trackNames[item.track] << QByteArray::fromStdString(item.event.description());
@@ -397,7 +397,7 @@ void SequenceView::updateItemVisibility(SequenceViewItem* item) {
 }
 
 void SequenceView::onFamiliesChanged(families_t families) {
-    if (families.all(family_ns::midi_families))
+    if (families.all(families_t::midi()))
         mFamilySelectorButton->setText("Types");
     else
         mFamilySelectorButton->setText("Types*");
@@ -406,7 +406,7 @@ void SequenceView::onFamiliesChanged(families_t families) {
 }
 
 void SequenceView::onChannelsChanged(channels_t channels) {
-    if (channels == all_channels)
+    if (channels == channels_t::full())
         mChannelSelectorButton->setText("Channels");
     else
         mChannelSelectorButton->setText("Channels*");
@@ -452,7 +452,7 @@ void SequenceView::onChannelFilterClick() {
 void SequenceView::setChannelColor(channel_t channel, const QColor& /*color*/) {
     for (SequenceViewTrackItem* trackItem : trackItems()) {
         auto channels = channels_t::from_integral(trackItem->data(0, Qt::UserRole).toUInt());
-        if (channels.contains(channel))
+        if (channels.test(channel))
             setItemBackground(trackItem, channels);
     }
 }
@@ -1472,7 +1472,7 @@ void Player::pauseSequence() {
     if (mIsPlaying) {
         mIsPlaying = false;
         mIsStepping = false;
-        mPlayer->stop_playing(Event::controller(all_channels, controller_ns::all_sound_off_controller));
+        mPlayer->stop_playing(Event::controller(channels_t::full(), controller_ns::all_sound_off_controller));
         mRefreshTimer->stop();
         mTempoView->clearTempo();
         mPlaylist->setCurrentStatus(PAUSED);

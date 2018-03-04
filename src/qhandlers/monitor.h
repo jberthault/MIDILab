@@ -50,7 +50,7 @@ public:
 
     void setFamilies(families_t families);
 
-    result_type handle_message(const Message& message) override;
+    Result handle_message(const Message& message) override;
 
 protected slots:
     void onFilterClick();

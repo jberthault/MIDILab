@@ -26,7 +26,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /// @todo print the holes numbers on the screen
 
-static const channels_t defaultChannels = channels_t::merge(0);
+static constexpr auto defaultChannels = channels_t::wrap(0);
 
 //===============
 // MetaHarmonica
@@ -60,7 +60,7 @@ const QMap<Harmonica::Index, int> Harmonica::defaultTuning = {
     {{-2, 9}, 36 - 2}, {{-1, 9}, 36 - 1}, {{0, 9}, 36}, {{1, 9}, 33},
 };
 
-Harmonica::Harmonica() : Instrument(handler_ns::io_mode) {
+Harmonica::Harmonica() : Instrument(Mode::io()) {
 
     mGroup = new QButtonGroup(this);
     connect(mGroup, SIGNAL(buttonPressed(QAbstractButton*)), SLOT(onPress(QAbstractButton*)));

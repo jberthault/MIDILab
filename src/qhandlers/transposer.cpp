@@ -49,12 +49,12 @@ TransposerEditor::TransposerEditor() : HandlerEditor(), mHandler(std::make_uniqu
     mSlider = new ChannelsSlider(Qt::Horizontal, this);
     mSlider->setTextWidth(25);
     mSlider->setExpanded(false);
-    mSlider->setSelection(all_channels & ~drum_channels);
+    mSlider->setSelection(channels_t::melodic());
     mSlider->setDefaultRatio(.5);
     mSlider->setCardinality(transpositionRange.span() + 1);
     connect(mSlider, &ChannelsSlider::knobChanged, this, &TransposerEditor::updateText);
     connect(mSlider, &ChannelsSlider::knobMoved, this, &TransposerEditor::onMove);
-    mSlider->setDefault(all_channels); // will call updateText
+    mSlider->setDefault(channels_t::full()); // will call updateText
 
     setLayout(make_hbox(margin_tag{0}, spacing_tag{0}, mSlider));
 }

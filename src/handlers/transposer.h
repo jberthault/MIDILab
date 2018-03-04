@@ -46,7 +46,7 @@ public:
 
     explicit Transposer();
 
-    result_type handle_message(const Message& message) override;
+    Result handle_message(const Message& message) override;
 
 private:
     void feed_forward(const Message& message); /*!< forward a message after feeding memory */

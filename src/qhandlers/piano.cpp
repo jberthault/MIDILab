@@ -200,7 +200,7 @@ void MetaPiano::setContent(HandlerProxy& proxy) {
 // Piano
 //=======
 
-Piano::Piano() : Instrument(handler_ns::io_mode), mActiveKey(nullptr), mRange(qMakePair(note_ns::A(0), note_ns::C(8))) {
+Piano::Piano() : Instrument(Mode::io()), mActiveKey(nullptr), mRange(qMakePair(note_ns::A(0), note_ns::C(8))) {
     mKeys.fill(nullptr);
     buildKeys();
 }
@@ -320,7 +320,7 @@ void Piano::mouseMoveEvent(QMouseEvent* event) {
 void Piano::generateKeyOn(PianoKey* key, Qt::MouseButtons buttons) {
     if (key) {
         ChannelEditor* editor = channelEditor();
-        channels_t channels = editor ? editor->channelsFromButtons(buttons) : channels_t::merge(0);
+        channels_t channels = editor ? editor->channelsFromButtons(buttons) : channels_t::wrap(0);
         if (channels) {
             generateNoteOn(channels, key->note());
             key->activate(channels);
@@ -331,7 +331,7 @@ void Piano::generateKeyOn(PianoKey* key, Qt::MouseButtons buttons) {
 void Piano::generateKeyOff(PianoKey* key, Qt::MouseButtons buttons) {
     if (key) {
         ChannelEditor* editor = channelEditor();
-        channels_t channels = editor ? editor->channelsFromButtons(buttons) : channels_t::merge(0);
+        channels_t channels = editor ? editor->channelsFromButtons(buttons) : channels_t::wrap(0);
         if (channels) {
             generateNoteOff(channels, key->note());
             key->deactivate(channels);

@@ -27,7 +27,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 /// @todo remove the lock guard
 
 SequenceWriter::SequenceWriter() :
-    Handler(handler_ns::out_mode), m_recording(false), m_families(family_ns::voice_families | family_ns::meta_families) {
+    Handler(Mode::out()), m_recording(false), m_families(families_t::voice() | families_t::meta()) {
 
     m_storage.reserve(8192);
 }
@@ -41,14 +41,14 @@ Sequence SequenceWriter::load_sequence() const {
     return Sequence::from_realtime(m_storage);
 }
 
-Handler::result_type SequenceWriter::handle_message(const Message& message) {
+Handler::Result SequenceWriter::handle_message(const Message& message) {
     std::lock_guard<std::mutex> guard(m_storage_mutex);
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_RECEIVE;
     if (!message.event.is(m_families) || !m_recording)
-        return result_type::unhandled;
+        return Result::unhandled;
     m_storage.push_back({clock_type::now(), message.event, message.track});
-    return result_type::success;
+    return Result::success;
 }
 
 void SequenceWriter::start_recording() {

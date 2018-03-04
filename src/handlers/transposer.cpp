@@ -28,11 +28,11 @@ Event Transposer::transpose_event(channels_t channels, int key) {
     return Event::custom(channels, "Transpose", marshall(key));
 }
 
-Transposer::Transposer() : Handler(handler_ns::thru_mode), m_bypass(true) {
+Transposer::Transposer() : Handler(Mode::thru()), m_bypass(true) {
     m_keys.fill(0);
 }
 
-Handler::result_type Transposer::handle_message(const Message& message) {
+Handler::Result Transposer::handle_message(const Message& message) {
 
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_FORWARD_RECEIVE;
@@ -40,9 +40,9 @@ Handler::result_type Transposer::handle_message(const Message& message) {
     if (message.event.family() == family_t::custom) {
         if (message.event.get_custom_key() == "Transpose") {
             set_key(message.event.channels(), unmarshall<int>(message.event.get_custom_value()));
-            return result_type::success;
+            return Result::success;
         }
-    } else if (message.event.is(family_ns::note_families)) {
+    } else if (message.event.is(families_t::note())) {
         clean_corrupted(message.source, message.track);
         if (!m_bypass) {
             for (const auto& pair : channel_ns::reverse(m_keys, message.event.channels())) {
@@ -52,12 +52,12 @@ Handler::result_type Transposer::handle_message(const Message& message) {
                 copy.event.set_channels(pair.second);
                 feed_forward(copy);
             }
-            return result_type::success;
+            return Result::success;
         }
     }
 
     feed_forward(message); // to feed controller events
-    return result_type::success;
+    return Result::success;
 }
 
 void Transposer::feed_forward(const Message& message) {
@@ -81,7 +81,7 @@ void Transposer::set_key(channels_t channels, int key) {
         }
     }
     // bypass handler if no keys is shifted
-    m_bypass = channel_ns::find(m_keys, 0) == all_channels;
+    m_bypass = channel_ns::find(m_keys, 0) == channels_t::full();
     // mark channels as corrupted
     m_corruption.tick(channels_changed);
 

@@ -228,7 +228,7 @@ void HandlerGraphEditor::insertHandler(Handler* handler) {
         mNodes[handler] = node;
         mGraph->insertNode(node);
     }
-    if (handler->mode().any(handler_ns::in_mode))
+    if (handler->mode().any(Handler::Mode::in()))
         mSelector->insertHandler(handler);
     /// @todo change style of nodes for type
 }
@@ -271,20 +271,20 @@ void HandlerGraphEditor::forwardEdgeCreation(Node* tail, Node* head) {
     Handler* receiver = static_cast<HandlerNode*>(head)->handler();
     if (!sender || !receiver) { // by construction  sender != receiver
         QMessageBox::critical(this, QString(), "Undefined sender or receiver");
-    } else if (receiver->mode().none(handler_ns::receive_mode)) {
+    } else if (receiver->mode().none(Handler::Mode::receive())) {
         QMessageBox::warning(this, QString(), "Receiver can not handle event");
     } else {
         if (mFilter->isChecked()) {
             Handler* source = mSelector->currentHandler();
-            if (!source || source->mode().none(handler_ns::in_mode)) {
+            if (!source || source->mode().none(Handler::Mode::in())) {
                 QMessageBox::critical(this, QString(), "Undefined source");
-            } else if (sender != source && sender->mode().none(handler_ns::thru_mode)) {
+            } else if (sender != source && sender->mode().none(Handler::Mode::thru())) {
                 QMessageBox::warning(this, QString(), "Sender must be THRU or source");
             } else {
                 Manager::instance->insertConnection(sender, receiver, Filter::handler(source));
             }
         } else {
-            if (sender->mode().none(handler_ns::forward_mode)) {
+            if (sender->mode().none(Handler::Mode::forward())) {
                 QMessageBox::information(this, QString(), "Sender can not forward event");
             } else {
                 Manager::instance->insertConnection(sender, receiver);
@@ -325,7 +325,7 @@ void HandlerGraphEditor::updateEdgesVisibility() {
 
 namespace {
 
-void updateIcon(QTreeWidgetItem* item, Handler* handler, int column, Handler::mode_type mode, Handler::state_type state) {
+void updateIcon(QTreeWidgetItem* item, Handler* handler, int column, Handler::Mode mode, Handler::State state) {
     QString filename;
     if (handler->mode().none(mode))
         filename = ":/data/light-gray.svg";
@@ -407,8 +407,8 @@ void HandlerListEditor::removeHandler(Handler* handler) {
 void HandlerListEditor::updateHandler(Handler* handler) {
     QTreeWidgetItem* item = mItems.value(handler, nullptr);
     if (item != nullptr) {
-        updateIcon(item, handler, forwardColumn, handler_ns::forward_mode, handler_ns::forward_state);
-        updateIcon(item, handler, receiveColumn, handler_ns::receive_mode, handler_ns::receive_state);
+        updateIcon(item, handler, forwardColumn, Handler::Mode::forward(), Handler::State::forward());
+        updateIcon(item, handler, receiveColumn, Handler::Mode::receive(), Handler::State::receive());
     }
 }
 
@@ -424,8 +424,8 @@ void HandlerListEditor::onDoubleClick(QTreeWidgetItem* item, int column) {
     auto proxy = Manager::instance->getProxy(handlerForItem(item));
     switch (column) {
     case nameColumn: proxy.toggleState(); break;
-    case forwardColumn: proxy.toggleState(handler_ns::forward_state); break;
-    case receiveColumn: proxy.toggleState(handler_ns::receive_state); break;
+    case forwardColumn: proxy.toggleState(Handler::State::forward()); break;
+    case receiveColumn: proxy.toggleState(Handler::State::receive()); break;
     }
 }
 

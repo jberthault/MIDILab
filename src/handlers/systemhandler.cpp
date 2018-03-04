@@ -36,7 +36,7 @@ class WinSystemHandler : public Handler {
 
 public:
 
-    explicit WinSystemHandler(mode_type mode, UINT id_in, UINT id_out) :
+    explicit WinSystemHandler(Mode mode, UINT id_in, UINT id_out) :
         Handler(mode), m_id_in(id_in), m_id_out(id_out) {
 
     }
@@ -44,19 +44,19 @@ public:
     ~WinSystemHandler() {
         if (is_receive_enabled()) {
             handle_reset();
-            close_system(handler_ns::endpoints_state);
+            close_system(State::endpoints());
         }
     }
 
     families_t handled_families() const override {
-        return family_ns::voice_families | families_t::merge(family_t::custom, family_t::sysex, family_t::reset);
+        return families_t::fuse(families_t::voice(), family_t::custom, family_t::sysex, family_t::reset);
     }
 
-    result_type handle_message(const Message& message) override {
+    Result handle_message(const Message& message) override {
         MIDI_HANDLE_OPEN;
         MIDI_CHECK_OPEN_RECEIVE;
-        if (mode().any(handler_ns::receive_mode)) {
-            if (message.event.is(family_ns::voice_families))
+        if (mode().any(Mode::receive())) {
+            if (message.event.is(families_t::voice()))
                 return to_result(handle_voice(message.event));
             if (message.event.family() == family_t::sysex)
                 return to_result(handle_sysex(message.event));
@@ -65,14 +65,14 @@ public:
             if (message.event.family() == family_t::custom && message.event.get_custom_key() == "System.volume")
                 return to_result(handle_volume((DWORD)unmarshall<uint32_t>(message.event.get_custom_value())));
         }
-        return result_type::unhandled;
+        return Result::unhandled;
     }
 
-    result_type on_open(state_type state) override {
+    Result on_open(State state) override {
         return to_result(open_system(state));
     }
 
-    result_type on_close(state_type state) override {
+    Result on_close(State state) override {
         if (is_receive_enabled())
             handle_reset();
         return to_result(close_system(state));
@@ -80,8 +80,8 @@ public:
 
 private:
 
-    result_type to_result(size_t errors) {
-        return errors != 0 ? result_type::fail : result_type::success;
+    Result to_result(size_t errors) {
+        return errors != 0 ? Result::fail : Result::success;
     }
 
     size_t check_in(MMRESULT result) const {
@@ -108,8 +108,8 @@ private:
         /// @note 'param2' could be used to set message time
         WinSystemHandler* handler = reinterpret_cast<WinSystemHandler*>(instance);
         switch (msg) {
-        case MIM_OPEN: handler->alter_state(handler_ns::forward_state, true); break;
-        case MIM_CLOSE: handler->alter_state(handler_ns::forward_state, false); break;
+        case MIM_OPEN: handler->alter_state(State::forward(), true); break;
+        case MIM_CLOSE: handler->alter_state(State::forward(), false); break;
         case MIM_DATA: handler->read_event(param1); break;
         case MIM_LONGDATA: TRACE_DEBUG(handler << " long-data received"); break;
         case MIM_ERROR: TRACE_DEBUG(handler << " error received"); break;
@@ -122,49 +122,49 @@ private:
     static void CALLBACK callback_out(HMIDIOUT, UINT msg, DWORD_PTR instance, DWORD, DWORD) {
         WinSystemHandler* handler = reinterpret_cast<WinSystemHandler*>(instance);
         switch (msg) {
-        case MOM_CLOSE: handler->alter_state(handler_ns::receive_state, false); break;
-        case MOM_OPEN: handler->alter_state(handler_ns::receive_state, true); break;
+        case MOM_CLOSE: handler->alter_state(State::receive(), false); break;
+        case MOM_OPEN: handler->alter_state(State::receive(), true); break;
         case MOM_DONE: break;
         default: /*should never happen*/ break;
         }
     }
 
-    size_t open_system(state_type s) {
+    size_t open_system(State s) {
         size_t errors = 0;
-        if (mode().any(handler_ns::in_mode) && s.any(handler_ns::forward_state) && state().none(handler_ns::forward_state)) {
+        if (mode().any(Mode::in()) && s.any(State::forward()) && state().none(State::forward())) {
             errors += check_in(midiInOpen(&m_handle_in, m_id_in, (DWORD_PTR)callback_in, (DWORD_PTR)this, CALLBACK_FUNCTION));
             errors += check_in(midiInStart(m_handle_in));
         }
-        if (mode().any(handler_ns::out_mode) && s.any(handler_ns::receive_state) && state().none(handler_ns::receive_state)) {
+        if (mode().any(Mode::out()) && s.any(State::receive()) && state().none(State::receive())) {
             errors += check_out(midiOutOpen(&m_handle_out, m_id_out, (DWORD_PTR)callback_out, (DWORD_PTR)this, CALLBACK_FUNCTION));
             handle_volume(0xffffffff); // full volume (volume settings are done using sysex messages) (ignoring errors here)
         }
         return errors;
     }
 
-    size_t close_system(state_type s) {
+    size_t close_system(State s) {
         size_t errors = 0;
-        if (mode().any(handler_ns::in_mode) && s.any(handler_ns::forward_state) && state().any(handler_ns::forward_state)) {
+        if (mode().any(Mode::in()) && s.any(State::forward()) && state().any(State::forward())) {
             errors += check_in(midiInStop(m_handle_in));
             errors += check_in(midiInClose(m_handle_in));
         }
-        if (mode().any(handler_ns::out_mode) && s.any(handler_ns::receive_state) && state().any(handler_ns::receive_state)) {
+        if (mode().any(Mode::out()) && s.any(State::receive()) && state().any(State::receive())) {
             errors += check_out(midiOutClose(m_handle_out));
         }
         return errors;
     }
 
-    result_type read_event(DWORD data) {
-        if (state().any(handler_ns::forward_state)) {
+    Result read_event(DWORD data) {
+        if (state().any(State::forward())) {
             byte_t* bytes = reinterpret_cast<byte_t*>(&data);
             forward_message({Event::raw(true, {bytes, bytes+4}), this});
-            return result_type::success;
+            return Result::success;
         }
-        return result_type::closed;
+        return Result::closed;
     }
 
     bool is_receive_enabled() const {
-        return state().any(handler_ns::receive_state) && mode().any(handler_ns::receive_mode);
+        return state().any(State::receive()) && mode().any(Mode::receive());
     }
 
     size_t handle_volume(DWORD volume) {
@@ -197,12 +197,12 @@ private:
     size_t handle_reset() {
         size_t errors = 0;
         for (byte_t controller : controller_ns::reset_controllers)
-            errors += handle_voice(Event::controller(all_channels, controller));
-        errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_controller.coarse, 0));
-        errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_controller.fine, 0));
-        errors += handle_voice(Event::controller(all_channels, controller_ns::data_entry_controller.coarse, 2));
-        errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_controller.coarse, 0x7f));
-        errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_controller.fine, 0x7f));
+            errors += handle_voice(Event::controller(channels_t::full(), controller));
+        errors += handle_voice(Event::controller(channels_t::full(), controller_ns::registered_parameter_controller.coarse, 0));
+        errors += handle_voice(Event::controller(channels_t::full(), controller_ns::registered_parameter_controller.fine, 0));
+        errors += handle_voice(Event::controller(channels_t::full(), controller_ns::data_entry_controller.coarse, 2));
+        errors += handle_voice(Event::controller(channels_t::full(), controller_ns::registered_parameter_controller.coarse, 0x7f));
+        errors += handle_voice(Event::controller(channels_t::full(), controller_ns::registered_parameter_controller.fine, 0x7f));
         return errors;
     }
 
@@ -227,8 +227,8 @@ struct SystemHandlerFactory::Impl {
         UINT ivalue() const { return in.empty() ? 0u : *in.begin(); }
         UINT ovalue() const { return out.empty() ? 0u : *out.begin(); }
 
-        auto imode() const { return in.empty() ? handler_ns::mode_t{} : handler_ns::in_mode; }
-        auto omode() const { return out.empty() ? handler_ns::mode_t{} : handler_ns::out_mode; }
+        auto imode() const { return in.empty() ? Handler::Mode{} : Handler::Mode::in(); }
+        auto omode() const { return out.empty() ? Handler::Mode{} : Handler::Mode::out(); }
 
         Handler* instantiate() const {
             auto handler = new WinSystemHandler(imode() | omode(), ivalue(), ovalue());
@@ -327,7 +327,7 @@ class LinuxSystemHandler : public Handler {
 
     public:
 
-        LinuxSystemHandler(mode_type mode, std::string hardware_name) :
+        LinuxSystemHandler(Mode mode, std::string hardware_name) :
             Handler(mode), m_hardware_name(std::move(hardware_name)) {
 
         }
@@ -335,15 +335,15 @@ class LinuxSystemHandler : public Handler {
         ~LinuxSystemHandler() {
             if (is_receive_enabled()) {
                 handle_reset();
-                close_system(handler_ns::endpoints_state);
+                close_system(Mode::endpoints());
             }
         }
 
-        result_type on_open(state_type state) override {
+        Result on_open(State state) override {
             return to_result(open_system(state));
         }
 
-        result_type on_close(state_type state) override {
+        Result on_close(State state) override {
             if (is_receive_enabled())
                 handle_reset();
             return to_result(close_system(state));
@@ -351,8 +351,8 @@ class LinuxSystemHandler : public Handler {
 
     private:
 
-        result_type to_result(size_t errors) {
-            return errors != 0 ? result_type::fail : result_type::success;
+        Result to_result(size_t errors) {
+            return errors != 0 ? Result::fail : Result::success;
         }
 
         size_t check(int errnum) {
@@ -362,10 +362,10 @@ class LinuxSystemHandler : public Handler {
             return 1;
         }
 
-        size_t open_system(state_type s) {
+        size_t open_system(State s) {
             size_t errors = 0;
-            bool in_opening = mode().any(handler_ns::in_mode) && s.any(handler_ns::forward_state) && state().none(handler_ns::forward_state);
-            bool out_opening = mode().any(handler_ns::out_mode) && s.any(handler_ns::receive_state) && state().none(handler_ns::receive_state);
+            bool in_opening = mode().any(Mode::in()) && s.any(State::forward()) && state().none(State::forward());
+            bool out_opening = mode().any(Mode::out()) && s.any(State::receive()) && state().none(State::receive());
             if (in_opening || out_opening) {
                 snd_rawmidi_t** in = in_opening ? &m_i_handler : nullptr;
                 snd_rawmidi_t** out = out_opening ? &m_o_handler : nullptr;
@@ -382,17 +382,17 @@ class LinuxSystemHandler : public Handler {
             return errors;
         }
 
-        size_t close_system(state_type s) {
+        size_t close_system(State s) {
             size_t errors = 0;
             // close input handler
-            if (mode().any(handler_ns::in_mode) && s.any(handler_ns::forward_state) && state().any(handler_ns::forward_state)) {
-                alter_state(handler_ns::forward_state, false);
+            if (mode().any(Mode::in()) && s.any(State::forward()) && state().any(State::forward())) {
+                alter_state(State::forward(), false);
                 m_i_reader.join();
                 errors += check(snd_rawmidi_close(m_i_handler));
             }
             // close output handler
-            if (mode().any(handler_ns::out_mode) && s.any(handler_ns::receive_state) && state().any(handler_ns::receive_state)) {
-                alter_state(handler_ns::receive_state, false);
+            if (mode().any(Mode::out()) && s.any(State::receive()) && state().any(State::receive())) {
+                alter_state(State::receive(), false);
                 errors += check(snd_rawmidi_close(m_o_handler));
             }
             return errors;
@@ -425,7 +425,7 @@ class LinuxSystemHandler : public Handler {
             std::stringstream stream;
             stream.exceptions(std::ios_base::failbit);
 
-            while (state().any(handler_ns::forward_state)) {
+            while (state().any(State::forward())) {
                 err = snd_rawmidi_read(m_i_handler, &readed, 1);
                 if (err < 0 && (err != -EBUSY) && (err != -EAGAIN)) {
                     TRACE_WARNING("Can't read data from " << name() << ": " << snd_strerror(err));
@@ -454,34 +454,34 @@ class LinuxSystemHandler : public Handler {
         }
 
         bool is_receive_enabled() const {
-            return state().any(handler_ns::receive_state) && mode().any(handler_ns::receive_mode);
+            return state().any(State::receive()) && mode().any(Mode::receive());
         }
 
         families_t handled_families() const override {
-            return family_ns::voice_families | families_t::merge(family_t::custom, family_t::reset);
+            return families_t::fuse(families_t::voice(), family_t::custom, family_t::reset);
         }
 
-        result_type handle_message(const Message& message) override {
+        Result handle_message(const Message& message) override {
             MIDI_HANDLE_OPEN;
             MIDI_CHECK_OPEN_RECEIVE;
-            if (mode().any(handler_ns::receive_mode)) {
-                if (message.event.is(family_ns::voice_families))
+            if (mode().any(Mode::receive())) {
+                if (message.event.is(families_t::voice()))
                     return to_result(handle_voice(message.event));
                 if (message.event.family() == family_t::reset)
                     return to_result(handle_reset());
             }
-            return result_type::unhandled;
+            return Result::unhandled;
         }
 
         size_t handle_reset() {
             size_t errors = 0;
             for (byte_t controller : controller_ns::reset_controllers)
-                errors += handle_voice(Event::controller(all_channels, controller));
-            errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_controller.coarse, 0));
-            errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_controller.fine, 0));
-            errors += handle_voice(Event::controller(all_channels, controller_ns::data_entry_controller.coarse, 2));
-            errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_controller.coarse, 0x7f));
-            errors += handle_voice(Event::controller(all_channels, controller_ns::registered_parameter_controller.fine, 0x7f));
+                errors += handle_voice(Event::controller(channels_t::full(), controller));
+            errors += handle_voice(Event::controller(channels_t::full(), controller_ns::registered_parameter_controller.coarse, 0));
+            errors += handle_voice(Event::controller(channels_t::full(), controller_ns::registered_parameter_controller.fine, 0));
+            errors += handle_voice(Event::controller(channels_t::full(), controller_ns::data_entry_controller.coarse, 2));
+            errors += handle_voice(Event::controller(channels_t::full(), controller_ns::registered_parameter_controller.coarse, 0x7f));
+            errors += handle_voice(Event::controller(channels_t::full(), controller_ns::registered_parameter_controller.fine, 0x7f));
             return errors;
         }
 
@@ -499,7 +499,7 @@ struct SystemHandlerFactory::Impl {
 
         std::string name;
         std::string hardware_name;
-        handler_ns::mode_t mode;
+        Handler::Mode mode;
 
     };
 
@@ -566,10 +566,10 @@ struct SystemHandlerFactory::Impl {
                     // Tell ALSA which device (number) we want info about
                     snd_rawmidi_info_set_device(rawMidiInfo, devNum);
 
-                    handler_ns::mode_t mode = handler_ns::out_mode;
+                    Handler::Mode mode = Mode::out();
 
                     while (mode) {
-                        snd_rawmidi_info_set_stream(rawMidiInfo, mode == handler_ns::in_mode ? SND_RAWMIDI_STREAM_INPUT : SND_RAWMIDI_STREAM_OUTPUT);
+                        snd_rawmidi_info_set_stream(rawMidiInfo, mode == Mode::in() ? SND_RAWMIDI_STREAM_INPUT : SND_RAWMIDI_STREAM_OUTPUT);
                         int i = -1;
                         int subDevCount = 1;
                         while (++i < subDevCount) {
@@ -585,7 +585,7 @@ struct SystemHandlerFactory::Impl {
                             hw_stream << "hw:" << cardNum << ',' << devNum << ',' << i;
                             insert(identifier_type{name, hw_stream.str(), mode});
                         }
-                        mode = (mode == handler_ns::out_mode) ? handler_ns::in_mode : handler_ns::mode_t{};
+                        mode = (mode == Mode::out()) ? Handler::Mode::in() : Handler::Mode{};
                     }
                 }
             }

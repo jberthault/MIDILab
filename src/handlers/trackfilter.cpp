@@ -36,11 +36,11 @@ Event TrackFilter::disable_event(track_t track) {
     return Event::custom({}, "TrackFilter.disable", marshall(track));
 }
 
-TrackFilter::TrackFilter() : Handler(handler_ns::thru_mode), m_filter(true) {
+TrackFilter::TrackFilter() : Handler(Mode::thru()), m_filter(true) {
 
 }
 
-Handler::result_type TrackFilter::handle_message(const Message& message) {
+Handler::Result TrackFilter::handle_message(const Message& message) {
 
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_FORWARD_RECEIVE;
@@ -51,20 +51,20 @@ Handler::result_type TrackFilter::handle_message(const Message& message) {
             auto track = unmarshall<track_t>(message.event.get_custom_value());
             m_corruption[track].tick();
             m_filter.elements.insert(track);
-            return result_type::success;
+            return Result::success;
         } else if (k == "TrackFilter.enable") {
             m_filter.elements.erase(unmarshall<track_t>(message.event.get_custom_value()));
-            return result_type::success;
+            return Result::success;
         } else if (k == "TrackFilter.enable_all") {
             m_filter.elements.clear();
-            return result_type::success;
+            return Result::success;
         }
     }
 
     clean_corrupted(message.source, message.track);
     if (m_filter.match(message.track))
         feed_forward(message);
-    return result_type::success;
+    return Result::success;
 }
 
 void TrackFilter::feed_forward(const Message& message) {

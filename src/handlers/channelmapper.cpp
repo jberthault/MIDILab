@@ -32,9 +32,9 @@ Event ChannelMapper::unmap_event(channels_t channels) {
     return Event::custom(channels, "ChannelMapping.unmap");
 }
 
-ChannelMapper::ChannelMapper() : Handler(handler_ns::thru_mode) {
-    for (channel_t c=0 ; c < 0x10 ; ++c)
-        m_mapping[c] = channels_t::merge(c);
+ChannelMapper::ChannelMapper() : Handler(Mode::thru()) {
+    for (channel_t c=0 ; c < channels_t::capacity ; ++c)
+        m_mapping[c] = channels_t::wrap(c);
 }
 
 channel_map_t<channels_t> ChannelMapper::mapping() const {
@@ -51,11 +51,11 @@ void ChannelMapper::set_mapping(channel_map_t<channels_t> mapping) {
 void ChannelMapper::reset_mapping(channels_t channels) {
     std::lock_guard<std::mutex> guard(m_mutex);
     for (channel_t channel : channels)
-        m_mapping[channel] = channels_t::merge(channel);
+        m_mapping[channel] = channels_t::wrap(channel);
     m_corruption.tick();
 }
 
-Handler::result_type ChannelMapper::handle_message(const Message& message) {
+Handler::Result ChannelMapper::handle_message(const Message& message) {
 
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_FORWARD_RECEIVE;
@@ -68,27 +68,27 @@ Handler::result_type ChannelMapper::handle_message(const Message& message) {
             auto mapped_channels = unmarshall<channels_t>(message.event.get_custom_value());
             channel_ns::store(m_mapping, message.event.channels(), mapped_channels);
             m_corruption.tick();
-            return result_type::success;
+            return Result::success;
         } else if (k == "ChannelMapping.unmap") {
             for (channel_t channel : message.event.channels())
-                m_mapping[channel] = channels_t::merge(channel);
+                m_mapping[channel] = channels_t::wrap(channel);
             m_corruption.tick();
-            return result_type::success;
+            return Result::success;
         }
     }
 
     /// clean if another note comes in
-    if (message.event.is(family_ns::note_families))
+    if (message.event.is(families_t::note()))
         clean_corrupted(message.source, message.track);
 
     Message copy(message);
 
      /// @todo get all relevant families and don't forward if no channels
-    if (message.event.is(family_ns::voice_families))
+    if (message.event.is(families_t::voice()))
         copy.event.set_channels(remap(message.event.channels()));
 
     feed_forward(copy);
-    return result_type::success;
+    return Result::success;
 }
 
 void ChannelMapper::feed_forward(const Message& message) {

@@ -93,8 +93,8 @@ struct Negate : public Filter::visitor_type<Filter::data_type> {
 
     auto operator()(const HandlerFilter& f) const { return HandlerFilter{f.handler, !f.reversed}; }
     auto operator()(const TrackFilter& f) const { return TrackFilter{f.track, !f.reversed}; }
-    auto operator()(const ChannelFilter& f) const { return ChannelFilter{all_channels & ~f.channels}; }
-    auto operator()(const FamilyFilter& f) const { return FamilyFilter{family_ns::all_families & ~f.families}; }
+    auto operator()(const ChannelFilter& f) const { return ChannelFilter{channels_t::full() & ~f.channels}; }
+    auto operator()(const FamilyFilter& f) const { return FamilyFilter{families_t::full() & ~f.families}; }
     auto operator()(const AnyFilter& f) const { return AllFilter{negate_all(f.filters)}; }
     auto operator()(const AllFilter& f) const { return AnyFilter{negate_all(f.filters)}; }
 
@@ -111,7 +111,7 @@ struct Match : public Filter::visitor_type<bool> {
     bool operator()(const HandlerFilter& f) const { return (message.source == f.handler) ^ f.reversed; }
     bool operator()(const TrackFilter& f) const { return (message.track == f.track) ^ f.reversed; }
     bool operator()(const ChannelFilter& f) const { return f.channels.all(message.event.channels()); }
-    bool operator()(const FamilyFilter& f) const { return f.families.contains(message.event.family()); }
+    bool operator()(const FamilyFilter& f) const { return f.families.test(message.event.family()); }
     bool operator()(const AnyFilter& f) const { return std::any_of(f.filters.begin(), f.filters.end(), [this](const auto& filter) { return visit(filter); }); }
     bool operator()(const AllFilter& f) const { return std::all_of(f.filters.begin(), f.filters.end(), [this](const auto& filter) { return visit(filter); }); }
 
@@ -518,15 +518,15 @@ Listeners::iterator Listeners::end() {
 // Handler
 //=========
 
-Event Handler::open_event(state_type state) {
+Event Handler::open_event(State state) {
     return Event::custom({}, "Open", marshall(state));
 }
 
-Event Handler::close_event(state_type state) {
+Event Handler::close_event(State state) {
     return Event::custom({}, "Close", marshall(state));
 }
 
-Handler::Handler(mode_type mode) :
+Handler::Handler(Mode mode) :
     m_name(), m_mode(mode), m_state(), m_holder(nullptr), m_receiver(nullptr), m_listeners_mutex(), m_listeners() {
 
 }
@@ -543,52 +543,52 @@ void Handler::set_name(std::string name) {
     m_name = std::move(name);
 }
 
-Handler::mode_type Handler::mode() const {
+Handler::Mode Handler::mode() const {
     return m_mode;
 }
 
-Handler::state_type Handler::state() const {
+Handler::State Handler::state() const {
     return m_state;
 }
 
-void Handler::set_state(state_type state) {
+void Handler::set_state(State state) {
     m_state = state;
 }
 
-void Handler::alter_state(state_type state, bool on) {
+void Handler::alter_state(State state, bool on) {
     m_state.commute(state, on);
 }
 
 families_t Handler::handled_families() const {
-    return family_ns::all_families;
+    return families_t::full();
 }
 
 families_t Handler::input_families() const {
-    return family_ns::all_families;
+    return families_t::full();
 }
 
-Handler::result_type Handler::handle_open(const Message& message) {
+Handler::Result Handler::handle_open(const Message& message) {
     if (message.event.family() == family_t::custom) {
         auto key = message.event.get_custom_key();
         if (key == "Open") {
-            on_open(unmarshall<state_type>(message.event.get_custom_value()));
-            return result_type::success;
+            on_open(unmarshall<State>(message.event.get_custom_value()));
+            return Result::success;
         } else if (key == "Close") {
-            on_close(unmarshall<state_type>(message.event.get_custom_value()));
-            return result_type::success;
+            on_close(unmarshall<State>(message.event.get_custom_value()));
+            return Result::success;
         }
     }
-    return result_type::unhandled;
+    return Result::unhandled;
 }
 
-Handler::result_type Handler::on_open(state_type state) {
+Handler::Result Handler::on_open(State state) {
     alter_state(state, true);
-    return result_type::success;
+    return Result::success;
 }
 
-Handler::result_type Handler::on_close(state_type state) {
+Handler::Result Handler::on_close(State state) {
     alter_state(state, false);
-    return result_type::success;
+    return Result::success;
 }
 
 Holder* Handler::holder() const {
@@ -611,16 +611,16 @@ bool Handler::send_message(const Message& message) {
     return m_holder && m_holder->hold_message(this, message);
 }
 
-Handler::result_type Handler::receive_message(const Message& message) {
+Handler::Result Handler::receive_message(const Message& message) {
     try {
         return m_receiver ? m_receiver->receive_message(this, message) : handle_message(message);
     } catch (const std::exception& error) {
         TRACE_ERROR(m_name << " handling exception: " << error.what());
-        return result_type::error;
+        return Result::error;
     }
 }
 
-Handler::result_type Handler::handle_message(const Message& message) {
+Handler::Result Handler::handle_message(const Message& message) {
     return handle_open(message);
 }
 

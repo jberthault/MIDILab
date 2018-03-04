@@ -47,7 +47,7 @@ public:
         for (const auto& connection : configuration.connections)
             addConnection(connection);
         // set colors
-        for (channel_t c=0 ; c < qMin(0x10, configuration.colors.size()) ; ++c)
+        for (channel_t c=0 ; c < std::min(channels_t::capacity, (size_t)configuration.colors.size()) ; ++c)
             Manager::instance->channelEditor()->setColor(c, configuration.colors.at(c));
         // display visible frames created
         for (auto displayer : mVisibleDisplayers)
@@ -214,7 +214,7 @@ public:
         for (auto displayer : MultiDisplayer::topLevelDisplayers())
             config.frames.append(getFrame(displayer));
         // colors
-        for (channel_t c=0 ; c < 0x10 ; ++c)
+        for (channel_t c=0 ; c < channels_t::capacity ; ++c)
             config.colors.append(Manager::instance->channelEditor()->color(c));
         return config;
     }

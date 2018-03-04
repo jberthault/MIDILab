@@ -43,14 +43,14 @@ class AbstractWheel : public GraphicalHandler {
     Q_OBJECT
 
 public:
-    explicit AbstractWheel(mode_type mode);
+    explicit AbstractWheel(Mode mode);
 
     ChannelsSlider* slider();
 
     Parameters getParameters() const override;
     size_t setParameter(const Parameter& parameter) override;
 
-    result_type on_close(state_type state) override;
+    Result on_close(State state) override;
 
 protected:
     void prepare(qreal defaultRatio);
@@ -99,8 +99,8 @@ public:
     size_t setParameter(const Parameter& parameter) override;
 
     families_t handled_families() const override;
-    result_type handle_message(const Message& message) override;
-    result_type on_close(state_type state) override;
+    Result handle_message(const Message& message) override;
+    Result on_close(State state) override;
 
 protected slots:
     void onMove(channels_t channels, qreal ratio) override;
@@ -112,8 +112,8 @@ private:
     void resetAll();
     void setControllerValue(channels_t channels, byte_t controller, byte_t value);
 
-    result_type handleController(channels_t channels, byte_t controller, byte_t value);
-    result_type handleReset();
+    Result handleController(channels_t channels, byte_t controller, byte_t value);
+    Result handleReset();
 
 private:
     QComboBox* mControllerBox;
@@ -147,8 +147,8 @@ public:
     explicit PitchWheel();
 
     families_t handled_families() const override;
-    result_type handle_message(const Message& message) override;
-    result_type on_close(state_type state) override;
+    Result handle_message(const Message& message) override;
+    Result on_close(State state) override;
 
 protected slots:
     void onPress(channels_t channels);
@@ -164,12 +164,12 @@ private:
     void updatePitchValueText(channels_t channels);
     void resetAll();
 
-    result_type handleCoarseRPN(channels_t channels, byte_t byte);
-    result_type handleFineRPN(channels_t channels, byte_t byte);
-    result_type handleCoarseDataEntry(channels_t channels, byte_t byte);
-    result_type handlePitchValue(channels_t channels, uint16_t value);
-    result_type handleAllControllersOff(channels_t channels);
-    result_type handleReset();
+    Result handleCoarseRPN(channels_t channels, byte_t byte);
+    Result handleFineRPN(channels_t channels, byte_t byte);
+    Result handleCoarseDataEntry(channels_t channels, byte_t byte);
+    Result handlePitchValue(channels_t channels, uint16_t value);
+    Result handleAllControllersOff(channels_t channels);
+    Result handleReset();
 
 private:
     QComboBox* mTypeBox;
@@ -204,7 +204,7 @@ public:
     explicit ProgramWheel();
 
     families_t handled_families() const override;
-    result_type handle_message(const Message& message) override;
+    Result handle_message(const Message& message) override;
 
     void setProgramChange(channels_t channels, byte_t program);
 

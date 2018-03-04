@@ -32,7 +32,7 @@ MetaGraphicalHandler::MetaGraphicalHandler(QObject* parent) : OpenMetaHandler(pa
 // GraphicalHandler
 //==================
 
-GraphicalHandler::GraphicalHandler(mode_type mode) : EditableHandler(mode), mTrack(Message::no_track) {
+GraphicalHandler::GraphicalHandler(Mode mode) : EditableHandler(mode), mTrack(Message::no_track) {
 
 }
 
@@ -56,7 +56,7 @@ void GraphicalHandler::setTrack(track_t track) {
 }
 
 bool GraphicalHandler::canGenerate() const {
-    return state().any(handler_ns::forward_state) && isEnabled();
+    return state().any(State::forward()) && isEnabled();
 }
 
 void GraphicalHandler::generate(Event event) {
@@ -75,21 +75,21 @@ MetaInstrument::MetaInstrument(QObject* parent) : MetaGraphicalHandler(parent) {
 // Instrument
 //============
 
-Instrument::Instrument(mode_type mode) : GraphicalHandler(mode), mVelocity(0x7f) {
+Instrument::Instrument(Mode mode) : GraphicalHandler(mode), mVelocity(0x7f) {
 
 }
 
 families_t Instrument::handled_families() const {
-    return families_t::merge(family_t::custom, family_t::note_on, family_t::note_off, family_t::controller, family_t::reset);
+    return families_t::fuse(family_t::custom, family_t::note_on, family_t::note_off, family_t::controller, family_t::reset);
 }
 
-Handler::result_type Instrument::on_close(state_type state) {
-    if (state & handler_ns::receive_state)
+Handler::Result Instrument::on_close(State state) {
+    if (state & State::receive())
         receiveClose();
     return GraphicalHandler::on_close(state);
 }
 
-Handler::result_type Instrument::handle_message(const Message& message) {
+Handler::Result Instrument::handle_message(const Message& message) {
 
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_RECEIVE;
@@ -97,20 +97,20 @@ Handler::result_type Instrument::handle_message(const Message& message) {
     switch (message.event.family()) {
     case family_t::note_on:
         receiveNoteOn(message.event.channels(), message.event.get_note());
-        return result_type::success;
+        return Result::success;
     case family_t::note_off:
         receiveNoteOff(message.event.channels(), message.event.get_note());
-        return result_type::success;
+        return Result::success;
     case family_t::reset:
         receiveReset();
-        return result_type::success;
+        return Result::success;
     case family_t::controller:
         if (message.event.at(1) == controller_ns::all_notes_off_controller) {
             receiveNotesOff(message.event.channels());
-            return result_type::success;
+            return Result::success;
         }
     }
-    return result_type::unhandled;
+    return Result::unhandled;
 }
 
 HandlerView::Parameters Instrument::getParameters() const {
@@ -133,11 +133,11 @@ void Instrument::setVelocity(byte_t velocity) {
 }
 
 void Instrument::receiveClose() {
-    receiveNotesOff(all_channels);
+    receiveNotesOff(channels_t::full());
 }
 
 void Instrument::receiveReset() {
-    receiveNotesOff(all_channels);
+    receiveNotesOff(channels_t::full());
 }
 
 void Instrument::receiveNotesOff(channels_t /*channels*/) {
