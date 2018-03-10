@@ -38,6 +38,6 @@ QStringList MetaSystem::instantiables() {
 
 HandlerProxy MetaSystem::instantiate(const QString& name) {
     HandlerProxy proxy(this);
-    proxy.setContent(mFactory.instantiate(name.toStdString()));
+    proxy.setContent(mFactory.instantiate(name.toStdString()).release());
     return proxy;
 }

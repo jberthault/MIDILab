@@ -47,12 +47,12 @@ void MetaSoundFont::setContent(HandlerProxy& proxy) {
     proxy.setContent(new SoundFontEditor);
 }
 
-//===================
-// SoundFontReceiver
-//===================
+//======================
+// SoundFontInterceptor
+//======================
 
-Receiver::Result SoundFontReceiver::receive_message(Handler* target, const Message& message) {
-    auto result = observer()->handleMessage(target, message);
+Interceptor::Result SoundFontInterceptor::seize_message(Handler* target, const Message& message) {
+    auto result = doSeize(target, message);
     if (message.event.family() == family_t::custom && message.event.get_custom_key() == "SoundFont.file")
         emit fileHandled();
     return result;
@@ -282,9 +282,9 @@ void ChorusEditor::notify() {
 
 SoundFontEditor::SoundFontEditor() : HandlerEditor(), mHandler(std::make_unique<SoundFontHandler>()) {
 
-    mReceiver = new SoundFontReceiver(this);
-    mHandler->set_receiver(mReceiver);
-    connect(mReceiver, &SoundFontReceiver::fileHandled, this, &SoundFontEditor::updateFile);
+    mInterceptor = new SoundFontInterceptor(this);
+    mHandler->set_interceptor(mInterceptor);
+    connect(mInterceptor, &SoundFontInterceptor::fileHandled, this, &SoundFontEditor::updateFile);
 
     mLoadMovie = new QMovie(":/data/load.gif", QByteArray(), this);
     mLoadLabel = new QLabel(this);

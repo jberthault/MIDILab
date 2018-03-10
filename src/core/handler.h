@@ -30,8 +30,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "event.h"
 #include "sequence.h"
 
-class Receiver;
-class Holder;
+class Interceptor;
+class Synchronizer;
 class Handler;
 
 //=========
@@ -219,6 +219,8 @@ public:
     iterator begin();
     iterator end();
 
+    void hear_message(const Message& message) const;
+
 private:
     listeners_type m_listeners;
 
@@ -234,17 +236,16 @@ private:
 
 /**
  * The Handler class is the minimum interface required to deal with midi events.
- * A handler has a few attributes such as :
- * * Mode : What role(s) can play the handler
- * * State : Runtime information about constraints
+ * It has the following attributes:
+ * - name: a simple identifier with no other purpose that helping users
+ * - mode: the roles supported by the handler (constant)
+ * - state: runtime information about the open/closed status
+ * - synchronizer: the object responsible for processing incoming messages asynchronously
+ * - interceptor: the object that will receive synchronized messages, meant for altering behavior
+ * - listeners: the list of handlers that will receive forwarded messages
  *
- * Some behaviors are delegated:
- * * How to synchronize incoming messages ? -> Holder
- * * Inject behavior when a message is processed ? -> Receiver
- *
- * @warning changing the receiver while processing messages can be hazardous
- *
- * @todo implement a notification system instead of the receiver ?
+ * @warning the lifetime of synchronizer, interceptor and listeners is not considered within this class
+ * @warning altering any of these attribute is hazardous in a multi-threaded context except for listeners
  *
  */
 
@@ -307,16 +308,30 @@ public:
 
     explicit Handler(Mode mode);
     Handler(const Handler&) = delete;
+    Handler& operator=(const Handler&) = delete;
     virtual ~Handler();
+
+    // ----------
+    // properties
+    // ----------
 
     const std::string& name() const;
     void set_name(std::string name);
 
-    Mode mode() const; /*!< get handler's mode (it is guaranteed to be constant) */
+    Mode mode() const;
 
-    State state() const; /*!< get current state */
-    void set_state(State state); /*!< replace all states */
+    State state() const;
+    void set_state(State state); /*!< replace the whole state */
     void alter_state(State state, bool on); /*! set all states specified to on or off leaving others */
+
+    Synchronizer* synchronizer() const;
+    void set_synchronizer(Synchronizer* synchronizer);
+
+    Interceptor* interceptor() const;
+    void set_interceptor(Interceptor* interceptor);
+
+    Listeners listeners() const;
+    void set_listeners(Listeners listeners);
 
     /**
      * @return the families used when handling a message (default accept any event)
@@ -326,41 +341,28 @@ public:
      */
 
     virtual families_t handled_families() const;
-    virtual families_t input_families() const;
+    virtual families_t forwarded_families() const;
 
-    Result handle_open(const Message& message);
-    virtual Result on_open(State state);
-    virtual Result on_close(State state);
+    // ---------
+    // messaging
+    // ---------
 
-    // ------------------
-    // reception features
-    // ------------------
+    Result handle_open(const Message& message); /*!< dispatch open/close events to on_open/on_close */
+    virtual Result on_open(State state); /*!< by default, just updates internal state */
+    virtual Result on_close(State state); /*!< @see on_open */
 
-    Holder* holder() const;
-    void set_holder(Holder* holder);
+    bool send_message(const Message& message); /*!< sends message to the synchronizer (asynchronous) */
+    Result receive_message(const Message& message); /*!< delegated handling to the interceptor (synchronous) */
+    virtual Result handle_message(const Message& message); /*!< actual processing of messages, by default handles open/close actions */
 
-    Receiver* receiver() const;
-    void set_receiver(Receiver* receiver);
-
-    bool send_message(const Message& message);
-    Result receive_message(const Message& message);
-    virtual Result handle_message(const Message& message); /*!< endpoint of messages, by default handles open/close actions */
-
-    // -------------------
-    // forwarding features
-    // -------------------
-
-    Listeners listeners() const;
-    void set_listeners(Listeners listeners);
-
-    void forward_message(const Message& message); /*!< send message to all listeners matching their filters, returns number of times the message is forwarded */
+    void forward_message(const Message& message) const; /*!< sends message to all listeners matching their filters */
 
 private:
     std::string m_name;
     const Mode m_mode;
     State m_state;
-    Holder* m_holder; /*!< delegate synchronizing messages */
-    Receiver* m_receiver; /*!< delegate handling synchronized messages */
+    Synchronizer* m_synchronizer;
+    Interceptor* m_interceptor;
     mutable std::mutex m_listeners_mutex;
     Listeners m_listeners;
 
@@ -369,53 +371,54 @@ private:
 template<> inline auto marshall<Handler::State>(Handler::State state) { return marshall(state.to_integral()); }
 template<> inline auto unmarshall<Handler::State>(const std::string& string) { return Handler::State::from_integral(unmarshall<Handler::State::storage_type>(string)); }
 
-//==========
-// Receiver
-//==========
+//=============
+// Interceptor
+//=============
 
 /**
- * The Receiver is the delegate that will be able to catch messages sent
- * to the handler
+ * An interceptor interferes with the normal message flow
+ * by seizing the incoming messages of its handler.
+ * It is aimed to inject behavior
  *
  */
 
-class Receiver {
+class Interceptor {
 
 public:
     using Result = Handler::Result;
 
-    virtual ~Receiver() = default;
-    virtual Result receive_message(Handler* target, const Message& message) = 0;
+    virtual ~Interceptor() = default;
+    virtual Result seize_message(Handler* target, const Message& message) = 0;
 
 };
 
-//========
-// Holder
-//========
+//==============
+// Synchronizer
+//==============
 
 /**
- * The Holder is the delegate responsible to delay the reception of incoming messages
+ * The Synchronizer is the delegate responsible to delay the reception of incoming messages
  * of a Handler
  */
 
-class Holder {
+class Synchronizer {
 
 public:
-    virtual ~Holder() = default;
-    virtual bool hold_message(Handler* target, const Message& message) = 0;
+    virtual ~Synchronizer() = default;
+    virtual bool sync_message(Handler* target, const Message& message) = 0;
 
 };
 
-//================
-// StandardHolder
-//================
+//======================
+// StandardSynchronizer
+//======================
 
 /**
-  * The StandardHolder is an implementation using an internal message queue
+  * The StandardSynchronizer is an implementation using an internal message queue
   *
   */
 
-class StandardHolder : public Holder {
+class StandardSynchronizer : public Synchronizer {
 
 public:
     using clock_type = Clock::clock_type;
@@ -427,7 +430,7 @@ public:
 #endif
     using task_type = task_t<data_type>;
 
-    StandardHolder(std::string name = {});
+    explicit StandardSynchronizer(std::string name = {});
 
     void start(priority_t priority); /*!< (re)activate message processing */
     void stop(); /*!< deactivate message processing */
@@ -442,7 +445,7 @@ public:
     void reset(time_type time);
 #endif
 
-    bool hold_message(Handler* target, const Message& message) override;
+    bool sync_message(Handler* target, const Message& message) final;
 
 private:
     task_type m_task;

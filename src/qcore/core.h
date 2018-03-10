@@ -133,21 +133,21 @@ public:
 
 };
 
-//=================
-// GraphicalHolder
-//=================
+//=======================
+// GraphicalSynchronizer
+//=======================
 
-/// This holder is designed to use Qt Event loop to distribute messages in a thread-safe way
-/// This object and client Handlers (GraphicalHandlers) are supposed to live in the same thread
+/// This synchronizer is designed to use Qt Event loop to distribute messages in a thread-safe way
+/// This object and client Handlers (EditableHandler) are supposed to live in the same thread
 
-class GraphicalHolder : public QObject, public Holder {
+class GraphicalSynchronizer : public QObject, public Synchronizer {
 
     Q_OBJECT
 
 public:
-    explicit GraphicalHolder(QObject* parent);
+    explicit GraphicalSynchronizer(QObject* parent);
 
-    bool hold_message(Handler* target, const Message& message) final;
+    bool sync_message(Handler* target, const Message& message) final;
 
 protected:
     bool event(QEvent* e) override;
@@ -158,14 +158,16 @@ protected:
 // Observer
 //==========
 
-class Observer : public QObject {
+class Observer : public QObject, public Interceptor {
 
     Q_OBJECT
 
 public:
-    using QObject::QObject;
+    explicit Observer(QObject* parent);
 
-    Handler::Result handleMessage(Handler* target, const Message& message);
+    Result doSeize(Handler* target, const Message& message);
+
+    Result seize_message(Handler* target, const Message& message) final;
 
 protected:
     bool event(QEvent* e) override;
@@ -175,31 +177,18 @@ signals:
 
 };
 
-//=================
-// DefaultReceiver
-//=================
+//=======================
+// ObservableInterceptor
+//=======================
 
-class DefaultReceiver : public Observer, public Receiver {
-
-    Q_OBJECT
-
-public:
-    explicit DefaultReceiver(QObject* parent);
-
-    Result receive_message(Handler* target, const Message& message) final;
-
-};
-
-//================
-// CustomReceiver
-//================
-
-class CustomReceiver : public QObject, public Receiver {
+class ObservableInterceptor : public QObject, public Interceptor {
 
     Q_OBJECT
 
 public:
-    explicit CustomReceiver(QObject* parent);
+    explicit ObservableInterceptor(QObject* parent);
+
+    Result doSeize(Handler* target, const Message& message);
 
     Observer* observer();
     void setObserver(Observer* observer);
@@ -300,7 +289,7 @@ public:
     void setContent(Handler* handler);
     void setContent(HandlerEditor* editor);
 
-    void setReceiver(DefaultReceiver* receiver) const;
+    void setObserver(Observer* observer) const;
 
     QString name() const;
     void setName(const QString& name) const;

@@ -43,18 +43,18 @@ public:
 
 };
 
-//===================
-// SoundFontReceiver
-//===================
+//=====================
+// SoundFontInterceptor
+//=====================
 
-class SoundFontReceiver : public CustomReceiver {
+class SoundFontInterceptor : public ObservableInterceptor {
 
     Q_OBJECT
 
 public:
-    using CustomReceiver::CustomReceiver;
+    using ObservableInterceptor::ObservableInterceptor;
 
-    Result receive_message(Handler* target, const Message& message) final;
+    Result seize_message(Handler* target, const Message& message) final;
 
 signals:
     void fileHandled();
@@ -191,7 +191,7 @@ private slots:
 
 private:
     std::unique_ptr<SoundFontHandler> mHandler;
-    SoundFontReceiver* mReceiver;
+    SoundFontInterceptor* mInterceptor;
     QMovie* mLoadMovie;
     QLabel* mLoadLabel;
     QLineEdit* mFileEditor;

@@ -514,6 +514,12 @@ Listeners::iterator Listeners::end() {
     return m_listeners.end();
 }
 
+void Listeners::hear_message(const Message& message) const {
+    for (const auto& listener : m_listeners)
+        if (listener.filter.match_message(message))
+            listener.handler->send_message(message);
+}
+
 //=========
 // Handler
 //=========
@@ -527,7 +533,7 @@ Event Handler::close_event(State state) {
 }
 
 Handler::Handler(Mode mode) :
-    m_name(), m_mode(mode), m_state(), m_holder(nullptr), m_receiver(nullptr), m_listeners_mutex(), m_listeners() {
+    m_name(), m_mode(mode), m_state(), m_synchronizer(nullptr), m_interceptor(nullptr), m_listeners_mutex(), m_listeners() {
 
 }
 
@@ -559,11 +565,37 @@ void Handler::alter_state(State state, bool on) {
     m_state.commute(state, on);
 }
 
+Synchronizer* Handler::synchronizer() const {
+    return m_synchronizer;
+}
+
+void Handler::set_synchronizer(Synchronizer* synchronizer) {
+    m_synchronizer = synchronizer;
+}
+
+Interceptor* Handler::interceptor() const {
+    return m_interceptor;
+}
+
+void Handler::set_interceptor(Interceptor* interceptor) {
+    m_interceptor = interceptor;
+}
+
+Listeners Handler::listeners() const {
+    std::lock_guard<std::mutex> guard(m_listeners_mutex);
+    return m_listeners;
+}
+
+void Handler::set_listeners(Listeners listeners) {
+    std::lock_guard<std::mutex> guard(m_listeners_mutex);
+    m_listeners = std::move(listeners);
+}
+
 families_t Handler::handled_families() const {
     return families_t::full();
 }
 
-families_t Handler::input_families() const {
+families_t Handler::forwarded_families() const {
     return families_t::full();
 }
 
@@ -591,29 +623,13 @@ Handler::Result Handler::on_close(State state) {
     return Result::success;
 }
 
-Holder* Handler::holder() const {
-    return m_holder;
-}
-
-void Handler::set_holder(Holder* holder) {
-    m_holder = holder;
-}
-
-Receiver* Handler::receiver() const {
-    return m_receiver;
-}
-
-void Handler::set_receiver(Receiver* receiver) {
-    m_receiver = receiver;
-}
-
 bool Handler::send_message(const Message& message) {
-    return m_holder && m_holder->hold_message(this, message);
+    return m_synchronizer && m_synchronizer->sync_message(this, message);
 }
 
 Handler::Result Handler::receive_message(const Message& message) {
     try {
-        return m_receiver ? m_receiver->receive_message(this, message) : handle_message(message);
+        return m_interceptor ? m_interceptor->seize_message(this, message) : handle_message(message);
     } catch (const std::exception& error) {
         TRACE_ERROR(m_name << " handling exception: " << error.what());
         return Result::error;
@@ -624,32 +640,20 @@ Handler::Result Handler::handle_message(const Message& message) {
     return handle_open(message);
 }
 
-Listeners Handler::listeners() const {
+void Handler::forward_message(const Message& message) const {
     std::lock_guard<std::mutex> guard(m_listeners_mutex);
-    return m_listeners;
+    m_listeners.hear_message(message);
 }
 
-void Handler::set_listeners(Listeners listeners) {
-    std::lock_guard<std::mutex> guard(m_listeners_mutex);
-    m_listeners = std::move(listeners);
-}
+//======================
+// StandardSynchronizer
+//======================
 
-void Handler::forward_message(const Message& message) {
-    std::lock_guard<std::mutex> guard(m_listeners_mutex);
-    for (const auto& listener : m_listeners)
-        if (listener.filter.match_message(message))
-            listener.handler->send_message(message);
-}
-
-//================
-// StandardHolder
-//================
-
-StandardHolder::StandardHolder(std::string name) : Holder(), m_task(512), m_name(std::move(name)) {
+StandardSynchronizer::StandardSynchronizer(std::string name) : Synchronizer(), m_task(512), m_name(std::move(name)) {
 
 }
 
-void StandardHolder::start(priority_t priority) {
+void StandardSynchronizer::start(priority_t priority) {
 #ifdef MIDILAB_ENABLE_TIMING
     reset(clock_type::now());
     m_task.start(priority, [this](data_type&& data) {
@@ -663,25 +667,25 @@ void StandardHolder::start(priority_t priority) {
 #endif
 }
 
-void StandardHolder::stop() {
+void StandardSynchronizer::stop() {
     m_task.stop(true);
 }
 
-std::thread::id StandardHolder::get_id() const {
+std::thread::id StandardSynchronizer::get_id() const {
     return m_task.get_id();
 }
 
-const std::string& StandardHolder::name() const {
+const std::string& StandardSynchronizer::name() const {
     return m_name;
 }
 
-void StandardHolder::set_name(std::string name) {
+void StandardSynchronizer::set_name(std::string name) {
     m_name = std::move(name);
 }
 
 #ifdef MIDILAB_ENABLE_TIMING
 
-void StandardHolder::feed(time_type time) {
+void StandardSynchronizer::feed(time_type time) {
     auto now = clock_type::now();
     m_delta += std::chrono::duration_cast<decltype(m_delta)>(now - time);
     m_count++;
@@ -693,7 +697,7 @@ void StandardHolder::feed(time_type time) {
     }
 }
 
-void StandardHolder::reset(time_type time) {
+void StandardSynchronizer::reset(time_type time) {
     m_count = 0;
     m_delta = std::chrono::microseconds::zero();
     m_reference = std::move(time);
@@ -701,7 +705,7 @@ void StandardHolder::reset(time_type time) {
 
 #endif
 
-bool StandardHolder::hold_message(Handler* target, const Message& message) {
+bool StandardSynchronizer::sync_message(Handler* target, const Message& message) {
 #ifdef MIDILAB_ENABLE_TIMING
     return m_task.push(data_type{target, message, clock_type::now()});
 #else

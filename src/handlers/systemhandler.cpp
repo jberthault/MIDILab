@@ -230,8 +230,8 @@ struct SystemHandlerFactory::Impl {
         auto imode() const { return in.empty() ? Handler::Mode{} : Handler::Mode::in(); }
         auto omode() const { return out.empty() ? Handler::Mode{} : Handler::Mode::out(); }
 
-        Handler* instantiate() const {
-            auto handler = new WinSystemHandler(imode() | omode(), ivalue(), ovalue());
+        auto instantiate() const {
+            auto handler = std::make_unique<WinSystemHandler>(imode() | omode(), ivalue(), ovalue());
             handler->set_name(name);
             return handler;
         }
@@ -298,7 +298,7 @@ struct SystemHandlerFactory::Impl {
             insert_in(i);
     }
 
-    Handler* instantiate(const std::string& name) {
+    std::unique_ptr<Handler> instantiate(const std::string& name) {
         auto it = find(name);
         return it == identifiers.end() ? nullptr : it->instantiate();
     }
@@ -491,8 +491,8 @@ struct SystemHandlerFactory::Impl {
 
     struct identifier_type {
 
-        Handler* instantiate() const {
-            auto handler = new LinuxSystemHandler(mode, hardware_name);
+        auto instantiate() const {
+            auto handler = std::make_unique<LinuxSystemHandler>(mode, hardware_name);
             handler->set_name(name);
             return handler;
         }
@@ -598,7 +598,7 @@ struct SystemHandlerFactory::Impl {
         snd_config_update_free_global();
     }
 
-    Handler* instantiate(const std::string& name) {
+    std::unique_ptr<Handler> instantiate(const std::string& name) {
         auto it = find(name);
         return it == identifiers.end() ? nullptr : it->instantiate();
     }
@@ -639,6 +639,6 @@ void SystemHandlerFactory::update() {
     m_impl->update();
 }
 
-Handler* SystemHandlerFactory::instantiate(const std::string& name) {
+std::unique_ptr<Handler> SystemHandlerFactory::instantiate(const std::string& name) {
     return m_impl->instantiate(name);
 }

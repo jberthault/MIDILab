@@ -45,7 +45,7 @@ public:
 
     void update(); /*!< update the list of available handlers */
 
-    Handler* instantiate(const std::string& name); /*!< get a new handler by its name */
+    std::unique_ptr<Handler> instantiate(const std::string& name); /*!< get a new handler by its name */
 
 private:
     struct Impl;

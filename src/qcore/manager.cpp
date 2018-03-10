@@ -146,9 +146,8 @@ public:
             info.parsingData.type = info.proxy.metaHandler()->identifier();
             info.parsingData.id = QString("#%1").arg(id++);
             info.parsingData.name = info.proxy.name();
-            auto holder = dynamic_cast<StandardHolder*>(info.proxy.handler()->holder());
-            if (holder)
-                info.parsingData.group = QString::fromStdString(holder->name());
+            if (auto* synchronizer = dynamic_cast<StandardSynchronizer*>(info.proxy.handler()->synchronizer()))
+                info.parsingData.group = QString::fromStdString(synchronizer->name());
             for (const auto& parameter : info.proxy.getParameters())
                 info.parsingData.properties.push_back(Configuration::Property{parameter.name, parameter.value});
             ++it;
@@ -246,8 +245,8 @@ Manager::Manager(QObject* parent) : Context(parent) {
     mChannelEditor->setWindowFlags(Qt::Dialog);
 
     mCollector = new MetaHandlerCollector(this);
-    mGUIHolder = new GraphicalHolder(this);
-    mReceiver = new DefaultReceiver(this);
+    mGUISynchronizer = new GraphicalSynchronizer(this);
+    mObserver = new Observer(this);
 
     initializePathRetriever(pathRetriever("midi"), "MIDI Files", "*.mid *.midi *.kar");
     initializePathRetriever(pathRetriever("soundfont"), "SoundFont Files", "*.sf2");
@@ -266,7 +265,7 @@ Manager::Manager(QObject* parent) : Context(parent) {
 
 Manager::~Manager() {
     Q_ASSERT(mHandlers.empty());
-    Q_ASSERT(mHolders.empty());
+    Q_ASSERT(mSynchronizers.empty());
     instance = nullptr;
 }
 
@@ -275,7 +274,7 @@ MultiDisplayer* Manager::mainDisplayer() const {
 }
 
 Observer* Manager::observer() const {
-    return mReceiver;
+    return mObserver;
 }
 
 MetaHandlerCollector* Manager::collector() const {
@@ -317,17 +316,17 @@ void Manager::clearConfiguration() {
     // notify listening slots
     for (const auto& proxy : mHandlers)
         emit handlerRemoved(proxy.handler());
-    // stop holders
-    for (auto holder : mHolders)
-        holder->stop();
+    // stop synchronizers
+    for (auto* synchronizer : mSynchronizers)
+        synchronizer->stop();
     // delete handlers
     for (auto& proxy : mHandlers)
         proxy.destroy();
     mHandlers.clear();
-    // delete holders
-    for (auto holder : mHolders)
-        delete holder;
-    mHolders.clear();
+    // delete synchronizers
+    for (auto* synchronizer : mSynchronizers)
+        delete synchronizer;
+    mSynchronizers.clear();
     // delete all displayers
     if (auto displayer = mainDisplayer())
         displayer->deleteLater();
@@ -345,9 +344,9 @@ HandlerProxy Manager::loadHandler(MetaHandler* meta, const QString& name, Single
     }
     // insert the handler
     if (proxy.handler()) {
-        Q_ASSERT(!proxy.handler()->holder());
-        proxy.handler()->set_holder(proxy.editable() ? mGUIHolder : getHolder(group));
-        proxy.setReceiver(mReceiver);
+        Q_ASSERT(!proxy.handler()->synchronizer());
+        proxy.handler()->set_synchronizer(proxy.editable() ? mGUISynchronizer : getSynchronizer(group));
+        proxy.setObserver(mObserver);
         proxy.setContext(this);
         proxy.setState(true);
         mHandlers.push_back(proxy);
@@ -424,16 +423,16 @@ HandlerProxy Manager::takeProxy(const Handler* handler) {
     return proxy;
 }
 
-Holder* Manager::getHolder(const QString& group) {
+Synchronizer* Manager::getSynchronizer(const QString& group) {
     std::string name = group.toStdString();
-    for (auto holder : mHolders)
-        if (holder->name() == name)
-            return holder;
-    auto holder = new StandardHolder(name);
-    holder->start(priority_t::highest); // let SF threads the opportunity to be realtime
-    TRACE_DEBUG("creating holder " << name << " (" << holder->get_id() << ") ...");
-    mHolders.emplace_back(holder);
-    return holder;
+    for (auto* synchronizer : mSynchronizers)
+        if (synchronizer->name() == name)
+            return synchronizer;
+    auto* synchronizer = new StandardSynchronizer(name);
+    synchronizer->start(priority_t::highest); // let SF threads the opportunity to be realtime
+    TRACE_DEBUG("creating synchronizer " << name << " (" << synchronizer->get_id() << ") ...");
+    mSynchronizers.emplace_back(synchronizer);
+    return synchronizer;
 }
 
 void Manager::quit() {

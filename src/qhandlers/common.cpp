@@ -68,7 +68,7 @@ void GraphicalHandler::generate(Event event) {
 //================
 
 MetaInstrument::MetaInstrument(QObject* parent) : MetaGraphicalHandler(parent) {
-    addParameter({"velocity", ":byte", "velocity of note event generated while pressing keys in range [0, 0x80[, values out of range are coerced", "0x7f"});
+    addParameter("velocity", ":byte", "velocity of note event generated while pressing keys in range [0, 0x80[, values out of range are coerced", "0x7f");
 }
 
 //============
@@ -90,10 +90,8 @@ Handler::Result Instrument::on_close(State state) {
 }
 
 Handler::Result Instrument::handle_message(const Message& message) {
-
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_RECEIVE;
-
     switch (message.event.family()) {
     case family_t::note_on:
         receiveNoteOn(message.event.channels(), message.event.get_note());

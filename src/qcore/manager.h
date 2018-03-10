@@ -86,16 +86,16 @@ signals:
 
 private:
     HandlerProxy takeProxy(const Handler* handler);
-    Holder* getHolder(const QString& group);
+    Synchronizer* getSynchronizer(const QString& group);
     void quit();
 
     HandlerProxies mHandlers;
-    std::vector<StandardHolder*> mHolders;
+    std::vector<StandardSynchronizer*> mSynchronizers;
     std::map<QString, PathRetriever*> mPathRetrievers;
     MetaHandlerCollector* mCollector;
-    GraphicalHolder* mGUIHolder;
+    GraphicalSynchronizer* mGUISynchronizer;
     ChannelEditor* mChannelEditor;
-    DefaultReceiver* mReceiver;
+    Observer* mObserver;
 
 };
 

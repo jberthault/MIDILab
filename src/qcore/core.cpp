@@ -168,20 +168,20 @@ StorageEvent::StorageEvent(Handler* target, Message message) :
 
 }
 
-//=================
-// GraphicalHolder
-//=================
+//=======================
+// GraphicalSynchronizer
+//=======================
 
-GraphicalHolder::GraphicalHolder(QObject* parent) : QObject(parent), Holder() {
+GraphicalSynchronizer::GraphicalSynchronizer(QObject* parent) : QObject(parent), Synchronizer() {
 
 }
 
-bool GraphicalHolder::hold_message(Handler* target, const Message& message) {
+bool GraphicalSynchronizer::sync_message(Handler* target, const Message& message) {
     QApplication::postEvent(this, new StorageEvent(target, message), Qt::HighEventPriority);
     return true;
 }
 
-bool GraphicalHolder::event(QEvent* e) {
+bool GraphicalSynchronizer::event(QEvent* e) {
     if (e->type() == StorageEvent::family) {
         auto storageEvent = static_cast<StorageEvent*>(e);
         storageEvent->target->receive_message(storageEvent->message);
@@ -194,11 +194,19 @@ bool GraphicalHolder::event(QEvent* e) {
 // Observer
 //==========
 
-Handler::Result Observer::handleMessage(Handler* target, const Message& message) {
+Observer::Observer(QObject* parent) : QObject(parent), Interceptor() {
+
+}
+
+Handler::Result Observer::doSeize(Handler* target, const Message& message) {
     auto result = target->handle_message(message);
     if (result == Handler::Result::success && message.event.is(~families_t::note()))
         QApplication::postEvent(this, new StorageEvent(target, message));
     return result;
+}
+
+Handler::Result Observer::seize_message(Handler* target, const Message& message) {
+    return doSeize(target, message);
 }
 
 bool Observer::event(QEvent* e) {
@@ -210,31 +218,23 @@ bool Observer::event(QEvent* e) {
     return QObject::event(e);
 }
 
-//=================
-// DefaultReceiver
-//=================
+//=======================
+// ObservableInterceptor
+//=======================
 
-DefaultReceiver::DefaultReceiver(QObject* parent) : Observer(parent), Receiver() {
-
-}
-
-Handler::Result DefaultReceiver::receive_message(Handler* target, const Message& message) {
-    return handleMessage(target, message);
-}
-
-//================
-// CustomObserver
-//================
-
-CustomReceiver::CustomReceiver(QObject* parent) : QObject(parent), Receiver(), mObserver(nullptr) {
+ObservableInterceptor::ObservableInterceptor(QObject* parent) : QObject(parent), Interceptor(), mObserver(nullptr) {
 
 }
 
-Observer* CustomReceiver::observer() {
+Handler::Result ObservableInterceptor::doSeize(Handler* target, const Message& message) {
+    return mObserver->seize_message(target, message);
+}
+
+Observer* ObservableInterceptor::observer() {
     return mObserver;
 }
 
-void CustomReceiver::setObserver(Observer* observer) {
+void ObservableInterceptor::setObserver(Observer* observer) {
     mObserver = observer;
 }
 
@@ -318,13 +318,12 @@ void HandlerProxy::setContent(HandlerEditor* editor) {
     Q_ASSERT(editable() == nullptr);
 }
 
-void HandlerProxy::setReceiver(DefaultReceiver* receiver) const {
+void HandlerProxy::setObserver(Observer* observer) const {
     if (mHandler) {
-        auto customReceiver = dynamic_cast<CustomReceiver*>(mHandler->receiver());
-        if (customReceiver)
-            customReceiver->setObserver(receiver);
+        if (auto* interceptor = dynamic_cast<ObservableInterceptor*>(mHandler->interceptor()))
+            interceptor->setObserver(observer);
         else
-            mHandler->set_receiver(receiver);
+            mHandler->set_interceptor(observer);
     }
 }
 
@@ -447,7 +446,7 @@ void MetaHandler::addParameter(const MetaParameter& parameter) {
 }
 
 void MetaHandler::addParameter(const QString& name, const QString& type, const QString& description, const QString& defaultValue) {
-    addParameter(MetaParameter{name, type, description, defaultValue});
+    addParameter({name, type, description, defaultValue});
 }
 
 //=================
