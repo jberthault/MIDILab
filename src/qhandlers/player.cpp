@@ -638,13 +638,13 @@ void PlaylistTable::setContext(Context* context) {
 }
 
 void PlaylistTable::browseFiles() {
-    addPaths(mContext->pathRetriever("midi")->getReadFiles(this));
+    addPaths(mContext->pathRetrieverPool()->get("midi")->getReadFiles(this));
 }
 
 void PlaylistTable::browseRecorders() {
     // get all sequence writers
     QList<Handler*> handlers;
-    for (const auto& proxy : mContext->getProxies())
+    for (const auto& proxy : mContext->handlerProxies())
         if (dynamic_cast<SequenceWriter*>(proxy.handler()))
             handlers << proxy.handler();
     if (handlers.empty()) {
@@ -1414,7 +1414,7 @@ void Player::setSequence(const NamedSequence& sequence) {
 }
 
 void Player::saveSequence() {
-    QString filename = context()->pathRetriever("midi")->getWriteFile(this);
+    const auto filename = context()->pathRetrieverPool()->get("midi")->getWriteFile(this);
     if (filename.isNull())
         return;
     Sequence sequence = mPlayer->sequence();

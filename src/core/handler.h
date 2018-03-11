@@ -431,6 +431,7 @@ public:
     using task_type = task_t<data_type>;
 
     explicit StandardSynchronizer(std::string name = {});
+    ~StandardSynchronizer();
 
     void start(priority_t priority); /*!< (re)activate message processing */
     void stop(); /*!< deactivate message processing */

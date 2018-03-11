@@ -47,76 +47,6 @@ QString handlerName(const Handler* handler);
 QString eventName(const Event& event);
 QString metaHandlerName(const MetaHandler* meta);
 
-//=============
-// Persistence
-//=============
-
-namespace serial {
-
-// numeric types
-
-QString serializeBool(bool value);
-bool parseBool(const QString& data, bool& value);
-
-QString serializeByte(byte_t byte);
-bool parseByte(const QString& data, byte_t& byte);
-
-template<typename T>
-QString serializeNumber(T value) {
-    return QString::number(value);
-}
-
-bool parseShort(const QString& data, short& value);
-bool parseUShort(const QString& data, ushort& value);
-bool parseInt(const QString& data, int& value);
-bool parseUInt(const QString& data, uint& value);
-bool parseLong(const QString& data, long& value);
-bool parseULong(const QString& data, ulong& value);
-bool parseLongLong(const QString& data, qlonglong& value);
-bool parseULongLong(const QString& data, qulonglong& value);
-bool parseFloat(const QString& data, float& value);
-bool parseDouble(const QString& data, double& value);
-
-// note types
-
-QString serializeNote(const Note& note);
-bool parseNote(const QString& data, Note& note);
-
-QString serializeRange(const QPair<Note, Note>& range);
-bool parseRange(const QString& data, QPair<Note, Note>& range);
-
-QString serializeNotes(const std::vector<Note>& notes);
-bool parseNotes(const QString& data, std::vector<Note>& notes);
-
-// other types
-
-QString serializeOrientation(Qt::Orientation orientation);
-bool parseOrientation(const QString& data, Qt::Orientation& orientation);
-
-template<typename T>
-struct parser_traits;
-
-template<typename T>
-struct parser_traits<bool(const QString&, T&)> {
-    using type = T;
-};
-
-#define UNSERIALIZE(key, parser, setter, param) do {           \
-    if (param.name == key) {                                   \
-        serial::parser_traits<decltype(parser)>::type __value; \
-        if (!parser(param.value, __value))                     \
-            return 0;                                          \
-        setter(__value);                                       \
-        return 1;                                              \
-    }                                                          \
-} while (false)
-
-#define SERIALIZE(key, serializer, value, params) do {   \
-    params.push_back(Parameter{key, serializer(value)}); \
-} while (false)
-
-}
-
 //==============
 // StorageEvent
 //==============
@@ -318,6 +248,9 @@ private:
 
 using HandlerProxies = std::vector<HandlerProxy>;
 
+HandlerProxy getProxy(const HandlerProxies& proxies, const Handler* handler);
+HandlerProxy takeProxy(HandlerProxies& proxies, const Handler* handler);
+
 //=============
 // MetaHandler
 //=============
@@ -409,11 +342,11 @@ public:
 
 Q_DECLARE_INTERFACE(MetaHandlerFactory, MetaHandlerFactory_iid)
 
-//======================
-// MetaHandlerCollector
-//======================
+//=================
+// MetaHandlerPool
+//=================
 
-class MetaHandlerCollector : public QObject {
+class MetaHandlerPool : public QObject {
 
     Q_OBJECT
 
@@ -422,7 +355,7 @@ public:
 
     const QList<MetaHandler*>& metaHandlers() const;
 
-    MetaHandler* metaHandler(const QString& type); /*!< return the meta handler that has the given type identifier, nullptr if not exists */
+    MetaHandler* get(const QString& identifier); /*!< return the meta handler that has the given type identifier, nullptr if not exists */
 
     size_t addMetaHandler(MetaHandler* meta);
     size_t addFactory(MetaHandlerFactory* factory);
@@ -431,6 +364,52 @@ public:
 
 private:
     QList<MetaHandler*> mMetaHandlers;
+
+};
+
+//==================
+// SynchronizerPool
+//==================
+
+class SynchronizerPool : public QObject {
+
+    Q_OBJECT
+
+public:
+    explicit SynchronizerPool(QObject* parent);
+    ~SynchronizerPool();
+
+    void configure(const HandlerProxy& proxy, const QString& group);
+
+    void stop();
+    void clear();
+
+    Synchronizer* get(const QString& group);
+
+private:
+    std::vector<std::unique_ptr<StandardSynchronizer>> mSynchronizers;
+    GraphicalSynchronizer* mGUISynchronizer;
+
+};
+
+//===================
+// PathRetrieverPool
+//===================
+
+class PathRetrieverPool : public QObject {
+
+    Q_OBJECT
+
+public:
+    explicit PathRetrieverPool(QObject* parent);
+
+    void load();
+    void save();
+
+    PathRetriever* get(const QString& type);
+
+private:
+    std::map<QString, PathRetriever*> mPathRetrievers;
 
 };
 
@@ -446,10 +425,8 @@ public:
     using QObject::QObject;
 
     virtual ChannelEditor* channelEditor() = 0;
-    virtual const HandlerProxies& getProxies() const = 0;
-    virtual PathRetriever* pathRetriever(const QString& type) = 0;
-
-    HandlerProxy getProxy(const Handler* handler) const;
+    virtual const HandlerProxies& handlerProxies() const = 0;
+    virtual PathRetrieverPool* pathRetrieverPool() = 0;
 
 };
 

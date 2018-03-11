@@ -653,6 +653,10 @@ StandardSynchronizer::StandardSynchronizer(std::string name) : Synchronizer(), m
 
 }
 
+StandardSynchronizer::~StandardSynchronizer() {
+    TRACE_DEBUG("deleting synchronizer " << m_name << " ...");
+}
+
 void StandardSynchronizer::start(priority_t priority) {
 #ifdef MIDILAB_ENABLE_TIMING
     reset(clock_type::now());
@@ -668,6 +672,7 @@ void StandardSynchronizer::start(priority_t priority) {
 }
 
 void StandardSynchronizer::stop() {
+    TRACE_DEBUG("stopping synchronizer " << m_name << " ...");
     m_task.stop(true);
 }
 

@@ -28,7 +28,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QMovie>
 #include <QGroupBox>
 #include "handlers/soundfont.h"
-#include "qcore/editors.h"
+#include "qhandlers/common.h"
 
 //===============
 // MetaSoundFont
@@ -43,9 +43,9 @@ public:
 
 };
 
-//=====================
+//======================
 // SoundFontInterceptor
-//=====================
+//======================
 
 class SoundFontInterceptor : public ObservableInterceptor {
 

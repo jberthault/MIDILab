@@ -48,13 +48,13 @@ public:
 
     MultiDisplayer* mainDisplayer() const;
     Observer* observer() const;
-    MetaHandlerCollector* collector() const;
+    MetaHandlerPool* metaHandlerPool() const;
 
     // context
 
     ChannelEditor* channelEditor() override;
-    const HandlerProxies& getProxies() const override;
-    PathRetriever* pathRetriever(const QString& type) override;
+    const HandlerProxies& handlerProxies() const override;
+    PathRetrieverPool* pathRetrieverPool() override;
 
     // configuration
 
@@ -85,15 +85,12 @@ signals:
     void handlerListenersChanged(Handler* handler);
 
 private:
-    HandlerProxy takeProxy(const Handler* handler);
-    Synchronizer* getSynchronizer(const QString& group);
     void quit();
 
-    HandlerProxies mHandlers;
-    std::vector<StandardSynchronizer*> mSynchronizers;
-    std::map<QString, PathRetriever*> mPathRetrievers;
-    MetaHandlerCollector* mCollector;
-    GraphicalSynchronizer* mGUISynchronizer;
+    HandlerProxies mHandlerProxies;
+    PathRetrieverPool* mPathRetrieverPool;
+    MetaHandlerPool* mMetaHandlerPool;
+    SynchronizerPool* mSynchronizerPool;
     ChannelEditor* mChannelEditor;
     Observer* mObserver;
 

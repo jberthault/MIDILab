@@ -18,7 +18,118 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
+#include <sstream>
+#include <QMetaEnum>
 #include "qhandlers/common.h"
+
+//=============
+// Persistence
+//=============
+
+namespace serial {
+
+// numeric types
+
+QString serializeBool(bool value) {
+    return value ? "true" : "false";
+}
+
+bool parseBool(const QString& data, bool& value) {
+    if (data == "true") {
+        value = true;
+        return true;
+    }
+    if (data == "false") {
+        value = false;
+        return true;
+    }
+    return false;
+}
+
+QString serializeByte(byte_t byte) {
+    return QString::fromStdString(byte_string(byte));
+}
+
+bool parseByte(const QString& data, byte_t& byte) {
+    bool ok;
+    uint value = data.toUInt(&ok, 0);
+    byte = value & 0xff;
+    return ok && value < 0x100;
+}
+
+#define PARSE_NUMBER(method, data, value) do { \
+        bool ok;                               \
+        value = data.method(&ok);              \
+        return ok;                             \
+    } while (false)
+
+bool parseShort(const QString& data, short& value) { PARSE_NUMBER(toShort, data, value); }
+bool parseUShort(const QString& data, ushort& value) { PARSE_NUMBER(toUShort, data, value); }
+bool parseInt(const QString& data, int& value) { PARSE_NUMBER(toInt, data, value); }
+bool parseUInt(const QString& data, uint& value) { PARSE_NUMBER(toUInt, data, value); }
+bool parseLong(const QString& data, long& value) { PARSE_NUMBER(toLong, data, value); }
+bool parseULong(const QString& data, ulong& value) { PARSE_NUMBER(toULong, data, value); }
+bool parseLongLong(const QString& data, qlonglong& value) { PARSE_NUMBER(toLongLong, data, value); }
+bool parseULongLong(const QString& data, qulonglong& value) { PARSE_NUMBER(toULongLong, data, value); }
+bool parseFloat(const QString& data, float& value) { PARSE_NUMBER(toFloat, data, value); }
+bool parseDouble(const QString& data, double& value) { PARSE_NUMBER(toDouble, data, value); }
+
+// note types
+
+QString serializeNote(const Note& note) {
+    return QString::fromStdString(note.string());
+}
+
+bool parseNote(const QString& data, Note& note) {
+    note = Note::from_string(data.toStdString());
+    return (bool)note;
+}
+
+QString serializeRange(const QPair<Note, Note>& range) {
+    return QString("%1:%2").arg(serializeNote(range.first), serializeNote(range.second));
+}
+
+bool parseRange(const QString& data, QPair<Note, Note>& range) {
+    char separator = '\0';
+    std::istringstream stream(data.toStdString());
+    try {
+        stream >> range.first >> separator >> range.second;
+        return separator == ':';
+    } catch (const std::exception&) {
+        return false;
+    }
+}
+
+QString serializeNotes(const std::vector<Note>& notes) {
+    QStringList stringList;
+    for (const Note& note : notes)
+        stringList.append(QString::fromStdString(note.string()));
+    return stringList.join(";");
+}
+
+bool parseNotes(const QString& data, std::vector<Note>& notes) {
+    for (const QString string : data.split(';')) {
+        auto note = Note::from_string(string.toStdString());
+        if (!note)
+            return false;
+        notes.push_back(note);
+    }
+    return true;
+}
+
+// other types
+
+QString serializeOrientation(Qt::Orientation orientation) {
+    return QMetaEnum::fromType<Qt::Orientation>().valueToKey(orientation);
+}
+
+bool parseOrientation(const QString& data, Qt::Orientation& orientation) {
+    bool ok;
+    orientation = static_cast<Qt::Orientation>(QMetaEnum::fromType<Qt::Orientation>().keyToValue(data.toLocal8Bit().constData(), &ok));
+    return ok;
+}
+
+}
 
 //======================
 // MetaGraphicalHandler

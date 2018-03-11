@@ -29,8 +29,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QTreeWidget>
 #include "handlers/sequencereader.h"
 #include "handlers/sequencewriter.h"
-#include "qcore/core.h"
-#include "qcore/editors.h"
+#include "qhandlers/common.h"
 #include "qtools/misc.h"
 
 struct NamedSequence {

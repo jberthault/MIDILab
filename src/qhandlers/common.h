@@ -23,6 +23,76 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "qcore/editors.h"
 
+//=============
+// Persistence
+//=============
+
+namespace serial {
+
+// numeric types
+
+QString serializeBool(bool value);
+bool parseBool(const QString& data, bool& value);
+
+QString serializeByte(byte_t byte);
+bool parseByte(const QString& data, byte_t& byte);
+
+template<typename T>
+QString serializeNumber(T value) {
+    return QString::number(value);
+}
+
+bool parseShort(const QString& data, short& value);
+bool parseUShort(const QString& data, ushort& value);
+bool parseInt(const QString& data, int& value);
+bool parseUInt(const QString& data, uint& value);
+bool parseLong(const QString& data, long& value);
+bool parseULong(const QString& data, ulong& value);
+bool parseLongLong(const QString& data, qlonglong& value);
+bool parseULongLong(const QString& data, qulonglong& value);
+bool parseFloat(const QString& data, float& value);
+bool parseDouble(const QString& data, double& value);
+
+// note types
+
+QString serializeNote(const Note& note);
+bool parseNote(const QString& data, Note& note);
+
+QString serializeRange(const QPair<Note, Note>& range);
+bool parseRange(const QString& data, QPair<Note, Note>& range);
+
+QString serializeNotes(const std::vector<Note>& notes);
+bool parseNotes(const QString& data, std::vector<Note>& notes);
+
+// other types
+
+QString serializeOrientation(Qt::Orientation orientation);
+bool parseOrientation(const QString& data, Qt::Orientation& orientation);
+
+template<typename T>
+struct parser_traits;
+
+template<typename T>
+struct parser_traits<bool(const QString&, T&)> {
+    using type = T;
+};
+
+#define UNSERIALIZE(key, parser, setter, param) do {           \
+    if (param.name == key) {                                   \
+        serial::parser_traits<decltype(parser)>::type __value; \
+        if (!parser(param.value, __value))                     \
+            return 0;                                          \
+        setter(__value);                                       \
+        return 1;                                              \
+    }                                                          \
+} while (false)
+
+#define SERIALIZE(key, serializer, value, params) do {   \
+    params.push_back(Parameter{key, serializer(value)}); \
+} while (false)
+
+}
+
 //======================
 // MetaGraphicalHandler
 //======================

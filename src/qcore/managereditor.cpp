@@ -421,7 +421,7 @@ void HandlerListEditor::onMessageHandled(Handler* handler, const Message& messag
 }
 
 void HandlerListEditor::onDoubleClick(QTreeWidgetItem* item, int column) {
-    auto proxy = Manager::instance->getProxy(handlerForItem(item));
+    auto proxy = getProxy(Manager::instance->handlerProxies(), handlerForItem(item));
     switch (column) {
     case nameColumn: proxy.toggleState(); break;
     case forwardColumn: proxy.toggleState(Handler::State::forward()); break;
@@ -432,7 +432,7 @@ void HandlerListEditor::onDoubleClick(QTreeWidgetItem* item, int column) {
 void HandlerListEditor::showMenu(const QPoint& point) {
     auto handlers = selectedHandlers();
     if (handlers.size() == 1) {
-        auto proxy = Manager::instance->getProxy(*handlers.begin());
+        auto proxy = getProxy(Manager::instance->handlerProxies(), *handlers.begin());
         mRenameAction->setEnabled(!dynamic_cast<ClosedMetaHandler*>(proxy.metaHandler()));
     } else {
         mRenameAction->setEnabled(false);
@@ -448,22 +448,22 @@ void HandlerListEditor::destroySelection() {
 
 void HandlerListEditor::openSelection() {
     for (Handler* handler : selectedHandlers())
-        Manager::instance->getProxy(handler).setState(true);
+        getProxy(Manager::instance->handlerProxies(), handler).setState(true);
 }
 
 void HandlerListEditor::closeSelection() {
     for (Handler* handler : selectedHandlers())
-        Manager::instance->getProxy(handler).setState(false);
+        getProxy(Manager::instance->handlerProxies(), handler).setState(false);
 }
 
 void HandlerListEditor::toggleSelection() {
     for (Handler* handler : selectedHandlers())
-        Manager::instance->getProxy(handler).toggleState();
+        getProxy(Manager::instance->handlerProxies(), handler).toggleState();
 }
 
 void HandlerListEditor::editSelection() {
     for (Handler* handler : selectedHandlers())
-        Manager::instance->getProxy(handler).show();
+        getProxy(Manager::instance->handlerProxies(), handler).show();
 }
 
 void HandlerListEditor::renameSelection() {
@@ -499,7 +499,7 @@ HandlerCatalogEditor::HandlerCatalogEditor(QWidget* parent) : QTreeWidget(parent
     setContextMenuPolicy(Qt::CustomContextMenu);
     connect(this, &HandlerCatalogEditor::customContextMenuRequested, this, &HandlerCatalogEditor::showMenu);
     connect(this, &HandlerCatalogEditor::itemDoubleClicked, this, &HandlerCatalogEditor::onDoubleClick);
-    for (auto metaHandler : Manager::instance->collector()->metaHandlers()) {
+    for (auto metaHandler : Manager::instance->metaHandlerPool()->metaHandlers()) {
         auto item = new QTreeWidgetItem;
         item->setText(0, metaHandlerName(metaHandler));
         item->setToolTip(0, metaHandler->description());
@@ -530,7 +530,7 @@ void HandlerCatalogEditor::onDoubleClick(QTreeWidgetItem* item, int column) {
     if (!metaHandler) {
         metaHandler = metaHandlerForItem(item->parent());
         fixedName = item->text(column);
-        for (const auto& proxy : Manager::instance->getProxies()) {
+        for (const auto& proxy : Manager::instance->handlerProxies()) {
             if (proxy.metaHandler() == metaHandler && proxy.name() == fixedName) {
                 QMessageBox::warning(this, {}, tr("This handler already exists"));
                 return;

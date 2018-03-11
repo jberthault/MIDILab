@@ -82,7 +82,7 @@ AboutWindow::AboutWindow(QWidget* parent) :
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     new Manager(this);
-    Manager::instance->collector()->addFactory(new StandardFactory(this));
+    Manager::instance->metaHandlerPool()->addFactory(new StandardFactory(this));
     mManagerEditor = new ManagerEditor(this);
     mProgramEditor = new ProgramEditor(Manager::instance->channelEditor(), this);
     setupMenu();
@@ -100,13 +100,13 @@ void MainWindow::unloadConfig() {
 }
 
 void MainWindow::loadConfig() {
-    auto fileName = Manager::instance->pathRetriever("configuration")->getReadFile(this);
+    auto fileName = Manager::instance->pathRetrieverPool()->get("configuration")->getReadFile(this);
     if (!fileName.isEmpty())
         readConfig(fileName, true, false);
 }
 
 void MainWindow::saveConfig() {
-    auto fileName = Manager::instance->pathRetriever("configuration")->getWriteFile(this);
+    auto fileName = Manager::instance->pathRetrieverPool()->get("configuration")->getWriteFile(this);
     if (!fileName.isEmpty())
         writeConfig(fileName);
 }
@@ -143,7 +143,7 @@ void MainWindow::readConfig(const QString& fileName, bool raise, bool select) {
     if (raise)
         raiseConfig(fileName);
     if (select)
-        Manager::instance->pathRetriever("configuration")->setSelection(fileName);
+        Manager::instance->pathRetrieverPool()->get("configuration")->setSelection(fileName);
 }
 
 void MainWindow::writeConfig(const QString& fileName) {
@@ -192,7 +192,7 @@ void MainWindow::about() {
 }
 
 void MainWindow::panic() {
-    for (const auto& proxy : Manager::instance->getProxies())
+    for (const auto& proxy : Manager::instance->handlerProxies())
         proxy.setState(false);
 }
 
@@ -207,7 +207,7 @@ void MainWindow::unimplemented() {
 void MainWindow::addFiles(const QStringList& files) {
     if (files.empty())
         return;
-    for (const auto& proxy : Manager::instance->getProxies()) {
+    for (const auto& proxy : Manager::instance->handlerProxies()) {
         if (proxy.metaHandler()->identifier() == "Player") {
             proxy.setParameter({"playlist", files.join(";")});
             return;

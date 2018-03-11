@@ -20,7 +20,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <QApplication>
 #include <QMainWindow>
-#include <QSettings>
 #include "qcore/manager.h"
 #include "qtools/displayer.h"
 
@@ -138,7 +137,7 @@ public:
 
     ConfigurationPusher() {
         int id=0;
-        const auto& proxies = Manager::instance->getProxies();
+        const auto& proxies = Manager::instance->handlerProxies();
         auto it = proxies.begin();
         mCache.resize(proxies.size());
         for (auto& info : mCache) {
@@ -223,11 +222,6 @@ private:
 
 };
 
-void initializePathRetriever(PathRetriever* pathRetriever, const QString& caption, const QString& filters) {
-    pathRetriever->setCaption(caption);
-    pathRetriever->setFilter(QString("%1 (%2);;All Files (*)").arg(caption, filters));
-}
-
 }
 
 //=========
@@ -236,27 +230,19 @@ void initializePathRetriever(PathRetriever* pathRetriever, const QString& captio
 
 Manager* Manager::instance = nullptr;
 
-Manager::Manager(QObject* parent) : Context(parent) {
+Manager::Manager(QObject* parent) : Context{parent} {
 
     Q_ASSERT(instance == nullptr);
     instance = this;
 
-    mChannelEditor = new ChannelEditor(static_cast<QWidget*>(parent));
+    mChannelEditor = new ChannelEditor{static_cast<QWidget*>(parent)};
     mChannelEditor->setWindowFlags(Qt::Dialog);
 
-    mCollector = new MetaHandlerCollector(this);
-    mGUISynchronizer = new GraphicalSynchronizer(this);
-    mObserver = new Observer(this);
-
-    initializePathRetriever(pathRetriever("midi"), "MIDI Files", "*.mid *.midi *.kar");
-    initializePathRetriever(pathRetriever("soundfont"), "SoundFont Files", "*.sf2");
-    initializePathRetriever(pathRetriever("configuration"), "Configuration Files", "*.xml");
-
-    QSettings settings;
-    settings.beginGroup("paths");
-    for (const auto& key : settings.childKeys())
-        pathRetriever(key)->setDir(settings.value(key).toString());
-    settings.endGroup();
+    mSynchronizerPool = new SynchronizerPool{this};
+    mPathRetrieverPool = new PathRetrieverPool{this};
+    mPathRetrieverPool->load();
+    mMetaHandlerPool = new MetaHandlerPool{this};
+    mObserver = new Observer{this};
 
     qApp->setQuitOnLastWindowClosed(false);
     connect(qApp, &QApplication::lastWindowClosed, this, &Manager::quit);
@@ -264,8 +250,7 @@ Manager::Manager(QObject* parent) : Context(parent) {
 }
 
 Manager::~Manager() {
-    Q_ASSERT(mHandlers.empty());
-    Q_ASSERT(mSynchronizers.empty());
+    Q_ASSERT(mHandlerProxies.empty());
     instance = nullptr;
 }
 
@@ -277,23 +262,20 @@ Observer* Manager::observer() const {
     return mObserver;
 }
 
-MetaHandlerCollector* Manager::collector() const {
-    return mCollector;
+MetaHandlerPool* Manager::metaHandlerPool() const {
+    return mMetaHandlerPool;
 }
 
 ChannelEditor* Manager::channelEditor() {
     return mChannelEditor;
 }
 
-const HandlerProxies& Manager::getProxies() const {
-    return mHandlers;
+const HandlerProxies& Manager::handlerProxies() const {
+    return mHandlerProxies;
 }
 
-PathRetriever* Manager::pathRetriever(const QString& type) {
-    auto& retriever = mPathRetrievers[type];
-    if (!retriever)
-        retriever = new PathRetriever(this);
-    return retriever;
+PathRetrieverPool* Manager::pathRetrieverPool() {
+    return mPathRetrieverPool;
 }
 
 Configuration Manager::getConfiguration() {
@@ -311,22 +293,19 @@ void Manager::setConfiguration(const Configuration& configuration) {
 void Manager::clearConfiguration() {
     TRACE_MEASURE("clear configuration");
     // clear listeners
-    for (const auto& proxy : mHandlers)
+    for (const auto& proxy : mHandlerProxies)
         setListeners(proxy.handler(), {});
     // notify listening slots
-    for (const auto& proxy : mHandlers)
+    for (const auto& proxy : mHandlerProxies)
         emit handlerRemoved(proxy.handler());
     // stop synchronizers
-    for (auto* synchronizer : mSynchronizers)
-        synchronizer->stop();
+    mSynchronizerPool->stop();
     // delete handlers
-    for (auto& proxy : mHandlers)
+    for (auto& proxy : mHandlerProxies)
         proxy.destroy();
-    mHandlers.clear();
-    // delete synchronizers
-    for (auto* synchronizer : mSynchronizers)
-        delete synchronizer;
-    mSynchronizers.clear();
+    mHandlerProxies.clear();
+    // clear synchronizers
+    mSynchronizerPool->clear();
     // delete all displayers
     if (auto displayer = mainDisplayer())
         displayer->deleteLater();
@@ -344,28 +323,27 @@ HandlerProxy Manager::loadHandler(MetaHandler* meta, const QString& name, Single
     }
     // insert the handler
     if (proxy.handler()) {
-        Q_ASSERT(!proxy.handler()->synchronizer());
-        proxy.handler()->set_synchronizer(proxy.editable() ? mGUISynchronizer : getSynchronizer(group));
+        mSynchronizerPool->configure(proxy, group);
         proxy.setObserver(mObserver);
         proxy.setContext(this);
         proxy.setState(true);
-        mHandlers.push_back(proxy);
+        mHandlerProxies.push_back(proxy);
         emit handlerInserted(proxy.handler());
     }
     return proxy;
 }
 
 HandlerProxy Manager::loadHandler(const QString& type, const QString& name, SingleDisplayer* host, const QString& group) {
-    return loadHandler(mCollector->metaHandler(type), name, host, group);
+    return loadHandler(mMetaHandlerPool->get(type), name, host, group);
 }
 
 void Manager::removeHandler(Handler* handler) {
     Q_ASSERT(handler);
     // take proxy
-    auto px = takeProxy(handler);
+    auto px = takeProxy(mHandlerProxies, handler);
     // clear related listeners
     setListeners(handler, {});
-    for (const auto& proxy : mHandlers) {
+    for (const auto& proxy : mHandlerProxies) {
         auto listeners = proxy.handler()->listeners();
         if (listeners.remove_usage(handler))
             setListeners(proxy.handler(), std::move(listeners));
@@ -413,38 +391,9 @@ void Manager::removeConnection(Handler* tail, Handler* head, Handler* source) {
         setListeners(tail, std::move(listeners));
 }
 
-HandlerProxy Manager::takeProxy(const Handler* handler) {
-    HandlerProxy proxy;
-    auto it = std::find_if(mHandlers.begin(), mHandlers.end(), [=](const auto& proxy) { return proxy.handler() == handler; });
-    if (it != mHandlers.end()) {
-        proxy = *it;
-        mHandlers.erase(it);
-    }
-    return proxy;
-}
-
-Synchronizer* Manager::getSynchronizer(const QString& group) {
-    std::string name = group.toStdString();
-    for (auto* synchronizer : mSynchronizers)
-        if (synchronizer->name() == name)
-            return synchronizer;
-    auto* synchronizer = new StandardSynchronizer(name);
-    synchronizer->start(priority_t::highest); // let SF threads the opportunity to be realtime
-    TRACE_DEBUG("creating synchronizer " << name << " (" << synchronizer->get_id() << ") ...");
-    mSynchronizers.emplace_back(synchronizer);
-    return synchronizer;
-}
-
 void Manager::quit() {
     TRACE_DEBUG("quit");
-    // actual cleanup
     clearConfiguration();
-    // save path settings
-    QSettings settings;
-    settings.beginGroup("paths");
-    for (const auto& pair : mPathRetrievers)
-        settings.setValue(pair.first, pair.second->dir());
-    settings.endGroup();
-    // now we can quit
+    mPathRetrieverPool->save();
     qApp->quit();
 }

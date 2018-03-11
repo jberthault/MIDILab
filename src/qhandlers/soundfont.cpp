@@ -52,7 +52,7 @@ void MetaSoundFont::setContent(HandlerProxy& proxy) {
 //======================
 
 Interceptor::Result SoundFontInterceptor::seize_message(Handler* target, const Message& message) {
-    auto result = doSeize(target, message);
+    const auto result = doSeize(target, message);
     if (message.event.family() == family_t::custom && message.event.get_custom_key() == "SoundFont.file")
         emit fileHandled();
     return result;
@@ -401,7 +401,7 @@ void SoundFontEditor::sendChorus(const SoundFontHandler::optional_chorus_type& c
 }
 
 void SoundFontEditor::onClick() {
-    auto file = context()->pathRetriever("soundfont")->getReadFile(this);
+    const auto file = context()->pathRetrieverPool()->get("soundfont")->getReadFile(this);
     if (!file.isNull())
         setFile(file);
 }

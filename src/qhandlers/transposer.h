@@ -22,7 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define QHANDLERS_TRANSPOSER_H
 
 #include "handlers/transposer.h"
-#include "qcore/editors.h"
+#include "qhandlers/common.h"
 
 //================
 // MetaTransposer

@@ -18,10 +18,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#include <sstream>
 #include <QPluginLoader>
 #include <QApplication>
-#include <QMetaEnum>
+#include <QSettings>
 #include "qcore/core.h"
 
 //=================
@@ -46,115 +45,6 @@ QString eventName(const Event& event) {
 
 QString metaHandlerName(const MetaHandler* meta) {
     return meta ? meta->identifier() : "Unknown MetaHandler";
-}
-
-//=============
-// Persistence
-//=============
-
-namespace serial {
-
-// numeric types
-
-QString serializeBool(bool value) {
-    return value ? "true" : "false";
-}
-
-bool parseBool(const QString& data, bool& value) {
-    if (data == "true") {
-        value = true;
-        return true;
-    }
-    if (data == "false") {
-        value = false;
-        return true;
-    }
-    return false;
-}
-
-QString serializeByte(byte_t byte) {
-    return QString::fromStdString(byte_string(byte));
-}
-
-bool parseByte(const QString& data, byte_t& byte) {
-    bool ok;
-    uint value = data.toUInt(&ok, 0);
-    byte = value & 0xff;
-    return ok && value < 0x100;
-}
-
-#define PARSE_NUMBER(method, data, value) do { \
-        bool ok;                               \
-        value = data.method(&ok);              \
-        return ok;                             \
-    } while (false)
-
-bool parseShort(const QString& data, short& value) { PARSE_NUMBER(toShort, data, value); }
-bool parseUShort(const QString& data, ushort& value) { PARSE_NUMBER(toUShort, data, value); }
-bool parseInt(const QString& data, int& value) { PARSE_NUMBER(toInt, data, value); }
-bool parseUInt(const QString& data, uint& value) { PARSE_NUMBER(toUInt, data, value); }
-bool parseLong(const QString& data, long& value) { PARSE_NUMBER(toLong, data, value); }
-bool parseULong(const QString& data, ulong& value) { PARSE_NUMBER(toULong, data, value); }
-bool parseLongLong(const QString& data, qlonglong& value) { PARSE_NUMBER(toLongLong, data, value); }
-bool parseULongLong(const QString& data, qulonglong& value) { PARSE_NUMBER(toULongLong, data, value); }
-bool parseFloat(const QString& data, float& value) { PARSE_NUMBER(toFloat, data, value); }
-bool parseDouble(const QString& data, double& value) { PARSE_NUMBER(toDouble, data, value); }
-
-// note types
-
-QString serializeNote(const Note& note) {
-    return QString::fromStdString(note.string());
-}
-
-bool parseNote(const QString& data, Note& note) {
-    note = Note::from_string(data.toStdString());
-    return (bool)note;
-}
-
-QString serializeRange(const QPair<Note, Note>& range) {
-    return QString("%1:%2").arg(serializeNote(range.first), serializeNote(range.second));
-}
-
-bool parseRange(const QString& data, QPair<Note, Note>& range) {
-    char separator = '\0';
-    std::istringstream stream(data.toStdString());
-    try {
-        stream >> range.first >> separator >> range.second;
-        return separator == ':';
-    } catch (const std::exception&) {
-        return false;
-    }
-}
-
-QString serializeNotes(const std::vector<Note>& notes) {
-    QStringList stringList;
-    for (const Note& note : notes)
-        stringList.append(QString::fromStdString(note.string()));
-    return stringList.join(";");
-}
-
-bool parseNotes(const QString& data, std::vector<Note>& notes) {
-    for (const QString string : data.split(';')) {
-        auto note = Note::from_string(string.toStdString());
-        if (!note)
-            return false;
-        notes.push_back(note);
-    }
-    return true;
-}
-
-// other types
-
-QString serializeOrientation(Qt::Orientation orientation) {
-    return QMetaEnum::fromType<Qt::Orientation>().valueToKey(orientation);
-}
-
-bool parseOrientation(const QString& data, Qt::Orientation& orientation) {
-    bool ok;
-    orientation = static_cast<Qt::Orientation>(QMetaEnum::fromType<Qt::Orientation>().keyToValue(data.toLocal8Bit().constData(), &ok));
-    return ok;
-}
-
 }
 
 //==============
@@ -199,7 +89,7 @@ Observer::Observer(QObject* parent) : QObject(parent), Interceptor() {
 }
 
 Handler::Result Observer::doSeize(Handler* target, const Message& message) {
-    auto result = target->handle_message(message);
+    const auto result = target->handle_message(message);
     if (result == Handler::Result::success && message.event.is(~families_t::note()))
         QApplication::postEvent(this, new StorageEvent(target, message));
     return result;
@@ -413,6 +303,21 @@ void HandlerProxy::destroy() {
     mView = nullptr;
 }
 
+HandlerProxy getProxy(const HandlerProxies& proxies, const Handler* handler) {
+    auto it = std::find_if(proxies.begin(), proxies.end(), [=](const auto& proxy) { return proxy.handler() == handler; });
+    return it != proxies.end() ? *it : HandlerProxy{};
+}
+
+HandlerProxy takeProxy(HandlerProxies& proxies, const Handler* handler) {
+    HandlerProxy proxy;
+    auto it = std::find_if(proxies.begin(), proxies.end(), [=](const auto& proxy) { return proxy.handler() == handler; });
+    if (it != proxies.end()) {
+        proxy = *it;
+        proxies.erase(it);
+    }
+    return proxy;
+}
+
 //=============
 // MetaHandler
 //=============
@@ -460,22 +365,22 @@ HandlerProxy OpenMetaHandler::instantiate(const QString& name) {
     return proxy;
 }
 
-//======================
-// MetaHandlerCollector
-//======================
+//=================
+// MetaHandlerPool
+//=================
 
-const QList<MetaHandler*>& MetaHandlerCollector::metaHandlers() const {
+const QList<MetaHandler*>& MetaHandlerPool::metaHandlers() const {
     return mMetaHandlers;
 }
 
-MetaHandler* MetaHandlerCollector::metaHandler(const QString& type) {
-    for (MetaHandler* meta : mMetaHandlers)
-        if (meta->identifier() == type)
-            return meta;
+MetaHandler* MetaHandlerPool::get(const QString& identifier) {
+    for (auto* metaHandler : mMetaHandlers)
+        if (metaHandler->identifier() == identifier)
+            return metaHandler;
     return nullptr;
 }
 
-size_t MetaHandlerCollector::addMetaHandler(MetaHandler* meta) {
+size_t MetaHandlerPool::addMetaHandler(MetaHandler* meta) {
     if (meta) {
         meta->setParent(this);
         mMetaHandlers << meta;
@@ -484,7 +389,7 @@ size_t MetaHandlerCollector::addMetaHandler(MetaHandler* meta) {
     return 0;
 }
 
-size_t MetaHandlerCollector::addFactory(MetaHandlerFactory* factory) {
+size_t MetaHandlerPool::addFactory(MetaHandlerFactory* factory) {
     QList<MetaHandler*> newMetaHandlers;
     if (factory)
         newMetaHandlers = factory->spawn();
@@ -492,7 +397,7 @@ size_t MetaHandlerCollector::addFactory(MetaHandlerFactory* factory) {
     return newMetaHandlers.size();
 }
 
-size_t MetaHandlerCollector::addPlugin(const QString& filename) {
+size_t MetaHandlerPool::addPlugin(const QString& filename) {
     size_t count = 0;
     QPluginLoader loader(filename, this);
     QObject* plugin = loader.instance();
@@ -504,7 +409,7 @@ size_t MetaHandlerCollector::addPlugin(const QString& filename) {
     return count;
 }
 
-size_t MetaHandlerCollector::addPlugins(const QDir& dir) {
+size_t MetaHandlerPool::addPlugins(const QDir& dir) {
     size_t count = 0;
     for (const QString& filename : dir.entryList(QDir::Files))
         if (QLibrary::isLibrary(filename))
@@ -514,12 +419,83 @@ size_t MetaHandlerCollector::addPlugins(const QDir& dir) {
     return count;
 }
 
-//=========
-// Context
-//=========
+//==================
+// SynchronizerPool
+//==================
 
-HandlerProxy Context::getProxy(const Handler* handler) const {
-    const auto& proxies = getProxies();
-    auto it = std::find_if(proxies.begin(), proxies.end(), [=](const auto& proxy) { return proxy.handler() == handler; });
-    return it != proxies.end() ? *it : HandlerProxy{};
+SynchronizerPool::SynchronizerPool(QObject *parent) : QObject{parent} {
+    mGUISynchronizer = new GraphicalSynchronizer(this);
+}
+
+SynchronizerPool::~SynchronizerPool() {
+    stop();
+}
+
+void SynchronizerPool::configure(const HandlerProxy& proxy, const QString& group) {
+    Q_ASSERT(!proxy.handler()->synchronizer());
+    proxy.handler()->set_synchronizer(proxy.editable() ? mGUISynchronizer : get(group));
+}
+
+void SynchronizerPool::stop() {
+    for (auto& synchronizer : mSynchronizers)
+        synchronizer->stop();
+}
+
+void SynchronizerPool::clear() {
+    mSynchronizers.clear();
+}
+
+Synchronizer* SynchronizerPool::get(const QString& group) {
+    std::string name = group.toStdString();
+    for (auto& synchronizer : mSynchronizers)
+        if (synchronizer->name() == name)
+            return synchronizer.get();
+    auto synchronizer = std::make_unique<StandardSynchronizer>(name);
+    synchronizer->start(priority_t::highest); // let SF threads the opportunity to be realtime
+    TRACE_DEBUG("creating synchronizer " << name << " (" << synchronizer->get_id() << ") ...");
+    auto* raw_synchronizer = synchronizer.get();
+    mSynchronizers.push_back(std::move(synchronizer));
+    return raw_synchronizer;
+}
+
+//===================
+// PathRetrieverPool
+//===================
+
+namespace {
+
+void initializePathRetriever(PathRetriever* pathRetriever, const QString& caption, const QString& filters) {
+    pathRetriever->setCaption(caption);
+    pathRetriever->setFilter(QString("%1 (%2);;All Files (*)").arg(caption, filters));
+}
+
+}
+
+PathRetrieverPool::PathRetrieverPool(QObject* parent) : QObject{parent} {
+    initializePathRetriever(get("midi"), "MIDI Files", "*.mid *.midi *.kar");
+    initializePathRetriever(get("soundfont"), "SoundFont Files", "*.sf2");
+    initializePathRetriever(get("configuration"), "Configuration Files", "*.xml");
+}
+
+void PathRetrieverPool::load() {
+    QSettings settings;
+    settings.beginGroup("paths");
+    for (const auto& key : settings.childKeys())
+        get(key)->setDir(settings.value(key).toString());
+    settings.endGroup();
+}
+
+void PathRetrieverPool::save() {
+    QSettings settings;
+    settings.beginGroup("paths");
+    for (const auto& pair : mPathRetrievers)
+        settings.setValue(pair.first, pair.second->dir());
+    settings.endGroup();
+}
+
+PathRetriever* PathRetrieverPool::get(const QString& type) {
+    auto& retriever = mPathRetrievers[type];
+    if (!retriever)
+        retriever = new PathRetriever{this};
+    return retriever;
 }
