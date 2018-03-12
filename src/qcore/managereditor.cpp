@@ -413,11 +413,8 @@ void HandlerListEditor::updateHandler(Handler* handler) {
 }
 
 void HandlerListEditor::onMessageHandled(Handler* handler, const Message& message) {
-    if (message.event.family() == family_t::custom) {
-        auto key = message.event.get_custom_key();
-        if (key == "Open" || key == "Close")
-            updateHandler(handler);
-    }
+    if (message.event.family() == family_t::custom && (message.event.has_custom_key("Open") || message.event.has_custom_key("Close")))
+        updateHandler(handler);
 }
 
 void HandlerListEditor::onDoubleClick(QTreeWidgetItem* item, int column) {

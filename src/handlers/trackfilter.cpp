@@ -46,16 +46,15 @@ Handler::Result TrackFilter::handle_message(const Message& message) {
     MIDI_CHECK_OPEN_FORWARD_RECEIVE;
 
     if (message.event.family() == family_t::custom) {
-        std::string k = message.event.get_custom_key();
-        if (k == "TrackFilter.disable") {
+        if (message.event.has_custom_key("TrackFilter.disable")) {
             auto track = unmarshall<track_t>(message.event.get_custom_value());
             m_corruption[track].tick();
             m_filter.elements.insert(track);
             return Result::success;
-        } else if (k == "TrackFilter.enable") {
+        } else if (message.event.has_custom_key("TrackFilter.enable")) {
             m_filter.elements.erase(unmarshall<track_t>(message.event.get_custom_value()));
             return Result::success;
-        } else if (k == "TrackFilter.enable_all") {
+        } else if (message.event.has_custom_key("TrackFilter.enable_all")) {
             m_filter.elements.clear();
             return Result::success;
         }

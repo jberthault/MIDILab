@@ -53,7 +53,7 @@ void MetaSoundFont::setContent(HandlerProxy& proxy) {
 
 Interceptor::Result SoundFontInterceptor::seize_message(Handler* target, const Message& message) {
     const auto result = doSeize(target, message);
-    if (message.event.family() == family_t::custom && message.event.get_custom_key() == "SoundFont.file")
+    if (message.event.family() == family_t::custom && message.event.has_custom_key("SoundFont.file"))
         emit fileHandled();
     return result;
 }

@@ -63,13 +63,12 @@ Handler::Result ChannelMapper::handle_message(const Message& message) {
     std::lock_guard<std::mutex> guard(m_mutex);
 
     if (message.event.family() == family_t::custom) {
-        auto k = message.event.get_custom_key();
-        if (k == "ChannelMapping.remap") {
+        if (message.event.has_custom_key("ChannelMapping.remap")) {
             auto mapped_channels = unmarshall<channels_t>(message.event.get_custom_value());
             channel_ns::store(m_mapping, message.event.channels(), mapped_channels);
             m_corruption.tick();
             return Result::success;
-        } else if (k == "ChannelMapping.unmap") {
+        } else if (message.event.has_custom_key("ChannelMapping.unmap")) {
             for (channel_t channel : message.event.channels())
                 m_mapping[channel] = channels_t::wrap(channel);
             m_corruption.tick();

@@ -601,11 +601,10 @@ families_t Handler::forwarded_families() const {
 
 Handler::Result Handler::handle_open(const Message& message) {
     if (message.event.family() == family_t::custom) {
-        auto key = message.event.get_custom_key();
-        if (key == "Open") {
+        if (message.event.has_custom_key("Open")) {
             on_open(unmarshall<State>(message.event.get_custom_value()));
             return Result::success;
-        } else if (key == "Close") {
+        } else if (message.event.has_custom_key("Close")) {
             on_close(unmarshall<State>(message.event.get_custom_value()));
             return Result::success;
         }

@@ -175,14 +175,12 @@ struct SoundFontHandler::Impl {
         case family_t::pitch_wheel: return handle_pitch_wheel(event.channels(), event.get_14bits());
         case family_t::reset: return handle_reset();
         case family_t::sysex: return handle_sysex(event);
-        case family_t::custom: {
-            auto k = event.get_custom_key();
-            if (k == "SoundFont.gain") return handle_gain(event.get_custom_value());
-            if (k == "SoundFont.reverb") return handle_reverb(event.get_custom_value());
-            if (k == "SoundFont.chorus") return handle_chorus(event.get_custom_value());
-            if (k == "SoundFont.file") return handle_file(event.get_custom_value());
+        case family_t::custom:
+            if (event.has_custom_key("SoundFont.gain")) return handle_gain(event.get_custom_value());
+            if (event.has_custom_key("SoundFont.reverb")) return handle_reverb(event.get_custom_value());
+            if (event.has_custom_key("SoundFont.chorus")) return handle_chorus(event.get_custom_value());
+            if (event.has_custom_key("SoundFont.file")) return handle_file(event.get_custom_value());
             break;
-        }
         }
         return Result::unhandled;
     }

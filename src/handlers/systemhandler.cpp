@@ -62,7 +62,7 @@ public:
                 return to_result(handle_sysex(message.event));
             if (message.event.family() == family_t::reset)
                 return to_result(handle_reset());
-            if (message.event.family() == family_t::custom && message.event.get_custom_key() == "System.volume")
+            if (message.event.family() == family_t::custom && message.event.has_custom_key("System.volume"))
                 return to_result(handle_volume((DWORD)unmarshall<uint32_t>(message.event.get_custom_value())));
         }
         return Result::unhandled;

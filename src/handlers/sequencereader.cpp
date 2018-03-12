@@ -209,13 +209,11 @@ Handler::Result SequenceReader::handle_message(const Message& message) {
     case family_t::start: return handle_start(true);
     case family_t::continue_: return handle_start(false);
     case family_t::stop: return handle_stop(stop_all);
-    case family_t::custom: {
-        auto k = message.event.get_custom_key();
-        if (k == "SequenceReader.pause") return handle_stop(stop_sounds);
-        if (k == "SequenceReader.distorsion") return handle_distorsion(message.event.get_custom_value());
-        if (k == "SequenceReader.toggle") return m_playing ? handle_stop(stop_sounds) : handle_start(false);
+    case family_t::custom:
+        if (message.event.has_custom_key("SequenceReader.pause")) return handle_stop(stop_sounds);
+        if (message.event.has_custom_key("SequenceReader.distorsion")) return handle_distorsion(message.event.get_custom_value());
+        if (message.event.has_custom_key("SequenceReader.toggle")) return m_playing ? handle_stop(stop_sounds) : handle_start(false);
         break;
-    }
     }
     return Result::unhandled;
 }

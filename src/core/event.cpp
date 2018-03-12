@@ -834,6 +834,10 @@ std::string Event::get_custom_key() const {
     return {begin(), std::find(begin(), end(), 0x00)};
 }
 
+bool Event::has_custom_key(const char* key) const {
+    return ::strncmp(reinterpret_cast<const char*>(data().data()), key, size()) == 0;
+}
+
 std::string Event::get_custom_value() const {
     auto it = std::find(begin(), end(), 0x00);
     if (it != end())

@@ -609,6 +609,7 @@ public:
     std::string get_meta_string() const; /*!< interprets meta data as a string */
     std::string get_custom_key() const; /*!< extract custom event key */
     std::string get_custom_value() const; /*!< extract custom event value */
+    bool has_custom_key(const char* key) const; /*!< test if the given key is the one stored */
 
     template<class T = int64_t>
     T get_meta_int() const { /*!< interprets meta data as an integer */

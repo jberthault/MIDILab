@@ -38,7 +38,7 @@ Handler::Result Transposer::handle_message(const Message& message) {
     MIDI_CHECK_OPEN_FORWARD_RECEIVE;
 
     if (message.event.family() == family_t::custom) {
-        if (message.event.get_custom_key() == "Transpose") {
+        if (message.event.has_custom_key("Transpose")) {
             set_key(message.event.channels(), unmarshall<int>(message.event.get_custom_value()));
             return Result::success;
         }
