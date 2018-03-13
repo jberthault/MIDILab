@@ -414,7 +414,7 @@ void ChannelsSlider::setRatio(channels_t channels, qreal ratio) {
 
 void ChannelsSlider::setRatios(const channel_map_t<qreal>& ratios) {
     for (channel_t c=0 ; c < channels_t::capacity() ; ++c)
-       setKnobRatio(mKnobs[c], ratios[c]);
+        setKnobRatio(mKnobs[c], ratios[c]);
     setKnobRatio(mGroupKnob, mDefaultRatio);
     emit knobChanged(channels_t::full());
 }
@@ -569,7 +569,7 @@ QTreeWidgetItem* FamilySelector::makeNode(QTreeWidgetItem* root, families_t fami
 }
 
 void FamilySelector::makeLeaves(QTreeWidgetItem* root, families_t families) {
-    for(auto family : families)
+    for (auto family : families)
         makeNode(root, families_t::wrap(family), QString::fromLocal8Bit(family_name(family)));
 }
 
