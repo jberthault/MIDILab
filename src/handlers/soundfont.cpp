@@ -102,12 +102,15 @@ struct SoundFontHandler::Impl {
         fluid_settings_setstr(settings, "audio.jack.id", "MIDILab");
         synth = new_fluid_synth(settings);
         adriver = new_fluid_audio_driver(settings, synth);
+        if (!adriver)
+            TRACE_ERROR("unable to build audio driver");
         // chorus seems to be zero until a value is set, so we force the default settings
         fluid_synth_set_chorus(synth, FLUID_CHORUS_DEFAULT_N, FLUID_CHORUS_DEFAULT_LEVEL, FLUID_CHORUS_DEFAULT_SPEED, FLUID_CHORUS_DEFAULT_DEPTH, FLUID_CHORUS_DEFAULT_TYPE);
     }
 
     ~Impl() {
-        delete_fluid_audio_driver(adriver);
+        if (adriver)
+            delete_fluid_audio_driver(adriver);
         delete_fluid_synth(synth);
         delete_fluid_settings(settings);
     }

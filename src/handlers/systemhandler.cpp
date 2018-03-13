@@ -335,7 +335,7 @@ class LinuxSystemHandler : public Handler {
         ~LinuxSystemHandler() {
             if (is_receive_enabled()) {
                 handle_reset();
-                close_system(Mode::endpoints());
+                close_system(State::endpoints());
             }
         }
 
@@ -566,10 +566,10 @@ struct SystemHandlerFactory::Impl {
                     // Tell ALSA which device (number) we want info about
                     snd_rawmidi_info_set_device(rawMidiInfo, devNum);
 
-                    Handler::Mode mode = Mode::out();
+                    auto mode = Handler::Mode::out();
 
                     while (mode) {
-                        snd_rawmidi_info_set_stream(rawMidiInfo, mode == Mode::in() ? SND_RAWMIDI_STREAM_INPUT : SND_RAWMIDI_STREAM_OUTPUT);
+                        snd_rawmidi_info_set_stream(rawMidiInfo, mode == Handler::Mode::in() ? SND_RAWMIDI_STREAM_INPUT : SND_RAWMIDI_STREAM_OUTPUT);
                         int i = -1;
                         int subDevCount = 1;
                         while (++i < subDevCount) {
@@ -585,7 +585,7 @@ struct SystemHandlerFactory::Impl {
                             hw_stream << "hw:" << cardNum << ',' << devNum << ',' << i;
                             insert(identifier_type{name, hw_stream.str(), mode});
                         }
-                        mode = (mode == Mode::out()) ? Handler::Mode::in() : Handler::Mode{};
+                        mode = (mode == Handler::Mode::out()) ? Handler::Mode::in() : Handler::Mode{};
                     }
                 }
             }

@@ -25,6 +25,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <map>
 #include <unordered_map>
 #include <boost/container/small_vector.hpp>
+#include <boost/version.hpp>
 #include "note.h"
 #include "tools/bytes.h"
 #include "tools/flags.h"
@@ -521,7 +522,20 @@ public:
 
     // types definition
 
-    using data_type = boost::container::small_vector<byte_t, 4>; /*!< a vector would fit as well */
+    /**
+      *
+      * @note we are looking for a version of small_vector with proper constructors
+      * (it might not be that one particularly)
+      * for old versions, we fallback on standard vector
+      *
+      */
+
+#if BOOST_VERSION > 105800
+    using data_type = boost::container::small_vector<byte_t, 4>;
+#else
+    using data_type = std::vector<byte_t>;
+#endif
+
     using const_iterator = data_type::const_iterator;
     using iterator = data_type::iterator;
 

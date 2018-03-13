@@ -564,7 +564,7 @@ QTreeWidgetItem* FamilySelector::makeNode(QTreeWidgetItem* root, families_t fami
     QStringList texts;
     texts << name;
     auto* child = new QTreeWidgetItem(root, texts);
-    child->setData(0, Qt::UserRole, families.to_integral());
+    child->setData(0, Qt::UserRole, static_cast<qulonglong>(families.to_integral()));
     return child;
 }
 
