@@ -245,8 +245,10 @@ public:
     void insertItem(int row, PlaylistItem* playlistItem);
 
     QStringList paths() const;
-    void addPaths(const QStringList& paths);
-    void addPath(const QString& path);
+    size_t addPaths(const QStringList& paths);
+    size_t addPaths(QList<QUrl> urls);
+    size_t addPath(const QString& path);
+    size_t addPath(const QUrl& url);
 
     void setCurrentStatus(SequenceStatus status);
 

@@ -509,7 +509,7 @@ PlaylistTable::PlaylistTable(QWidget* parent) : QTableWidget(0, 2, parent), mCon
     verticalHeader()->setDefaultSectionSize(20);
 
     viewport()->setAcceptDrops(true);
-    setDropIndicatorShown(true);
+    setDropIndicatorShown(false);
     setDragDropMode(QTableWidget::DragDrop);
     setDragDropOverwriteMode(false);
 
@@ -553,30 +553,48 @@ void PlaylistTable::insertItem(int row, PlaylistItem* playlistItem) {
 QStringList PlaylistTable::paths() const {
     QStringList result;
     for (int i=0 ; i < rowCount() ; i++)
-        if (auto fileItem = dynamic_cast<FileItem*>(item(i, 0)))
+        if (auto* fileItem = dynamic_cast<FileItem*>(item(i, 0)))
             result.append(fileItem->fileInfo().absoluteFilePath());
     return result;
 }
 
-void PlaylistTable::addPaths(const QStringList& paths) {
+size_t PlaylistTable::addPaths(const QStringList& paths) {
+    size_t count = 0;
     for (const auto& path : paths)
-        addPath(path);
+        count += addPath(path);
+    return count;
 }
 
-void PlaylistTable::addPath(const QString& path) {
+size_t PlaylistTable::addPaths(QList<QUrl> urls) {
+    qSort(urls);
+    size_t count = 0;
+    for (const auto& url : urls)
+        count += addPath(url);
+    return count;
+}
+
+size_t PlaylistTable::addPath(const QString& path) {
     static const QStringList suffixes = QStringList() << "mid" << "midi" << "kar";
+    size_t count = 0;
     QFileInfo info(path);
     if (!info.exists()) {
         TRACE_WARNING("can't find file " << path);
-        return;
-    }
-    if (info.isDir()) {
-        for (const QFileInfo& child : QDir(path).entryInfoList(QDir::Files))
-            if (suffixes.contains(child.suffix()))
+    } else if (info.isDir()) {
+        for (const QFileInfo& child : QDir(path).entryInfoList(QDir::Files)) {
+            if (suffixes.contains(child.suffix())) {
                 insertItem(new FileItem(child));
+                ++count;
+            }
+        }
     } else {
         insertItem(new FileItem(info));
+        ++count;
     }
+    return count;
+}
+
+size_t PlaylistTable::addPath(const QUrl& url) {
+    return addPath(url.toLocalFile());
 }
 
 void PlaylistTable::setCurrentStatus(SequenceStatus status) {
@@ -638,7 +656,8 @@ void PlaylistTable::setContext(Context* context) {
 }
 
 void PlaylistTable::browseFiles() {
-    addPaths(mContext->pathRetrieverPool()->get("midi")->getReadFiles(this));
+    if (addPaths(mContext->pathRetrieverPool()->get("midi")->getReadFiles(this)))
+        scrollToBottom();
 }
 
 void PlaylistTable::browseRecorders() {
@@ -652,14 +671,14 @@ void PlaylistTable::browseRecorders() {
         return;
     }
     // make and fill a selector
-    HandlerSelector* selector = new HandlerSelector(this);
+    auto* selector = new HandlerSelector(this);
     selector->setWindowTitle("Select the recorder to import");
-    for (Handler* handler : handlers)
+    for (auto* handler : handlers)
         selector->insertHandler(handler);
     // run it
     DialogContainer ask(selector, this);
     if (ask.exec() == QDialog::Accepted) {
-        if (auto sw = dynamic_cast<SequenceWriter*>(selector->currentHandler())) {
+        if (auto* sw = dynamic_cast<SequenceWriter*>(selector->currentHandler())) {
             insertItem(new WriterItem(sw));
         } else {
             QMessageBox::warning(this, QString(), "No recorder selected");
@@ -725,10 +744,8 @@ QStringList PlaylistTable::mimeTypes() const {
 void PlaylistTable::dropEvent(QDropEvent* event) {
     // drop from filesystem, sort urls as they are never ordered
     if (event->mimeData()->hasFormat("text/uri-list")) {
-        QList<QUrl> urls = event->mimeData()->urls();
-        qSort(urls);
-        for (const QUrl& url : urls)
-            addPath(url.toLocalFile());
+        if (addPaths(event->mimeData()->urls()))
+            scrollToBottom();
         event->accept();
         return;
     }

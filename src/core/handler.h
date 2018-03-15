@@ -54,7 +54,7 @@ struct Message final {
 
     static const track_t no_track = 0;
 
-    Message(Event event = {}, Handler* source = nullptr, track_t track = no_track);
+    Message(Event event = {}, Handler* source = nullptr, track_t track = no_track) noexcept;
 
     Event event; /*!< actual event to be handled */
     Handler* source; /*!< first producer of the event */

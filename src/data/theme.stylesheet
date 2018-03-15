@@ -63,6 +63,10 @@ QTabBar::tab {
     border-top-right-radius: 4px;
 }
 
+QMenuBar::item {
+    background: transparent;
+}
+
 QMenuBar::item:selected {
     background: #a8a8a8;
 }

@@ -570,7 +570,7 @@ public:
 
     // constructors
 
-    Event(); /*!< default constructor makes an invalid event */
+    Event() noexcept; /*!< default constructor makes an invalid event */
 
     // comparison
 
@@ -588,15 +588,15 @@ public:
 
     // family accessors
 
-    family_t family() const; /*!< family accessor */
-    bool is(families_t families) const; /*!< true if family belongs to families */
+    family_t family() const noexcept; /*!< family accessor */
+    bool is(families_t families) const noexcept; /*!< true if family belongs to families */
     family_t extract_family(bool is_realtime) const; /*!< get family from raw data */
 
-    explicit operator bool() const; /*!< true if event is valid */
+    explicit operator bool() const noexcept; /*!< true if event is valid */
 
     // channels accessors
 
-    channels_t channels() const;
+    channels_t channels() const noexcept;
     void set_channels(channels_t channels);
 
     // data accessors
@@ -631,7 +631,7 @@ public:
     }
 
 private:
-    Event(family_t family, channels_t channels, data_type data);
+    Event(family_t family, channels_t channels, data_type data) noexcept;
 
     family_t m_family;
     channels_t m_channels;

@@ -633,12 +633,12 @@ Event Event::raw(bool is_realtime, data_type data) {
 
 // constructors
 
-Event::Event() :
+Event::Event() noexcept :
     m_family(family_t::invalid), m_channels(), m_data() {
 
 }
 
-Event::Event(family_t family, channels_t channels, data_type data) :
+Event::Event(family_t family, channels_t channels, data_type data) noexcept :
     m_family(family), m_channels(channels), m_data(std::move(data)) {
 
 }
@@ -694,15 +694,15 @@ std::ostream& operator<<(std::ostream& os, const Event& event) {
 
 // family accessors
 
-family_t Event::family() const {
+family_t Event::family() const noexcept {
     return m_family;
 }
 
-Event::operator bool() const {
+Event::operator bool() const noexcept {
     return m_family != family_t::invalid;
 }
 
-bool Event::is(families_t families) const {
+bool Event::is(families_t families) const noexcept {
     return families.test(m_family);
 }
 
@@ -763,7 +763,7 @@ family_t Event::extract_family(bool is_realtime) const {
 
 // channel accessors
 
-channels_t Event::channels() const {
+channels_t Event::channels() const noexcept {
     return m_channels;
 }
 
@@ -835,7 +835,8 @@ std::string Event::get_custom_key() const {
 }
 
 bool Event::has_custom_key(const char* key) const {
-    return ::strncmp(reinterpret_cast<const char*>(data().data()), key, size()) == 0;
+    // check size before to avoid comparing equal if the data is some prefix of the key
+    return size() >= ::strlen(key) && ::strncmp(reinterpret_cast<const char*>(data().data()), key, size()) == 0;
 }
 
 std::string Event::get_custom_value() const {

@@ -70,7 +70,7 @@ size_t erase_if(T& collection, P predicate) {
 // Message
 //=========
 
-Message::Message(Event event, Handler* source, track_t track) :
+Message::Message(Event event, Handler* source, track_t track) noexcept :
     event(std::move(event)), source(source), track(track) {
 
 }
