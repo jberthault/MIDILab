@@ -79,7 +79,7 @@ Configuration::Property parseProperty(const QDomElement& element) {
     checkNodeName(element, "property");
     auto key = parseAttribute(element, "type");
     auto node = element.firstChild();
-    if (node.nodeType() != QDomNode::TextNode)
+    if (!node.isNull() && node.nodeType() != QDomNode::TextNode)
         throw QString("no data provided for property %1").arg(key);
     return {key, node.nodeValue()};
 }
