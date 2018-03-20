@@ -77,7 +77,7 @@ class GraphicalSynchronizer : public QObject, public Synchronizer {
 public:
     explicit GraphicalSynchronizer(QObject* parent);
 
-    bool sync_message(Handler* target, const Message& message) final;
+    void sync_handler(Handler* target) final;
 
 protected:
     bool event(QEvent* e) override;
@@ -95,9 +95,10 @@ class Observer : public QObject, public Interceptor {
 public:
     explicit Observer(QObject* parent);
 
-    Result doSeize(Handler* target, const Message& message);
+    Result seizeOne(Handler* target, const Message& message);
+    void seizeAll(Handler* target, const Messages& messages);
 
-    Result seize_message(Handler* target, const Message& message) final;
+    void seize_messages(Handler* target, const Messages& messages) final;
 
 protected:
     bool event(QEvent* e) override;
@@ -118,7 +119,8 @@ class ObservableInterceptor : public QObject, public Interceptor {
 public:
     explicit ObservableInterceptor(QObject* parent);
 
-    Result doSeize(Handler* target, const Message& message);
+    Result seizeOne(Handler* target, const Message& message);
+    void seizeAll(Handler* target, const Messages& messages);
 
     Observer* observer();
     void setObserver(Observer* observer);
@@ -379,16 +381,13 @@ public:
     explicit SynchronizerPool(QObject* parent);
     ~SynchronizerPool();
 
-    void configure(const HandlerProxy& proxy, const QString& group);
+    void configure(const HandlerProxy& proxy);
 
     void stop();
-    void clear();
-
-    Synchronizer* get(const QString& group);
 
 private:
-    std::vector<std::unique_ptr<StandardSynchronizer>> mSynchronizers;
     GraphicalSynchronizer* mGUISynchronizer;
+    StandardSynchronizer<2> mDefaultSynchronizer; /*!< 2 threads are enough */
 
 };
 

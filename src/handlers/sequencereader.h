@@ -94,12 +94,14 @@ private:
 
     std::map<byte_t, Sequence> m_sequences; /*!< all loaded sequences */
     Sequence m_sequence; /*!< current sequence */
+
     position_type m_position; /*!< current position */
     position_type m_first_position; /*!< position of the first event to be played */
     position_type m_last_position; /*!< position of the last event to be played (not included) */
     double m_distorsion; /*!< distorsion factor: slower (<1) faster (>1) freezed (0) (default 1) */
 
-    task_t<std::promise<void>> m_task; /*!< task based implementation to avoid creating a new thread each time we stop */
+    Executor m_executor;
+    std::promise<void> m_promise;
     std::future<void> m_status; /*!< status of the current run */
     bool m_playing; /*!< boolean controlling play/stop */
     mutable std::mutex m_mutex;  /*!< mutex protecting positions & distorsion */

@@ -326,7 +326,6 @@ public:
     explicit HandlerConfigurator(MetaHandler* meta, QWidget* parent);
 
     QString name() const;
-    QString group() const;
     HandlerView::Parameters parameters() const;
 
     void setFixedName(const QString& name);
@@ -337,7 +336,6 @@ private:
 
     QFormLayout* mEditorsLayout;
     QLineEdit* mNameEditor;
-    QLineEdit* mGroupEditor;
     QMap<QString, QLineEdit*> mEditors;
 
 };

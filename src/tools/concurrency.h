@@ -25,12 +25,14 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <thread>
 #include <condition_variable>
 #include <mutex>
-#include <boost/circular_buffer.hpp>
+#include <atomic>
+
+//==========
+// Priority
+//==========
 
 /**
- *
  * Portable way to change the priority of a thread
- *
  */
 
 enum class priority_t {
@@ -53,126 +55,170 @@ void set_thread_priority(priority_t priority);
 
 void set_thread_priority(std::thread& thread, priority_t priority);
 
+//==========
+// Executor
+//==========
+
 /**
+ * An executor is a thread executing a single task each time it is awaken
  *
- * A stateless task is a simpler version of the statefull task
- * It can save only one parameter instead of multiple, and results of operations are discarded
- *
- * T requirements:
- * @li DefaultConstructible
- * @li MoveConstructible
- *
- * F requirements:
- * @li Callable (taking T&& as the only parameter, result not specified, constness not specified)
- *
- * @warning it's up to the user to explicitly start and stop the task, there is a risk of hanging at destruction otherwise
- * @note thread-safe is guaranteed but exception are not
- *
+ * @warning spurious wake-up may happen and are left to the caller
+ * @warning a started executor *must* be stopped explicitly
  */
 
-template <typename T>
-class task_t final {
+class Executor {
 
 public:
-    using queue_type = boost::circular_buffer<T>;
-    using value_type = typename queue_type::value_type;
+    //------------
+    // properties
+    //------------
 
-    explicit task_t(size_t capacity) : m_queue(capacity), m_running(false) {
-
-    }
-
-    ~task_t() {
-        assert(!m_running);
-    }
-
-    bool is_running() const {
+    inline bool is_running() const {
         return m_running;
     }
 
-    std::thread::id get_id() const {
-        return m_thread.get_id();
+    inline const std::thread& thread() const {
+        return m_thread;
     }
 
-    template <typename F>
-    void start(F consumer) {
-        if (!m_running) {
-            m_running = true;
-            m_thread = std::thread([this, consumer] {
-                run(consumer);
-            });
+    //----------
+    // features
+    //----------
+
+    template<typename CallableT>
+    inline void start(CallableT&& callable) {
+        if (!m_running.exchange(true)) {
+            m_thread = std::thread{[this, callable] {
+                std::unique_lock<std::mutex> guard{m_mutex};
+                while (true) {
+                    callable();
+                    if (!m_running)
+                        return;
+                    m_condition_variable.wait(guard);
+                }
+            }};
         }
     }
 
-    template <typename F>
-    void start(priority_t priority, F consumer) {
-        if (!m_running) {
-            m_running = true;
-            m_thread = std::thread([this, priority, consumer] {
-                set_thread_priority(priority);
-                run(consumer);
-            });
-        }
+    inline void halt() {
+        stop();
+        join();
     }
 
-    template <typename F>
-    void run(F consumer) {
-        std::unique_lock<std::mutex> guard(m_mutex);
-        queue_type queue(m_queue.capacity());
-        while (true) {
-            while (!m_queue.empty()) {
-                m_queue.swap(queue);
-                guard.unlock();
-                for (auto& value : queue)
-                    consumer(std::move(value));
-                queue.clear();
-                guard.lock();
-            }
-            if (!m_running)
-                return;
-            m_condition.wait(guard);
-        }
+    inline void stop() {
+        if (m_running.exchange(false))
+            awake();
     }
 
-    void stop(bool clear = false) {
-        std::unique_lock<std::mutex> guard(m_mutex);
-        if (m_running) {
-            m_running = false;
-            if (clear)
-                m_queue.clear();
-            guard.unlock();
-            m_condition.notify_all();
+    inline void join() {
+        if (m_thread.joinable())
             m_thread.join();
-        }
     }
 
-    template<typename U>
-    bool push(U&& value) {
-        std::unique_lock<std::mutex> guard(m_mutex);
-        if (m_running) {
-            m_queue.push_back(std::forward<U>(value));
-            m_condition.notify_all();
-        }
-        return m_running;
+    inline void awake() {
+        m_condition_variable.notify_one();
     }
 
-    template <typename It>
-    bool push(It first, It last) {
-        std::unique_lock<std::mutex> guard(m_mutex);
-        if (m_running) {
-            m_queue.insert(m_queue.end(), first, last);
-            m_condition.notify_all();
-        }
-        return m_running;
+    //---------------------
+    // collection features
+    //---------------------
+
+    template<typename ExecutorsT, typename CallableT>
+    static void start_all(ExecutorsT& executors, CallableT&& callable) {
+        for (auto& executor : executors)
+            executor.start(std::forward<CallableT>(callable));
+    }
+
+    template<typename ExecutorsT>
+    static void halt_all(ExecutorsT& executors) {
+        stop_all(executors);
+        join_all(executors);
+    }
+
+    template<typename ExecutorsT>
+    static void stop_all(ExecutorsT& executors) {
+        for (auto& executor : executors)
+            executor.stop();
+    }
+
+    template<typename ExecutorsT>
+    static void join_all(ExecutorsT& executors) {
+        for (auto& executor : executors)
+            executor.join();
+    }
+
+    template<typename ExecutorsT>
+    static void awake_all(ExecutorsT& executors) {
+        for (auto& executor : executors)
+            executor.awake();
     }
 
 private:
-    queue_type m_queue; /*!< queue containing data to process */
-    bool m_running; /*!< boolean controlling the thread execution */
-    std::thread m_thread; /*!< thread consuming messages */
-    mutable std::condition_variable m_condition; /*!< thread waking condition */
-    mutable std::mutex m_mutex; /*!< mutex protecting queue */
+    //------------
+    // attributes
+    //------------
+
+    std::thread m_thread;
+    std::atomic<bool> m_running {false};
+    mutable std::condition_variable m_condition_variable;
+    mutable std::mutex m_mutex;
+
+};
+
+//=======
+// Queue
+//=======
+
+/**
+ * A queue wraps a container so that accessing it is safe in multi-threaded environments
+ *
+ * values may be produced individually, but consumption must be done on all values available
+ *
+ * ContainerT may be any objects providing methods 'push_back', 'empty' and 'clear'
+ * It should also be swappable and default constructible
+ *
+ * @note unsynchronized_consume must be called only when there is a single consumer thread
+ */
+
+template<typename ContainerT>
+class Queue {
+
+public:
+    template<typename U>
+    void produce(U&& value) {
+        std::lock_guard<std::mutex> guard{m_mutex};
+        m_frontend.push_back(std::forward<U>(value));
+    }
+
+    template<typename CallableT>
+    void unsynchronized_consume(CallableT&& callable) {
+        using std::swap;
+        while (true) {
+            {
+                std::lock_guard<std::mutex> guard{m_mutex};
+                swap(m_frontend, m_backend);
+            }
+            if (m_backend.empty())
+                break;
+            callable(m_backend);
+            m_backend.clear();
+        }
+    }
+
+    template<typename CallableT>
+    void consume(CallableT&& callable) {
+        if (m_flag.test_and_set(std::memory_order_acquire))
+            return;
+        unsynchronized_consume(std::forward<CallableT>(callable));
+        m_flag.clear(std::memory_order_release);
+    }
+
+private:
+    ContainerT m_frontend;
+    ContainerT m_backend;
+    mutable std::mutex m_mutex;
+    mutable std::atomic_flag m_flag = ATOMIC_FLAG_INIT;
 
 };
 
 #endif // TOOLS_CONCURRENCY_H
-

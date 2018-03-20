@@ -24,6 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <chrono>
 #include <boost/logic/tribool.hpp>
 #include <boost/variant.hpp>
+#include <boost/lockfree/queue.hpp>
 #include "tools/containers.h"
 #include "tools/trace.h"
 #include "tools/concurrency.h"
@@ -52,6 +53,9 @@ class Handler;
 
 struct Message final {
 
+    using clock_type = Clock::clock_type;
+    using time_type = Clock::time_type;
+
     static const track_t no_track = 0;
 
     Message(Event event = {}, Handler* source = nullptr, track_t track = no_track) noexcept;
@@ -59,6 +63,40 @@ struct Message final {
     Event event; /*!< actual event to be handled */
     Handler* source; /*!< first producer of the event */
     track_t track; /*!< the track within the source containing the event */
+    #ifdef MIDILAB_ENABLE_TIMING
+    time_type time_point  {clock_type::now()}; /*!< construction time */
+    #endif
+
+};
+
+using Messages = std::vector<Message>;
+
+//=========
+// Metrics
+//=========
+
+/**
+ * Metrics aim to collect data about handler usage
+ */
+
+class Metrics {
+
+public:
+    using clock_type = Clock::clock_type;
+    using time_type = Clock::time_type;
+    using delta_type = std::chrono::microseconds;
+
+    const accumulator_t<size_t>& payload() const;
+    const std::vector<delta_type>& latencies() const;
+
+    void add_payload(size_t payload);
+    void add_latency(const time_type& expected, const time_type& actual = clock_type::now());
+
+private:
+    accumulator_t<size_t> m_payload; /*!< number of messages processed together */
+    std::vector<delta_type> m_latencies; /*!< average latency observed per second */
+    time_type m_reference {clock_type::now()};
+    accumulator_t<delta_type> m_accumulator {delta_type::zero()};
 
 };
 
@@ -351,8 +389,9 @@ public:
     virtual Result on_open(State state); /*!< by default, just updates internal state */
     virtual Result on_close(State state); /*!< @see on_open */
 
-    bool send_message(const Message& message); /*!< sends message to the synchronizer (asynchronous) */
-    Result receive_message(const Message& message); /*!< delegated handling to the interceptor (synchronous) */
+    void send_message(const Message& message); /*!< sends message to the synchronizer (asynchronous) */
+    void flush_messages();
+
     virtual Result handle_message(const Message& message); /*!< actual processing of messages, by default handles open/close actions */
 
     void forward_message(const Message& message) const; /*!< sends message to all listeners matching their filters */
@@ -361,10 +400,14 @@ private:
     std::string m_name;
     const Mode m_mode;
     State m_state;
-    Synchronizer* m_synchronizer;
-    Interceptor* m_interceptor;
+    Synchronizer* m_synchronizer {nullptr};
+    Interceptor* m_interceptor {nullptr};
     mutable std::mutex m_listeners_mutex;
     Listeners m_listeners;
+    Queue<Messages> m_pending_messages;
+#ifdef MIDILAB_ENABLE_TIMING
+    Metrics m_metrics;
+#endif
 
 };
 
@@ -388,7 +431,7 @@ public:
     using Result = Handler::Result;
 
     virtual ~Interceptor() = default;
-    virtual Result seize_message(Handler* target, const Message& message) = 0;
+    virtual void seize_messages(Handler* target, const Messages& messages) = 0;
 
 };
 
@@ -405,7 +448,7 @@ class Synchronizer {
 
 public:
     virtual ~Synchronizer() = default;
-    virtual bool sync_message(Handler* target, const Message& message) = 0;
+    virtual void sync_handler(Handler* target) = 0;
 
 };
 
@@ -413,49 +456,28 @@ public:
 // StandardSynchronizer
 //======================
 
-/**
-  * The StandardSynchronizer is an implementation using an internal message queue
-  *
-  */
-
+template<size_t Size>
 class StandardSynchronizer : public Synchronizer {
 
 public:
-    using clock_type = Clock::clock_type;
-    using time_type = Clock::time_type;
-#ifdef MIDILAB_ENABLE_TIMING
-    using data_type = std::tuple<Handler*, Message, time_type>;
-#else
-    using data_type = std::pair<Handler*, Message>;
-#endif
-    using task_type = task_t<data_type>;
+    void start() {
+        Executor::start_all(m_executors, [this] {
+            while (m_queue.consume_one([](auto* handler) { handler->flush_messages(); } ));
+        });
+    }
 
-    explicit StandardSynchronizer(std::string name = {});
-    ~StandardSynchronizer();
+    void stop() {
+        Executor::halt_all(m_executors);
+    }
 
-    void start(priority_t priority); /*!< (re)activate message processing */
-    void stop(); /*!< deactivate message processing */
-
-    std::thread::id get_id() const;
-
-    const std::string& name() const;
-    void set_name(std::string name);
-
-#ifdef MIDILAB_ENABLE_TIMING
-    void feed(time_type time);
-    void reset(time_type time);
-#endif
-
-    bool sync_message(Handler* target, const Message& message) final;
+    void sync_handler(Handler* target) final {
+        m_queue.push(target);
+        Executor::awake_all(m_executors);
+    }
 
 private:
-    task_type m_task;
-    std::string m_name;
-#ifdef MIDILAB_ENABLE_TIMING
-    time_type m_reference; /*!< time reference */
-    std::chrono::microseconds m_delta; /*!< deltatime accumulation */
-    size_t m_count; /*!< number of events fed since the last reset */
-#endif
+    std::array<Executor, Size> m_executors;
+    boost::lockfree::queue<Handler*> m_queue {128};
 
 };
 

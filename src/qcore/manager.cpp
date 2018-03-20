@@ -68,7 +68,7 @@ public:
     void addHandler(const Configuration::Handler& handler) {
         // create the handler
         auto host = mViewReferences.value(handler.id, nullptr);
-        auto proxy = Manager::instance->loadHandler(handler.type, handler.name, host, handler.group);
+        auto proxy = Manager::instance->loadHandler(handler.type, handler.name, host);
         if (proxy.handler()) {
             // register handler
             mHandlersReferences[handler.id] = proxy.handler();
@@ -145,8 +145,6 @@ public:
             info.parsingData.type = info.proxy.metaHandler()->identifier();
             info.parsingData.id = QString("#%1").arg(id++);
             info.parsingData.name = info.proxy.name();
-            if (auto* synchronizer = dynamic_cast<StandardSynchronizer*>(info.proxy.handler()->synchronizer()))
-                info.parsingData.group = QString::fromStdString(synchronizer->name());
             for (const auto& parameter : info.proxy.getParameters())
                 info.parsingData.properties.push_back(Configuration::Property{parameter.name, parameter.value});
             ++it;
@@ -304,8 +302,6 @@ void Manager::clearConfiguration() {
     for (auto& proxy : mHandlerProxies)
         proxy.destroy();
     mHandlerProxies.clear();
-    // clear synchronizers
-    mSynchronizerPool->clear();
     // delete all displayers
     if (auto displayer = mainDisplayer())
         displayer->deleteLater();
@@ -313,7 +309,7 @@ void Manager::clearConfiguration() {
         displayer->deleteLater();
 }
 
-HandlerProxy Manager::loadHandler(MetaHandler* meta, const QString& name, SingleDisplayer* host, const QString& group) {
+HandlerProxy Manager::loadHandler(MetaHandler* meta, const QString& name, SingleDisplayer* host) {
     auto proxy = meta ? meta->instantiate(name) : HandlerProxy{};
     // set view's parent
     if (auto view = proxy.view()) {
@@ -323,7 +319,7 @@ HandlerProxy Manager::loadHandler(MetaHandler* meta, const QString& name, Single
     }
     // insert the handler
     if (proxy.handler()) {
-        mSynchronizerPool->configure(proxy, group);
+        mSynchronizerPool->configure(proxy);
         proxy.setObserver(mObserver);
         proxy.setContext(this);
         proxy.setState(true);
@@ -333,8 +329,8 @@ HandlerProxy Manager::loadHandler(MetaHandler* meta, const QString& name, Single
     return proxy;
 }
 
-HandlerProxy Manager::loadHandler(const QString& type, const QString& name, SingleDisplayer* host, const QString& group) {
-    return loadHandler(mMetaHandlerPool->get(type), name, host, group);
+HandlerProxy Manager::loadHandler(const QString& type, const QString& name, SingleDisplayer* host) {
+    return loadHandler(mMetaHandlerPool->get(type), name, host);
 }
 
 void Manager::removeHandler(Handler* handler) {

@@ -45,17 +45,14 @@ Event SequenceReader::distorsion_event(double distorsion) {
     return Event::custom({}, "SequenceReader.distorsion", marshall(distorsion));
 }
 
-SequenceReader::SequenceReader() : Handler(Mode::io()), m_distorsion(1.), m_task(1), m_playing(false) {
+SequenceReader::SequenceReader() : Handler(Mode::io()), m_distorsion(1.), m_playing(false) {
     init_positions();
-    m_task.start([this](std::promise<void>&& promise){
-        run();
-        promise.set_value();
-    });
+    m_executor.start([this]{ run(); });
 }
 
 SequenceReader::~SequenceReader() {
     stop_playing(stop_all);
-    m_task.stop(true);
+    m_executor.halt();
 }
 
 const Sequence& SequenceReader::sequence() const {
@@ -167,9 +164,9 @@ bool SequenceReader::start_playing(bool rewind) {
         return false;
     // @note it may be a good idea to clean current notes on: forward_message({stop_notes, this});
     // push the new request and update status
-    std::promise<void> promise;
-    m_status = promise.get_future();
-    m_task.push(std::move(promise));
+    m_promise = {};
+    m_status = m_promise.get_future();
+    m_executor.awake();
     return true;
 }
 
@@ -247,6 +244,10 @@ Handler::Result SequenceReader::handle_distorsion(const std::string& distorsion)
 /// @todo adopt a strategy to forward settings at 0, when no note is available
 
 void SequenceReader::run() {
+    // spurious wakeup
+    if (!m_status.valid())
+        return;
+
     m_playing = true;
     duration_type base_time = m_sequence.clock().base_time(m_sequence.clock().last_tempo(position())); // current base time for 1 deltatime
     time_type t1, t0 = clock_type::now();
@@ -275,6 +276,7 @@ void SequenceReader::run() {
         // asleep this thread for a minimal period
         std::this_thread::sleep_for(std::chrono::milliseconds(4));
     }
+    m_promise.set_value();
 }
 
 void SequenceReader::init_positions() {

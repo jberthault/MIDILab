@@ -51,11 +51,13 @@ void MetaSoundFont::setContent(HandlerProxy& proxy) {
 // SoundFontInterceptor
 //======================
 
-Interceptor::Result SoundFontInterceptor::seize_message(Handler* target, const Message& message) {
-    const auto result = doSeize(target, message);
-    if (message.event.family() == family_t::custom && message.event.has_custom_key("SoundFont.file"))
+void SoundFontInterceptor::seize_messages(Handler* target, const Messages& messages) {
+    bool fileSeized = std::any_of(messages.begin(), messages.end(), [](const auto& message) {
+        return message.event.family() == family_t::custom && message.event.has_custom_key("SoundFont.file");
+    });
+    seizeAll(target, messages);
+    if (fileSeized)
         emit fileHandled();
-    return result;
 }
 
 //============
@@ -362,10 +364,9 @@ Handler* SoundFontEditor::getHandler() const {
 }
 
 void SoundFontEditor::setFile(const QString& file) {
-    if (mHandler->send_message(SoundFontHandler::file_event(file.toStdString()))) {
-        mLoadMovie->start();
-        mLoadLabel->show();
-    }
+    mHandler->send_message(SoundFontHandler::file_event(file.toStdString()));
+    mLoadMovie->start();
+    mLoadLabel->show();
 }
 
 void SoundFontEditor::setGain(double gain) {

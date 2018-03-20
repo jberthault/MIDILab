@@ -62,19 +62,17 @@ StorageEvent::StorageEvent(Handler* target, Message message) :
 // GraphicalSynchronizer
 //=======================
 
-GraphicalSynchronizer::GraphicalSynchronizer(QObject* parent) : QObject(parent), Synchronizer() {
+GraphicalSynchronizer::GraphicalSynchronizer(QObject* parent) : QObject{parent}, Synchronizer{} {
 
 }
 
-bool GraphicalSynchronizer::sync_message(Handler* target, const Message& message) {
-    QApplication::postEvent(this, new StorageEvent(target, message), Qt::HighEventPriority);
-    return true;
+void GraphicalSynchronizer::sync_handler(Handler* target) {
+    QApplication::postEvent(this, new StorageEvent{target, {}}, Qt::HighEventPriority);
 }
 
 bool GraphicalSynchronizer::event(QEvent* e) {
     if (e->type() == StorageEvent::family) {
-        auto storageEvent = static_cast<StorageEvent*>(e);
-        storageEvent->target->receive_message(storageEvent->message);
+        static_cast<StorageEvent*>(e)->target->flush_messages();
         return true;
     }
     return QObject::event(e);
@@ -84,19 +82,24 @@ bool GraphicalSynchronizer::event(QEvent* e) {
 // Observer
 //==========
 
-Observer::Observer(QObject* parent) : QObject(parent), Interceptor() {
+Observer::Observer(QObject* parent) : QObject{parent}, Interceptor{} {
 
 }
 
-Handler::Result Observer::doSeize(Handler* target, const Message& message) {
+Handler::Result Observer::seizeOne(Handler* target, const Message& message) {
     const auto result = target->handle_message(message);
     if (result == Handler::Result::success && message.event.is(~families_t::note()))
-        QApplication::postEvent(this, new StorageEvent(target, message));
+        QApplication::postEvent(this, new StorageEvent{target, message});
     return result;
 }
 
-Handler::Result Observer::seize_message(Handler* target, const Message& message) {
-    return doSeize(target, message);
+void Observer::seizeAll(Handler* target, const Messages& messages) {
+    for (const auto& message : messages)
+        seizeOne(target, message);
+}
+
+void Observer::seize_messages(Handler* target, const Messages& messages) {
+    seizeAll(target, messages);
 }
 
 bool Observer::event(QEvent* e) {
@@ -116,8 +119,12 @@ ObservableInterceptor::ObservableInterceptor(QObject* parent) : QObject(parent),
 
 }
 
-Handler::Result ObservableInterceptor::doSeize(Handler* target, const Message& message) {
-    return mObserver->seize_message(target, message);
+Handler::Result ObservableInterceptor::seizeOne(Handler* target, const Message& message) {
+    return mObserver->seizeOne(target, message);
+}
+
+void ObservableInterceptor::seizeAll(Handler* target, const Messages& messages) {
+    mObserver->seizeAll(target, messages);
 }
 
 Observer* ObservableInterceptor::observer() {
@@ -424,38 +431,25 @@ size_t MetaHandlerPool::addPlugins(const QDir& dir) {
 //==================
 
 SynchronizerPool::SynchronizerPool(QObject *parent) : QObject{parent} {
-    mGUISynchronizer = new GraphicalSynchronizer(this);
+    mGUISynchronizer = new GraphicalSynchronizer{this};
 }
 
 SynchronizerPool::~SynchronizerPool() {
     stop();
 }
 
-void SynchronizerPool::configure(const HandlerProxy& proxy, const QString& group) {
+void SynchronizerPool::configure(const HandlerProxy& proxy) {
     Q_ASSERT(!proxy.handler()->synchronizer());
-    proxy.handler()->set_synchronizer(proxy.editable() ? mGUISynchronizer : get(group));
+    if (proxy.editable()) {
+        proxy.handler()->set_synchronizer(mGUISynchronizer);
+    } else {
+        mDefaultSynchronizer.start();
+        proxy.handler()->set_synchronizer(&mDefaultSynchronizer);
+    }
 }
 
 void SynchronizerPool::stop() {
-    for (auto& synchronizer : mSynchronizers)
-        synchronizer->stop();
-}
-
-void SynchronizerPool::clear() {
-    mSynchronizers.clear();
-}
-
-Synchronizer* SynchronizerPool::get(const QString& group) {
-    std::string name = group.toStdString();
-    for (auto& synchronizer : mSynchronizers)
-        if (synchronizer->name() == name)
-            return synchronizer.get();
-    auto synchronizer = std::make_unique<StandardSynchronizer>(name);
-    synchronizer->start(priority_t::highest); // let SF threads the opportunity to be realtime
-    TRACE_DEBUG("creating synchronizer " << name << " (" << synchronizer->get_id() << ") ...");
-    auto* raw_synchronizer = synchronizer.get();
-    mSynchronizers.push_back(std::move(synchronizer));
-    return raw_synchronizer;
+    mDefaultSynchronizer.stop();
 }
 
 //===================

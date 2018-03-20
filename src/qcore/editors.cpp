@@ -675,7 +675,6 @@ HandlerConfigurator::HandlerConfigurator(MetaHandler* meta, QWidget* parent) : Q
     mEditorsLayout = new QFormLayout;
 
     mNameEditor = addLine("name", "handler's name", identifier);
-    mGroupEditor = addLine("group", "thread attribution", "default");
     for (const auto& param : meta->parameters())
         addField(param);
 
@@ -686,13 +685,6 @@ QString HandlerConfigurator::name() const {
     auto result = mNameEditor->text();
     if (result.isEmpty())
         return mNameEditor->placeholderText();
-    return result;
-}
-
-QString HandlerConfigurator::group() const {
-    auto result = mGroupEditor->text();
-    if (result.isEmpty())
-        return mGroupEditor->placeholderText();
     return result;
 }
 

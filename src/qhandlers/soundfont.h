@@ -54,7 +54,7 @@ class SoundFontInterceptor : public ObservableInterceptor {
 public:
     using ObservableInterceptor::ObservableInterceptor;
 
-    Result seize_message(Handler* target, const Message& message) final;
+    void seize_messages(Handler* target, const Messages& messages) final;
 
 signals:
     void fileHandled();

@@ -64,6 +64,30 @@ size_t erase_if(T& collection, P predicate) {
     return count;
 }
 
+int latency_chunk(const Metrics::delta_type& latency) {
+    using namespace std::chrono;
+    if (latency < microseconds{75})
+        return 0;
+    if (latency < microseconds{150})
+        return 1;
+    if (latency < microseconds{300})
+        return 2;
+    if (latency < milliseconds{1})
+        return 3;
+    return 4;
+}
+
+void display_statistics(std::ostream& os, const Metrics& metrics) {
+    std::array<accumulator_t<Metrics::delta_type>, 5> latencies;
+    latencies.fill(Metrics::delta_type::zero());
+    for (const auto& sample : metrics.latencies())
+        latencies[latency_chunk(sample)] += sample;
+    const auto total = metrics.latencies().size() ? static_cast<double>(metrics.latencies().size()) : 1.;
+    for (const auto& latency : latencies)
+        os << decay_value<int>(100. * latency.count() / total) << "% [" << latency.average().count() << " us], ";
+    os << "payload ~= " << metrics.payload().as<double>().average();
+}
+
 }
 
 //=========
@@ -71,8 +95,33 @@ size_t erase_if(T& collection, P predicate) {
 //=========
 
 Message::Message(Event event, Handler* source, track_t track) noexcept :
-    event(std::move(event)), source(source), track(track) {
+    event{std::move(event)}, source{source}, track{track} {
 
+}
+
+//=========
+// Metrics
+//=========
+
+const accumulator_t<size_t>& Metrics::payload() const {
+    return m_payload;
+}
+
+const std::vector<Metrics::delta_type>& Metrics::latencies() const {
+    return m_latencies;
+}
+
+void Metrics::add_payload(size_t payload) {
+    m_payload += payload;
+}
+
+void Metrics::add_latency(const time_type& expected, const time_type& actual) {
+    m_accumulator += std::chrono::duration_cast<delta_type>(actual - expected);
+    if (actual > m_reference + std::chrono::seconds{1}) {
+        m_latencies.push_back(m_accumulator.average());
+        m_accumulator = delta_type::zero();
+        m_reference = actual;
+    }
 }
 
 //========
@@ -532,13 +581,18 @@ Event Handler::close_event(State state) {
     return Event::custom({}, "Close", marshall(state));
 }
 
-Handler::Handler(Mode mode) :
-    m_name(), m_mode(mode), m_state(), m_synchronizer(nullptr), m_interceptor(nullptr), m_listeners_mutex(), m_listeners() {
+Handler::Handler(Mode mode) : m_mode{mode} {
 
 }
 
 Handler::~Handler() {
+#ifdef MIDILAB_ENABLE_TIMING
+    std::stringstream ss;
+    display_statistics(ss, m_metrics);
+    TRACE(debug, "deleting handler " << m_name << " (statistics: " << ss.str() << ") ...");
+#else
     TRACE_DEBUG("deleting handler " << m_name << " ...");
+#endif
 }
 
 const std::string& Handler::name() const {
@@ -622,17 +676,24 @@ Handler::Result Handler::on_close(State state) {
     return Result::success;
 }
 
-bool Handler::send_message(const Message& message) {
-    return m_synchronizer && m_synchronizer->sync_message(this, message);
+void Handler::send_message(const Message& message) {
+    m_pending_messages.produce(message);
+    m_synchronizer->sync_handler(this);
 }
 
-Handler::Result Handler::receive_message(const Message& message) {
-    try {
-        return m_interceptor ? m_interceptor->seize_message(this, message) : handle_message(message);
-    } catch (const std::exception& error) {
-        TRACE_ERROR(m_name << " handling exception: " << error.what());
-        return Result::error;
-    }
+void Handler::flush_messages() {
+    m_pending_messages.consume([this](const auto& messages) {
+#ifdef MIDILAB_ENABLE_TIMING
+        for (const auto& message : messages)
+            m_metrics.add_latency(message.time_point);
+        m_metrics.add_payload(messages.size());
+#endif
+        try {
+            m_interceptor->seize_messages(this, messages);
+        } catch (const std::exception& error) {
+            TRACE_ERROR(m_name << " handling exception: " << error.what());
+        }
+    });
 }
 
 Handler::Result Handler::handle_message(const Message& message) {
@@ -642,77 +703,4 @@ Handler::Result Handler::handle_message(const Message& message) {
 void Handler::forward_message(const Message& message) const {
     std::lock_guard<std::mutex> guard(m_listeners_mutex);
     m_listeners.hear_message(message);
-}
-
-//======================
-// StandardSynchronizer
-//======================
-
-StandardSynchronizer::StandardSynchronizer(std::string name) : Synchronizer(), m_task(512), m_name(std::move(name)) {
-
-}
-
-StandardSynchronizer::~StandardSynchronizer() {
-    TRACE_DEBUG("deleting synchronizer " << m_name << " ...");
-}
-
-void StandardSynchronizer::start(priority_t priority) {
-#ifdef MIDILAB_ENABLE_TIMING
-    reset(clock_type::now());
-    m_task.start(priority, [this](data_type&& data) {
-        feed(std::move(std::get<2>(data)));
-        std::get<0>(data)->receive_message(std::get<1>(data));
-    });
-#else
-    m_task.start(priority, [](data_type&& data) {
-        data.first->receive_message(data.second);
-    });
-#endif
-}
-
-void StandardSynchronizer::stop() {
-    TRACE_DEBUG("stopping synchronizer " << m_name << " ...");
-    m_task.stop(true);
-}
-
-std::thread::id StandardSynchronizer::get_id() const {
-    return m_task.get_id();
-}
-
-const std::string& StandardSynchronizer::name() const {
-    return m_name;
-}
-
-void StandardSynchronizer::set_name(std::string name) {
-    m_name = std::move(name);
-}
-
-#ifdef MIDILAB_ENABLE_TIMING
-
-void StandardSynchronizer::feed(time_type time) {
-    auto now = clock_type::now();
-    m_delta += std::chrono::duration_cast<decltype(m_delta)>(now - time);
-    m_count++;
-    if (now > m_reference + std::chrono::seconds(3)) {
-        auto mean_delta = m_delta / m_count;
-        if (mean_delta > std::chrono::microseconds(75))
-            TRACE_INFO(m_name << " " << mean_delta.count() << " us");
-        reset(now);
-    }
-}
-
-void StandardSynchronizer::reset(time_type time) {
-    m_count = 0;
-    m_delta = std::chrono::microseconds::zero();
-    m_reference = std::move(time);
-}
-
-#endif
-
-bool StandardSynchronizer::sync_message(Handler* target, const Message& message) {
-#ifdef MIDILAB_ENABLE_TIMING
-    return m_task.push(data_type{target, message, clock_type::now()});
-#else
-    return m_task.push(data_type{target, message});
-#endif
 }

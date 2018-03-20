@@ -558,7 +558,7 @@ void HandlerCatalogEditor::createHandler(MetaHandler* metaHandler, const QString
     DialogContainer ask(configurator, this);
     if (ask.exec() != QDialog::Accepted)
         return;
-    auto proxy = Manager::instance->loadHandler(metaHandler, configurator->name(), nullptr, configurator->group());
+    auto proxy = Manager::instance->loadHandler(metaHandler, configurator->name(), nullptr);
     proxy.setParameters(configurator->parameters());
     proxy.show();
 }

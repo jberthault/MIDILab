@@ -102,7 +102,6 @@ Configuration::Handler parseHandler(const QDomElement& element) {
         type,
         element.attribute("id"),
         element.attribute("name", type),
-        element.attribute("group", "default"),
         parseMultiple(element, parseProperty)
     };
 }
@@ -112,8 +111,6 @@ void writeHandler(QXmlStreamWriter& stream, const Configuration::Handler& handle
     stream.writeAttribute("type", handler.type);
     stream.writeAttribute("id", handler.id);
     stream.writeAttribute("name", handler.name);
-    if (!handler.group.isEmpty() && handler.group != "default")
-        stream.writeAttribute("group", handler.group);
     for (const auto& property : handler.properties)
         writeProperty(stream, property);
     stream.writeEndElement(); // handler

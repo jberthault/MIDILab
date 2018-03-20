@@ -249,4 +249,66 @@ template<> struct unmarshalling_traits<unsigned int> : unmarshalling_traits<unsi
 template<typename T> inline auto marshall(T value) { return std::string{marshalling_traits<T>()(value)}; }
 template<typename T> inline auto unmarshall(const std::string& string) { return static_cast<T>(unmarshalling_traits<T>()(string)); }
 
+// ===========
+// accumulator
+// ===========
+
+template <typename ValueT>
+struct accumulator_t;
+
+template<typename T>
+struct is_accumulator : std::false_type {};
+
+template<typename ValueT>
+struct is_accumulator<accumulator_t<ValueT>> : std::true_type {};
+
+struct accumulator_type_tag {};
+struct accumulator_any_tag {};
+
+template <typename ValueT>
+struct accumulator_t {
+
+public:
+    constexpr accumulator_t() = default;
+
+    template<typename T, typename = std::enable_if_t<!is_accumulator<std::decay_t<T>>::value>>
+    constexpr accumulator_t(T&& element, size_t count = 0) : m_value{std::forward<T>(element)}, m_count{count} {}
+
+    constexpr auto value() const { return m_value; }
+    constexpr auto count() const { return m_count; }
+
+    template<typename T>
+    constexpr auto as() const {
+        return accumulator_t<T>{static_cast<T>(m_value), m_count};
+    }
+
+    constexpr auto average() const {
+        return m_count ? static_cast<ValueT>(m_value / m_count) : m_value;
+    }
+
+    template<typename T>
+    constexpr auto& operator+=(T&& element) {
+        using tag_type = std::conditional_t<is_accumulator<std::decay<T>>::value, accumulator_type_tag, accumulator_any_tag>;
+        add(tag_type{}, std::forward<T>(element));
+        return *this;
+    }
+
+private:
+    template<typename T>
+    constexpr void add(accumulator_type_tag, T&& element) {
+        m_value += element.value;
+        m_count += element.count;
+    }
+
+    template<typename T>
+    constexpr void add(accumulator_any_tag, T&& element) {
+        m_value += std::forward<T>(element);
+        ++m_count;
+    }
+
+    ValueT m_value {};
+    size_t m_count {0};
+
+};
+
 #endif // TOOLS_BYTES_H

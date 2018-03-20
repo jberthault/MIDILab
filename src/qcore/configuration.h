@@ -54,7 +54,6 @@ struct Configuration {
         QString type;
         QString id;
         QString name;
-        QString group;
         Properties properties;
     };
 
