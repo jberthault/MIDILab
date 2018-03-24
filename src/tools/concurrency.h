@@ -159,9 +159,9 @@ private:
     //------------
 
     std::thread m_thread;
-    std::atomic<bool> m_running {false};
-    mutable std::condition_variable m_condition_variable;
-    mutable std::mutex m_mutex;
+    std::atomic_bool m_running {false};
+    std::condition_variable m_condition_variable;
+    std::mutex m_mutex;
 
 };
 
@@ -216,8 +216,8 @@ public:
 private:
     ContainerT m_frontend;
     ContainerT m_backend;
-    mutable std::mutex m_mutex;
-    mutable std::atomic_flag m_flag = ATOMIC_FLAG_INIT;
+    std::mutex m_mutex;
+    std::atomic_flag m_flag = ATOMIC_FLAG_INIT;
 
 };
 

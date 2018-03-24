@@ -177,13 +177,10 @@ QVariant SequenceViewItem::data(int column, int role) const {
     return QTreeWidgetItem::data(column, role);
 }
 
-SequenceView::SequenceView(QWidget *parent) :
-    QWidget(parent), mChannelEditor(nullptr), mCodec(QTextCodec::codecForLocale()),
-    mTrackFilter(nullptr), mDistordedClock(), mLastButton(Qt::NoButton), mLower(0.), mUpper(0.) {
+SequenceView::SequenceView(QWidget *parent) : QWidget{parent}, mCodec{QTextCodec::codecForLocale()} {
 
-    mSequenceIt = mSequence.begin(); // consistent iterator
-    mEventUpdater = new QTimer(this);
-    connect(mEventUpdater, &QTimer::timeout, this, &SequenceView::addNextEvent);
+    mSequenceUpdater = new QTimer(this);
+    connect(mSequenceUpdater, &QTimer::timeout, this, &SequenceView::addNextEvents);
 
     mTreeWidget = new QTreeWidget(this);
     mTreeWidget->setAlternatingRowColors(true);
@@ -316,7 +313,6 @@ void SequenceView::setSequence(const Sequence& sequence, timestamp_t lower, time
 
     // register sequence
     mSequence = sequence;
-    mSequenceIt = mSequence.begin();
     mDistordedClock.setClock(sequence.clock());
     mLower = lower;
     mUpper = upper;
@@ -361,12 +357,14 @@ void SequenceView::setSequence(const Sequence& sequence, timestamp_t lower, time
     mTreeWidget->setColumnWidth(0, 90);
     mTreeWidget->setColumnWidth(1, 60);
     // start filling events
-    mEventUpdater->start();
+    setUpdatesEnabled(false);
+    mSequenceIt = mSequence.begin();
+    mSequenceUpdater->start();
 
 }
 
 void SequenceView::cleanSequence() {
-    mEventUpdater->stop();
+    mSequenceUpdater->stop();
     mTreeWidget->clear();
     mTreeWidget->setHeaderLabels(QStringList() << "Timestamp" << "Channel" << "Type" << "Data");
 }
@@ -402,7 +400,6 @@ void SequenceView::onFamiliesChanged(families_t families) {
     else
         mFamilySelectorButton->setText("Types*");
     updateItemsVisibility();
-
 }
 
 void SequenceView::onChannelsChanged(channels_t channels) {
@@ -413,11 +410,14 @@ void SequenceView::onChannelsChanged(channels_t channels) {
     updateItemsVisibility();
 }
 
-void SequenceView::addNextEvent() {
-    if (mSequenceIt == mSequence.end())
-        mEventUpdater->stop();
-    else
+void SequenceView::addNextEvents() {
+    const int n = std::min((int)std::distance(mSequenceIt, mSequence.end()), 64);
+    for(int i=0 ; i < n ; ++i)
         addEvent(*mSequenceIt++);
+    if (mSequenceIt == mSequence.end()) {
+        mSequenceUpdater->stop();
+        setUpdatesEnabled(true);
+    }
 }
 
 void SequenceView::addEvent(const Sequence::Item& item) {

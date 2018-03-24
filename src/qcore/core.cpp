@@ -47,35 +47,22 @@ QString metaHandlerName(const MetaHandler* meta) {
     return meta ? meta->identifier() : "Unknown MetaHandler";
 }
 
-//==============
-// StorageEvent
-//==============
-
-const QEvent::Type StorageEvent::family = (QEvent::Type)QEvent::registerEventType();
-
-StorageEvent::StorageEvent(Handler* target, Message message) :
-    QEvent(family), target(target), message(std::move(message)) {
-
-}
-
 //=======================
 // GraphicalSynchronizer
 //=======================
 
-GraphicalSynchronizer::GraphicalSynchronizer(QObject* parent) : QObject{parent}, Synchronizer{} {
-
+GraphicalSynchronizer::GraphicalSynchronizer(QObject* parent) : QObject{parent}, Synchronizer{}, mQueue{128} {
+    startTimer(1);
 }
 
 void GraphicalSynchronizer::sync_handler(Handler* target) {
-    QApplication::postEvent(this, new StorageEvent{target, {}}, Qt::HighEventPriority);
+    mQueue.push(target);
 }
 
-bool GraphicalSynchronizer::event(QEvent* e) {
-    if (e->type() == StorageEvent::family) {
-        static_cast<StorageEvent*>(e)->target->flush_messages();
-        return true;
-    }
-    return QObject::event(e);
+void GraphicalSynchronizer::timerEvent(QTimerEvent*) {
+    mQueue.consume_all([](auto* handler) {
+        handler->flush_messages();
+    });
 }
 
 //==========
@@ -83,13 +70,13 @@ bool GraphicalSynchronizer::event(QEvent* e) {
 //==========
 
 Observer::Observer(QObject* parent) : QObject{parent}, Interceptor{} {
-
+    startTimer(5);
 }
 
 Handler::Result Observer::seizeOne(Handler* target, const Message& message) {
     const auto result = target->handle_message(message);
     if (result == Handler::Result::success && message.event.is(~families_t::note()))
-        QApplication::postEvent(this, new StorageEvent{target, message});
+        mQueue.produce(Item{target, message});
     return result;
 }
 
@@ -102,13 +89,11 @@ void Observer::seize_messages(Handler* target, const Messages& messages) {
     seizeAll(target, messages);
 }
 
-bool Observer::event(QEvent* e) {
-    if (e->type() == StorageEvent::family) {
-        auto storageEvent = static_cast<StorageEvent*>(e);
-        emit messageHandled(storageEvent->target, storageEvent->message);
-        return true;
-    }
-    return QObject::event(e);
+void Observer::timerEvent(QTimerEvent*) {
+    mQueue.unsynchronized_consume([this](const auto& items) {
+        for (const auto& item : items)
+            emit messageHandled(item.first, item.second);
+    });
 }
 
 //=======================

@@ -27,6 +27,11 @@ const auto stop_sounds = Event::controller(channels_t::full(), controller_ns::al
 const auto stop_notes = Event::controller(channels_t::full(), controller_ns::all_notes_off_controller);
 const auto stop_all = Event::reset();
 
+SequenceReader::position_type make_lower(const Sequence& sequence) { return {sequence.begin(), sequence.first_timestamp()}; }
+SequenceReader::position_type make_lower(const Sequence& sequence, timestamp_t timestamp) { return {std::lower_bound(sequence.begin(), sequence.end(), timestamp), timestamp}; }
+SequenceReader::position_type make_upper(const Sequence& sequence, timestamp_t timestamp) { return {std::upper_bound(sequence.begin(), sequence.end(), timestamp), timestamp}; }
+SequenceReader::position_type make_upper(const Sequence& sequence) { return {sequence.end(), sequence.last_timestamp()}; }
+
 }
 
 //================
@@ -45,24 +50,25 @@ Event SequenceReader::distorsion_event(double distorsion) {
     return Event::custom({}, "SequenceReader.distorsion", marshall(distorsion));
 }
 
-SequenceReader::SequenceReader() : Handler(Mode::io()), m_distorsion(1.), m_playing(false) {
-    init_positions();
-    m_executor.start([this]{ run(); });
+SequenceReader::SequenceReader() : Handler{Mode::io()}, m_distorsion{1.}, m_playing{false} {
+    m_position = m_first_position = make_lower(m_sequence);
+    m_last_position = make_upper(m_sequence);
 }
 
 SequenceReader::~SequenceReader() {
     stop_playing(stop_all);
-    m_executor.halt();
 }
 
 const Sequence& SequenceReader::sequence() const {
     return m_sequence;
 }
 
-void SequenceReader::set_sequence(const Sequence& sequence) {
+void SequenceReader::set_sequence(Sequence sequence) {
     stop_playing(stop_all);
-    m_sequence = sequence;
-    init_positions();
+    std::lock_guard<std::mutex> guard(m_mutex);
+    m_sequence = std::move(sequence);
+    m_position = m_first_position = make_lower(m_sequence);
+    m_last_position = make_upper(m_sequence);
 }
 
 const std::map<byte_t, Sequence>& SequenceReader::sequences() const {
@@ -107,7 +113,7 @@ timestamp_t SequenceReader::position() const {
 }
 
 void SequenceReader::set_position(timestamp_t timestamp) {
-    jump_position(make_lower(timestamp));
+    jump_position(make_lower(m_sequence, timestamp));
 }
 
 timestamp_t SequenceReader::lower() const {
@@ -119,7 +125,7 @@ void SequenceReader::set_lower(timestamp_t timestamp) {
     bool needs_jump = false; // if begin has been set after the current position
     {
     std::lock_guard<std::mutex> guard(m_mutex);
-    m_first_position = make_lower(timestamp);
+    m_first_position = make_lower(m_sequence, timestamp);
     needs_jump = m_position.first < m_first_position.first;
     }
     if (needs_jump)
@@ -133,7 +139,7 @@ timestamp_t SequenceReader::upper() const {
 
 void SequenceReader::set_upper(timestamp_t timestamp) {
     std::lock_guard<std::mutex> guard(m_mutex);
-    m_last_position = make_upper(timestamp);
+    m_last_position = make_upper(m_sequence, timestamp);
     if (m_position.first > m_last_position.first)
         m_position = m_last_position;
 }
@@ -142,12 +148,13 @@ void SequenceReader::jump_position(position_type position) {
     bool playing = m_playing;
     stop_playing(false);
     forward_message({stop_notes, this});
-    m_position = position;
+    m_position = std::move(position);
     if (playing)
         start_playing(false);
 }
 
 bool SequenceReader::start_playing(bool rewind) {
+    /// @todo adopt a strategy to forward settings at 0, when no note is available
     // handler must be stopped
     if (m_playing)
         return false;
@@ -163,25 +170,52 @@ bool SequenceReader::start_playing(bool rewind) {
     if (is_completed())
         return false;
     // @note it may be a good idea to clean current notes on: forward_message({stop_notes, this});
-    // push the new request and update status
-    m_promise = {};
-    m_status = m_promise.get_future();
-    m_executor.awake();
+    // starts worker thread
+    m_worker = std::thread{ [this] {
+        m_playing = true;
+        duration_type base_time = m_sequence.clock().base_time(m_sequence.clock().last_tempo(position())); // current base time for 1 deltatime
+        time_type t1, t0 = clock_type::now();
+        Sequence::const_iterator it, last;
+        while (m_playing) {
+            // compute time elapsed since last loop
+            t1 = clock_type::now();
+            duration_type elapsed = t1 - t0;
+            t0 = t1;
+            { // lock position resources
+                std::lock_guard<std::mutex> guard(m_mutex);
+                m_position.second += m_distorsion * elapsed / base_time; // add deltatime to the current position
+                it = m_position.first; // memorize starting position
+                m_position.first = std::lower_bound(it, m_last_position.first, m_position.second); // get next position
+                last = m_position.first; // memorize next position
+                if (m_position.first == m_last_position.first) // stop when last event is reached
+                    m_playing = false;
+            }
+            // forward events in the current range
+            for ( ; it != last ; ++it) {
+                const Event& event = it->event;
+                if (event.family() == family_t::tempo)
+                    base_time = m_sequence.clock().base_time(event);
+                forward_message({event, this, it->track});
+            }
+            // asleep this thread for a minimal period
+            std::this_thread::sleep_for(std::chrono::milliseconds(4));
+        }
+    }};
     return true;
 }
 
 bool SequenceReader::stop_playing(bool rewind) {
     m_playing = false; // notify the playing thread to stop
-    bool stoppable = m_status.valid(); // previously started ?
-    if (stoppable)
-        m_status.get(); // wait until the end of run and invalid status
+    const bool started = m_worker.joinable();
+    if (started)
+        m_worker.join();
     if (rewind)
         m_position = m_first_position;
-    return stoppable;
+    return started;
 }
 
 bool SequenceReader::stop_playing(const Event& final_event) {
-    bool stopped = stop_playing(false);
+    const bool stopped = stop_playing(false);
     if (stopped)
         forward_message({final_event, this});
     return stopped;
@@ -239,58 +273,4 @@ Handler::Result SequenceReader::handle_stop(const Event& final_event) {
 Handler::Result SequenceReader::handle_distorsion(const std::string& distorsion) {
     set_distorsion(unmarshall<double>(distorsion));
     return Result::success;
-}
-
-/// @todo adopt a strategy to forward settings at 0, when no note is available
-
-void SequenceReader::run() {
-    // spurious wakeup
-    if (!m_status.valid())
-        return;
-
-    m_playing = true;
-    duration_type base_time = m_sequence.clock().base_time(m_sequence.clock().last_tempo(position())); // current base time for 1 deltatime
-    time_type t1, t0 = clock_type::now();
-    Sequence::const_iterator it, last;
-    while (m_playing) {
-        // compute time elapsed since last loop
-        t1 = clock_type::now();
-        duration_type elapsed = t1 - t0;
-        t0 = t1;
-        { // lock position resources
-            std::lock_guard<std::mutex> guard(m_mutex);
-            m_position.second += m_distorsion * elapsed / base_time; // add deltatime to the current position
-            it = m_position.first; // memorize starting position
-            m_position.first = std::lower_bound(it, m_last_position.first, m_position.second); // get next position
-            last = m_position.first; // memorize next position
-            if (m_position.first == m_last_position.first) // stop when last event is reached
-                m_playing = false;
-        }
-        // forward events in the current range
-        for ( ; it != last ; ++it) {
-            const Event& event = it->event;
-            if (event.family() == family_t::tempo)
-                base_time = m_sequence.clock().base_time(event);
-            forward_message({event, this, it->track});
-        }
-        // asleep this thread for a minimal period
-        std::this_thread::sleep_for(std::chrono::milliseconds(4));
-    }
-    m_promise.set_value();
-}
-
-void SequenceReader::init_positions() {
-    std::lock_guard<std::mutex> guard(m_mutex);
-    m_position.first = m_first_position.first = m_sequence.begin();
-    m_position.second = m_first_position.second = m_sequence.first_timestamp();
-    m_last_position.first = m_sequence.end();
-    m_last_position.second = m_sequence.last_timestamp();
-}
-
-SequenceReader::position_type SequenceReader::make_lower(timestamp_t timestamp) const {
-    return {std::lower_bound(m_sequence.begin(), m_sequence.end(), timestamp), timestamp};
-}
-
-SequenceReader::position_type SequenceReader::make_upper(timestamp_t timestamp) const {
-    return {std::upper_bound(m_sequence.begin(), m_sequence.end(), timestamp), timestamp};
 }

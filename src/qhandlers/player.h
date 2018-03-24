@@ -151,7 +151,7 @@ protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private slots:
-    void addNextEvent();
+    void addNextEvents();
     void addEvent(const Sequence::Item& item);
     void setChannelColor(channel_t channel, const QColor& color);
     void onItemChange(QTreeWidgetItem* item, int column);
@@ -169,20 +169,20 @@ signals:
 
 private:
     QTreeWidget* mTreeWidget;
-    ChannelEditor* mChannelEditor;
+    ChannelEditor* mChannelEditor {nullptr};
     FamilySelector* mFamilySelector;
     ChannelsSelector* mChannelsSelector;
     QPushButton* mFamilySelectorButton;
     QPushButton* mChannelSelectorButton;
-    QTimer* mEventUpdater; /*!< timer filling sequence event asynchronously */
+    QTimer* mSequenceUpdater; /*!< timer filling sequence event asynchronously */
     Sequence mSequence;
     Sequence::const_iterator mSequenceIt; /*!< iterator pointing to the next event to add */
     QTextCodec* mCodec;
-    Handler* mTrackFilter;
+    Handler* mTrackFilter {nullptr};
     DistordedClock mDistordedClock;
-    Qt::MouseButton mLastButton;
-    timestamp_t mLower;
-    timestamp_t mUpper;
+    Qt::MouseButton mLastButton {Qt::NoButton};
+    timestamp_t mLower {0.};
+    timestamp_t mUpper {0.};
 
 };
 

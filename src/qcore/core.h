@@ -47,22 +47,6 @@ QString handlerName(const Handler* handler);
 QString eventName(const Event& event);
 QString metaHandlerName(const MetaHandler* meta);
 
-//==============
-// StorageEvent
-//==============
-
-class StorageEvent : public QEvent {
-
-public:
-    static const QEvent::Type family;
-
-    StorageEvent(Handler* target, Message message);
-
-    Handler* target;
-    Message message;
-
-};
-
 //=======================
 // GraphicalSynchronizer
 //=======================
@@ -80,7 +64,10 @@ public:
     void sync_handler(Handler* target) final;
 
 protected:
-    bool event(QEvent* e) override;
+    void timerEvent(QTimerEvent* event) override;
+
+private:
+    boost::lockfree::queue<Handler*> mQueue;
 
 };
 
@@ -101,10 +88,14 @@ public:
     void seize_messages(Handler* target, const Messages& messages) final;
 
 protected:
-    bool event(QEvent* e) override;
+    void timerEvent(QTimerEvent* event) override;
 
 signals:
     void messageHandled(Handler* handler, const Message& message);
+
+private:
+    using Item = std::pair<Handler*, Message>;
+    Queue<std::vector<Item>> mQueue;
 
 };
 

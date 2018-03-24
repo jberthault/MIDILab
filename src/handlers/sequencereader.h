@@ -46,7 +46,7 @@ public:
     ~SequenceReader();
 
     const Sequence& sequence() const; /*!< returns current sequence */
-    void set_sequence(const Sequence& sequence); /*!< set sequence to play */
+    void set_sequence(Sequence sequence); /*!< set sequence to play */
 
     const std::map<byte_t, Sequence>& sequences() const; /*!< all loaded sequences */
     void load_sequence(byte_t id, const Sequence& sequence); /*!< set sequence available, for song_select events */
@@ -83,14 +83,8 @@ private:
     Result handle_stop(const Event& final_event);
     Result handle_distorsion(const std::string& distorsion);
 
-    // event loop running through the sequence
-    void run();
-
     // unsafe helpers
-    void init_positions();
     void jump_position(position_type position);
-    position_type make_lower(timestamp_t timestamp) const;
-    position_type make_upper(timestamp_t timestamp) const;
 
     std::map<byte_t, Sequence> m_sequences; /*!< all loaded sequences */
     Sequence m_sequence; /*!< current sequence */
@@ -99,10 +93,7 @@ private:
     position_type m_first_position; /*!< position of the first event to be played */
     position_type m_last_position; /*!< position of the last event to be played (not included) */
     double m_distorsion; /*!< distorsion factor: slower (<1) faster (>1) freezed (0) (default 1) */
-
-    Executor m_executor;
-    std::promise<void> m_promise;
-    std::future<void> m_status; /*!< status of the current run */
+    std::thread m_worker; /*!< thread forwarding status when started */
     bool m_playing; /*!< boolean controlling play/stop */
     mutable std::mutex m_mutex;  /*!< mutex protecting positions & distorsion */
 
