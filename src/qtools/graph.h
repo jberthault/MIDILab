@@ -24,7 +24,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QGraphicsView>
 #include <QGraphicsScene>
 #include <QGraphicsItem>
-#include <QList>
 
 class Node;
 class Edge;
@@ -43,8 +42,8 @@ public:
 
     QRectF enclosingRect() const;
 
-    QList<Node*> getNodes() const;
-    QList<Edge*> getEdges() const;
+    std::vector<Node*> getNodes() const;
+    std::vector<Edge*> getEdges() const;
 
     void insertNode(Node* node);
     void deleteNode(Node* node);
@@ -82,9 +81,8 @@ public:
     QSize sizeHint() const override;
 
 public slots:
-
-    QList<Node*> getNodes();
-    QList<Edge*> getEdges();
+    std::vector<Node*> getNodes() const;
+    std::vector<Edge*> getEdges() const;
 
     void insertNode(Node* node);
     void deleteNode(Node* node);
@@ -132,7 +130,7 @@ public:
     const QString& label() const;
     void setLabel(const QString& label);
 
-    const QVector<QPointF>& controlPoints() const;
+    const std::vector<QPointF>& controlPoints() const;
     void setControlPoints();
     void setControlPoints(const QPointF& p1);
     void setControlPoints(const QPointF& p1, const QPointF& p2);
@@ -168,7 +166,7 @@ private:
     ArrowPolicy mPolicy;
     QColor mColor;
     qreal mArrowSize;
-    QVector<QPointF> mControlPoints;
+    std::vector<QPointF> mControlPoints;
     // internal
     QRectF mLabelRect;
     QPainterPath mPath;
@@ -186,7 +184,7 @@ public:
     explicit BasicNode(GraphItem* graph);
 
     GraphItem* graph();
-    const QList<Edge*>& edges() const;
+    const std::vector<Edge*>& edges() const;
     virtual void setWidth(int width) = 0;
 
 protected:
@@ -199,7 +197,7 @@ protected:
     QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
 
 private:
-    QList<Edge*> mEdges;
+    std::vector<Edge*> mEdges;
 
 };
 
@@ -288,7 +286,7 @@ private:
 private:
     bool mHighlight;
     QSizeF mMinimumSize;
-    QList<BasicNode*> mNodes;
+    std::vector<BasicNode*> mNodes;
 
 };
 

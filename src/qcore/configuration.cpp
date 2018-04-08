@@ -43,12 +43,12 @@ void checkNodeName(const QDomElement& element, const QString& name) {
 template<typename F>
 auto parseMultiple(const QDomElement& element, F parser) {
     using result_type = decltype(parser(element));
-    QVector<result_type> values;
+    std::vector<result_type> values;
     auto nodes = element.childNodes();
     for (int i=0 ; i < nodes.size() ; i++) {
         auto node = nodes.at(i);
         if (node.nodeType() != QDomNode::CommentNode)
-            values.append(parser(node.toElement()));
+            values.push_back(parser(node.toElement()));
     }
     return values;
 }

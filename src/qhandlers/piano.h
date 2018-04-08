@@ -68,7 +68,7 @@ class PianoLayout : public QLayout {
 
     Q_OBJECT
 
-    using BlackItem = QPair<QLayoutItem*, unsigned>;
+    using BlackItem = std::pair<QLayoutItem*, unsigned>;
 
 public:
     explicit PianoLayout(QWidget* parent);

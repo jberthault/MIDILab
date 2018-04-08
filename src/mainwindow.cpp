@@ -286,7 +286,7 @@ void MainWindow::onConfigSelection(QAction* action) {
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {
-    for (auto displayer : MultiDisplayer::topLevelDisplayers())
+    for (auto* displayer : MultiDisplayer::topLevelDisplayers())
         displayer->close();
     QMainWindow::closeEvent(event);
 }

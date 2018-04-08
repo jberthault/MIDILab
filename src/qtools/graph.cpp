@@ -32,6 +32,20 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QKeyEvent>
 #include "tools/trace.h"
 
+namespace {
+
+template<typename CollectionT, typename ValueT>
+size_t erase(CollectionT& collection, const ValueT& value) {
+    auto first = std::begin(collection);
+    auto last = std::end(collection);
+    auto it = std::remove(first, last, value);
+    auto count = std::distance(it, last);
+    collection.erase(it, last);
+    return count;
+}
+
+}
+
 //===========
 // GraphItem
 //===========
@@ -42,25 +56,25 @@ GraphItem::GraphItem(Graph* graph) : QGraphicsItemGroup(), mGraphWidget(graph) {
 
 QRectF GraphItem::enclosingRect() const {
     QRectF rect;
-    for (QGraphicsItem* item : childItems())
+    for (auto* item : childItems())
         if (item->type() == Node::Type)
             rect |= item->mapRectToParent(item->boundingRect());
     return rect;
 }
 
-QList<Node*> GraphItem::getNodes() const {
-    QList<Node*> nodes;
-    for (QGraphicsItem* item : childItems())
+std::vector<Node*> GraphItem::getNodes() const {
+    std::vector<Node*> nodes;
+    for (auto* item : childItems())
         if (item->type() == Node::Type)
-            nodes.append(static_cast<Node*>(item));
+            nodes.push_back(static_cast<Node*>(item));
     return nodes;
 }
 
-QList<Edge*> GraphItem::getEdges() const {
-    QList<Edge*> edges;
-    for (QGraphicsItem* item : childItems())
+std::vector<Edge*> GraphItem::getEdges() const {
+    std::vector<Edge*> edges;
+    for (auto* item : childItems())
         if (item->type() == Edge::Type)
-            edges.append(static_cast<Edge*>(item));
+            edges.push_back(static_cast<Edge*>(item));
     return edges;
 }
 
@@ -70,7 +84,7 @@ void GraphItem::insertNode(Node* node) {
 }
 
 void GraphItem::deleteNode(Node* node) {
-    for (Edge* edge : node->edges())
+    for (auto* edge : node->edges())
         deleteEdge(edge);
     deleteChild(node);
 }
@@ -125,11 +139,11 @@ QSize Graph::sizeHint() const {
     return {400, 400};
 }
 
-QList<Node*> Graph::getNodes() {
+std::vector<Node*> Graph::getNodes() const {
     return mRoot->getNodes();
 }
 
-QList<Edge*> Graph::getEdges() {
+std::vector<Edge*> Graph::getEdges() const {
     return mRoot->getEdges();
 }
 
@@ -240,7 +254,7 @@ void Edge::setLabel(const QString& label) {
     rawUpdateShape();
 }
 
-const QVector<QPointF>& Edge::controlPoints() const {
+const std::vector<QPointF>& Edge::controlPoints() const {
     return mControlPoints;
 }
 
@@ -252,15 +266,13 @@ void Edge::setControlPoints() {
 
 void Edge::setControlPoints(const QPointF& p1) {
     prepareGeometryChange();
-    mControlPoints.clear();
-    mControlPoints << p1;
+    mControlPoints = {p1};
     rawUpdateShape();
 }
 
 void Edge::setControlPoints(const QPointF& p1, const QPointF& p2) {
     prepareGeometryChange();
-    mControlPoints.clear();
-    mControlPoints << p1 << p2;
+    mControlPoints = {p1, p2};
     rawUpdateShape();
 }
 
@@ -428,14 +440,14 @@ GraphItem* BasicNode::graph() {
 }
 
 void BasicNode::addEdge(Edge* edge) {
-    mEdges.append(edge);
+    mEdges.push_back(edge);
 }
 
 void BasicNode::remEdge(Edge* edge) {
-    mEdges.removeAll(edge);
+    erase(mEdges, edge);
 }
 
-const QList<Edge*>& BasicNode::edges() const {
+const std::vector<Edge*>& BasicNode::edges() const {
     return mEdges;
 }
 
@@ -608,19 +620,19 @@ Bundler::Bundler(GraphItem* graph) : BasicNode(graph), mHighlight(false), mMinim
 }
 
 void Bundler::addNode(BasicNode* node) {
-    if (mNodes.contains(node)) {
+    if (std::find(mNodes.begin(), mNodes.end(), node) != mNodes.end()) {
         TRACE_DEBUG("node is already binded to the bundle");
         return;
     }
     prepareGeometryChange();
     node->setParentItem(this);
     node->setFlag(ItemIsMovable, false);
-    mNodes.append(node);
+    mNodes.push_back(node);
     setWidth((int)enclosingSize().width());
 }
 
 void Bundler::remNode(BasicNode* node) {
-    mNodes.removeAll(node);
+    erase(mNodes, node);
 }
 
 void Bundler::dragEnterEvent(QGraphicsSceneDragDropEvent*) {

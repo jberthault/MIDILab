@@ -33,7 +33,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 class Patch {
 
 public:
-    static QList<Patch*> parsePatches(const QDomNode& node);
+    static std::vector<Patch*> parsePatches(const QDomNode& node);
     static Patch* parsePatch(const QDomNode& node);
 
     Patch(QString name);
@@ -48,15 +48,14 @@ public:
     bool insertProgram(byte_t program, const QString& name);
     bool removeProgram(byte_t program); /*!< recursive approach */
 
-    const QList<Patch*>& childs() const;
+    const std::vector<Patch*>& children() const;
     bool hasChild(Patch* patch) const; /*!< recursive approach */
     bool insertChild(Patch* patch);
-    bool removeChild(Patch* patch); /*!< recursive approach */
 
 private:
     QString mName;
     QMap<byte_t, QString> mPrograms;
-    QList<Patch*> mChilds;
+    std::vector<Patch*> mChildren;
 
 };
 
@@ -150,7 +149,7 @@ class ProgramEditor : public QWidget {
     Q_OBJECT
 
     // index of patch / program mapping
-    using HandlerData = QPair<int, QMap<channel_t, byte_t>>;
+    using HandlerData = std::pair<int, QMap<channel_t, byte_t>>;
 
 public:
     explicit ProgramEditor(ChannelEditor* channelEditor, QWidget* parent);
@@ -179,7 +178,7 @@ protected:
     channels_t extend(channels_t channels) const;
 
 private:
-    QVector<Patch*> mPatches;
+    std::vector<Patch*> mPatches;
     QMap<Handler*, HandlerData> mRecords;
 
     HandlerSelector* mHandlerSelector;

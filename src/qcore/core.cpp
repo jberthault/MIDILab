@@ -351,7 +351,7 @@ void MetaHandler::addParameter(const QString& name, const QString& type, const Q
 //=================
 
 HandlerProxy OpenMetaHandler::instantiate(const QString& name) {
-    HandlerProxy proxy(this);
+    HandlerProxy proxy{this};
     setContent(proxy);
     proxy.setName(name);
     return proxy;
@@ -361,7 +361,7 @@ HandlerProxy OpenMetaHandler::instantiate(const QString& name) {
 // MetaHandlerPool
 //=================
 
-const QList<MetaHandler*>& MetaHandlerPool::metaHandlers() const {
+const MetaHandlers& MetaHandlerPool::metaHandlers() const {
     return mMetaHandlers;
 }
 
@@ -375,25 +375,24 @@ MetaHandler* MetaHandlerPool::get(const QString& identifier) {
 size_t MetaHandlerPool::addMetaHandler(MetaHandler* meta) {
     if (meta) {
         meta->setParent(this);
-        mMetaHandlers << meta;
+        mMetaHandlers.push_back(meta);
         return 1;
     }
     return 0;
 }
 
 size_t MetaHandlerPool::addFactory(MetaHandlerFactory* factory) {
-    QList<MetaHandler*> newMetaHandlers;
-    if (factory)
-        newMetaHandlers = factory->spawn();
-    mMetaHandlers << newMetaHandlers;
+    if(!factory)
+        return 0;
+    const auto& newMetaHandlers = factory->spawn();
+    mMetaHandlers.insert(mMetaHandlers.end(), newMetaHandlers.begin(), newMetaHandlers.end());
     return newMetaHandlers.size();
 }
 
 size_t MetaHandlerPool::addPlugin(const QString& filename) {
     size_t count = 0;
     QPluginLoader loader(filename, this);
-    QObject* plugin = loader.instance();
-    if (plugin) { /// @note lifetime is automatically managed
+    if (auto* plugin = loader.instance()) { /// @note lifetime is automatically managed
         count += addFactory(dynamic_cast<MetaHandlerFactory*>(plugin));
     } else {
         TRACE_WARNING("file " << filename << "is not a plugin: " << loader.errorString());

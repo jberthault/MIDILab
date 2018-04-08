@@ -183,14 +183,13 @@ public:
         frame.pos = window->pos();
         frame.size = window->size();
         frame.visible = window->isVisible();
-        for (Displayer* child : displayer->directChildren())
-            frame.widgets.append(getWidget(child));
+        for (auto* child : displayer->directChildren())
+            frame.widgets.push_back(getWidget(child));
         return frame;
     }
 
     Configuration::Widget getWidget(Displayer* displayer) const {
-        auto multiDisplayer = dynamic_cast<MultiDisplayer*>(displayer);
-        if (multiDisplayer)
+        if (auto* multiDisplayer = dynamic_cast<MultiDisplayer*>(displayer))
             return {true, getFrame(multiDisplayer), {}};
         else
             return {false, {}, getView(static_cast<SingleDisplayer*>(displayer))};
@@ -200,18 +199,18 @@ public:
         Configuration config;
         // handlers
         for (const auto& info : mCache)
-            config.handlers.append(info.parsingData);
+            config.handlers.push_back(info.parsingData);
         // connections
         for (const auto& info : mCache)
             for (const auto& listener : info.proxy.handler()->listeners())
-                config.connections.append(getConnection(info.parsingData.id, listener));
+                config.connections.push_back(getConnection(info.parsingData.id, listener));
         // frames
-        config.frames.append(getFrame(Manager::instance->mainDisplayer()));
-        for (auto displayer : MultiDisplayer::topLevelDisplayers())
-            config.frames.append(getFrame(displayer));
+        config.frames.push_back(getFrame(Manager::instance->mainDisplayer()));
+        for (auto* displayer : MultiDisplayer::topLevelDisplayers())
+            config.frames.push_back(getFrame(displayer));
         // colors
         for (channel_t c=0 ; c < channels_t::capacity() ; ++c)
-            config.colors.append(Manager::instance->channelEditor()->color(c));
+            config.colors.push_back(Manager::instance->channelEditor()->color(c));
         return config;
     }
 
@@ -303,9 +302,9 @@ void Manager::clearConfiguration() {
         proxy.destroy();
     mHandlerProxies.clear();
     // delete all displayers
-    if (auto displayer = mainDisplayer())
+    if (auto* displayer = mainDisplayer())
         displayer->deleteLater();
-    for (auto displayer : MultiDisplayer::topLevelDisplayers())
+    for (auto* displayer : MultiDisplayer::topLevelDisplayers())
         displayer->deleteLater();
 }
 

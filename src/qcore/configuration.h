@@ -22,7 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define QCORE_CONFIGURATION_H
 
 #include <QString>
-#include <QVector>
+#include <vector>
 #include <QSize>
 #include <QPoint>
 #include <QColor>
@@ -44,7 +44,7 @@ struct Configuration {
         QString value;
     };
 
-    using Properties = QVector<Property>;
+    using Properties = std::vector<Property>;
 
     // --------
     // handlers
@@ -57,7 +57,7 @@ struct Configuration {
         Properties properties;
     };
 
-    using Handlers = QVector<Handler>;
+    using Handlers = std::vector<Handler>;
 
     // -----------
     // connections
@@ -69,7 +69,7 @@ struct Configuration {
         QString source;
     };
 
-    using Connections = QVector<Connection>;
+    using Connections = std::vector<Connection>;
 
     // ------
     // frames
@@ -81,7 +81,7 @@ struct Configuration {
 
     struct Widget;
 
-    using Widgets = QVector<Widget>;
+    using Widgets = std::vector<Widget>;
 
     struct Frame {
         QString name;
@@ -92,7 +92,7 @@ struct Configuration {
         bool visible;
     };
 
-    using Frames = QVector<Frame>;
+    using Frames = std::vector<Frame>;
 
     struct Widget {
         bool isFrame;
@@ -104,7 +104,7 @@ struct Configuration {
     // colors
     // ------
 
-    using Colors = QVector<QColor>;
+    using Colors = std::vector<QColor>;
 
     // ------
     // config

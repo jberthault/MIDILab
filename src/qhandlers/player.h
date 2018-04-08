@@ -144,7 +144,7 @@ public slots:
     void setCodec(QTextCodec* codec); /*!< codec used to decode event description (model does not take ownership) */
     void setCodecByName(const QString& name);
 
-    QVector<SequenceViewTrackItem*> trackItems() const;
+    std::vector<SequenceViewTrackItem*> trackItems() const;
     SequenceViewTrackItem* itemForTrack(track_t track) const;
 
 protected:
@@ -420,8 +420,8 @@ private:
     BracketKnob* mLowerKnob;
     BracketKnob* mUpperKnob;
 
-    QVector<MarkerKnob*> mMarkerKnobs;
-    QVector<MarkerKnob*> mCustomMarkerKnobs;
+    std::vector<MarkerKnob*> mMarkerKnobs;
+    std::vector<MarkerKnob*> mCustomMarkerKnobs;
 
 };
 

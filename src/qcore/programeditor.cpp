@@ -30,12 +30,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // Patch
 //=======
 
-QList<Patch*> Patch::parsePatches(const QDomNode& node) {
+std::vector<Patch*> Patch::parsePatches(const QDomNode& node) {
     Q_ASSERT(node.nodeName() == "Patches");
-    QList<Patch*> patches;
-    QDomNodeList childs = node.childNodes();
-    for (int i=0 ; i < childs.count() ; i++)
-        patches.append(parsePatch(childs.at(i)));
+    auto nodes = node.childNodes();
+    std::vector<Patch*> patches(nodes.count());
+    for (int i=0 ; i < nodes.count() ; i++)
+        patches[i] = parsePatch(nodes.at(i));
     return patches;
 }
 
@@ -61,7 +61,7 @@ Patch::Patch(QString name) : mName(std::move(name)) {
 }
 
 Patch::~Patch() {
-    for (Patch* child : mChilds)
+    for (Patch* child : mChildren)
         delete child;
 }
 
@@ -80,7 +80,7 @@ const QMap<byte_t, QString>& Patch::programs() const {
 bool Patch::hasProgram(byte_t program) const {
     if (mPrograms.contains(program))
         return true;
-    for (Patch* child : mChilds)
+    for (auto* child : mChildren)
         if (child->hasProgram(program))
             return true;
     return false;
@@ -89,7 +89,7 @@ bool Patch::hasProgram(byte_t program) const {
 QString Patch::getProgram(byte_t program, const QString& defaultName) const {
     if (mPrograms.contains(program))
         return mPrograms[program];
-    for (Patch* child : mChilds) {
+    for (auto* child : mChildren) {
         QString found = child->getProgram(program, QString());
         if (!found.isNull())
             return found;
@@ -109,20 +109,20 @@ bool Patch::insertProgram(byte_t program, const QString& name) {
 bool Patch::removeProgram(byte_t program) {
     if (mPrograms.remove(program) != 0)
         return true;
-    for (Patch* child : mChilds)
+    for (auto* child : mChildren)
         if (child->removeProgram(program))
             return true;
     return false;
 }
 
-const QList<Patch*>& Patch::childs() const {
-    return mChilds;
+const std::vector<Patch*>& Patch::children() const {
+    return mChildren;
 }
 
 bool Patch::hasChild(Patch* patch) const {
-    if (mChilds.contains(patch))
+    if (std::find(mChildren.begin(), mChildren.end(), patch) != mChildren.end())
         return true;
-    for (Patch* child : mChilds)
+    for (auto* child : mChildren)
         if (child->hasChild(patch))
             return true;
     return false;
@@ -134,17 +134,8 @@ bool Patch::insertChild(Patch* patch) {
         TRACE_WARNING("Patch " << name() << " already contains " << patch->name());
         return false;
     }
-    mChilds.append(patch);
+    mChildren.push_back(patch);
     return true;
-}
-
-bool Patch::removeChild(Patch* patch) {
-    if (mChilds.removeAll(patch) != 0)
-        return true;
-    for (Patch* child : mChilds)
-        if (child->removeChild(patch))
-            return true;
-    return false;
 }
 
 //===============
@@ -235,7 +226,7 @@ void PatchModel::addPatch(QStandardItem* root, const Patch* patch) {
         item->setData(it.key(), Qt::UserRole);
         parent->appendRow(item);
     }
-    for (const Patch* child : patch->childs())
+    for (const Patch* child : patch->children())
         addPatch(parent, child);
 }
 
@@ -343,9 +334,9 @@ ProgramEditor::ProgramEditor(ChannelEditor* channelEditor, QWidget* parent) : QW
     /// construct DOM
     QDomDocument dom("DOM Document");
     if (validated && dom.setContent(programsData)) {
-        mPatches = QVector<Patch*>::fromList(Patch::parsePatches(dom.documentElement()));
+        mPatches = Patch::parsePatches(dom.documentElement());
     } else {
-        mPatches << new Patch("No Patch");  // required because of at()
+        mPatches.push_back(new Patch("No Patch"));  // required because of at()
         TRACE_ERROR("programs.xml is illformed");
     }
 
@@ -389,7 +380,7 @@ ProgramEditor::ProgramEditor(ChannelEditor* channelEditor, QWidget* parent) : QW
 }
 
 ProgramEditor::~ProgramEditor() {
-    for (Patch* patch : mPatches)
+    for (auto* patch : mPatches)
         delete patch;
 }
 

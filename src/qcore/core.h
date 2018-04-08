@@ -285,6 +285,8 @@ private:
 
 };
 
+using MetaHandlers = std::vector<MetaHandler*>;
+
 //=================
 // OpenMetaHandler
 //=================
@@ -329,7 +331,7 @@ class MetaHandlerFactory {
 public:
     virtual ~MetaHandlerFactory() = default;
 
-    virtual const QList<MetaHandler*>& spawn() const = 0;
+    virtual const MetaHandlers& spawn() const = 0;
 
 };
 
@@ -346,7 +348,7 @@ class MetaHandlerPool : public QObject {
 public:
     using QObject::QObject;
 
-    const QList<MetaHandler*>& metaHandlers() const;
+    const MetaHandlers& metaHandlers() const;
 
     MetaHandler* get(const QString& identifier); /*!< return the meta handler that has the given type identifier, nullptr if not exists */
 
@@ -356,7 +358,7 @@ public:
     size_t addPlugins(const QDir& dir);
 
 private:
-    QList<MetaHandler*> mMetaHandlers;
+    MetaHandlers mMetaHandlers;
 
 };
 

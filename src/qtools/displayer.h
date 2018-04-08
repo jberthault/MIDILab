@@ -106,13 +106,12 @@ public:
     void setOrientation(Qt::Orientation orientation);
 
     template<typename T = QWidget>
-    QList<T*> widgets() const {
-        QList<T*> result;
-        for (int i=0 ; i < mLayout->count() ; i++) {
-            auto widget = dynamic_cast<T*>(mLayout->itemAt(i)->widget());
-            if (widget)
-                result.append(widget);
-        }
+    auto widgets() const {
+        std::vector<T*> result;
+        result.reserve(mLayout->count());
+        for (int i=0 ; i < mLayout->count() ; i++)
+            if (auto* widget = dynamic_cast<T*>(mLayout->itemAt(i)->widget()))
+                result.push_back(widget);
         return result;
     }
 
@@ -216,7 +215,7 @@ class MultiDisplayer : public Displayer {
     Q_OBJECT
 
 public:
-    static QList<MultiDisplayer*> topLevelDisplayers();
+    static std::vector<MultiDisplayer*> topLevelDisplayers();
 
     explicit MultiDisplayer(Qt::Orientation orientation, QWidget* parent);
     ~MultiDisplayer();
@@ -240,7 +239,7 @@ public:
     MultiDisplayer* insertMulti(int position = Receptacle::nullPosition);
     MultiDisplayer* insertDetached(Qt::Orientation orientation = Qt::Vertical); /*!< @note lifetime management is up to the caller */
 
-    QList<Displayer*> directChildren();
+    std::vector<Displayer*> directChildren();
 
 protected:
     void closeEvent(QCloseEvent* event) override;

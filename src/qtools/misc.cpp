@@ -305,7 +305,7 @@ void MultiStateAction::addState(const QString& text) {
 }
 
 void MultiStateAction::addState(const QIcon& icon, const QString& text) {
-    mStates.append(qMakePair(icon, text));
+    mStates.emplace_back(icon, text);
     if (mStates.size() == 1)
         setState(0);
 }

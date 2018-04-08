@@ -94,12 +94,12 @@ void PianoLayout::addKey(PianoKey* key) {
     mLastBlack = key->isBlack();
     if (mLastBlack) {
         key->raise();
-        mBlack.append(BlackItem(new QWidgetItem(key), mWhite.size()));
-        if (mWhite.isEmpty())
+        mBlack.push_back({new QWidgetItem(key), mWhite.size()});
+        if (mWhite.empty())
             mFirstBlack = true;
     } else {
         key->lower();
-        mWhite.append(new QWidgetItem(key));
+        mWhite.push_back(new QWidgetItem(key));
     }
 }
 

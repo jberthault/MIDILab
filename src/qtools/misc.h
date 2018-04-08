@@ -270,7 +270,7 @@ signals:
     void stateChanged(int state);
 
 private:
-    QVector<QPair<QIcon, QString>> mStates;
+    std::vector<std::pair<QIcon, QString>> mStates;
     int mCurrentState;
 
 };

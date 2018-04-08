@@ -35,10 +35,10 @@ class StandardFactory : public QObject, public MetaHandlerFactory {
 
 public:
     StandardFactory(QObject* parent = nullptr);
-    const QList<MetaHandler*>& spawn() const override;
+    const MetaHandlers& spawn() const override;
 
 private:
-    QList<MetaHandler*> mMetaHandlers;
+    MetaHandlers mMetaHandlers;
 
 };
 

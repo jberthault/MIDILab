@@ -369,14 +369,12 @@ void SingleDisplayer::onPress() {
 // MultiDisplayer
 //================
 
-QList<MultiDisplayer*> MultiDisplayer::topLevelDisplayers() {
-    QList<MultiDisplayer*> displayers;
-    for (QWidget* widget : qApp->topLevelWidgets()) {
-        MultiDisplayer* displayer = dynamic_cast<MultiDisplayer*>(widget);
-        if (displayer)
-            displayers << displayer;
-    }
-    return displayers;
+std::vector<MultiDisplayer *> MultiDisplayer::topLevelDisplayers() {
+    std::vector<MultiDisplayer*> result;
+    for (auto* widget : qApp->topLevelWidgets())
+        if (auto* displayer = dynamic_cast<MultiDisplayer*>(widget))
+            result.push_back(displayer);
+    return result;
 }
 
 MultiDisplayer::MultiDisplayer(Qt::Orientation orientation, QWidget* parent) :
@@ -498,7 +496,7 @@ MultiDisplayer* MultiDisplayer::insertDetached(Qt::Orientation orientation) {
     return displayer;
 }
 
-QList<Displayer*> MultiDisplayer::directChildren() {
+std::vector<Displayer*> MultiDisplayer::directChildren() {
     return mReceptacle->widgets<Displayer>();
 }
 

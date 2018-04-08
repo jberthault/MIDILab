@@ -37,7 +37,7 @@ constexpr range_t<double> distorsionRange = {0., 4.};
 auto findCodecs() {
     QList<QTextCodec*> codecs;
     for (auto mib : QTextCodec::availableMibs()) {
-        auto codec = QTextCodec::codecForMib(mib);
+        auto* codec = QTextCodec::codecForMib(mib);
         if (!codecs.contains(codec))
             codecs.append(codec);
     }
@@ -278,15 +278,15 @@ void SequenceView::setCodecByName(const QString& name) {
     setCodec(QTextCodec::codecForName(name.toLocal8Bit()));
 }
 
-QVector<SequenceViewTrackItem*> SequenceView::trackItems() const {
-    QVector<SequenceViewTrackItem*> result(mTreeWidget->topLevelItemCount());
+std::vector<SequenceViewTrackItem*> SequenceView::trackItems() const {
+    std::vector<SequenceViewTrackItem*> result(mTreeWidget->topLevelItemCount());
     for (int i=0 ; i < result.size() ; ++i)
         result[i] = static_cast<SequenceViewTrackItem*>(mTreeWidget->topLevelItem(i));
     return result;
 }
 
 SequenceViewTrackItem* SequenceView::itemForTrack(track_t track) const {
-    for (SequenceViewTrackItem* trackItem : trackItems())
+    for (auto* trackItem : trackItems())
         if (trackItem->track() == track)
             return trackItem;
     return nullptr;
@@ -662,10 +662,10 @@ void PlaylistTable::browseFiles() {
 
 void PlaylistTable::browseRecorders() {
     // get all sequence writers
-    QList<Handler*> handlers;
+    std::vector<Handler*> handlers;
     for (const auto& proxy : mContext->handlerProxies())
         if (dynamic_cast<SequenceWriter*>(proxy.handler()))
-            handlers << proxy.handler();
+            handlers.push_back(proxy.handler());
     if (handlers.empty()) {
         QMessageBox::information(this, QString(), "No recorder available");
         return;
@@ -1091,9 +1091,9 @@ MarkerKnob* Trackbar::addMarker(timestamp_t timestamp, const QString& tooltip, b
 }
 
 MarkerKnob* Trackbar::addMarker(bool isCustom) {
-    QVector<MarkerKnob*>& knobs = isCustom ? mCustomMarkerKnobs : mMarkerKnobs;
+    auto& knobs = isCustom ? mCustomMarkerKnobs : mMarkerKnobs;
     // look for a handle available
-    for (auto knob : knobs) {
+    for (auto* knob : knobs) {
         if (!knob->isVisible()) {
             knob->setVisible(true);
             return knob;
@@ -1110,7 +1110,7 @@ MarkerKnob* Trackbar::addMarker(bool isCustom) {
     knob->xScale().margins = {8., 8.};
     knob->yScale().value = isCustom ? .7 : .3;
     mKnobView->insertKnob(knob);
-    knobs.append(knob);
+    knobs.push_back(knob);
     return knob;
 }
 
