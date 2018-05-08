@@ -127,7 +127,7 @@ class PathRetriever : public QObject {
     Q_PROPERTY(QString filter READ filter WRITE setFilter)
 
 public:
-    explicit PathRetriever(QObject* parent);
+    using QObject::QObject;
 
     QString caption() const;
     void setCaption(const QString& caption);
@@ -140,9 +140,9 @@ public:
 
     void setSelection(const QString& selection); /*!< save dir from selection */
 
-    QString getReadFile(QWidget* parent);
-    QString getWriteFile(QWidget* parent);
-    QStringList getReadFiles(QWidget* parent);
+    QString getReadFile(QWidget* parent, const QString& path = {});
+    QString getWriteFile(QWidget* parent, const QString& path = {});
+    QStringList getReadFiles(QWidget* parent, const QString& path = {});
 
 private:
     QString mCaption;

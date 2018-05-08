@@ -106,7 +106,9 @@ void MainWindow::loadConfig() {
 }
 
 void MainWindow::saveConfig() {
-    auto fileName = Manager::instance->pathRetrieverPool()->get("configuration")->getWriteFile(this);
+    auto configurations = getConfigs();
+    auto defaultfileName = configurations.empty() ? QString{} : configurations.front();
+    auto fileName = Manager::instance->pathRetrieverPool()->get("configuration")->getWriteFile(this, defaultfileName);
     if (!fileName.isEmpty())
         writeConfig(fileName);
 }

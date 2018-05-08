@@ -46,7 +46,11 @@ std::ostream& operator<<(std::ostream& stream, const QString& string) {
 // PathRetriever
 //===============
 
-PathRetriever::PathRetriever(QObject* parent) : QObject(parent) {
+namespace {
+
+const QString& firstNonEmpty(const QString& lhs, const QString& rhs) {
+    return lhs.isEmpty() ? rhs : lhs;
+}
 
 }
 
@@ -76,23 +80,23 @@ void PathRetriever::setFilter(const QString& filter) {
 
 void PathRetriever::setSelection(const QString& selection) {
     if (!selection.isNull())
-        mDir = QFileInfo(selection).dir().path();
+        mDir = QFileInfo{selection}.dir().path();
 }
 
-QString PathRetriever::getReadFile(QWidget* parent) {
-    QString selection = QFileDialog::getOpenFileName(parent, mCaption, mDir, mFilter);
+QString PathRetriever::getReadFile(QWidget* parent, const QString& path) {
+    auto selection = QFileDialog::getOpenFileName(parent, mCaption, firstNonEmpty(path, mDir), mFilter);
     setSelection(selection);
     return selection;
 }
 
-QString PathRetriever::getWriteFile(QWidget *parent) {
-    QString selection = QFileDialog::getSaveFileName(parent, mCaption, mDir, mFilter);
+QString PathRetriever::getWriteFile(QWidget* parent, const QString& path) {
+    auto selection = QFileDialog::getSaveFileName(parent, mCaption, firstNonEmpty(path, mDir), mFilter);
     setSelection(selection);
     return selection;
 }
 
-QStringList PathRetriever::getReadFiles(QWidget *parent) {
-    QStringList selection = QFileDialog::getOpenFileNames(parent, mCaption, mDir, mFilter);
+QStringList PathRetriever::getReadFiles(QWidget* parent, const QString& path) {
+    auto selection = QFileDialog::getOpenFileNames(parent, mCaption, firstNonEmpty(path, mDir), mFilter);
     if (!selection.empty())
         setSelection(selection.front());
     return selection;
