@@ -292,20 +292,12 @@ QModelIndex TreeBox::findLastChild(const QModelIndex& origin, const QModelIndex&
 // MultiStateAction
 //==================
 
-MultiStateAction::MultiStateAction(QObject* parent) : QAction(parent), mCurrentState(-1) {
+MultiStateAction::MultiStateAction(QObject* parent) : QAction{parent} {
     connect(this, &MultiStateAction::triggered, this, &MultiStateAction::setNextState);
 }
 
-MultiStateAction::MultiStateAction(const QString& text, QObject* parent) : MultiStateAction(parent) {
-    addState(text);
-}
-
-MultiStateAction::MultiStateAction(const QIcon& icon, const QString& text, QObject* parent) : MultiStateAction(parent) {
-    addState(icon, text);
-}
-
 void MultiStateAction::addState(const QString& text) {
-    addState(QIcon(), text);
+    addState(QIcon{}, text);
 }
 
 void MultiStateAction::addState(const QIcon& icon, const QString& text) {
@@ -319,7 +311,7 @@ int MultiStateAction::state() const {
 }
 
 void MultiStateAction::setState(int state) {
-    if (0 <= state && state < mStates.size()) {
+    if (0 <= state && state < mStates.size() && state != mCurrentState) {
         mCurrentState = state;
         setIcon(mStates[state].first);
         setText(mStates[state].second);
@@ -328,16 +320,13 @@ void MultiStateAction::setState(int state) {
 }
 
 void MultiStateAction::setNextState() {
-    setState((mCurrentState + 1) % mStates.size());
+    if (!mStates.empty())
+        setState((mCurrentState + 1) % mStates.size());
 }
 
 //==============
 // HtmlDelegate
 //==============
-
-HtmlDelegate::HtmlDelegate(QObject* parent) : QStyledItemDelegate(parent) {
-
-}
 
 void HtmlDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const {
     QStyleOptionViewItem options = option;
@@ -362,3 +351,54 @@ QSize HtmlDelegate::sizeHint(const QStyleOptionViewItem& option, const QModelInd
     return {(int)doc.idealWidth(), (int)doc.size().height()}; // 19 may be enough
 }
 
+//==================
+// FoldableGroupBox
+//==================
+
+FoldableGroupBox::FoldableGroupBox(const QString& title, QWidget* parent) : QGroupBox{title, parent} {
+
+    mFoldAction = new MultiStateAction{this};
+    mFoldAction->addState(QIcon{":/data/expand-down.svg"}, "Expand"); // folded
+    mFoldAction->addState(QIcon{":/data/collapse-up.svg"}, "Collapse"); // unfolded
+    mFoldAction->setState(1);
+    connect(mFoldAction, &MultiStateAction::stateChanged, this, &FoldableGroupBox::onStateChange);
+
+    mToolBar = new QToolBar{this};
+    mToolBar->setOrientation(Qt::Vertical);
+    mToolBar->setIconSize({15, 15});
+    mToolBar->setMovable(false);
+    mToolBar->addAction(mFoldAction);
+
+    // ensure the toolbar is always enabled
+    connect(this, &FoldableGroupBox::toggled, this, &FoldableGroupBox::onToggle);
+
+    setLayout(make_hbox(mToolBar, margins_tag{{0, 0, 0, 1}}, spacing_tag{0}));
+}
+
+QWidget* FoldableGroupBox::widget() {
+    return mWidget;
+}
+
+bool FoldableGroupBox::isFolded() const {
+    return mFoldAction->state() == 0;
+}
+
+void FoldableGroupBox::setWidget(QWidget* widget) {
+    Q_ASSERT(!mWidget);
+    mWidget = widget;
+    static_cast<QHBoxLayout*>(layout())->insertWidget(0, widget);
+    onStateChange();
+}
+
+void FoldableGroupBox::setFolded(bool folded) {
+    mFoldAction->setState(folded ? 0 : 1);
+}
+
+void FoldableGroupBox::onStateChange() {
+    if (mWidget)
+        mWidget->setHidden(isFolded());
+}
+
+void FoldableGroupBox::onToggle() {
+    mToolBar->setEnabled(true);
+}

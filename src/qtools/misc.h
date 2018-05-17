@@ -31,6 +31,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QBoxLayout>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
+#include <QGroupBox>
+#include <QToolBar>
 #include <QStyledItemDelegate>
 #include <QTableView>
 #include <QCheckBox>
@@ -61,6 +63,7 @@ auto number2string(T number, Args&& ... args) {
 
 struct stretch_tag {};
 struct margin_tag { int margin; };
+struct margins_tag { QMargins margins; };
 struct spacing_tag { int spacing; };
 
 template<typename LayoutT>
@@ -71,6 +74,11 @@ void add_box(LayoutT* layout, stretch_tag) {
 template<typename LayoutT>
 void add_box(LayoutT* layout, margin_tag tag) {
     layout->setMargin(tag.margin);
+}
+
+template<typename LayoutT>
+void add_box(LayoutT* layout, margins_tag tag) {
+    layout->setContentsMargins(tag.margins);
 }
 
 template<typename LayoutT>
@@ -101,15 +109,15 @@ void fill_box(LayoutT* layout, Arg&& arg, Args&& ... args) {
 }
 
 template<typename ... Args>
-QHBoxLayout* make_hbox(Args&& ... args) {
-    auto hbox = new QHBoxLayout;
+auto* make_hbox(Args&& ... args) {
+    auto* hbox = new QHBoxLayout;
     fill_box(hbox, std::forward<Args>(args)...);
     return hbox;
 }
 
 template<typename ... Args>
-QVBoxLayout* make_vbox(Args&& ... args) {
-    auto vbox = new QVBoxLayout;
+auto* make_vbox(Args&& ... args) {
+    auto* vbox = new QVBoxLayout;
     fill_box(vbox, std::forward<Args>(args)...);
     return vbox;
 }
@@ -255,8 +263,6 @@ class MultiStateAction : public QAction {
 
 public:
     explicit MultiStateAction(QObject* parent);
-    explicit MultiStateAction(const QString& text, QObject* parent);
-    explicit MultiStateAction(const QIcon& icon, const QString& text, QObject* parent);
 
     void addState(const QString& text);
     void addState(const QIcon& icon, const QString& text);
@@ -271,7 +277,7 @@ signals:
 
 private:
     std::vector<std::pair<QIcon, QString>> mStates;
-    int mCurrentState;
+    int mCurrentState {-1};
 
 };
 
@@ -282,11 +288,40 @@ private:
 class HtmlDelegate : public QStyledItemDelegate {
 
 public:
-    explicit HtmlDelegate(QObject* parent);
+    using QStyledItemDelegate::QAbstractItemDelegate;
 
 protected:
     void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
     QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override;
+
+};
+
+//==================
+// FoldableGroupBox
+//==================
+
+class FoldableGroupBox : public QGroupBox {
+
+    Q_OBJECT
+
+public:
+    explicit FoldableGroupBox(const QString& title, QWidget* parent);
+
+    QWidget* widget();
+    bool isFolded() const;
+
+public slots:
+    void setWidget(QWidget* widget);
+    void setFolded(bool folded);
+
+private slots:
+    void onStateChange();
+    void onToggle();
+
+private:
+    QWidget* mWidget {nullptr};
+    QToolBar* mToolBar;
+    MultiStateAction* mFoldAction;
 
 };
 

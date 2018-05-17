@@ -27,8 +27,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "qhandlers/handlers.h"
 #include "qtools/displayer.h"
 
-const QVariant discardConfigsData = 1;
-
 // ============
 // AboutWindow
 // ============
