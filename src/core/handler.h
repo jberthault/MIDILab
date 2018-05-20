@@ -389,8 +389,9 @@ public:
     virtual Result on_open(State state); /*!< by default, just updates internal state */
     virtual Result on_close(State state); /*!< @see on_open */
 
-    void send_message(const Message& message); /*!< sends message to the synchronizer (asynchronous) */
-    void flush_messages();
+    void send_message(const Message& message); /*!< add pending message and notifies the synchronizer */
+    void flush_messages(); /*!< will synchronously pass pending messages to the interceptor */
+    bool is_consumed() const; /*!< true if there is no pending messages waiting to be handled */
 
     virtual Result handle_message(const Message& message); /*!< actual processing of messages, by default handles open/close actions */
 

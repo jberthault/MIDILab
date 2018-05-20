@@ -170,54 +170,55 @@ private:
 //=======
 
 /**
- * A queue wraps a container so that accessing it is safe in multi-threaded environments
+ * A queue wraps a container so that accessing it is safe in multi-threaded environments.
  *
+ * This queue is designed for multiple producers and single consumer.
  * values may be produced individually, but consumption must be done on all values available
+ *
+ * produce will return true if all values produced previously have been consumed.
  *
  * ContainerT may be any objects providing methods 'push_back', 'empty' and 'clear'
  * It should also be swappable and default constructible
  *
- * @note unsynchronized_consume must be called only when there is a single consumer thread
  */
 
 template<typename ContainerT>
 class Queue {
 
 public:
+
+    bool is_consumed() const {
+        std::lock_guard<std::mutex> guard{m_mutex};
+        return m_consumed;
+    }
+
     template<typename U>
-    void produce(U&& value) {
+    bool produce(U&& value) {
         std::lock_guard<std::mutex> guard{m_mutex};
         m_frontend.push_back(std::forward<U>(value));
+        return std::exchange(m_consumed, false);
     }
 
     template<typename CallableT>
-    void unsynchronized_consume(CallableT&& callable) {
-        using std::swap;
-        while (true) {
-            {
-                std::lock_guard<std::mutex> guard{m_mutex};
-                swap(m_frontend, m_backend);
-            }
-            if (m_backend.empty())
-                break;
+    void consume(CallableT&& callable) {
+        while (!stash()) {
             callable(m_backend);
             m_backend.clear();
         }
     }
 
-    template<typename CallableT>
-    void consume(CallableT&& callable) {
-        if (m_flag.test_and_set(std::memory_order_acquire))
-            return;
-        unsynchronized_consume(std::forward<CallableT>(callable));
-        m_flag.clear(std::memory_order_release);
+    bool stash() {
+        using std::swap;
+        std::lock_guard<std::mutex> guard{m_mutex};
+        swap(m_frontend, m_backend);
+        return ( m_consumed = m_backend.empty() );
     }
 
 private:
     ContainerT m_frontend;
     ContainerT m_backend;
-    std::mutex m_mutex;
-    std::atomic_flag m_flag = ATOMIC_FLAG_INIT;
+    bool m_consumed {true};
+    mutable std::mutex m_mutex;
 
 };
 

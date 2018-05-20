@@ -51,8 +51,8 @@ QString metaHandlerName(const MetaHandler* meta) {
 // GraphicalSynchronizer
 //=======================
 
-GraphicalSynchronizer::GraphicalSynchronizer(QObject* parent) : QObject{parent}, Synchronizer{}, mQueue{128} {
-    startTimer(1);
+GraphicalSynchronizer::GraphicalSynchronizer(QObject* parent) : QObject{parent}, Synchronizer{} {
+    startTimer(8); // 125 Hz
 }
 
 void GraphicalSynchronizer::sync_handler(Handler* target) {
@@ -70,7 +70,7 @@ void GraphicalSynchronizer::timerEvent(QTimerEvent*) {
 //==========
 
 Observer::Observer(QObject* parent) : QObject{parent}, Interceptor{} {
-    startTimer(5);
+    startTimer(50); // 20 Hz
 }
 
 Handler::Result Observer::seizeOne(Handler* target, const Message& message) {
@@ -90,7 +90,7 @@ void Observer::seize_messages(Handler* target, const Messages& messages) {
 }
 
 void Observer::timerEvent(QTimerEvent*) {
-    mQueue.unsynchronized_consume([this](const auto& items) {
+    mQueue.consume([this](const auto& items) {
         for (const auto& item : items)
             emit messageHandled(item.first, item.second);
     });
@@ -286,28 +286,12 @@ void HandlerProxy::show() const {
     }
 }
 
-void HandlerProxy::destroy() {
-    if (mView)
-        mView->deleteLater();
-    else if (mHandler)
-        delete mHandler;
-    mHandler = nullptr;
-    mView = nullptr;
-}
-
 HandlerProxy getProxy(const HandlerProxies& proxies, const Handler* handler) {
-    auto it = std::find_if(proxies.begin(), proxies.end(), [=](const auto& proxy) { return proxy.handler() == handler; });
-    return it != proxies.end() ? *it : HandlerProxy{};
+    return getProxyIf(proxies, [=](const auto& proxy) { return proxy.handler() == handler; });
 }
 
 HandlerProxy takeProxy(HandlerProxies& proxies, const Handler* handler) {
-    HandlerProxy proxy;
-    auto it = std::find_if(proxies.begin(), proxies.end(), [=](const auto& proxy) { return proxy.handler() == handler; });
-    if (it != proxies.end()) {
-        proxy = *it;
-        proxies.erase(it);
-    }
-    return proxy;
+    return takeProxyIf(proxies, [=](const auto& proxy) { return proxy.handler() == handler; });
 }
 
 //=============
@@ -382,7 +366,7 @@ size_t MetaHandlerPool::addMetaHandler(MetaHandler* meta) {
 }
 
 size_t MetaHandlerPool::addFactory(MetaHandlerFactory* factory) {
-    if(!factory)
+    if (!factory)
         return 0;
     const auto& newMetaHandlers = factory->spawn();
     mMetaHandlers.insert(mMetaHandlers.end(), newMetaHandlers.begin(), newMetaHandlers.end());
@@ -410,32 +394,6 @@ size_t MetaHandlerPool::addPlugins(const QDir& dir) {
     return count;
 }
 
-//==================
-// SynchronizerPool
-//==================
-
-SynchronizerPool::SynchronizerPool(QObject *parent) : QObject{parent} {
-    mGUISynchronizer = new GraphicalSynchronizer{this};
-}
-
-SynchronizerPool::~SynchronizerPool() {
-    stop();
-}
-
-void SynchronizerPool::configure(const HandlerProxy& proxy) {
-    Q_ASSERT(!proxy.handler()->synchronizer());
-    if (proxy.editable()) {
-        proxy.handler()->set_synchronizer(mGUISynchronizer);
-    } else {
-        mDefaultSynchronizer.start();
-        proxy.handler()->set_synchronizer(&mDefaultSynchronizer);
-    }
-}
-
-void SynchronizerPool::stop() {
-    mDefaultSynchronizer.stop();
-}
-
 //===================
 // PathRetrieverPool
 //===================
@@ -450,9 +408,11 @@ void initializePathRetriever(PathRetriever* pathRetriever, const QString& captio
 }
 
 PathRetrieverPool::PathRetrieverPool(QObject* parent) : QObject{parent} {
+    connect(qApp, &QApplication::aboutToQuit, this, &PathRetrieverPool::save);
     initializePathRetriever(get("midi"), "MIDI Files", "*.mid *.midi *.kar");
     initializePathRetriever(get("soundfont"), "SoundFont Files", "*.sf2");
     initializePathRetriever(get("configuration"), "Configuration Files", "*.xml");
+    load();
 }
 
 void PathRetrieverPool::load() {

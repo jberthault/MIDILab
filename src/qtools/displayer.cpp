@@ -298,31 +298,53 @@ void Displayer::drag() {
         TRACE_WARNING("displayer has not been dropped correctly");
 }
 
+bool Displayer::isEmpty() const {
+    for (auto* displayer : findChildren<SingleDisplayer*>())
+        if (!displayer->mDying)
+            return false;
+    return true;
+}
+
+bool Displayer::isEmbedded() const {
+    return nearestAncestor() != nullptr;
+}
+
+bool Displayer::isIndependent() const {
+    return bool(windowFlags() & Qt::Window) || isEmbedded();
+}
+
+Displayer* Displayer::nearestAncestor() const {
+    if (windowFlags() & Qt::Window)
+        return nullptr;
+    for (auto* widget = parentWidget() ; widget != nullptr ; widget = widget->parentWidget()) {
+        if (auto* displayer = dynamic_cast<Displayer*>(widget))
+            return displayer;
+        if (widget->windowFlags() & Qt::Window)
+            break;
+    }
+    return nullptr;
+}
+
+void Displayer::deleteLaterRecursive() {
+    mDying = true;
+    auto* ancestor = nearestAncestor();
+    if (ancestor && ancestor->isEmpty() && ancestor->isIndependent())
+        ancestor->deleteLaterRecursive();
+    else
+        deleteLater();
+}
+
 //=================
 // SingleDisplayer
 //=================
 
-SingleDisplayer::SingleDisplayer(QWidget* parent) : Displayer(parent), mWidget(nullptr) {
-    // move button
+SingleDisplayer::SingleDisplayer(QWidget* parent) : Displayer{parent} {
     mMove = new QToolButton(this);
+    mMove->setAutoRaise(true);
     mMove->setIcon(QIcon(":/data/move.svg"));
     mMove->setToolTip("Drag & drop this widget");
     connect(mMove, &QToolButton::pressed, this, &SingleDisplayer::onPress);
-    // settings button
-    mTool = new QToolButton(this);
-    mTool->setIcon(QIcon(":/data/pin.svg"));
-    mTool->setToolTip("Click to see available actions");
-    mTool->setPopupMode(QToolButton::InstantPopup);
-    mTool->setMenu(new QMenu(this));
-    mTool->setVisible(false); /*!< @note unused for now */
-    // toolbar
-    mButtons = new QToolBar("settings", this);
-    //mButtons->setOrientation(Qt::Vertical);
-    mButtons->addWidget(mMove);
-    mButtons->addWidget(mTool);
-    mButtons->hide(); /*!< @note locked at creation */
-    // layout
-    setLayout(make_hbox(margin_tag{0}, spacing_tag{0}, mButtons));
+    setLayout(make_hbox(margin_tag{0}, spacing_tag{0}, mMove));
 }
 
 bool SingleDisplayer::isDraggable() const {
@@ -330,14 +352,14 @@ bool SingleDisplayer::isDraggable() const {
 }
 
 bool SingleDisplayer::isLocked() const {
-    return mButtons->isHidden();
+    return mMove->isHidden();
 }
 
 void SingleDisplayer::setLocked(bool locked) {
     if (mWidget)
         mWidget->setEnabled(locked);
     if (isLocked() != locked) {
-        mButtons->setHidden(locked);
+        mMove->setHidden(locked);
         emit lockChanged(locked);
     }
 }
@@ -353,11 +375,7 @@ void SingleDisplayer::setWidget(QWidget* widget) {
     mWidget->setEnabled(isLocked());
     static_cast<QHBoxLayout*>(layout())->insertWidget(0, mWidget);
     // this supposes that the widget will be deleted before this
-    connect(mWidget, &QWidget::destroyed, this, &SingleDisplayer::deleteLater);
-}
-
-QToolButton* SingleDisplayer::tool() {
-    return mTool;
+    connect(mWidget, &QWidget::destroyed, this, &SingleDisplayer::deleteLaterRecursive);
 }
 
 void SingleDisplayer::onPress() {
@@ -489,7 +507,7 @@ MultiDisplayer* MultiDisplayer::insertMulti(int position) {
 }
 
 MultiDisplayer* MultiDisplayer::insertDetached(Qt::Orientation orientation) {
-    auto displayer = new MultiDisplayer(orientation, nullptr);
+    auto* displayer = new MultiDisplayer(orientation, nullptr);
     displayer->setLocked(isLocked());
     displayer->resize(150, 60); /*!< abritrary size when empty */
     connect(this, &MultiDisplayer::lockChanged, displayer, &MultiDisplayer::setLocked);
@@ -519,8 +537,7 @@ void MultiDisplayer::toggleScrolling() {
 void MultiDisplayer::onWidgetInsertion(QWidget* widget) {
     // widget has been dropped,
     // update locked status if it is a displayer
-    Displayer* displayer = dynamic_cast<Displayer*>(widget);
-    if (displayer)
+    if (auto* displayer = dynamic_cast<Displayer*>(widget))
         displayer->setLocked(isLocked());
 }
 
@@ -543,30 +560,11 @@ void MultiDisplayer::changeTitle() {
 void MultiDisplayer::onDeleteRequest() {
     if (!isEmpty()) {
         QMessageBox::warning(this, QString(), "You can't delete a nonempty container");
-    } else if (isEmbedded() || bool(windowFlags() & Qt::Window)) {
+    } else if (isIndependent()) {
         deleteLater();
     } else {
         QMessageBox::warning(this, QString(), "You can't delete this container");
     }
-}
-
-bool MultiDisplayer::isEmbedded() const {
-    const QWidget* widget = this;
-    while (true) {
-        // found the top level window
-        if (widget->windowFlags() & Qt::Window)
-            return false;
-        // check parent
-        widget = widget->parentWidget();
-        if (!widget)
-            return false;
-        if (dynamic_cast<const MultiDisplayer*>(widget))
-            return true;
-    }
-}
-
-bool MultiDisplayer::isEmpty() const {
-    return findChildren<SingleDisplayer*>().isEmpty();
 }
 
 void MultiDisplayer::updateLocked(bool locked) {

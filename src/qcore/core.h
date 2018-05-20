@@ -67,7 +67,7 @@ protected:
     void timerEvent(QTimerEvent* event) override;
 
 private:
-    boost::lockfree::queue<Handler*> mQueue;
+    boost::lockfree::queue<Handler*> mQueue {128};
 
 };
 
@@ -230,7 +230,6 @@ public:
     void setContext(Context* context) const;
 
     void show() const;
-    void destroy();
 
 private:
     Handler* mHandler;
@@ -240,6 +239,23 @@ private:
 };
 
 using HandlerProxies = std::vector<HandlerProxy>;
+
+template<typename PredicateT>
+auto getProxyIf(const HandlerProxies& proxies, PredicateT predicate) {
+    auto it = std::find_if(proxies.begin(), proxies.end(), predicate);
+    return it != proxies.end() ? *it : HandlerProxy{};
+}
+
+template<typename PredicateT>
+auto takeProxyIf(HandlerProxies& proxies, PredicateT predicate) {
+    HandlerProxy proxy;
+    auto it = std::find_if(proxies.begin(), proxies.end(), predicate);
+    if (it != proxies.end()) {
+        proxy = *it;
+        proxies.erase(it);
+    }
+    return proxy;
+}
 
 HandlerProxy getProxy(const HandlerProxies& proxies, const Handler* handler);
 HandlerProxy takeProxy(HandlerProxies& proxies, const Handler* handler);
@@ -359,28 +375,6 @@ public:
 
 private:
     MetaHandlers mMetaHandlers;
-
-};
-
-//==================
-// SynchronizerPool
-//==================
-
-class SynchronizerPool : public QObject {
-
-    Q_OBJECT
-
-public:
-    explicit SynchronizerPool(QObject* parent);
-    ~SynchronizerPool();
-
-    void configure(const HandlerProxy& proxy);
-
-    void stop();
-
-private:
-    GraphicalSynchronizer* mGUISynchronizer;
-    StandardSynchronizer<2> mDefaultSynchronizer; /*!< 2 threads are enough */
 
 };
 

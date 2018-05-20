@@ -198,7 +198,7 @@ bool SequenceReader::start_playing(bool rewind) {
                 forward_message({event, this, it->track});
             }
             // asleep this thread for a minimal period
-            std::this_thread::sleep_for(std::chrono::milliseconds(4));
+            std::this_thread::sleep_for(std::chrono::milliseconds{2});
         }
     }};
     return true;

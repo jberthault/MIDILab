@@ -112,9 +112,21 @@ void MainWindow::saveConfig() {
 }
 
 void MainWindow::clearConfig() {
+    // If the main displayer contains views, we want it to be deleted by the manager.
+    // We have to detach it from the mainwindow to enable this deletion.
+    // We replace it by another main displayer.
+    auto* previousDisplayer = dynamic_cast<MultiDisplayer*>(centralWidget());
+    if (previousDisplayer && !previousDisplayer->isEmpty()) {
+        previousDisplayer->setParent(nullptr);
+        setupMainDisplayer();
+    }
+    // Close existing displayers to make space for the next configuration
+    // It also deletes the empty ones
+    // The others will be deleted by the manager
+    for (auto* displayer : MultiDisplayer::topLevelDisplayers())
+        displayer->close();
+    // Clears configurations asynchronously
     Manager::instance->clearConfiguration();
-    // we need a new main displayer after clearing configuration
-    setupMainDisplayer();
 }
 
 void MainWindow::readLastConfig() {
@@ -216,7 +228,7 @@ void MainWindow::addFiles(const QStringList& files) {
 }
 
 void MainWindow::setupMainDisplayer() {
-    auto mainDisplayer = new MultiDisplayer(Qt::Horizontal, this);
+    auto* mainDisplayer = new MultiDisplayer(Qt::Horizontal, this);
     mainDisplayer->setLocked(mLockAction->isChecked());
     setCentralWidget(mainDisplayer);
     connect(mLockAction, &QAction::toggled, mainDisplayer, &MultiDisplayer::setLocked);

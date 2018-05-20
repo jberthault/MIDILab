@@ -357,6 +357,8 @@ SoundFontEditor::SoundFontEditor() : HandlerEditor{}, mHandler{std::make_unique<
     form->addRow("File", make_hbox(spacing_tag{0}, fileSelector, mFileEditor, mLoadLabel));
     form->addRow("Gain", mGainEditor);
     setLayout(make_vbox(form, mReverbEditor, mChorusEditor, stretch_tag{}));
+    setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum); // avoid vertical expansion
+
 }
 
 HandlerView::Parameters SoundFontEditor::getParameters() const {

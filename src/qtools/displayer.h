@@ -27,7 +27,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QBoxLayout>
 #include <QToolButton>
 #include <QScrollArea>
-#include <QToolBar>
 
 //==============
 // DragDetector
@@ -166,11 +165,20 @@ public:
     virtual bool isLocked() const = 0;
     virtual void setLocked(bool locked) = 0;
 
+    bool isEmpty() const; /*!< true if there is no living child of type SingleDisplayer */
+    bool isEmbedded() const; /*!< true if one of its parent is a displayer */
+    bool isIndependent() const; /*!< true if this is a window or if embedded */
+    Displayer* nearestAncestor() const;
+
 signals:
     void lockChanged(bool locked);
 
 public slots:
     void drag();
+    void deleteLaterRecursive();
+
+private:
+    bool mDying {false};
 
 };
 
@@ -193,15 +201,11 @@ public:
     QWidget* widget();
     void setWidget(QWidget* widget);
 
-    QToolButton* tool();
-
 private slots:
     void onPress();
 
 private:
-    QToolBar* mButtons;
-    QWidget* mWidget;
-    QToolButton* mTool;
+    QWidget* mWidget {nullptr};
     QToolButton* mMove;
 
 };
@@ -253,8 +257,6 @@ private slots:
     void onDeleteRequest();
 
 private:
-    bool isEmbedded() const;
-    bool isEmpty() const; /*!< Will be true even if it contains empty displayers */
     void updateLocked(bool locked);
 
 private:

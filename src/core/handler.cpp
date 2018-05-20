@@ -677,8 +677,8 @@ Handler::Result Handler::on_close(State state) {
 }
 
 void Handler::send_message(const Message& message) {
-    m_pending_messages.produce(message);
-    m_synchronizer->sync_handler(this);
+    if (m_pending_messages.produce(message))
+        m_synchronizer->sync_handler(this);
 }
 
 void Handler::flush_messages() {
@@ -694,6 +694,10 @@ void Handler::flush_messages() {
             TRACE_ERROR(m_name << " handling exception: " << error.what());
         }
     });
+}
+
+bool Handler::is_consumed() const {
+    return m_pending_messages.is_consumed();
 }
 
 Handler::Result Handler::handle_message(const Message& message) {

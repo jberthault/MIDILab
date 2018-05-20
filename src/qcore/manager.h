@@ -27,6 +27,38 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "qtools/displayer.h"
 
 //=========
+// Deleter
+//=========
+
+class Deleter final : public QObject {
+
+    Q_OBJECT
+
+public:
+    using QObject::QObject;
+
+    void addProxy(const HandlerProxy& proxy);
+    void addProxies(const HandlerProxies& proxies);
+
+    void startDeletion();
+    void stopDeletion();
+
+signals:
+    void deleted();
+
+protected:
+    void timerEvent(QTimerEvent*) override;
+
+private:
+    bool deleteProxies();
+
+private:
+    HandlerProxies mProxies;
+    int mTimerId {0};
+
+};
+
+//=========
 // Manager
 //=========
 
@@ -85,13 +117,15 @@ signals:
     void handlerListenersChanged(Handler* handler);
 
 private:
-    void quit();
+    void onDeletion();
 
     HandlerProxies mHandlerProxies;
     PathRetrieverPool* mPathRetrieverPool;
     MetaHandlerPool* mMetaHandlerPool;
-    SynchronizerPool* mSynchronizerPool;
+    GraphicalSynchronizer* mGUISynchronizer;
+    StandardSynchronizer<2> mDefaultSynchronizer; /*!< 2 threads are enough */
     ChannelEditor* mChannelEditor;
+    Deleter* mDeleter;
     Observer* mObserver;
 
 };

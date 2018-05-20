@@ -412,7 +412,7 @@ void SequenceView::onChannelsChanged(channels_t channels) {
 
 void SequenceView::addNextEvents() {
     const int n = std::min((int)std::distance(mSequenceIt, mSequence.end()), 64);
-    for(int i=0 ; i < n ; ++i)
+    for (int i=0 ; i < n ; ++i)
         addEvent(*mSequenceIt++);
     if (mSequenceIt == mSequence.end()) {
         mSequenceUpdater->stop();

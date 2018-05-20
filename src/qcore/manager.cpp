@@ -49,7 +49,7 @@ public:
         for (channel_t c=0 ; c < std::min(channels_t::capacity(), (size_t)configuration.colors.size()) ; ++c)
             Manager::instance->channelEditor()->setColor(c, configuration.colors.at(c));
         // display visible frames created
-        for (auto displayer : mVisibleDisplayers)
+        for (auto* displayer : mVisibleDisplayers)
             displayer->show();
     }
 
@@ -222,6 +222,52 @@ private:
 }
 
 //=========
+// Deleter
+//=========
+
+void Deleter::addProxy(const HandlerProxy& proxy) {
+    mProxies.push_back(proxy);
+    startDeletion();
+}
+
+void Deleter::addProxies(const HandlerProxies& proxies) {
+    mProxies.insert(mProxies.end(), proxies.begin(), proxies.end());
+    startDeletion();
+}
+
+void Deleter::startDeletion() {
+    if (mTimerId == 0)
+        mTimerId = startTimer(20); // 50 Hz
+}
+
+void Deleter::stopDeletion() {
+    if (mTimerId != 0) {
+        killTimer(mTimerId);
+        mTimerId = 0;
+    }
+}
+
+void Deleter::timerEvent(QTimerEvent*) {
+    if (deleteProxies()) {
+        stopDeletion();
+        emit deleted();
+    }
+}
+
+bool Deleter::deleteProxies() {
+    while (true) {
+        auto px  = takeProxyIf(mProxies, [](const auto& proxy) { return proxy.handler()->is_consumed(); });
+        if (px.view())
+            delete px.view();
+        else if (px.handler())
+            delete px.handler();
+        else
+            break;
+    }
+    return mProxies.empty();
+}
+
+//=========
 // Manager
 //=========
 
@@ -235,20 +281,24 @@ Manager::Manager(QObject* parent) : Context{parent} {
     mChannelEditor = new ChannelEditor{static_cast<QWidget*>(parent)};
     mChannelEditor->setWindowFlags(Qt::Dialog);
 
-    mSynchronizerPool = new SynchronizerPool{this};
+    mGUISynchronizer = new GraphicalSynchronizer{this};
     mPathRetrieverPool = new PathRetrieverPool{this};
-    mPathRetrieverPool->load();
     mMetaHandlerPool = new MetaHandlerPool{this};
     mObserver = new Observer{this};
+    mDeleter = new Deleter{this};
+
+    mDefaultSynchronizer.start();
 
     qApp->setQuitOnLastWindowClosed(false);
-    connect(qApp, &QApplication::lastWindowClosed, this, &Manager::quit);
+    connect(qApp, &QApplication::lastWindowClosed, this, &Manager::clearConfiguration);
+    connect(mDeleter, &Deleter::deleted, this, &Manager::onDeletion);
 
 }
 
 Manager::~Manager() {
     Q_ASSERT(mHandlerProxies.empty());
     instance = nullptr;
+    mDefaultSynchronizer.stop();
 }
 
 MultiDisplayer* Manager::mainDisplayer() const {
@@ -289,23 +339,17 @@ void Manager::setConfiguration(const Configuration& configuration) {
 
 void Manager::clearConfiguration() {
     TRACE_MEASURE("clear configuration");
+    HandlerProxies proxies;
+    // clear proxies
+    mHandlerProxies.swap(proxies);
     // clear listeners
-    for (const auto& proxy : mHandlerProxies)
+    for (const auto& proxy : proxies)
         setListeners(proxy.handler(), {});
     // notify listening slots
-    for (const auto& proxy : mHandlerProxies)
+    for (const auto& proxy : proxies)
         emit handlerRemoved(proxy.handler());
-    // stop synchronizers
-    mSynchronizerPool->stop();
-    // delete handlers
-    for (auto& proxy : mHandlerProxies)
-        proxy.destroy();
-    mHandlerProxies.clear();
-    // delete all displayers
-    if (auto* displayer = mainDisplayer())
-        displayer->deleteLater();
-    for (auto* displayer : MultiDisplayer::topLevelDisplayers())
-        displayer->deleteLater();
+    // schedule handlers deletion
+    mDeleter->addProxies(proxies);
 }
 
 HandlerProxy Manager::loadHandler(MetaHandler* meta, const QString& name, SingleDisplayer* host) {
@@ -318,7 +362,11 @@ HandlerProxy Manager::loadHandler(MetaHandler* meta, const QString& name, Single
     }
     // insert the handler
     if (proxy.handler()) {
-        mSynchronizerPool->configure(proxy);
+        Q_ASSERT(!proxy.handler()->synchronizer());
+        if (proxy.editable())
+            proxy.handler()->set_synchronizer(mGUISynchronizer);
+        else
+            proxy.handler()->set_synchronizer(&mDefaultSynchronizer);
         proxy.setObserver(mObserver);
         proxy.setContext(this);
         proxy.setState(true);
@@ -343,11 +391,12 @@ void Manager::removeHandler(Handler* handler) {
         if (listeners.remove_usage(handler))
             setListeners(proxy.handler(), std::move(listeners));
     }
-    // notify listening slots
-    emit handlerRemoved(handler);
-    // @todo stop event processing before destroying
-    // destroy handler
-    px.destroy();
+    if (px.handler()) {
+        // notify listening slots
+        emit handlerRemoved(handler);
+        // schedule deletion
+        mDeleter->addProxy(px);
+    }
 }
 
 void Manager::renameHandler(Handler* handler, const QString& name) {
@@ -386,9 +435,8 @@ void Manager::removeConnection(Handler* tail, Handler* head, Handler* source) {
         setListeners(tail, std::move(listeners));
 }
 
-void Manager::quit() {
-    TRACE_DEBUG("quit");
-    clearConfiguration();
-    mPathRetrieverPool->save();
-    qApp->quit();
+void Manager::onDeletion() {
+    TRACE_DEBUG("deletion done");
+    if (static_cast<QWidget*>(parent())->isHidden())
+        qApp->quit();
 }
