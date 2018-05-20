@@ -37,7 +37,7 @@ class DragDetector : public QObject {
     Q_OBJECT
 
 public:
-    explicit DragDetector(QObject* parent);
+    using QObject::QObject;
 
     bool eventFilter(QObject* obj, QEvent* event) override;
 
@@ -48,7 +48,7 @@ private:
     bool farEnough(const QPoint& point);
 
     QPoint mStartPosition;
-    bool mHasPosition;
+    bool mHasPosition {false};
 
 };
 

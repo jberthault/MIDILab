@@ -24,6 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <random>
 #include <QDoubleSpinBox>
 #include <QTableWidget>
+#include <QTextCodec>
 #include <QTimeEdit>
 #include <QToolBar>
 #include <QTreeWidget>
@@ -177,7 +178,7 @@ private:
     QTimer* mSequenceUpdater; /*!< timer filling sequence event asynchronously */
     Sequence mSequence;
     Sequence::const_iterator mSequenceIt; /*!< iterator pointing to the next event to add */
-    QTextCodec* mCodec;
+    QTextCodec* mCodec {QTextCodec::codecForLocale()};
     Handler* mTrackFilter {nullptr};
     DistordedClock mDistordedClock;
     Qt::MouseButton mLastButton {Qt::NoButton};

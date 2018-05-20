@@ -32,15 +32,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // DragDetector
 //==============
 
-DragDetector::DragDetector(QObject* parent) :
-    QObject(parent), mHasPosition(false) {
-
-}
-
 bool DragDetector::eventFilter(QObject* obj, QEvent* event) {
     switch (event->type()) {
     case QEvent::MouseButtonPress: {
-        QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
+        auto* mouseEvent = static_cast<QMouseEvent*>(event);
         if (mouseEvent->button() == Qt::LeftButton) {
             mStartPosition = mouseEvent->pos();
             mHasPosition = true;
@@ -48,14 +43,14 @@ bool DragDetector::eventFilter(QObject* obj, QEvent* event) {
         }
     } break;
     case QEvent::MouseButtonRelease: {
-        QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
+        auto* mouseEvent = static_cast<QMouseEvent*>(event);
         if (mouseEvent->button() == Qt::LeftButton) {
             mHasPosition = false;
             return true;
         }
     } break;
     case QEvent::MouseMove: {
-        QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
+        auto* mouseEvent = static_cast<QMouseEvent*>(event);
         if (mHasPosition && farEnough(mouseEvent->pos())) {
             mHasPosition = false;
             emit dragRequest();
@@ -282,20 +277,23 @@ bool Receptacle::isSupported(const QMimeData* mimeData) const {
 // Displayer
 //===========
 
-const QString Displayer::mimeType("application/x_displayer");
+const QString Displayer::mimeType{"application/x_displayer"};
 
 void Displayer::drag() {
     if (isLocked() || !isDraggable())
         return;
-    QMimeData* data = new QMimeData;
-    data->setData(mimeType, QByteArray());
-    QDrag* drag = new QDrag(this);
+    auto* ancestor = nearestAncestor();
+    auto* data = new QMimeData;
+    data->setData(mimeType, QByteArray{});
+    auto* drag = new QDrag{this};
     drag->setPixmap(grab());
     drag->setHotSpot(mapFromGlobal(QCursor::pos()));
     drag->setMimeData(data);
     drag->exec(Qt::MoveAction);
     if (drag->target() == nullptr)
         TRACE_WARNING("displayer has not been dropped correctly");
+    else if (ancestor && ancestor->isEmpty() && ancestor->isIndependent())
+        ancestor->deleteLaterRecursive();
 }
 
 bool Displayer::isEmpty() const {

@@ -28,6 +28,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QApplication>
 #include <QPushButton>
 #include <QFileDialog>
+#include <QToolBar>
 #include "tools/trace.h"
 
 namespace qoperators {
@@ -363,16 +364,14 @@ FoldableGroupBox::FoldableGroupBox(const QString& title, QWidget* parent) : QGro
     mFoldAction->setState(1);
     connect(mFoldAction, &MultiStateAction::stateChanged, this, &FoldableGroupBox::onStateChange);
 
-    mToolBar = new QToolBar{this};
-    mToolBar->setOrientation(Qt::Vertical);
-    mToolBar->setIconSize({15, 15});
-    mToolBar->setMovable(false);
-    mToolBar->addAction(mFoldAction);
+    auto* toolBar = new QToolBar{this};
+    toolBar->setOrientation(Qt::Vertical);
+    toolBar->setIconSize({15, 15});
+    toolBar->setMovable(false);
+    toolBar->addAction(mFoldAction);
+    toolBar->installEventFilter(this); // make toolbar enabled when unchecked
 
-    // ensure the toolbar is always enabled
-    connect(this, &FoldableGroupBox::toggled, this, &FoldableGroupBox::onToggle);
-
-    setLayout(make_hbox(mToolBar, margins_tag{{0, 0, 0, 1}}, spacing_tag{0}));
+    setLayout(make_hbox(toolBar, margins_tag{{0, 0, 0, 1}}, spacing_tag{0}));
 }
 
 QWidget* FoldableGroupBox::widget() {
@@ -394,11 +393,15 @@ void FoldableGroupBox::setFolded(bool folded) {
     mFoldAction->setState(folded ? 0 : 1);
 }
 
+bool FoldableGroupBox::eventFilter(QObject* watch, QEvent* event) {
+    if (event->type() == QEvent::EnabledChange)
+        if (auto* watchedWidget = dynamic_cast<QWidget*>(watch))
+            if (!watchedWidget->isEnabled() && isEnabled())
+                watchedWidget->setEnabled(true);
+    return false;
+}
+
 void FoldableGroupBox::onStateChange() {
     if (mWidget)
         mWidget->setHidden(isFolded());
-}
-
-void FoldableGroupBox::onToggle() {
-    mToolBar->setEnabled(true);
 }

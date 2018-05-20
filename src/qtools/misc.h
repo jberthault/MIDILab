@@ -32,7 +32,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QGroupBox>
-#include <QToolBar>
 #include <QStyledItemDelegate>
 #include <QTableView>
 #include <QCheckBox>
@@ -314,13 +313,14 @@ public slots:
     void setWidget(QWidget* widget);
     void setFolded(bool folded);
 
+protected:
+    bool eventFilter(QObject* watch, QEvent* event) override;
+
 private slots:
     void onStateChange();
-    void onToggle();
 
 private:
     QWidget* mWidget {nullptr};
-    QToolBar* mToolBar;
     MultiStateAction* mFoldAction;
 
 };

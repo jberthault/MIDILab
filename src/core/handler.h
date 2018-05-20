@@ -458,20 +458,20 @@ public:
 //======================
 
 template<size_t Size>
-class StandardSynchronizer : public Synchronizer {
+class StandardSynchronizer final : public Synchronizer {
 
 public:
-    void start() {
+    explicit StandardSynchronizer() {
         Executor::start_all(m_executors, [this] {
             while (m_queue.consume_one([](auto* handler) { handler->flush_messages(); } ));
         });
     }
 
-    void stop() {
+    ~StandardSynchronizer() {
         Executor::halt_all(m_executors);
     }
 
-    void sync_handler(Handler* target) final {
+    void sync_handler(Handler* target) override {
         m_queue.push(target);
         Executor::awake_all(m_executors);
     }

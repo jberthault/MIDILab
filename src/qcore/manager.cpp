@@ -287,8 +287,6 @@ Manager::Manager(QObject* parent) : Context{parent} {
     mObserver = new Observer{this};
     mDeleter = new Deleter{this};
 
-    mDefaultSynchronizer.start();
-
     qApp->setQuitOnLastWindowClosed(false);
     connect(qApp, &QApplication::lastWindowClosed, this, &Manager::clearConfiguration);
     connect(mDeleter, &Deleter::deleted, this, &Manager::onDeletion);
@@ -298,7 +296,6 @@ Manager::Manager(QObject* parent) : Context{parent} {
 Manager::~Manager() {
     Q_ASSERT(mHandlerProxies.empty());
     instance = nullptr;
-    mDefaultSynchronizer.stop();
 }
 
 MultiDisplayer* Manager::mainDisplayer() const {
@@ -355,7 +352,7 @@ void Manager::clearConfiguration() {
 HandlerProxy Manager::loadHandler(MetaHandler* meta, const QString& name, SingleDisplayer* host) {
     auto proxy = meta ? meta->instantiate(name) : HandlerProxy{};
     // set view's parent
-    if (auto view = proxy.view()) {
+    if (auto* view = proxy.view()) {
         if (!host)
             host = mainDisplayer()->insertDetached()->insertSingle();
         host->setWidget(view);

@@ -23,7 +23,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPushButton>
-#include <QTextCodec>
 #include <QTimer>
 #include <QMenu>
 #include "qhandlers/player.h"
@@ -177,12 +176,12 @@ QVariant SequenceViewItem::data(int column, int role) const {
     return QTreeWidgetItem::data(column, role);
 }
 
-SequenceView::SequenceView(QWidget *parent) : QWidget{parent}, mCodec{QTextCodec::codecForLocale()} {
+SequenceView::SequenceView(QWidget *parent) : QWidget{parent} {
 
-    mSequenceUpdater = new QTimer(this);
+    mSequenceUpdater = new QTimer{this};
     connect(mSequenceUpdater, &QTimer::timeout, this, &SequenceView::addNextEvents);
 
-    mTreeWidget = new QTreeWidget(this);
+    mTreeWidget = new QTreeWidget{this};
     mTreeWidget->setAlternatingRowColors(true);
     mTreeWidget->setHeaderLabel(QString()); // clear the default "1" displayed
     mTreeWidget->header()->setDefaultAlignment(Qt::AlignCenter);
@@ -191,40 +190,40 @@ SequenceView::SequenceView(QWidget *parent) : QWidget{parent}, mCodec{QTextCodec
     connect(mTreeWidget, &QTreeWidget::itemChanged, this, &SequenceView::onItemChange);
     connect(mTreeWidget, &QTreeWidget::itemDoubleClicked, this, &SequenceView::onItemDoubleClick);
 
-    mFamilySelectorButton = new QPushButton("Types", this);
+    mFamilySelectorButton = new QPushButton{"Types", this};
     mFamilySelectorButton->setToolTip("Filter by type");
     connect(mFamilySelectorButton, &QPushButton::clicked, this, &SequenceView::onFamilyFilterClick);
 
-    mFamilySelector = new FamilySelector(this);
+    mFamilySelector = new FamilySelector{this};
     mFamilySelector->setFamilies(families_t::full());
     mFamilySelector->setWindowFlags(Qt::Dialog);
     mFamilySelector->setVisible(false);
     connect(mFamilySelector, &FamilySelector::familiesChanged, this, &SequenceView::onFamiliesChanged);
 
-    mChannelSelectorButton = new QPushButton("Channels", this);
+    mChannelSelectorButton = new QPushButton{"Channels", this};
     mChannelSelectorButton->setToolTip("Filter by channel");
     connect(mChannelSelectorButton, &QPushButton::clicked, this, &SequenceView::onChannelFilterClick);
 
-    mChannelsSelector = new ChannelsSelector(this);
+    mChannelsSelector = new ChannelsSelector{this};
     mChannelsSelector->setChannels(channels_t::full());
     mChannelsSelector->setWindowFlags(Qt::Dialog);
     mChannelsSelector->setVisible(false);
     connect(mChannelsSelector, &ChannelsSelector::channelsChanged, this, &SequenceView::onChannelsChanged);
 
-    auto codecSelector = new QComboBox(this);
+    auto* codecSelector = new QComboBox{this};
     codecSelector->setToolTip("Text Encoding");
-    for (auto codec : findCodecs())
+    for (auto* codec : findCodecs())
         codecSelector->addItem(codec->name());
     connect(codecSelector, SIGNAL(currentIndexChanged(QString)), this, SLOT(setCodecByName(QString)));
     setCodecByName(codecSelector->currentText());
 
-    auto collapseButton = new QToolButton(this);
+    auto* collapseButton = new QToolButton{this};
     collapseButton->setToolTip("Collapse");
     collapseButton->setAutoRaise(true);
     collapseButton->setIcon(QIcon(":/data/collapse-up.svg"));
     connect(collapseButton, &QToolButton::clicked, mTreeWidget, &QTreeWidget::collapseAll);
 
-    auto expandButton = new QToolButton(this);
+    auto* expandButton = new QToolButton{this};
     expandButton->setToolTip("Expand");
     expandButton->setAutoRaise(true);
     expandButton->setIcon(QIcon(":/data/expand-down.svg"));
@@ -267,7 +266,7 @@ void SequenceView::setCodec(QTextCodec* codec) {
     // prevent itemChanged, we want it to be emitted for checkstate only :(
     QSignalBlocker guard(mTreeWidget);
     Q_UNUSED(guard);
-    for (auto trackItem : trackItems()) {
+    for (auto* trackItem : trackItems()) {
         trackItem->setCodec(codec);
         for (int i=0 ; i < trackItem->childCount() ; i++)
             static_cast<SequenceViewItem*>(trackItem->child(i))->setCodec(mCodec);
@@ -331,7 +330,7 @@ void SequenceView::setSequence(const Sequence& sequence, timestamp_t lower, time
     }
 
     for (track_t track : sequence.tracks()) {
-        SequenceViewTrackItem* trackItem = new SequenceViewTrackItem(track, this, mTreeWidget);
+        auto* trackItem = new SequenceViewTrackItem(track, this, mTreeWidget);
         trackItem->setFirstColumnSpanned(true);
         // track text
         const QByteArrayList& names = trackNames.value(track);
@@ -385,7 +384,7 @@ void SequenceView::setItemBackground(QTreeWidgetItem* item, channels_t channels)
 }
 
 void SequenceView::updateItemsVisibility() {
-    for (SequenceViewTrackItem* trackItem : trackItems())
+    for (auto* trackItem : trackItems())
         for (int i=0 ; i < trackItem->childCount() ; i++)
             updateItemVisibility(static_cast<SequenceViewItem*>(trackItem->child(i)));
 }
@@ -411,7 +410,7 @@ void SequenceView::onChannelsChanged(channels_t channels) {
 }
 
 void SequenceView::addNextEvents() {
-    const int n = std::min((int)std::distance(mSequenceIt, mSequence.end()), 64);
+    const int n = std::min((int)std::distance(mSequenceIt, mSequence.end()), 32);
     for (int i=0 ; i < n ; ++i)
         addEvent(*mSequenceIt++);
     if (mSequenceIt == mSequence.end()) {
@@ -421,13 +420,13 @@ void SequenceView::addNextEvents() {
 }
 
 void SequenceView::addEvent(const Sequence::Item& item) {
-    if (auto trackItem = itemForTrack(item.track))
-        updateItemVisibility(new SequenceViewItem(item, trackItem));
+    if (auto* trackItem = itemForTrack(item.track))
+        updateItemVisibility(new SequenceViewItem{item, trackItem});
 }
 
 void SequenceView::onItemChange(QTreeWidgetItem* item, int /*column*/) {
     // called when root checkbox is clicked
-    SequenceViewTrackItem* trackItem = dynamic_cast<SequenceViewTrackItem*>(item);
+    auto* trackItem = dynamic_cast<SequenceViewTrackItem*>(item);
     if (trackItem && mTrackFilter) {
         track_t track = trackItem->track();
         bool checked = item->checkState(0) == Qt::Checked;
@@ -437,7 +436,7 @@ void SequenceView::onItemChange(QTreeWidgetItem* item, int /*column*/) {
 
 void SequenceView::onItemDoubleClick(QTreeWidgetItem* item, int column) {
     if (column == 0) // timestamp column
-        if (auto eventItem = dynamic_cast<SequenceViewItem*>(item))
+        if (auto* eventItem = dynamic_cast<SequenceViewItem*>(item))
             emit positionSelected(eventItem->timestamp(), mLastButton);
 }
 
@@ -450,7 +449,7 @@ void SequenceView::onChannelFilterClick() {
 }
 
 void SequenceView::setChannelColor(channel_t channel, const QColor& /*color*/) {
-    for (SequenceViewTrackItem* trackItem : trackItems()) {
+    for (auto* trackItem : trackItems()) {
         auto channels = channels_t::from_integral(trackItem->data(0, Qt::UserRole).toUInt());
         if (channels.test(channel))
             setItemBackground(trackItem, channels);
@@ -971,12 +970,12 @@ void TrackedKnob::updateHandle() {
     }
 }
 
-Trackbar::Trackbar(QWidget* parent) : QWidget(parent) {
+Trackbar::Trackbar(QWidget* parent) : QWidget{parent} {
 
     // Position
-    mPositionKnob = new ParticleKnob();
+    mPositionKnob = new ParticleKnob;
     mPositionKnob->setZValue(1.);
-    mPositionEdit = new TrackedKnob(this);
+    mPositionEdit = new TrackedKnob{this};
     mPositionEdit->setDisplayFormat(DistordedClock::timeFormat);
     mPositionEdit->setToolTip("Position");
     mPositionEdit->setKnob(mPositionKnob);
@@ -985,8 +984,8 @@ Trackbar::Trackbar(QWidget* parent) : QWidget(parent) {
     connect(mPositionEdit, &TrackedKnob::timestampChanged, this, &Trackbar::positionChanged);
 
     // Lower Position
-    mLowerKnob = new BracketKnob(QBoxLayout::LeftToRight);
-    mLowerEdit = new TrackedKnob(this);
+    mLowerKnob = new BracketKnob{QBoxLayout::LeftToRight};
+    mLowerEdit = new TrackedKnob{this};
     mLowerEdit->setDisplayFormat("[ " + DistordedClock::timeFormat);
     mLowerEdit->setToolTip("Lower Limit");
     mLowerEdit->setKnob(mLowerKnob);
@@ -995,8 +994,8 @@ Trackbar::Trackbar(QWidget* parent) : QWidget(parent) {
     connect(mLowerEdit, &TrackedKnob::timestampChanged, this, &Trackbar::lowerChanged);
 
     // Upper position
-    mUpperKnob = new BracketKnob(QBoxLayout::RightToLeft);
-    mUpperEdit= new TrackedKnob(this);
+    mUpperKnob = new BracketKnob{QBoxLayout::RightToLeft};
+    mUpperEdit= new TrackedKnob{this};
     mUpperEdit->setDisplayFormat(DistordedClock::timeFormat + " ]");
     mUpperEdit->setToolTip("Upper Limit");
     mUpperEdit->setKnob(mUpperKnob);
@@ -1006,7 +1005,7 @@ Trackbar::Trackbar(QWidget* parent) : QWidget(parent) {
     connect(mUpperEdit, &TrackedKnob::timestampChanged, this, &Trackbar::upperChanged);
 
     // Last Position
-    mLastEdit = new TrackedKnob(this);
+    mLastEdit = new TrackedKnob{this};
     mLastEdit->setReadOnly(true);
     mLastEdit->setAlignment(Qt::AlignHCenter);
     mLastEdit->setButtonSymbols(QAbstractSpinBox::NoButtons);
@@ -1014,7 +1013,7 @@ Trackbar::Trackbar(QWidget* parent) : QWidget(parent) {
     mLastEdit->setToolTip("Duration");
 
     // View
-    mKnobView = new KnobView(this);
+    mKnobView = new KnobView{this};
     mKnobView->setFixedHeight(31);
     mKnobView->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     mKnobView->insertKnob(mPositionKnob);
@@ -1023,13 +1022,13 @@ Trackbar::Trackbar(QWidget* parent) : QWidget(parent) {
 
     // Menu
 
-    auto buttonMenu = new QMenu(this);
+    auto* buttonMenu = new QMenu{this};
 
-    auto reverseAction = buttonMenu->addAction("Reverse Time");
+    auto* reverseAction = buttonMenu->addAction("Reverse Time");
     reverseAction->setCheckable(true);
     connect(reverseAction, &QAction::toggled, mPositionEdit, &TrackedKnob::setReversed);
 
-    auto button = new QToolButton(this);
+    auto* button = new QToolButton{this};
     button->setAutoRaise(true);
     button->setIcon(QIcon(":/data/menu.svg"));
     button->setPopupMode(QToolButton::InstantPopup);
@@ -1193,8 +1192,8 @@ QAction* MediaView::getAction(MediaActionType type) {
 
 namespace {
 
-QDoubleSpinBox* newTempoSpinBox(QWidget* parent) {
-    auto spin = new QDoubleSpinBox(parent);
+auto* newTempoSpinBox(QWidget* parent) {
+    auto* spin = new QDoubleSpinBox{parent};
     spin->setSpecialValueText("...");
     spin->setReadOnly(true);
     spin->setSuffix(" bpm");
@@ -1202,6 +1201,9 @@ QDoubleSpinBox* newTempoSpinBox(QWidget* parent) {
     spin->setDecimals(1);
     spin->setMaximum(2000.);
     spin->setButtonSymbols(QDoubleSpinBox::NoButtons);
+    auto policy = spin->sizePolicy();
+    policy.setVerticalPolicy(QSizePolicy::Minimum);
+    spin->setSizePolicy(policy);
     return spin;
 }
 
@@ -1224,7 +1226,7 @@ TempoView::TempoView(QWidget* parent) : QWidget(parent) {
     connect(mDistorsionSlider, &SimpleSlider::knobMoved, this, &TempoView::onSliderMove);
     mDistorsionSlider->setDefault();
 
-    setLayout(make_hbox(margin_tag{0}, mDistorsionSlider, mTempoSpin, mDistortedTempoSpin));
+    setLayout(make_hbox(margin_tag{0}, spacing_tag{0}, mDistorsionSlider, mTempoSpin, mDistortedTempoSpin));
 }
 
 void TempoView::clearTempo() {
