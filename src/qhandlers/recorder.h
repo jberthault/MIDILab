@@ -50,7 +50,7 @@ class RecorderEditor : public HandlerEditor {
 public:
     explicit RecorderEditor();
 
-    Handler* getHandler() const override;
+    Handler* getHandler() override;
 
 public slots:
     void setRecording(bool recording);
@@ -61,7 +61,7 @@ private slots:
     void stopRecording();
 
 private:
-    std::unique_ptr<SequenceWriter> mWriter;
+    SequenceWriter mHandler;
     QPushButton* mRecordButton;
     QLabel* mLabel;
 

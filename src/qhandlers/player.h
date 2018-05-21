@@ -282,8 +282,6 @@ private:
     void moveRows(std::vector<int> rows, int location);
     void removeRows(std::vector<int> rows);
     int rowAt(const QPoint& pos) const;
-    QAction* makeAction(const QIcon& icon, const QString& text);
-    QAction* makeSeparator();
 
 private:
     Context* mContext;
@@ -530,7 +528,7 @@ public:
     Parameters getParameters() const override;
     size_t setParameter(const Parameter& parameter) override;
 
-    Handler* getHandler() const override;
+    Handler* getHandler() override;
 
 protected:
     void updateContext(Context* context) override;
@@ -570,7 +568,7 @@ private:
     QTimer* mRefreshTimer;
     bool mIsPlaying;
 
-    std::unique_ptr<SequenceReader> mPlayer;
+    SequenceReader mHandler;
 
     bool mIsStepping;
     timestamp_t mNextStep;

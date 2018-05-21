@@ -52,7 +52,7 @@ public:
     Parameters getParameters() const override;
     size_t setParameter(const Parameter& parameter) override;
 
-    Handler* getHandler() const override;
+    Handler* getHandler() override;
 
 protected:
     void updateContext(Context* context) override;
@@ -62,7 +62,7 @@ private slots:
     void updateText(channels_t channels);
 
 private:
-    std::unique_ptr<Transposer> mHandler;
+    Transposer mHandler;
     ChannelsSlider* mSlider;
     channel_map_t<int> mKeys;
 

@@ -180,9 +180,9 @@ class HandlerEditor : public HandlerView {
     Q_OBJECT
 
 public:
-    explicit HandlerEditor() = default;
+    using HandlerView::HandlerView;
 
-    virtual Handler* getHandler() const = 0;
+    virtual Handler* getHandler() = 0;
 
 };
 

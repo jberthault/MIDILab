@@ -41,7 +41,7 @@ public:
 // Monitor
 //=========
 
-class Monitor : public GraphicalHandler {
+class Monitor : public EditableHandler {
 
     Q_OBJECT
 

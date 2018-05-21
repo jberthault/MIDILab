@@ -56,6 +56,9 @@ auto number2string(T number, Args&& ... args) {
     return text;
 }
 
+QAction* makeAction(const QIcon& icon, const QString& text, QWidget* parent);
+QAction* makeSeparator(QWidget* parent);
+
 //==============
 // Layout Utils
 //==============

@@ -42,11 +42,11 @@ void MetaTransposer::setContent(HandlerProxy& proxy) {
 // TransposerEditor
 //==================
 
-TransposerEditor::TransposerEditor() : HandlerEditor(), mHandler(std::make_unique<Transposer>()) {
+TransposerEditor::TransposerEditor() : HandlerEditor{} {
 
     mKeys.fill(0);
 
-    mSlider = new ChannelsSlider(Qt::Horizontal, this);
+    mSlider = new ChannelsSlider{Qt::Horizontal, this};
     mSlider->setTextWidth(25);
     mSlider->setExpanded(false);
     mSlider->setSelection(channels_t::melodic());
@@ -56,7 +56,7 @@ TransposerEditor::TransposerEditor() : HandlerEditor(), mHandler(std::make_uniqu
     connect(mSlider, &ChannelsSlider::knobMoved, this, &TransposerEditor::onMove);
     mSlider->setDefault(channels_t::full()); // will call updateText
 
-    setLayout(make_hbox(margin_tag{0}, spacing_tag{0}, mSlider));
+    setLayout(make_hbox(margin_tag{0}, mSlider));
 }
 
 void TransposerEditor::updateContext(Context* context) {
@@ -74,8 +74,8 @@ size_t TransposerEditor::setParameter(const Parameter& parameter) {
     return HandlerEditor::setParameter(parameter);
 }
 
-Handler* TransposerEditor::getHandler() const {
-    return mHandler.get();
+Handler* TransposerEditor::getHandler() {
+    return &mHandler;
 }
 
 void TransposerEditor::onMove(channels_t channels, qreal ratio) {
@@ -83,7 +83,7 @@ void TransposerEditor::onMove(channels_t channels, qreal ratio) {
     channel_ns::store(mKeys, channels, key);
     mSlider->setText(channels, number2string(key));
     if (channels)
-        mHandler->send_message(Transposer::transpose_event(channels, key));
+        mHandler.send_message(Transposer::transpose_event(channels, key));
 }
 
 void TransposerEditor::updateText(channels_t channels) {

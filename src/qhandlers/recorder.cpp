@@ -37,7 +37,7 @@ void MetaRecorder::setContent(HandlerProxy& proxy) {
 // RecorderEditor
 //================
 
-RecorderEditor::RecorderEditor() : HandlerEditor(), mWriter(std::make_unique<SequenceWriter>()) {
+RecorderEditor::RecorderEditor() : HandlerEditor() {
 
     mRecordButton = new QPushButton("Status", this);
     QIcon icon;
@@ -51,11 +51,11 @@ RecorderEditor::RecorderEditor() : HandlerEditor(), mWriter(std::make_unique<Seq
     mLabel = new QLabel(this);
     mLabel->setText("");
 
-    setLayout(make_vbox(mRecordButton, mLabel));
+    setLayout(make_vbox(margin_tag{0}, mRecordButton, mLabel));
 }
 
-Handler* RecorderEditor::getHandler() const {
-    return mWriter.get();
+Handler* RecorderEditor::getHandler() {
+    return &mHandler;
 }
 
 void RecorderEditor::setRecording(bool recording) {
@@ -70,11 +70,11 @@ void RecorderEditor::setHandlerRecording(bool recording) {
 }
 
 void RecorderEditor::startRecording() {
-    mWriter->start_recording();
+    mHandler.start_recording();
     mLabel->setText("Recording ...");
 }
 
 void RecorderEditor::stopRecording() {
-    mWriter->stop_recording();
+    mHandler.stop_recording();
     mLabel->setText("");
 }

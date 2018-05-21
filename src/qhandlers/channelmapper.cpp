@@ -39,7 +39,7 @@ void MetaChannelMapper::setContent(HandlerProxy& proxy) {
 // ChannelMapperEditor
 //=====================
 
-ChannelMapperEditor::ChannelMapperEditor() : HandlerEditor(), mHandler(std::make_unique<ChannelMapper>()) {
+ChannelMapperEditor::ChannelMapperEditor() : HandlerEditor() {
 
     auto checkBoxLayout = new QGridLayout;
     checkBoxLayout->setMargin(0);
@@ -95,13 +95,13 @@ ChannelMapperEditor::ChannelMapperEditor() : HandlerEditor(), mHandler(std::make
     auto discardButton = new QPushButton("Discard", this);
     connect(discardButton, SIGNAL(clicked()), this, SLOT(updateFromMapper()));
 
-    setLayout(make_vbox(checkBoxLayout, stretch_tag{}, make_hbox(stretch_tag{}, applyButton, resetButton, discardButton)));
+    setLayout(make_vbox(margin_tag{0}, checkBoxLayout, stretch_tag{}, make_hbox(stretch_tag{}, applyButton, resetButton, discardButton)));
 
     updateFromMapper();
 }
 
-Handler* ChannelMapperEditor::getHandler() const {
-    return mHandler.get();
+Handler* ChannelMapperEditor::getHandler() {
+    return &mHandler;
 }
 
 void ChannelMapperEditor::updateMapper() {
@@ -113,17 +113,17 @@ void ChannelMapperEditor::updateMapper() {
                 ocs.set(oc);
         mapping[ic] = ocs;
     }
-    mHandler->set_mapping(std::move(mapping));
+    mHandler.set_mapping(std::move(mapping));
 }
 
 void ChannelMapperEditor::updateFromMapper() {
-    auto mapping = mHandler->mapping();
+    const auto mapping = mHandler.mapping();
     for (channel_t ic=0 ; ic < channels_t::capacity() ; ++ic)
         for (channel_t oc=0 ; oc < channels_t::capacity() ; ++oc)
             mCheckBoxes[ic][oc]->setChecked(mapping[ic].test(oc));
 }
 
 void ChannelMapperEditor::resetMapper() {
-    mHandler->reset_mapping();
+    mHandler.reset_mapping();
     updateFromMapper();
 }

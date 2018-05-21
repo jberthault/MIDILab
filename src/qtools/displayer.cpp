@@ -123,16 +123,15 @@ void Scroller::setScrolling(bool scrolling) {
 // Receptacle
 //===========
 
-Receptacle::Receptacle(Qt::Orientation orientation, QWidget* parent) :
-    QWidget(parent), mPosition(nullPosition) {
-
+Receptacle::Receptacle(Qt::Orientation orientation, QWidget* parent) : QWidget{parent} {
     setAcceptDrops(true);
     // free frame
     mLine = new QFrame;
     mLine->setFrameShadow(QFrame::Sunken);
     mLine->setAcceptDrops(false);
     // layout
-    mLayout = new QBoxLayout(QBoxLayout::LeftToRight);
+    mLayout = new QBoxLayout{QBoxLayout::LeftToRight};
+    mLayout->setMargin(0);
     setLayout(mLayout);
     // layout
     setOrientation(orientation);
@@ -173,7 +172,7 @@ bool Receptacle::insertWidget(QWidget* widget, int position) {
     // remove the line
     clearPosition();
     // adjust position if the widget is moved within this
-    int idx = mLayout->indexOf(widget);
+    const int idx = mLayout->indexOf(widget);
     if (idx != -1 && idx < position)
         position--;
     // actually insert the widget
@@ -267,10 +266,7 @@ void Receptacle::insertLine(int position) {
 }
 
 bool Receptacle::isSupported(const QMimeData* mimeData) const {
-    for (const QString& mimeType : mMimeTypes)
-        if (mimeData->hasFormat(mimeType))
-            return true;
-    return false;
+    return std::any_of(mMimeTypes.begin(), mMimeTypes.end(), [=](const auto& mimeType) { return mimeData->hasFormat(mimeType);});
 }
 
 //===========
@@ -280,9 +276,9 @@ bool Receptacle::isSupported(const QMimeData* mimeData) const {
 const QString Displayer::mimeType{"application/x_displayer"};
 
 void Displayer::drag() {
-    if (isLocked() || !isDraggable())
-        return;
     auto* ancestor = nearestAncestor();
+    if (ancestor == nullptr || isLocked())
+        return;
     auto* data = new QMimeData;
     data->setData(mimeType, QByteArray{});
     auto* drag = new QDrag{this};
@@ -292,15 +288,13 @@ void Displayer::drag() {
     drag->exec(Qt::MoveAction);
     if (drag->target() == nullptr)
         TRACE_WARNING("displayer has not been dropped correctly");
-    else if (ancestor && ancestor->isEmpty() && ancestor->isIndependent())
+    else if (ancestor->isEmpty() && ancestor->isIndependent())
         ancestor->deleteLaterRecursive();
 }
 
 bool Displayer::isEmpty() const {
-    for (auto* displayer : findChildren<SingleDisplayer*>())
-        if (!displayer->mDying)
-            return false;
-    return true;
+    auto displayers = findChildren<SingleDisplayer*>();
+    return std::all_of(displayers.begin(), displayers.end(), [](auto* displayer) { return displayer->mDying; });
 }
 
 bool Displayer::isEmbedded() const {
@@ -332,6 +326,14 @@ void Displayer::deleteLaterRecursive() {
         deleteLater();
 }
 
+void Displayer::closeEvent(QCloseEvent* event) {
+    // Delete window if it does not contains leaf content
+    TRACE_DEBUG("closing displayer ...");
+    if (isEmpty())
+        setAttribute(Qt::WA_DeleteOnClose);
+    QFrame::closeEvent(event);
+}
+
 //=================
 // SingleDisplayer
 //=================
@@ -343,10 +345,6 @@ SingleDisplayer::SingleDisplayer(QWidget* parent) : Displayer{parent} {
     mMove->setToolTip("Drag & drop this widget");
     connect(mMove, &QToolButton::pressed, this, &SingleDisplayer::onPress);
     setLayout(make_hbox(margin_tag{0}, spacing_tag{0}, mMove));
-}
-
-bool SingleDisplayer::isDraggable() const {
-    return true;
 }
 
 bool SingleDisplayer::isLocked() const {
@@ -385,7 +383,7 @@ void SingleDisplayer::onPress() {
 // MultiDisplayer
 //================
 
-std::vector<MultiDisplayer *> MultiDisplayer::topLevelDisplayers() {
+std::vector<MultiDisplayer*> MultiDisplayer::topLevelDisplayers() {
     std::vector<MultiDisplayer*> result;
     for (auto* widget : qApp->topLevelWidgets())
         if (auto* displayer = dynamic_cast<MultiDisplayer*>(widget))
@@ -393,52 +391,35 @@ std::vector<MultiDisplayer *> MultiDisplayer::topLevelDisplayers() {
     return result;
 }
 
-MultiDisplayer::MultiDisplayer(Qt::Orientation orientation, QWidget* parent) :
-    Displayer(parent), mStretched(false) {
-
+MultiDisplayer::MultiDisplayer(Qt::Orientation orientation, QWidget* parent) : Displayer{parent} {
     // drag
-    DragDetector* dd = new DragDetector(this);
-    connect(dd, SIGNAL(dragRequest()), SLOT(drag()));
-    installEventFilter(dd);
-    // main widget
-    mStreched = new QWidget(this);
-    mStretchLayout = make_hbox(margin_tag{0});
-    mStreched->setLayout(mStretchLayout);
-    // receptacle widget
-    mReceptacle = new Receptacle(orientation, mStreched);
-    mReceptacle->setMimeTypes(QStringList(mimeType));
-    mReceptacle->setAcceptDrops(false); /*!< @note locked at creation */
-    mStretchLayout->addWidget(mReceptacle);
-    connect(mReceptacle, &Receptacle::widgetInserted, this, &MultiDisplayer::onWidgetInsertion);
-    // scrolling
-    mScroller = new Scroller(mStreched, this);
-    // add actions (@todo use shortcut)
-    QAction* addContainerAction = new QAction(QIcon(":/data/plus.svg"), "Add Container", this);
-    QAction* toggleScrollingAction = new QAction(QIcon(":/data/elevator.svg"), "Toggle Scrolling", this);
-    QAction* toggleOrientationAction = new QAction(QIcon(":/data/transfer.svg"), "Flip Orientation", this);
-    QAction* renameAction = new QAction(QIcon(":/data/text.svg"), "Edit Title", this);
-    QAction* deleteAction = new QAction(QIcon(":/data/delete.svg"), "Delete", this);
-    connect(addContainerAction, &QAction::triggered, this, &MultiDisplayer::onInsertionRequest);
-    connect(toggleScrollingAction, &QAction::triggered, this, &MultiDisplayer::toggleScrolling);
-    connect(toggleOrientationAction, &QAction::triggered, this, &MultiDisplayer::toggleOrientation);
-    connect(renameAction, &QAction::triggered, this, &MultiDisplayer::changeTitle);
-    connect(deleteAction, &QAction::triggered, this, &MultiDisplayer::onDeleteRequest);
-    addAction(addContainerAction);
-    addAction(toggleScrollingAction);
-    addAction(toggleOrientationAction);
-    addAction(renameAction);
-    addAction(deleteAction);
+    auto* dragDetector = new DragDetector{this};
+    connect(dragDetector, &DragDetector::dragRequest, this, &MultiDisplayer::drag);
+    installEventFilter(dragDetector);
+    // add actions
+    connect(makeAction(QIcon{":/data/plus.svg"}, "Add Container", this), &QAction::triggered, this, &MultiDisplayer::onInsertionRequest);
+    connect(makeAction(QIcon{":/data/elevator.svg"}, "Toggle Scrolling", this), &QAction::triggered, this, &MultiDisplayer::toggleScrolling);
+    connect(makeAction(QIcon{":/data/fullscreen-exit.svg"}, "Toggle Stretching", this), &QAction::triggered, this, &MultiDisplayer::toggleStretched);
+    connect(makeAction(QIcon{":/data/transfer.svg"}, "Flip Orientation", this), &QAction::triggered, this, &MultiDisplayer::toggleOrientation);
+    connect(makeAction(QIcon{":/data/text.svg"}, "Edit Title", this), &QAction::triggered, this, &MultiDisplayer::changeTitle);
+    connect(makeAction(QIcon{":/data/delete.svg"}, "Delete", this), &QAction::triggered, this, &MultiDisplayer::onDeleteRequest);
     setContextMenuPolicy(Qt::NoContextMenu);
-    // layout
-    setLayout(make_vbox(margin_tag{0}, spacing_tag{0}, mScroller));
+    // receptacle widget
+    mReceptacle = new Receptacle{orientation, this};
+    mReceptacle->setMimeTypes(QStringList{mimeType});
+    mReceptacle->setAcceptDrops(false); /*!< @note locked at creation */
+    connect(mReceptacle, &Receptacle::widgetInserted, this, &MultiDisplayer::onWidgetInsertion);
+    // stretching and scrolling
+    mStretchLayout = make_hbox(margin_tag{0});
+    auto* stretchWidget = new QWidget{this};
+    stretchWidget->setLayout(mStretchLayout);
+    mStretchLayout->addWidget(mReceptacle);
+    mScroller = new Scroller{stretchWidget, this};
+    setLayout(make_vbox(mScroller));
 }
 
 MultiDisplayer::~MultiDisplayer() {
     TRACE_DEBUG("deleting displayer ...");
-}
-
-bool MultiDisplayer::isDraggable() const {
-    return isEmbedded();
 }
 
 bool MultiDisplayer::isLocked() const {
@@ -448,10 +429,10 @@ bool MultiDisplayer::isLocked() const {
 void MultiDisplayer::setLocked(bool locked) {
     // update all nodes
     updateLocked(locked);
-    for (MultiDisplayer* displayer : findChildren<MultiDisplayer*>())
+    for (auto* displayer : findChildren<MultiDisplayer*>())
         displayer->updateLocked(locked);
     // update all leaves
-    for (SingleDisplayer* displayer : findChildren<SingleDisplayer*>())
+    for (auto* displayer : findChildren<SingleDisplayer*>())
         displayer->setLocked(locked);
 }
 
@@ -493,19 +474,19 @@ void MultiDisplayer::setOrientation(Qt::Orientation orientation) {
 }
 
 SingleDisplayer* MultiDisplayer::insertSingle(int position) {
-    auto displayer = new SingleDisplayer(this);
+    auto* displayer = new SingleDisplayer{this};
     mReceptacle->insertWidget(displayer, position);
     return displayer;
 }
 
 MultiDisplayer* MultiDisplayer::insertMulti(int position) {
-    auto displayer = new MultiDisplayer(orthogonal(), this);
+    auto* displayer = new MultiDisplayer{orthogonal(), this};
     mReceptacle->insertWidget(displayer, position);
     return displayer;
 }
 
 MultiDisplayer* MultiDisplayer::insertDetached(Qt::Orientation orientation) {
-    auto* displayer = new MultiDisplayer(orientation, nullptr);
+    auto* displayer = new MultiDisplayer{orientation, nullptr};
     displayer->setLocked(isLocked());
     displayer->resize(150, 60); /*!< abritrary size when empty */
     connect(this, &MultiDisplayer::lockChanged, displayer, &MultiDisplayer::setLocked);
@@ -516,20 +497,16 @@ std::vector<Displayer*> MultiDisplayer::directChildren() {
     return mReceptacle->widgets<Displayer>();
 }
 
-void MultiDisplayer::closeEvent(QCloseEvent* event) {
-    // Delete window if it does not contains leaf content
-    TRACE_DEBUG("closing displayer ...");
-    if (isEmpty())
-        setAttribute(Qt::WA_DeleteOnClose);
-    Displayer::closeEvent(event);
-}
-
-void MultiDisplayer::toggleOrientation() {
-    setOrientation(orthogonal());
+void MultiDisplayer::toggleStretched() {
+    setStretched(!isStreched());
 }
 
 void MultiDisplayer::toggleScrolling() {
     setScrolling(!isScrolling());
+}
+
+void MultiDisplayer::toggleOrientation() {
+    setOrientation(orthogonal());
 }
 
 void MultiDisplayer::onWidgetInsertion(QWidget* widget) {
@@ -547,7 +524,7 @@ void MultiDisplayer::onInsertionRequest() {
 
 void MultiDisplayer::changeTitle() {
     bool ok;
-    QString title = QInputDialog::getText(this, QString(), "Select the new title", QLineEdit::Normal, windowTitle(), &ok);
+    auto title = QInputDialog::getText(this, {}, "Select the new title", QLineEdit::Normal, windowTitle(), &ok);
     if (!ok)
         return;
     setWindowTitle(title);
@@ -557,24 +534,24 @@ void MultiDisplayer::changeTitle() {
 
 void MultiDisplayer::onDeleteRequest() {
     if (!isEmpty()) {
-        QMessageBox::warning(this, QString(), "You can't delete a nonempty container");
+        QMessageBox::warning(this, {}, "You can't delete a nonempty container");
     } else if (isIndependent()) {
         deleteLater();
     } else {
-        QMessageBox::warning(this, QString(), "You can't delete this container");
+        QMessageBox::warning(this, {}, "You can't delete this container");
     }
 }
 
 void MultiDisplayer::updateLocked(bool locked) {
     /// using dynamic properties, style sheet does not update when property changes :(
-    static const QString borderStyle(".MultiDisplayer{border: 2px solid gray;border-radius: 5px;}");
+    static const QString borderStyle{".MultiDisplayer{border: 2px solid gray;border-radius: 5px;}"};
     if (isLocked() != locked) {
         // disable drops if locked (updating locking status)
         mReceptacle->setAcceptDrops(!locked);
         // disable menu when locked
         setContextMenuPolicy(locked ? Qt::NoContextMenu : Qt::ActionsContextMenu);
         // draw a border when unlocked
-        setStyleSheet(!locked && isEmbedded() ? borderStyle : QString());
+        setStyleSheet(!locked && isEmbedded() ? borderStyle : QString{});
         // notify
         emit lockChanged(locked);
     }

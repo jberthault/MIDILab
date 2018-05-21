@@ -228,7 +228,7 @@ public:
     Parameters getParameters() const override;
     size_t setParameter(const Parameter& parameter) override;
 
-    Handler* getHandler() const override;
+    Handler* getHandler() override;
 
 public slots:
     void setFile(const QString& file);
@@ -244,7 +244,7 @@ private slots:
     void sendChorus(const SoundFontHandler::optional_chorus_type& chorus);
 
 private:
-    std::unique_ptr<SoundFontHandler> mHandler;
+    SoundFontHandler mHandler;
     SoundFontInterceptor* mInterceptor;
     QMovie* mLoadMovie;
     QLabel* mLoadLabel;

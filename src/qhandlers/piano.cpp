@@ -238,9 +238,10 @@ void Piano::clearKeys() {
 }
 
 void Piano::buildKeys() {
-    auto pianoLayout = new PianoLayout(nullptr);
+    auto* pianoLayout = new PianoLayout{nullptr};
+    pianoLayout->setMargin(0);
     for (int code = mRange.first.code() ; code <= mRange.second.code() ; code++) {
-        auto key = new PianoKey(Note::from_code(code), this);
+        auto* key = new PianoKey{Note::from_code(code), this};
         mKeys[code] = key;
         pianoLayout->addKey(key);
     }
@@ -254,14 +255,12 @@ void Piano::receiveNotesOff(channels_t channels) {
 }
 
 void Piano::receiveNoteOn(channels_t channels, const Note& note) {
-    PianoKey* key = mKeys[note.code()];
-    if (key != nullptr)
+    if (auto* key = mKeys[note.code()])
         key->activate(channels);
 }
 
 void Piano::receiveNoteOff(channels_t channels, const Note& note) {
-    PianoKey* key = mKeys[note.code()];
-    if (key != nullptr)
+    if (auto* key = mKeys[note.code()])
         key->deactivate(channels);
 }
 

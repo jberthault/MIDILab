@@ -63,5 +63,6 @@
         <file>data/rain.svg</file>
         <file>data/reload.svg</file>
         <file>data/menu.svg</file>
+        <file>data/fullscreen-exit.svg</file>
     </qresource>
 </RCC>

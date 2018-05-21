@@ -43,6 +43,20 @@ std::ostream& operator<<(std::ostream& stream, const QString& string) {
 
 }
 
+QAction* makeAction(const QIcon& icon, const QString& text, QWidget* parent) {
+    auto* action = new QAction{icon, text, parent};
+    parent->addAction(action);
+    return action;
+}
+
+QAction* makeSeparator(QWidget* parent) {
+    auto* action = new QAction{parent};
+    action->setSeparator(true);
+    parent->addAction(action);
+    return action;
+}
+
+
 //===============
 // PathRetriever
 //===============

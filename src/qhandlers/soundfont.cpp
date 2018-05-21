@@ -320,10 +320,10 @@ void OptionalChorusEditor::notify() {
 // SoundFontEditor
 //=================
 
-SoundFontEditor::SoundFontEditor() : HandlerEditor{}, mHandler{std::make_unique<SoundFontHandler>()} {
+SoundFontEditor::SoundFontEditor() : HandlerEditor{} {
 
     mInterceptor = new SoundFontInterceptor{this};
-    mHandler->set_interceptor(mInterceptor);
+    mHandler.set_interceptor(mInterceptor);
     connect(mInterceptor, &SoundFontInterceptor::fileHandled, this, &SoundFontEditor::updateFile);
 
     mLoadMovie = new QMovie{":/data/load.gif", QByteArray{}, this};
@@ -335,7 +335,7 @@ SoundFontEditor::SoundFontEditor() : HandlerEditor{}, mHandler{std::make_unique<
     mFileEditor = new QLineEdit{this};
     mFileEditor->setMinimumWidth(200);
     mFileEditor->setReadOnly(true);
-    mFileEditor->setText(QString::fromStdString(mHandler->file()));
+    mFileEditor->setText(QString::fromStdString(mHandler.file()));
 
     auto* fileSelector = new QToolButton{this};
     fileSelector->setToolTip("Browse SoundFonts");
@@ -356,15 +356,15 @@ SoundFontEditor::SoundFontEditor() : HandlerEditor{}, mHandler{std::make_unique<
     form->setMargin(0);
     form->addRow("File", make_hbox(spacing_tag{0}, fileSelector, mFileEditor, mLoadLabel));
     form->addRow("Gain", mGainEditor);
-    setLayout(make_vbox(form, mReverbEditor, mChorusEditor, stretch_tag{}));
+    setLayout(make_vbox(margin_tag{0}, form, mReverbEditor, mChorusEditor, stretch_tag{}));
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum); // avoid vertical expansion
 
 }
 
 HandlerView::Parameters SoundFontEditor::getParameters() const {
     auto result = HandlerEditor::getParameters();
-    SERIALIZE("file", QString::fromStdString, mHandler->file(), result);
-    SERIALIZE("gain", serial::serializeNumber, mHandler->gain(), result);
+    SERIALIZE("file", QString::fromStdString, mHandler.file(), result);
+    SERIALIZE("gain", serial::serializeNumber, mHandler.gain(), result);
     SERIALIZE("reverb.active", serial::serializeBool, mReverbEditor->isChecked(), result);
     SERIALIZE("reverb.folded", serial::serializeBool, mReverbEditor->isFolded(), result);
     SERIALIZE("reverb.roomsize", serial::serializeNumber, mReverbEditor->editor()->reverb().roomsize, result);
@@ -403,12 +403,12 @@ size_t SoundFontEditor::setParameter(const Parameter& parameter) {
     return HandlerEditor::setParameter(parameter);
 }
 
-Handler* SoundFontEditor::getHandler() const {
-    return mHandler.get();
+Handler* SoundFontEditor::getHandler() {
+    return &mHandler;
 }
 
 void SoundFontEditor::setFile(const QString& file) {
-    mHandler->send_message(SoundFontHandler::file_event(file.toStdString()));
+    mHandler.send_message(SoundFontHandler::file_event(file.toStdString()));
     mLoadMovie->start();
     mLoadLabel->show();
 }
@@ -426,7 +426,7 @@ void SoundFontEditor::setChorus(const SoundFontHandler::optional_chorus_type& ch
 }
 
 void SoundFontEditor::updateFile() {
-    const QFileInfo fileInfo{QString::fromStdString(mHandler->file())};
+    const QFileInfo fileInfo{QString::fromStdString(mHandler.file())};
     mFileEditor->setText(fileInfo.completeBaseName());
     mFileEditor->setToolTip(fileInfo.absoluteFilePath());
     mLoadMovie->stop();
@@ -434,15 +434,15 @@ void SoundFontEditor::updateFile() {
 }
 
 void SoundFontEditor::sendGain(double gain) {
-    mHandler->send_message(SoundFontHandler::gain_event(gain));
+    mHandler.send_message(SoundFontHandler::gain_event(gain));
 }
 
 void SoundFontEditor::sendReverb(const SoundFontHandler::optional_reverb_type& reverb) {
-    mHandler->send_message(SoundFontHandler::reverb_event(reverb));
+    mHandler.send_message(SoundFontHandler::reverb_event(reverb));
 }
 
 void SoundFontEditor::sendChorus(const SoundFontHandler::optional_chorus_type& chorus) {
-    mHandler->send_message(SoundFontHandler::chorus_event(chorus));
+    mHandler.send_message(SoundFontHandler::chorus_event(chorus));
 }
 
 void SoundFontEditor::onClick() {

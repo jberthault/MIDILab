@@ -137,7 +137,7 @@ private:
     QBoxLayout* mLayout;
     QFrame* mLine;
     Qt::Orientation mOrientation;
-    int mPosition;
+    int mPosition {nullPosition};
 
 };
 
@@ -160,8 +160,6 @@ public:
 
     using QFrame::QFrame;
 
-    virtual bool isDraggable() const = 0;
-
     virtual bool isLocked() const = 0;
     virtual void setLocked(bool locked) = 0;
 
@@ -176,6 +174,9 @@ signals:
 public slots:
     void drag();
     void deleteLaterRecursive();
+
+protected:
+    void closeEvent(QCloseEvent* event) override;
 
 private:
     bool mDying {false};
@@ -192,8 +193,6 @@ class SingleDisplayer : public Displayer {
 
 public:
     explicit SingleDisplayer(QWidget* parent);
-
-    bool isDraggable() const override;
 
     bool isLocked() const override;
     void setLocked(bool locked) override;
@@ -224,8 +223,6 @@ public:
     explicit MultiDisplayer(Qt::Orientation orientation, QWidget* parent);
     ~MultiDisplayer();
 
-    bool isDraggable() const override;
-
     bool isLocked() const override;
     void setLocked(bool locked) override;
 
@@ -245,12 +242,11 @@ public:
 
     std::vector<Displayer*> directChildren();
 
-protected:
-    void closeEvent(QCloseEvent* event) override;
 
 private slots:
-    void toggleOrientation();
+    void toggleStretched();
     void toggleScrolling();
+    void toggleOrientation();
     void onWidgetInsertion(QWidget* widget);
     void onInsertionRequest();
     void changeTitle();
@@ -261,10 +257,9 @@ private:
 
 private:
     Scroller* mScroller;
-    QWidget* mStreched;
     QHBoxLayout* mStretchLayout;
     Receptacle* mReceptacle;
-    bool mStretched;
+    bool mStretched {false};
 
 };
 

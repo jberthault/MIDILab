@@ -513,24 +513,15 @@ PlaylistTable::PlaylistTable(QWidget* parent) : QTableWidget(0, 2, parent), mCon
     setDragDropOverwriteMode(false);
 
     setContextMenuPolicy(Qt::ActionsContextMenu);
-
-    QAction* browseFilesAction = makeAction(QIcon(":/data/folder.svg"), "Browse Files");
-    QAction* browseRecordersAction = makeAction(QIcon(":/data/media-record.svg"), "Browse Recorders");
-    makeSeparator();
-    QAction* shuffleAction = makeAction(QIcon(":/data/random.svg"), "Shuffle");
-    QAction* sortAscendingAction = makeAction(QIcon(":/data/sort-ascending.svg"), "Sort Ascdending");
-    QAction* sortDescendingAction = makeAction(QIcon(":/data/sort-descending.svg"), "Sort Descending");
-    makeSeparator();
-    QAction* discardSelectionAction = makeAction(QIcon(":/data/delete.svg"), "Discard");
-    QAction* discardAllAction = makeAction(QIcon(":/data/trash.svg"), "Discard All");
-
-    connect(browseFilesAction, &QAction::triggered, this, &PlaylistTable::browseFiles);
-    connect(browseRecordersAction, &QAction::triggered, this, &PlaylistTable::browseRecorders);
-    connect(shuffleAction, &QAction::triggered, this, &PlaylistTable::shuffle);
-    connect(sortAscendingAction, &QAction::triggered, this, &PlaylistTable::sortAscending);
-    connect(sortDescendingAction, &QAction::triggered, this, &PlaylistTable::sortDescending);
-    connect(discardSelectionAction, &QAction::triggered, this, &PlaylistTable::removeSelection);
-    connect(discardAllAction, &QAction::triggered, this, &PlaylistTable::removeAllRows);
+    connect(makeAction(QIcon{":/data/folder.svg"}, "Browse Files", this), &QAction::triggered, this, &PlaylistTable::browseFiles);
+    connect(makeAction(QIcon{":/data/media-record.svg"}, "Browse Recorders", this), &QAction::triggered, this, &PlaylistTable::browseRecorders);
+    makeSeparator(this);
+    connect(makeAction(QIcon{":/data/random.svg"}, "Shuffle", this), &QAction::triggered, this, &PlaylistTable::shuffle);
+    connect(makeAction(QIcon{":/data/sort-ascending.svg"}, "Sort Ascdending", this), &QAction::triggered, this, &PlaylistTable::sortAscending);
+    connect(makeAction(QIcon{":/data/sort-descending.svg"}, "Sort Descending", this), &QAction::triggered, this, &PlaylistTable::sortDescending);
+    makeSeparator(this);
+    connect(makeAction(QIcon{":/data/delete.svg"}, "Discard", this), &QAction::triggered, this, &PlaylistTable::removeSelection);
+    connect(makeAction(QIcon{":/data/trash.svg"}, "Discard All", this), &QAction::triggered, this, &PlaylistTable::removeAllRows);
 
 }
 
@@ -805,19 +796,6 @@ int PlaylistTable::rowAt(const QPoint& pos) const {
     // formula to get vertical position (match the drop indicator)
     bool isBefore = relPos.y() < (itemRect.height()-1)/2;
     return isBefore ? index.row() : index.row() + 1;
-}
-
-QAction* PlaylistTable::makeAction(const QIcon& icon, const QString& text) {
-    auto action = new QAction(icon, text, this);
-    addAction(action);
-    return action;
-}
-
-QAction* PlaylistTable::makeSeparator() {
-    auto action = new QAction(this);
-    action->setSeparator(true);
-    addAction(action);
-    return action;
 }
 
 //==========
@@ -1296,8 +1274,7 @@ void MetaPlayer::setContent(HandlerProxy& proxy) {
 // Player
 //========
 
-Player::Player() :
-    HandlerEditor(), mIsPlaying(false), mPlayer(std::make_unique<SequenceReader>()), mIsStepping(false) {
+Player::Player() : HandlerEditor(), mIsPlaying(false), mIsStepping(false) {
 
     mPlaylist = new PlaylistTable(this);
     connect(mPlaylist, &PlaylistTable::itemActivated, this, &Player::launch);
@@ -1353,8 +1330,8 @@ size_t Player::setParameter(const Parameter& parameter) {
     return HandlerEditor::setParameter(parameter);
 }
 
-Handler* Player::getHandler() const {
-    return mPlayer.get();
+Handler* Player::getHandler() {
+    return &mHandler;
 }
 
 void Player::updateContext(Context* context) {
@@ -1364,24 +1341,24 @@ void Player::updateContext(Context* context) {
 
 void Player::changePosition(timestamp_t timestamp) {
     // event comes from trackbar
-    mPlayer->set_position(timestamp);
+    mHandler.set_position(timestamp);
 }
 
 void Player::changeLower(timestamp_t timestamp) {
     // event comes from trackbar
-    mPlayer->set_lower(timestamp);
+    mHandler.set_lower(timestamp);
     mSequenceView->setLower(timestamp);
 }
 
 void Player::changeUpper(timestamp_t timestamp) {
     // event comes from trackbar
-    mPlayer->set_upper(timestamp);
+    mHandler.set_upper(timestamp);
     mSequenceView->setUpper(timestamp);
 }
 
 void Player::changeDistorsion(double distorsion) {
     // event comes from tempoview, don't need to update
-    mPlayer->set_distorsion(distorsion);
+    mHandler.set_distorsion(distorsion);
     mTracker->setDistorsion(distorsion);
     mSequenceView->distordedClock().setDistorsion(distorsion);
 }
@@ -1402,16 +1379,16 @@ bool Player::setNextSequence(int offset) {
 }
 
 void Player::updatePosition() {
-    timestamp_t pos = mPlayer->position();
+    const auto pos = mHandler.position();
     mTempoView->updateTimestamp(pos);
     mTracker->updateTimestamp(pos);
 }
 
 void Player::refreshPosition() {
     updatePosition();
-    if (mPlayer->is_completed()) {
+    if (mHandler.is_completed()) {
         playNextSequence();
-    } else if (!mPlayer->is_playing()) { // stopped by an event
+    } else if (!mHandler.is_playing()) { // stopped by an event
         if (mIsPlaying) {
             mIsPlaying = false;
             mIsStepping = false;
@@ -1419,24 +1396,24 @@ void Player::refreshPosition() {
             mTempoView->clearTempo();
         }
         mPlaylist->setCurrentStatus(STOPPED);
-    } else if (mIsStepping && mPlayer->position() >= mNextStep) {
+    } else if (mIsStepping && mHandler.position() >= mNextStep) {
         pauseSequence();
     }
 }
 
 void Player::setSequence(const NamedSequence& sequence) {
     window()->setWindowTitle(sequence.name);
-    mPlayer->set_sequence(sequence.sequence);
+    mHandler.set_sequence(sequence.sequence);
     mTempoView->setSequence(sequence.sequence);
-    mSequenceView->setSequence(sequence.sequence, mPlayer->lower(), mPlayer->upper());
-    mTracker->setSequence(sequence.sequence, mPlayer->lower(), mPlayer->upper());
+    mSequenceView->setSequence(sequence.sequence, mHandler.lower(), mHandler.upper());
+    mTracker->setSequence(sequence.sequence, mHandler.lower(), mHandler.upper());
 }
 
 void Player::saveSequence() {
     const auto filename = context()->pathRetrieverPool()->get("midi")->getWriteFile(this);
     if (filename.isNull())
         return;
-    Sequence sequence = mPlayer->sequence();
+    const auto sequence = mHandler.sequence();
     if (sequence.empty()) {
         QMessageBox::critical(this, QString(), "Empty sequence");
     } else {
@@ -1450,7 +1427,7 @@ void Player::saveSequence() {
 }
 
 void Player::launch(QTableWidgetItem* item) {
-    auto namedSequence = mPlaylist->loadRow(item->row());
+    const auto namedSequence = mPlaylist->loadRow(item->row());
     if (!namedSequence.sequence.empty()) {
         resetSequence();
         setSequence(namedSequence);
@@ -1479,7 +1456,7 @@ void Player::playCurrentSequence(bool resetStepping) {
     if (!mIsPlaying) {
         if (resetStepping)
             mIsStepping = false;
-        if (mPlayer->start_playing(false)) {
+        if (mHandler.start_playing(false)) {
             mIsPlaying = true;
             mRefreshTimer->start();
             mPlaylist->setCurrentStatus(PLAYING);
@@ -1491,7 +1468,7 @@ void Player::pauseSequence() {
     if (mIsPlaying) {
         mIsPlaying = false;
         mIsStepping = false;
-        mPlayer->stop_playing(Event::controller(channels_t::full(), controller_ns::all_sound_off_controller));
+        mHandler.stop_playing(Event::controller(channels_t::full(), controller_ns::all_sound_off_controller));
         mRefreshTimer->stop();
         mTempoView->clearTempo();
         mPlaylist->setCurrentStatus(PAUSED);
@@ -1499,8 +1476,8 @@ void Player::pauseSequence() {
 }
 
 void Player::resetSequence() {
-    mPlayer->stop_playing(true);
-    mPlayer->forward_message({Event::reset(), mPlayer.get()}); // force reset
+    mHandler.stop_playing(true);
+    mHandler.forward_message({Event::reset(), &mHandler}); // force reset
     if (mIsPlaying) {
         mIsPlaying = false;
         mIsStepping = false;
@@ -1523,8 +1500,8 @@ void Player::playLastSequence() {
 
 void Player::stepForward() {
     mIsStepping = false;
-    timestamp_t pos = mPlayer->position();
-    const Sequence& seq = mPlayer->sequence();
+    const auto pos = mHandler.position();
+    const auto& seq = mHandler.sequence();
     auto first = seq.begin(), last = seq.end();
     for (auto it = std::lower_bound(first, last, pos) ; it != last ; ++it) {
         if (it->event.family() == family_t::note_on) {

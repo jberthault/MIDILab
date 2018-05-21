@@ -50,24 +50,24 @@ void MetaMonitor::setContent(HandlerProxy& proxy) {
 // Monitor
 //=========
 
-Monitor::Monitor() : GraphicalHandler(Mode::out()) {
+Monitor::Monitor() : EditableHandler{Mode::out()} {
 
-    mFamilySelector = new FamilySelector(this);
+    mFamilySelector = new FamilySelector{this};
     mFamilySelector->setFamilies(~families_t::wrap(family_t::active_sense));
     mFamilySelector->setWindowFlags(Qt::Dialog);
     mFamilySelector->setVisible(false);
 
-    mEditor = new QTextEdit(this);
+    mEditor = new QTextEdit{this};
     mEditor->setReadOnly(true);
     mEditor->setAcceptRichText(true);
 
-    QPushButton* clearButton = new QPushButton(tr("Clear"), this);
+    auto* clearButton = new QPushButton(tr("Clear"), this);
     connect(clearButton, &QPushButton::clicked, mEditor, &QTextEdit::clear);
 
-    QPushButton* selectFamilyButton = new QPushButton(tr("Filter"), this);
+    auto* selectFamilyButton = new QPushButton(tr("Filter"), this);
     connect(selectFamilyButton, &QPushButton::clicked, this, &Monitor::onFilterClick);
 
-    setLayout(make_vbox(mEditor, make_hbox(stretch_tag{}, clearButton, selectFamilyButton)));
+    setLayout(make_vbox(margin_tag{0}, mEditor, make_hbox(stretch_tag{}, clearButton, selectFamilyButton)));
 
 }
 
@@ -82,19 +82,16 @@ Handler::Result Monitor::handle_message(const Message& message) {
     if (!message.event.is(mFamilySelector->families()))
         return Result::unhandled;
 
-    QString name = eventName(message.event);
+    auto name = eventName(message.event);
     name += " ";
 
-    channels_t channels = message.event.channels();
-    if (channels) {
-        std::string str = channel_ns::channels_string(channels);
-        name += QString("[%1] ").arg(QString::fromStdString(str));
-    }
+    if (auto channels = message.event.channels())
+        name += QString{"[%1] "}.arg(QString::fromStdString(channel_ns::channels_string(channels)));
     name = name.leftJustified(20, '.');
     name += "&nbsp;";
     name = QString("<span style=\"font-weight:bold;\">%1</span>").arg(name);
 
-    QString description = QString::fromStdString(message.event.description());
+    auto description = QString::fromStdString(message.event.description());
     /// @todo replace all other non printable characters by a hex code (use a dedicated algorithm)
     description.replace("\n", specialText("\\n"));
     description.replace("\r", specialText("\\r"));

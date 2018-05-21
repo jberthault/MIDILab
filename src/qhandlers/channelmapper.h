@@ -48,7 +48,7 @@ class ChannelMapperEditor : public HandlerEditor {
 public:
     explicit ChannelMapperEditor();
 
-    Handler* getHandler() const override;
+    Handler* getHandler() override;
 
 public slots:
     void updateMapper();
@@ -56,7 +56,7 @@ public slots:
     void resetMapper();
 
 private:
-    std::unique_ptr<ChannelMapper> mHandler;
+    ChannelMapper mHandler;
     channel_map_t<channel_map_t<QCheckBox*>> mCheckBoxes;
 
 };

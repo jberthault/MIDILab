@@ -68,6 +68,7 @@ Harmonica::Harmonica() : Instrument(Mode::io()) {
 
     QGridLayout* layout = new QGridLayout;
     setLayout(layout);
+    layout->setMargin(0);
     layout->setSpacing(0);
 
     mReversed = true;
