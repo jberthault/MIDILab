@@ -20,6 +20,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "misc.h"
 
+#if defined(__linux__)
+#include <sys/socket.h>
+#include <unistd.h>
+#include <signal.h>
+#endif
+
 #include <QEvent>
 #include <QPainter>
 #include <QTextDocument>
@@ -419,3 +425,87 @@ void FoldableGroupBox::onStateChange() {
     if (mWidget)
         mWidget->setHidden(isFolded());
 }
+
+//================
+// SignalNotifier
+//================
+
+#if defined(__linux__)
+
+template<int sig>
+struct SignalHandler {
+
+    static auto setup() {
+        struct sigaction action;
+        action.sa_handler = &writeDummy;
+        ::sigemptyset(&action.sa_mask);
+        action.sa_flags = SA_RESTART;
+        return ::sigaction(sig, &action, 0);
+    }
+
+    static auto init() {
+        auto err = ::socketpair(AF_UNIX, SOCK_STREAM, 0, sv);
+        if (err != 0)
+            TRACE_ERROR("signal [" << sig << "] : unable to create socket");
+        return err;
+    }
+
+    static void writeDummy(int) {
+        char dummy = 1;
+        ::write(sv[0], &dummy, sizeof(dummy));
+    }
+
+    static void readDummy() {
+        char dummy;
+        ::read(sv[1], &dummy, sizeof(dummy));
+    }
+
+    static int sv[2];
+};
+
+template<> int SignalHandler<SIGINT>::sv[2] = {};
+template<> int SignalHandler<SIGTERM>::sv[2] = {};
+
+SignalNotifier::SignalNotifier(QObject* parent) : QObject{parent} {
+    if (SignalHandler<SIGINT>::init() == 0) {
+        mSocketInt = new QSocketNotifier{SignalHandler<SIGINT>::sv[1], QSocketNotifier::Read, this};
+        connect(mSocketInt, &QSocketNotifier::activated, this, &SignalNotifier::handleInt);
+        SignalHandler<SIGINT>::setup();
+    }
+    if (SignalHandler<SIGTERM>::init() == 0) {
+        mSocketTerm = new QSocketNotifier{SignalHandler<SIGTERM>::sv[1], QSocketNotifier::Read, this};
+        connect(mSocketTerm, &QSocketNotifier::activated, this, &SignalNotifier::handleTerm);
+        SignalHandler<SIGTERM>::setup();
+    }
+}
+
+void SignalNotifier::handleInt() {
+    mSocketInt->setEnabled(false);
+    SignalHandler<SIGINT>::readDummy();
+    emit terminated();
+    mSocketInt->setEnabled(true);
+}
+
+
+void SignalNotifier::handleTerm() {
+    mSocketTerm->setEnabled(false);
+    SignalHandler<SIGTERM>::readDummy();
+    emit terminated();
+    mSocketTerm->setEnabled(true);
+}
+
+#else
+
+SignalNotifier::SignalNotifier(QObject* parent) : QObject{parent} {
+
+}
+
+void SignalNotifier::handleInt() {
+    emit terminated();
+}
+
+void SignalNotifier::handleTerm() {
+    emit terminated();
+}
+
+#endif

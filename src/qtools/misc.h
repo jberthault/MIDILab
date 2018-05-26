@@ -33,6 +33,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QVBoxLayout>
 #include <QGroupBox>
 #include <QStyledItemDelegate>
+#include <QSocketNotifier>
 #include <QTableView>
 #include <QCheckBox>
 #include <QDialog>
@@ -325,6 +326,30 @@ private slots:
 private:
     QWidget* mWidget {nullptr};
     MultiStateAction* mFoldAction;
+
+};
+
+//================
+// SignalNotifier
+//================
+
+class SignalNotifier : public QObject {
+
+    Q_OBJECT
+
+public:
+    explicit SignalNotifier(QObject* parent);
+
+signals:
+    void terminated();
+
+private slots:
+    void handleInt();
+    void handleTerm();
+
+private:
+    QSocketNotifier* mSocketInt {nullptr};
+    QSocketNotifier* mSocketTerm {nullptr};
 
 };
 

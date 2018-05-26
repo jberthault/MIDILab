@@ -286,10 +286,12 @@ Manager::Manager(QObject* parent) : Context{parent} {
     mMetaHandlerPool = new MetaHandlerPool{this};
     mObserver = new Observer{this};
     mDeleter = new Deleter{this};
+    mSignalNotifier = new SignalNotifier{this};
 
     qApp->setQuitOnLastWindowClosed(false);
     connect(qApp, &QApplication::lastWindowClosed, this, &Manager::clearConfiguration);
     connect(mDeleter, &Deleter::deleted, this, &Manager::onDeletion);
+    connect(mSignalNotifier, &SignalNotifier::terminated, qApp, &QApplication::closeAllWindows);
 
 }
 
