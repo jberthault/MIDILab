@@ -127,6 +127,7 @@ private:
     ChannelEditor* mChannelEditor;
     Deleter* mDeleter;
     Observer* mObserver;
+    SignalNotifier* mSignalNotifier;
 
 };
 
