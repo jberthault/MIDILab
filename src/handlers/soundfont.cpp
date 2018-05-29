@@ -142,10 +142,10 @@ struct SoundFontHandler::Impl {
         case family_t::reset: return handle_reset();
         case family_t::sysex: return handle_sysex(event);
         case family_t::extended_system:
-            if (SoundFontHandler::gain_ext.affects(event)) return handle_gain(event.get_custom_value());
-            if (SoundFontHandler::reverb_ext.affects(event)) return handle_reverb(event.get_custom_value());
-            if (SoundFontHandler::chorus_ext.affects(event)) return handle_chorus(event.get_custom_value());
-            if (SoundFontHandler::file_ext.affects(event)) return handle_file(event.get_custom_value());
+            if (SoundFontHandler::gain_ext.affects(event)) return handle_gain(SoundFontHandler::gain_ext.decode(event));
+            if (SoundFontHandler::reverb_ext.affects(event)) return handle_reverb(SoundFontHandler::reverb_ext.decode(event));
+            if (SoundFontHandler::chorus_ext.affects(event)) return handle_chorus(SoundFontHandler::chorus_ext.decode(event));
+            if (SoundFontHandler::file_ext.affects(event)) return handle_file(SoundFontHandler::file_ext.decode(event));
             break;
         }
         return Result::unhandled;
@@ -219,13 +219,12 @@ struct SoundFontHandler::Impl {
         return Result::success;
     }
 
-    Result handle_gain(const std::string& string) {
-        fluid_synth_set_gain(synth, (float)unmarshall<double>(string));
+    Result handle_gain(double gain) {
+        fluid_synth_set_gain(synth, (float)gain);
         return Result::success;
     }
 
-    Result handle_reverb(const std::string& string) {
-        auto reverb = unmarshall<optional_reverb_type>(string);
+    Result handle_reverb(const optional_reverb_type& reverb) {
         has_reverb = (bool)reverb;
         if (has_reverb)
             fluid_synth_set_reverb(synth, reverb->roomsize, reverb->damp, reverb->width, reverb->level);
@@ -233,8 +232,7 @@ struct SoundFontHandler::Impl {
         return Result::success;
     }
 
-    Result handle_chorus(const std::string& string) {
-        auto chorus = unmarshall<optional_chorus_type>(string);
+    Result handle_chorus(const optional_chorus_type& chorus) {
         has_chorus = (bool)chorus;
         if (has_chorus)
             fluid_synth_set_chorus(synth, chorus->nr, chorus->level, chorus->speed, chorus->depth, chorus->type);

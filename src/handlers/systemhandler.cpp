@@ -459,7 +459,7 @@ class LinuxSystemHandler : public Handler {
         }
 
         families_t handled_families() const override {
-            return families_t::fuse(families_t::standard_voice(), family_t::custom, family_t::reset);
+            return families_t::fuse(families_t::standard_voice(), family_t::extended_system, family_t::reset);
         }
 
         Result handle_message(const Message& message) override {

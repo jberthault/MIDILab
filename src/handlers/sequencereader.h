@@ -53,7 +53,7 @@ public:
     bool select_sequence(byte_t id); /*!< set the current sequence by its id, return False if the id is unknown */
 
     double distorsion() const;
-    void set_distorsion(double distorsion); /*!< negative values are silently ignored */
+    Result set_distorsion(double distorsion); /*!< returns fail for negative input */
 
     bool is_playing() const;
     bool is_completed() const; /*!< returns true if current position has reached the last one */
@@ -81,7 +81,6 @@ private:
     Result handle_sequence(byte_t id);
     Result handle_start(bool rewind);
     Result handle_stop(const Event& final_event);
-    Result handle_distorsion(const std::string& distorsion);
 
     // unsafe helpers
     void jump_position(position_type position);

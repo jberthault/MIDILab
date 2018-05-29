@@ -52,7 +52,7 @@ We should be able to change any property dynamically.
 A first version of the guitar fretboard was introduced in v0.3 but there are still plenty of things to do about it.
 For example, make the engine aware of the strings assigned to notes.
 It could be done using the track number of events.
-The current **fingering algorithm** is also rudimentary and yields wierd behaviors.
+The current **fingering algorithm** is also rudimentary and yields weird behaviors.
 There are many ways of improvement.
 
 The current version of the Harmonica is ugly and unusable.
@@ -66,7 +66,7 @@ generating events on keystrokes, by adding shortcuts, by controlling handlers, .
 The current **Recorder** interface is poor and does not fit well with the Player.
 
 Instruments could easily filter incoming events for specific channels.
-By making this configurable, it will avoid using ChannelMappers of Filters.
+By making this configurable, it will avoid using ChannelMappers or Filters.
 
 ## About GUI
 
@@ -96,6 +96,6 @@ This could be done by allowing windows to be **anchored** to others for example.
 Practices regarding Qt change. For example, using Qt containers is not recommended.
 Using an automated tool like **clazy** will help spotting these kind of flaws.
 
-Rework custom events to distinguish custom voice event from custom meta events.
+Rework extended events to minimize space.
 Using strings as identifiers is secure but needs more space, there must be a better way,
 like using specific custom status bytes (in range [0, 0x80)).

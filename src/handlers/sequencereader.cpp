@@ -84,10 +84,12 @@ double SequenceReader::distorsion() const {
     return m_distorsion;
 }
 
-void SequenceReader::set_distorsion(double distorsion) {
+Handler::Result SequenceReader::set_distorsion(double distorsion) {
+    if (distorsion < 0)
+        return Result::fail;
     std::lock_guard<std::mutex> guard(m_mutex);
-    if (distorsion >= 0)
-        m_distorsion = distorsion;
+    m_distorsion = distorsion;
+    return Result::success;
 }
 
 bool SequenceReader::is_playing() const {
@@ -234,7 +236,7 @@ Handler::Result SequenceReader::handle_message(const Message& message) {
     case family_t::stop: return handle_stop(stop_all);
     case family_t::extended_system:
         if (pause_ext.affects(message.event)) return handle_stop(stop_sounds);
-        if (distorsion_ext.affects(message.event)) return handle_distorsion(message.event.get_custom_value());
+        if (distorsion_ext.affects(message.event)) return set_distorsion(distorsion_ext.decode(message.event));
         if (toggle_ext.affects(message.event)) return m_playing ? handle_stop(stop_sounds) : handle_start(false);
         break;
     }
@@ -259,10 +261,5 @@ Handler::Result SequenceReader::handle_start(bool rewind) {
 
 Handler::Result SequenceReader::handle_stop(const Event& final_event) {
     stop_playing(final_event);
-    return Result::success;
-}
-
-Handler::Result SequenceReader::handle_distorsion(const std::string& distorsion) {
-    set_distorsion(unmarshall<double>(distorsion));
     return Result::success;
 }

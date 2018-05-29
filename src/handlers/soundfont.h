@@ -23,6 +23,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #ifdef MIDILAB_FLUIDSYNTH_VERSION
 
+#include <sstream>
 #include <boost/optional.hpp>
 #include "core/handler.h"
 

@@ -393,22 +393,26 @@ static constexpr byte_t reset_controllers[] = {
 
 /*
 
-    +---------------------------------------------------------------------------------------------------------------------------------------+
-    |                                                                             full                                                      |
-    +---------------------------------------------------------------------------------------------------------------+-----------------------+
-    |                                                        standard                                               |        extended       |
-    +-------------------------------+---------------------------------+---------------------------------------------+-------+--------+------+
-    |              voice            |              system             |                                             |       |        |      |
-    +------------+------------------+------------------+--------------+                       meta                  | voice | system | meta |
-    |    note    |                  |      common      |   realtime   |                                             |       |        |      |
-    +------------+------------------+------------------+--------------+---------------------------------------------+-------+--------+------+
-    | note_off   | controller       | sysex, mtc_frame | clock, tick  | sequence_number, text, copyright            |
-    | note_off   | program_change   | song_position    | start        | track_name, instrument_name, lyrics, marker |
-    | aftertouch | channel_pressure | song_select      | continue     | cue_point, program_name, device_name        |
-    |            | pitch_wheel      | xf4, xf5         | stop, xfd    | channel_prefix, port, end_of_track          |
-    |            |                  | tune_request     | active_sense | tempo, smpte_offset, time_signature         |
-    |            |                  | end_of_sysex     | reset        | key_signature, proprietary, (default_meta)  |
-    +------------+------------------+------------------+--------------+---------------------------------------------+
+  +---------+--------------------------------------------------------------------------------------------------------------------------+----------+
+  |         |                                                                  full                                                    |          |
+  |         +--------------------------------------------------------------------------------------------------+-----------------------+          |
+  |         |                                                        standard                                  |                       |          |
+  |         +-------------------------------+------------------------------+-----------------------------------+                       |          |
+  |         |              voice            |            system            |                                   |        extended       |          |
+  |         +------------+------------------+---------------+--------------+              meta                 |                       |          |
+  |         |    note    |                  |    common     |   realtime   |                                   |                       |          |
+  |         +------------+------------------+---------------+--------------+-----------------------------------+-------+--------+------+          |
+  | invalid | note_off   | controller       | sysex         | clock        | sequence_number, text, copyright  |       |        |      | reserved |
+  |         | note_off   | program_change   | mtc_frame     | tick         | track_name, instrument_name       |       |        |      |   ...    |
+  |         | aftertouch | channel_pressure | song_position | start        | lyrics, marker, cue_point         |       |        |      |          |
+  |         |            | pitch_wheel      | song_select   | continue     | program_name,device_name          | voice | system | meta |          |
+  |         |            |                  | xf4           | stop         | channel_prefix, port              |       |        |      |          |
+  |         |            |                  | xf5           | xfd          | end_of_track, tempo, smpte_offset |       |        |      |          |
+  |         |            |                  | tune_request  | active_sense | time_signature, key_signature     |       |        |      |          |
+  |         |            |                  | end_of_sysex  | reset        | proprietary, (default_meta)       |       |        |      |          |
+  +---------+------------+------------------+---------------+--------------+-----------------------------------+-------+--------+------+----------+
+  |    1    |     3      |        4         |       8       |      8       |               19                  |   1   |   1    |  1   |    18    |
+  +---------+------------+------------------+---------------+--------------+-----------------------------------+-------+--------+------+----------+
 
 */
 
