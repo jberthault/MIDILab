@@ -143,10 +143,6 @@ MetaGraphicalHandler::MetaGraphicalHandler(QObject* parent) : OpenMetaHandler(pa
 // GraphicalHandler
 //==================
 
-GraphicalHandler::GraphicalHandler(Mode mode) : EditableHandler(mode), mTrack(Message::no_track) {
-
-}
-
 HandlerView::Parameters GraphicalHandler::getParameters() const {
     auto result = EditableHandler::getParameters();
     SERIALIZE("track", serial::serializeNumber, mTrack, result);
@@ -185,10 +181,6 @@ MetaInstrument::MetaInstrument(QObject* parent) : MetaGraphicalHandler(parent) {
 //============
 // Instrument
 //============
-
-Instrument::Instrument(Mode mode) : GraphicalHandler(mode), mVelocity(0x7f) {
-
-}
 
 families_t Instrument::handled_families() const {
     return families_t::fuse(family_t::extended_system, family_t::note_on, family_t::note_off, family_t::controller, family_t::reset);
@@ -249,15 +241,15 @@ void Instrument::receiveReset() {
     receiveNotesOff(channels_t::full());
 }
 
-void Instrument::receiveNotesOff(channels_t /*channels*/) {
+void Instrument::receiveNotesOff(channels_t) {
 
 }
 
-void Instrument::receiveNoteOn(channels_t /*channels*/, const Note& /*note*/) {
+void Instrument::receiveNoteOn(channels_t, const Note&) {
 
 }
 
-void Instrument::receiveNoteOff(channels_t /*channels*/, const Note& /*note*/) {
+void Instrument::receiveNoteOff(channels_t, const Note&) {
 
 }
 

@@ -115,7 +115,7 @@ class GraphicalHandler : public EditableHandler {
     Q_OBJECT
 
 public:
-    explicit GraphicalHandler(Mode mode);
+    using EditableHandler::EditableHandler;
 
     Parameters getParameters() const override;
     size_t setParameter(const Parameter& parameter) override;
@@ -127,7 +127,7 @@ public:
     void generate(Event event);
 
 private:
-    track_t mTrack;
+    track_t mTrack {Message::no_track};
 
 };
 
@@ -153,7 +153,7 @@ class Instrument : public GraphicalHandler {
     Q_OBJECT
 
 public:
-    explicit Instrument(Mode mode);
+    using GraphicalHandler::GraphicalHandler;
 
     families_t handled_families() const override;
     Result handle_message(const Message& message) override;
@@ -178,7 +178,7 @@ protected:
     channels_t channelsFromButtons(Qt::MouseButtons buttons);
 
 private:
-    byte_t mVelocity;
+    byte_t mVelocity {0x7f};
 
 };
 

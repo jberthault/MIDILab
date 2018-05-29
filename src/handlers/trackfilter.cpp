@@ -64,7 +64,6 @@ void TrackFilter::feed_forward(const Message& message) {
 }
 
 void TrackFilter::clean_corrupted(Handler *source, track_t track) {
-    channels_t channels = m_corruption[track].reset();
-    if (channels)
+    if (const auto channels = m_corruption[track].reset())
         return feed_forward({Event::controller(channels, controller_ns::all_notes_off_controller), source, track});
 }

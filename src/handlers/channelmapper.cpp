@@ -27,24 +27,24 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 const VoiceExtension<channels_t> ChannelMapper::remap_ext {"ChannelMapping.remap"};
 const VoiceExtension<> ChannelMapper::unmap_ext {"ChannelMapping.unmap"};
 
-ChannelMapper::ChannelMapper() : Handler(Mode::thru()) {
+ChannelMapper::ChannelMapper() : Handler{Mode::thru()} {
     for (channel_t c=0 ; c < channels_t::capacity() ; ++c)
         m_mapping[c] = channels_t::wrap(c);
 }
 
 channel_map_t<channels_t> ChannelMapper::mapping() const {
-    std::lock_guard<std::mutex> guard(m_mutex);
+    std::lock_guard<std::mutex> guard{m_mutex};
     return m_mapping;
 }
 
-void ChannelMapper::set_mapping(channel_map_t<channels_t> mapping) {
-    std::lock_guard<std::mutex> guard(m_mutex);
-    m_mapping = std::move(mapping);
+void ChannelMapper::set_mapping(const channel_map_t<channels_t>& mapping) {
+    std::lock_guard<std::mutex> guard{m_mutex};
+    m_mapping = mapping;
     m_corruption.tick();
 }
 
 void ChannelMapper::reset_mapping(channels_t channels) {
-    std::lock_guard<std::mutex> guard(m_mutex);
+    std::lock_guard<std::mutex> guard{m_mutex};
     for (channel_t channel : channels)
         m_mapping[channel] = channels_t::wrap(channel);
     m_corruption.tick();
@@ -55,12 +55,11 @@ Handler::Result ChannelMapper::handle_message(const Message& message) {
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_FORWARD_RECEIVE;
 
-    std::lock_guard<std::mutex> guard(m_mutex);
+    std::lock_guard<std::mutex> guard{m_mutex};
 
     if (message.event.family() == family_t::extended_voice) {
         if (remap_ext.affects(message.event)) {
-            auto mapped_channels = remap_ext.decode(message.event);
-            channel_ns::store(m_mapping, message.event.channels(), mapped_channels);
+            channel_ns::store(m_mapping, message.event.channels(), remap_ext.decode(message.event));
             m_corruption.tick();
             return Result::success;
         } else if (unmap_ext.affects(message.event)) {
@@ -75,13 +74,16 @@ Handler::Result ChannelMapper::handle_message(const Message& message) {
     if (message.event.is(families_t::standard_note()))
         clean_corrupted(message.source, message.track);
 
-    Message copy(message);
+    if (message.event.is(families_t::voice())) {
+        if (const auto channels = remap(message.event.channels())) {
+            Message copy{message};
+            copy.event.set_channels(channels);
+            feed_forward(copy);
+        }
+    } else {
+        forward_message(message);
+    }
 
-     /// @todo don't forward if no channels
-    if (message.event.is(families_t::voice()))
-        copy.event.set_channels(remap(message.event.channels()));
-
-    feed_forward(copy);
     return Result::success;
 }
 
@@ -91,8 +93,7 @@ void ChannelMapper::feed_forward(const Message& message) {
 }
 
 void ChannelMapper::clean_corrupted(Handler* source, track_t track) {
-    channels_t channels = m_corruption.reset();
-    if (channels)
+    if (const auto channels = m_corruption.reset())
         feed_forward({Event::controller(channels, controller_ns::all_notes_off_controller), source, track});
 }
 

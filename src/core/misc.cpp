@@ -87,7 +87,5 @@ void Corruption::tick(channels_t channels) {
 }
 
 channels_t Corruption::reset() {
-    channels_t previous = m_corrupted;
-    m_corrupted.clear();
-    return previous;
+    return std::exchange(m_corrupted, {});
 }

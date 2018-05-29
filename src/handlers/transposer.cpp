@@ -64,8 +64,7 @@ void Transposer::feed_forward(const Message& message) {
 }
 
 void Transposer::clean_corrupted(Handler* source, track_t track) {
-    channels_t channels = m_corruption.reset();
-    if (channels)
+    if (const auto channels = m_corruption.reset())
         feed_forward({Event::controller(channels, controller_ns::all_notes_off_controller), source, track});
 }
 

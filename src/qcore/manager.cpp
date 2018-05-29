@@ -33,6 +33,9 @@ class ConfigurationPuller {
 
 public:
     void addConfiguration(const Configuration& configuration) {
+        // set colors
+        for (channel_t c=0 ; c < std::min(channels_t::capacity(), (size_t)configuration.colors.size()) ; ++c)
+            Manager::instance->channelEditor()->setColor(c, configuration.colors.at(c));
         // add frames
         auto mainDisplayer = Manager::instance->mainDisplayer();
         if (!configuration.frames.empty())
@@ -45,9 +48,6 @@ public:
         // add connections
         for (const auto& connection : configuration.connections)
             addConnection(connection);
-        // set colors
-        for (channel_t c=0 ; c < std::min(channels_t::capacity(), (size_t)configuration.colors.size()) ; ++c)
-            Manager::instance->channelEditor()->setColor(c, configuration.colors.at(c));
         // display visible frames created
         for (auto* displayer : mVisibleDisplayers)
             displayer->show();

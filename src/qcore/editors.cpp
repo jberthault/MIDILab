@@ -350,10 +350,9 @@ ChannelsSlider::ChannelsSlider(Qt::Orientation orientation, QWidget* parent) :
 void ChannelsSlider::setChannelEditor(ChannelEditor* editor) {
     mChannelEditor = editor;
     if (editor) {
-        for (channel_t c=0 ; c < channels_t::capacity() ; c++) {
-            connect(editor, &ChannelEditor::colorChanged, this, &ChannelsSlider::updateColor);
+        connect(editor, &ChannelEditor::colorChanged, this, &ChannelsSlider::updateColor);
+        for (channel_t c=0 ; c < channels_t::capacity() ; c++)
             updateColor(c, editor->color(c));
-        }
     }
 }
 

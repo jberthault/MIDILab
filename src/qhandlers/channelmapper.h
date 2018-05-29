@@ -50,14 +50,23 @@ public:
 
     Handler* getHandler() override;
 
-public slots:
+protected:
+    void updateContext(Context* context) override;
+
+private slots:
+    void updateColor(channel_t channel, const QColor& color);
     void updateMapper();
     void updateFromMapper();
     void resetMapper();
 
 private:
+    void makeHeader(Qt::Orientation orientation, QGridLayout* gridLayout, channel_map_t<TriState*>& groups, channel_map_t<QWidget*>& colors);
+
+private:
     ChannelMapper mHandler;
     channel_map_t<channel_map_t<QCheckBox*>> mCheckBoxes;
+    channel_map_t<QWidget*> mVerticalColorBoxes;
+    channel_map_t<QWidget*> mHorizontalColorBoxes;
 
 };
 

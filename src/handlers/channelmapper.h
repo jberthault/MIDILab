@@ -37,7 +37,7 @@ public:
     explicit ChannelMapper();
 
     channel_map_t<channels_t> mapping() const;
-    void set_mapping(channel_map_t<channels_t> mapping);
+    void set_mapping(const channel_map_t<channels_t>& mapping);
     void reset_mapping(channels_t channels = channels_t::full());
 
     Result handle_message(const Message& message) override;
