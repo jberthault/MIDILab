@@ -53,7 +53,7 @@ void MetaSoundFont::setContent(HandlerProxy& proxy) {
 
 void SoundFontInterceptor::seize_messages(Handler* target, const Messages& messages) {
     const bool fileSeized = std::any_of(messages.begin(), messages.end(), [](const auto& message) {
-        return message.event.family() == family_t::custom && message.event.has_custom_key("SoundFont.file");
+        return message.event.family() == family_t::extended_system && SoundFontHandler::file_ext.affects(message.event);
     });
     seizeAll(target, messages);
     if (fileSeized)
@@ -408,7 +408,7 @@ Handler* SoundFontEditor::getHandler() {
 }
 
 void SoundFontEditor::setFile(const QString& file) {
-    mHandler.send_message(SoundFontHandler::file_event(file.toStdString()));
+    mHandler.send_message(SoundFontHandler::file_ext(file.toStdString()));
     mLoadMovie->start();
     mLoadLabel->show();
 }
@@ -434,15 +434,15 @@ void SoundFontEditor::updateFile() {
 }
 
 void SoundFontEditor::sendGain(double gain) {
-    mHandler.send_message(SoundFontHandler::gain_event(gain));
+    mHandler.send_message(SoundFontHandler::gain_ext(gain));
 }
 
 void SoundFontEditor::sendReverb(const SoundFontHandler::optional_reverb_type& reverb) {
-    mHandler.send_message(SoundFontHandler::reverb_event(reverb));
+    mHandler.send_message(SoundFontHandler::reverb_ext(reverb));
 }
 
 void SoundFontEditor::sendChorus(const SoundFontHandler::optional_chorus_type& chorus) {
-    mHandler.send_message(SoundFontHandler::chorus_event(chorus));
+    mHandler.send_message(SoundFontHandler::chorus_ext(chorus));
 }
 
 void SoundFontEditor::onClick() {

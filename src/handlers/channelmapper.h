@@ -31,8 +31,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 class ChannelMapper : public Handler {
 
 public:
-    static Event remap_event(channels_t channels, channels_t mapped_channels); /*!< channels given will all map to the whole new channels */
-    static Event unmap_event(channels_t channels); /*!< all channels specified won't be mapped */
+    static const VoiceExtension<channels_t> remap_ext; /*!< channels given will all map to the whole new channels */
+    static const VoiceExtension<> unmap_ext; /*!< all channels specified won't be mapped */
 
     explicit ChannelMapper();
 

@@ -205,7 +205,6 @@ const std::map<byte_t, std::string>& controller_ns::controller_names() {
 const char* family_name(family_t family) {
     switch (family) {
     case family_t::invalid: return "Invalid Event";
-    case family_t::custom: return "Custom Event";
     case family_t::note_off: return "Note Off";
     case family_t::note_on: return "Note On";
     case family_t::aftertouch: return "Aftertouch";
@@ -248,6 +247,9 @@ const char* family_name(family_t family) {
     case family_t::key_signature: return "Key Signature";
     case family_t::proprietary: return "Proprietary";
     case family_t::default_meta: return "Unknown MetaEvent";
+    case family_t::extended_voice: return "Extended Voice Event";
+    case family_t::extended_system: return "Extended System Event";
+    case family_t::extended_meta: return "Extended Meta Event";
     default: return "Unknown Event";
     }
 }
@@ -449,8 +451,6 @@ std::ostream& print_smpte_offset(std::ostream& stream, const Event& event) {
 
 std::ostream& print_event(std::ostream& stream, const Event& event) {
     switch (event.family()) {
-    case family_t::custom:
-        return stream << event.get_custom_key();
     case family_t::note_off:
     case family_t::note_on:
     case family_t::aftertouch:
@@ -493,6 +493,10 @@ std::ostream& print_event(std::ostream& stream, const Event& event) {
     case family_t::proprietary:
     case family_t::default_meta:
         return print_bytes(stream, event.begin(), event.end());
+    case family_t::extended_voice:
+    case family_t::extended_system:
+    case family_t::extended_meta:
+        return stream << event.get_custom_key();
     default:
         return stream;
     }
@@ -605,15 +609,16 @@ Event Event::end_of_track() {
     return {family_t::end_of_track, {}, {0xff, 0x2f, 0x00}};
 }
 
-Event Event::custom(channels_t channels, const std::string& key) {
-    return {family_t::custom, channels, {key.begin(), key.end()}};
+Event Event::extended_voice(channels_t channels, data_type data) {
+    return {family_t::extended_voice, channels, std::move(data)};
 }
 
-Event Event::custom(channels_t channels, const std::string& key, const std::string& value) {
-    data_type data(key.size() + value.size() + 1, 0x00);
-    auto pos = std::copy(key.begin(), key.end(), data.begin());
-    std::copy(value.begin(), value.end(), ++pos);
-    return {family_t::custom, channels, std::move(data)};
+Event Event::extended_system(data_type data) {
+    return {family_t::extended_system, {}, std::move(data)};
+}
+
+Event Event::extended_meta(data_type data) {
+    return {family_t::extended_meta, {}, std::move(data)};
 }
 
 Event Event::raw(bool is_realtime, data_type data) {
@@ -626,20 +631,15 @@ Event Event::raw(bool is_realtime, data_type data) {
     // get family
     event.m_family = event.extract_family(is_realtime);
     // get channel mask
-    if (event.is(families_t::voice()))
+    if (event.is(families_t::standard_voice()))
         event.m_channels.set(channel);
     return event;
 }
 
 // constructors
 
-Event::Event() noexcept :
-    m_family(family_t::invalid), m_channels(), m_data() {
-
-}
-
 Event::Event(family_t family, channels_t channels, data_type data) noexcept :
-    m_family(family), m_channels(channels), m_data(std::move(data)) {
+    m_family{family}, m_channels{channels}, m_data{std::move(data)} {
 
 }
 
@@ -651,7 +651,7 @@ bool Event::equivalent(const Event& lhs, const Event& rhs) {
     auto ilhs = lhs.begin();
     auto irhs = rhs.begin();
     // skip status byte
-    if (lhs.is(families_t::midi())) {
+    if (lhs.is(families_t::standard())) {
         ++ilhs;
         ++irhs;
     }
@@ -844,4 +844,31 @@ std::string Event::get_custom_value() const {
     if (it != end())
         ++it;
     return {it, end()};
+}
+
+// =========
+// Extension
+// =========
+
+namespace extension_ns {
+
+Event::data_type encode_key(const std::string& key) {
+    return {key.begin(), key.end()};
+}
+
+Event::data_type encode_key_value(const std::string& key, const std::string& value) {
+    Event::data_type data(key.size() + value.size() + 1, 0x00);
+    auto pos = std::copy(key.begin(), key.end(), data.begin());
+    std::copy(value.begin(), value.end(), ++pos);
+    return data;
+}
+
+encoder_base_t::encoder_base_t(std::string key) : key{std::move(key)} {
+
+}
+
+bool encoder_base_t::affects(const Event& event) const {
+    return event.has_custom_key(key.data());
+}
+
 }

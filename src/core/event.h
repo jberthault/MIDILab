@@ -40,7 +40,7 @@ class Event;
 
 namespace short_ns {
 
-static constexpr uint16_t maximum_value = 0x3fff;
+static constexpr uint16_t maximum_value{0x3fff};
 
 static constexpr byte_t coarse(uint16_t value) {
     return (value >> 7) & 0x7f;
@@ -89,7 +89,7 @@ struct channels_t : flags_t<channels_t, channel_t, 16> {
 
 };
 
-template<> inline auto marshall<channels_t>(channels_t channels) { return marshall(channels.to_integral()); }
+template<> inline auto marshall<channels_t>(const channels_t& channels) { return marshall(channels.to_integral()); }
 template<> inline auto unmarshall<channels_t>(const std::string& string) { return channels_t::from_integral(unmarshall<channels_t::storage_type>(string)); }
 
 namespace channel_ns {
@@ -170,67 +170,67 @@ namespace drum_ns {
 
 std::ostream& print_drum(std::ostream& stream, byte_t byte);
 
-static constexpr byte_t high_q_drum(27);
-static constexpr byte_t slap_drum(28);
-static constexpr byte_t scratch_push_drum(29);
-static constexpr byte_t scratch_pull_drum(30);
-static constexpr byte_t sticks_drum(31);
-static constexpr byte_t square_click_drum(32);
-static constexpr byte_t metronome_click_drum(33);
-static constexpr byte_t metronome_bell_drum(34);
-static constexpr byte_t bass_2_drum(35);
-static constexpr byte_t bass_1_drum(36);
-static constexpr byte_t sidestick_drum(37);
-static constexpr byte_t snare_1_drum(38);
-static constexpr byte_t handclap_drum(39);
-static constexpr byte_t snare_2_drum(40);
-static constexpr byte_t low_tom_2_drum(41);
-static constexpr byte_t closed_hihat_drum(42);
-static constexpr byte_t low_tom_1_drum(43);
-static constexpr byte_t pedal_hihat_drum(44);
-static constexpr byte_t mid_tom_2_drum(45);
-static constexpr byte_t open_hihat_drum(46);
-static constexpr byte_t mid_tom_1_drum(47);
-static constexpr byte_t high_tom_2_drum(48);
-static constexpr byte_t crash_cymbal_1_drum(49);
-static constexpr byte_t high_tom_1_drum(50);
-static constexpr byte_t ride_cymbal_1_drum(51);
-static constexpr byte_t chinese_cymbal_drum(52);
-static constexpr byte_t ride_bell_drum(53);
-static constexpr byte_t tambourine_drum(54);
-static constexpr byte_t splash_cymbal_drum(55);
-static constexpr byte_t cowbell_drum(56);
-static constexpr byte_t crash_cymbal_2_drum(57);
-static constexpr byte_t vibra_slap_drum(58);
-static constexpr byte_t ride_cymbal_2_drum(59);
-static constexpr byte_t high_bongo_drum(60);
-static constexpr byte_t low_bongo_drum(61);
-static constexpr byte_t mute_high_conga_drum(62);
-static constexpr byte_t open_high_conga_drum(63);
-static constexpr byte_t low_conga_drum(64);
-static constexpr byte_t high_timbale_drum(65);
-static constexpr byte_t low_timbale_drum(66);
-static constexpr byte_t high_agogo_drum(67);
-static constexpr byte_t low_agogo_drum(68);
-static constexpr byte_t cabasa_drum(69);
-static constexpr byte_t maracas_drum(70);
-static constexpr byte_t short_whistle_drum(71);
-static constexpr byte_t long_whistle_drum(72);
-static constexpr byte_t short_guiro_drum(73);
-static constexpr byte_t long_guiro_drum(74);
-static constexpr byte_t claves_drum(75);
-static constexpr byte_t high_wood_drum(76);
-static constexpr byte_t low_wood_drum(77);
-static constexpr byte_t mute_cuica_drum(78);
-static constexpr byte_t open_cuica_drum(79);
-static constexpr byte_t mute_triangle_drum(80);
-static constexpr byte_t open_triangle_drum(81);
-static constexpr byte_t shaker_drum(82);
-static constexpr byte_t jingle_bell_drum(83);
-static constexpr byte_t bell_tree_drum(84);
-static constexpr byte_t castinets_drum(85);
-static constexpr byte_t mute_surdo_drum(86);
-static constexpr byte_t open_surdo_drum(87);
+static constexpr byte_t high_q_drum{27};
+static constexpr byte_t slap_drum{28};
+static constexpr byte_t scratch_push_drum{29};
+static constexpr byte_t scratch_pull_drum{30};
+static constexpr byte_t sticks_drum{31};
+static constexpr byte_t square_click_drum{32};
+static constexpr byte_t metronome_click_drum{33};
+static constexpr byte_t metronome_bell_drum{34};
+static constexpr byte_t bass_2_drum{35};
+static constexpr byte_t bass_1_drum{36};
+static constexpr byte_t sidestick_drum{37};
+static constexpr byte_t snare_1_drum{38};
+static constexpr byte_t handclap_drum{39};
+static constexpr byte_t snare_2_drum{40};
+static constexpr byte_t low_tom_2_drum{41};
+static constexpr byte_t closed_hihat_drum{42};
+static constexpr byte_t low_tom_1_drum{43};
+static constexpr byte_t pedal_hihat_drum{44};
+static constexpr byte_t mid_tom_2_drum{45};
+static constexpr byte_t open_hihat_drum{46};
+static constexpr byte_t mid_tom_1_drum{47};
+static constexpr byte_t high_tom_2_drum{48};
+static constexpr byte_t crash_cymbal_1_drum{49};
+static constexpr byte_t high_tom_1_drum{50};
+static constexpr byte_t ride_cymbal_1_drum{51};
+static constexpr byte_t chinese_cymbal_drum{52};
+static constexpr byte_t ride_bell_drum{53};
+static constexpr byte_t tambourine_drum{54};
+static constexpr byte_t splash_cymbal_drum{55};
+static constexpr byte_t cowbell_drum{56};
+static constexpr byte_t crash_cymbal_2_drum{57};
+static constexpr byte_t vibra_slap_drum{58};
+static constexpr byte_t ride_cymbal_2_drum{59};
+static constexpr byte_t high_bongo_drum{60};
+static constexpr byte_t low_bongo_drum{61};
+static constexpr byte_t mute_high_conga_drum{62};
+static constexpr byte_t open_high_conga_drum{63};
+static constexpr byte_t low_conga_drum{64};
+static constexpr byte_t high_timbale_drum{65};
+static constexpr byte_t low_timbale_drum{66};
+static constexpr byte_t high_agogo_drum{67};
+static constexpr byte_t low_agogo_drum{68};
+static constexpr byte_t cabasa_drum{69};
+static constexpr byte_t maracas_drum{70};
+static constexpr byte_t short_whistle_drum{71};
+static constexpr byte_t long_whistle_drum{72};
+static constexpr byte_t short_guiro_drum{73};
+static constexpr byte_t long_guiro_drum{74};
+static constexpr byte_t claves_drum{75};
+static constexpr byte_t high_wood_drum{76};
+static constexpr byte_t low_wood_drum{77};
+static constexpr byte_t mute_cuica_drum{78};
+static constexpr byte_t open_cuica_drum{79};
+static constexpr byte_t mute_triangle_drum{80};
+static constexpr byte_t open_triangle_drum{81};
+static constexpr byte_t shaker_drum{82};
+static constexpr byte_t jingle_bell_drum{83};
+static constexpr byte_t bell_tree_drum{84};
+static constexpr byte_t castinets_drum{85};
+static constexpr byte_t mute_surdo_drum{86};
+static constexpr byte_t open_surdo_drum{87};
 
 }
 
@@ -253,27 +253,27 @@ static constexpr short_ns::uint14_t pan_position_controller = {0x0a, 0x2a};
 static constexpr short_ns::uint14_t expression_controller = {0x0b, 0x2b};
 static constexpr short_ns::uint14_t effect_control_controllers[] = {{0x0c, 0x2c}, {0x0d, 0x2d}};
 static constexpr byte_t general_purpose_slider_controllers[] = {0x10, 0x11, 0x12, 0x13};
-static constexpr byte_t hold_pedal_controller(0x40);
-static constexpr byte_t portamento_controller(0x41);
-static constexpr byte_t sustenuto_pedal_controller(0x42);
-static constexpr byte_t soft_pedal_controller(0x43);
-static constexpr byte_t legato_pedal_controller(0x44);
-static constexpr byte_t hold_2_pedal_controller(0x45);
+static constexpr byte_t hold_pedal_controller{0x40};
+static constexpr byte_t portamento_controller{0x41};
+static constexpr byte_t sustenuto_pedal_controller{0x42};
+static constexpr byte_t soft_pedal_controller{0x43};
+static constexpr byte_t legato_pedal_controller{0x44};
+static constexpr byte_t hold_2_pedal_controller{0x45};
 static constexpr byte_t sound_controllers[] = {0x46, 0x47, 0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f};
 static constexpr byte_t general_purpose_button_controllers[] = {0x50, 0x51, 0x52, 0x53};
 static constexpr byte_t effects_depth_controllers[] = {0x5b, 0x5c, 0x5d, 0x5e, 0x5f};
-static constexpr byte_t data_button_increment_controller(0x60);
-static constexpr byte_t data_button_decrement_controller(0x61);
+static constexpr byte_t data_button_increment_controller{0x60};
+static constexpr byte_t data_button_decrement_controller{0x61};
 static constexpr short_ns::uint14_t non_registered_parameter_controller = {0x63, 0x62};
 static constexpr short_ns::uint14_t registered_parameter_controller = {0x65, 0x64};
-static constexpr byte_t all_sound_off_controller(0x78);
-static constexpr byte_t all_controllers_off_controller(0x79);
-static constexpr byte_t local_keyboard_controller(0x7a);
-static constexpr byte_t all_notes_off_controller(0x7b);
-static constexpr byte_t omni_mode_off_controller(0x7c);
-static constexpr byte_t omni_mode_on_controller(0x7d);
-static constexpr byte_t mono_operation_controller(0x7e);
-static constexpr byte_t poly_operation_controller(0x7f);
+static constexpr byte_t all_sound_off_controller{0x78};
+static constexpr byte_t all_controllers_off_controller{0x79};
+static constexpr byte_t local_keyboard_controller{0x7a};
+static constexpr byte_t all_notes_off_controller{0x7b};
+static constexpr byte_t omni_mode_off_controller{0x7c};
+static constexpr byte_t omni_mode_on_controller{0x7d};
+static constexpr byte_t mono_operation_controller{0x7e};
+static constexpr byte_t poly_operation_controller{0x7f};
 
 constexpr bool is_channel_mode_message(byte_t controller) {
     return controller >= 0x78;
@@ -391,9 +391,29 @@ static constexpr byte_t reset_controllers[] = {
 // Family
 //========
 
+/*
+
+    +---------------------------------------------------------------------------------------------------------------------------------------+
+    |                                                                             full                                                      |
+    +---------------------------------------------------------------------------------------------------------------+-----------------------+
+    |                                                        standard                                               |        extended       |
+    +-------------------------------+---------------------------------+---------------------------------------------+-------+--------+------+
+    |              voice            |              system             |                                             |       |        |      |
+    +------------+------------------+------------------+--------------+                       meta                  | voice | system | meta |
+    |    note    |                  |      common      |   realtime   |                                             |       |        |      |
+    +------------+------------------+------------------+--------------+---------------------------------------------+-------+--------+------+
+    | note_off   | controller       | sysex, mtc_frame | clock, tick  | sequence_number, text, copyright            |
+    | note_off   | program_change   | song_position    | start        | track_name, instrument_name, lyrics, marker |
+    | aftertouch | channel_pressure | song_select      | continue     | cue_point, program_name, device_name        |
+    |            | pitch_wheel      | xf4, xf5         | stop, xfd    | channel_prefix, port, end_of_track          |
+    |            |                  | tune_request     | active_sense | tempo, smpte_offset, time_signature         |
+    |            |                  | end_of_sysex     | reset        | key_signature, proprietary, (default_meta)  |
+    +------------+------------------+------------------+--------------+---------------------------------------------+
+
+*/
+
 enum class family_t : uint8_t {
     invalid          , // @note special value for undefined events
-    custom           , // @note special value for user-defined events
     note_off         , // 8x note velocity
     note_on          , // 9x note velocity
     aftertouch       , // ax note pressure
@@ -436,6 +456,9 @@ enum class family_t : uint8_t {
     key_signature    , // ff 59 variable ...
     proprietary      , // ff 7f variable ...
     default_meta     , // ff xx variable ...
+    extended_voice   , //
+    extended_system  , //
+    extended_meta    , //
     reserved_01      , //
     reserved_02      , //
     reserved_03      , //
@@ -454,8 +477,6 @@ enum class family_t : uint8_t {
     reserved_16      , //
     reserved_17      , //
     reserved_18      , //
-    reserved_19      , //
-    reserved_20      , //
 };
 
 const char* family_name(family_t family);
@@ -465,27 +486,27 @@ std::ostream& operator<<(std::ostream& stream, family_t family);
 struct families_t : flags_t<families_t, family_t, 64> {
     using flags_t::flags_t;
 
-    static constexpr auto note() { return fuse(
+    static constexpr auto standard_note() { return fuse(
         family_t::note_off, family_t::note_on, family_t::aftertouch
     ); }
 
-    static constexpr auto voice() { return fuse(
-        note(), family_t::controller, family_t::program_change, family_t::channel_pressure, family_t::pitch_wheel
+    static constexpr auto standard_voice() { return fuse(
+        standard_note(), family_t::controller, family_t::program_change, family_t::channel_pressure, family_t::pitch_wheel
     ); }
 
-    static constexpr auto system_common() { return fuse(
+    static constexpr auto standard_system_common() { return fuse(
         family_t::sysex, family_t::mtc_frame, family_t::song_position, family_t::song_select,
         family_t::xf4, family_t::xf5, family_t::tune_request, family_t::end_of_sysex
     ); }
 
-    static constexpr auto system_realtime() { return fuse(
+    static constexpr auto standard_system_realtime() { return fuse(
         family_t::clock, family_t::tick, family_t::start, family_t::continue_,
         family_t::stop, family_t::xfd, family_t::active_sense, family_t::reset
     ); }
 
-    static constexpr auto system() { return system_common() | system_realtime(); }
+    static constexpr auto standard_system() { return standard_system_common() | standard_system_realtime(); }
 
-    static constexpr auto meta() { return fuse(
+    static constexpr auto standard_meta() { return fuse(
         family_t::sequence_number, family_t::text, family_t::copyright, family_t::track_name,
         family_t::instrument_name, family_t::lyrics, family_t::marker, family_t::cue_point,
         family_t::program_name, family_t::device_name, family_t::channel_prefix, family_t::port,
@@ -493,9 +514,12 @@ struct families_t : flags_t<families_t, family_t, 64> {
         family_t::key_signature, family_t::proprietary, family_t::default_meta
     ); }
 
-    static constexpr auto midi() { return voice() | system() | meta(); }
-
-    static constexpr auto full() { return fuse(midi(), family_t::custom); }
+    static constexpr auto standard() { return standard_voice() | standard_system() | standard_meta(); }
+    static constexpr auto extended() { return fuse(family_t::extended_voice, family_t::extended_system, family_t::extended_meta); }
+    static constexpr auto voice() { return fuse(standard_voice(), family_t::extended_voice); }
+    static constexpr auto system() { return fuse(standard_system(), family_t::extended_system); }
+    static constexpr auto meta() { return fuse(standard_meta(), family_t::extended_meta); }
+    static constexpr auto full() { return standard() | extended(); }
 
     static constexpr auto string() { return fuse(
         family_t::text, family_t::copyright, family_t::track_name, family_t::instrument_name,
@@ -564,13 +588,14 @@ public:
     static Event reset();
     static Event tempo(double bpm);
     static Event end_of_track();
-    static Event custom(channels_t channels, const std::string& key);
-    static Event custom(channels_t channels, const std::string& key, const std::string& value);
+    static Event extended_voice(channels_t channels, data_type data);
+    static Event extended_system(data_type data);
+    static Event extended_meta(data_type data);
     static Event raw(bool is_realtime, data_type data); /*!< check data content to get a coherent event & updates associated family */
 
     // constructors
 
-    Event() noexcept; /*!< default constructor makes an invalid event */
+    Event() noexcept = default; /*!< default constructor makes an invalid event */
 
     // comparison
 
@@ -633,10 +658,86 @@ public:
 private:
     Event(family_t family, channels_t channels, data_type data) noexcept;
 
-    family_t m_family;
+    family_t m_family {family_t::invalid};
     channels_t m_channels;
     data_type m_data;
 
 };
+
+// =========
+// Extension
+// =========
+
+namespace extension_ns {
+
+Event::data_type encode_key(const std::string& key);
+Event::data_type encode_key_value(const std::string& key, const std::string& value);
+
+struct encoder_base_t {
+    const std::string key;
+    encoder_base_t(std::string key);
+    bool affects(const Event& event) const;
+};
+
+template<typename T>
+struct encoder_t : encoder_base_t {
+    using encoder_base_t::encoder_base_t;
+    auto encode(const T& value) const { return encode_key_value(key, marshall(value)); }
+    static auto decode(const Event& event) { return unmarshall<T>(event.get_custom_value()); }
+};
+
+template<>
+struct encoder_t<std::string> : encoder_base_t {
+    using encoder_base_t::encoder_base_t;
+    auto encode(const std::string& value) const { return encode_key_value(key, value); }
+    static auto decode(const Event& event) { return event.get_custom_value(); }
+};
+
+template<>
+struct encoder_t<void> : encoder_base_t {
+    using encoder_base_t::encoder_base_t;
+    auto encode() const { return encode_key(key); }
+};
+
+template<family_t F, typename T>
+struct extension_t;
+
+template<typename T>
+struct extension_t<family_t::extended_voice, T> : encoder_t<T> {
+    using encoder_t<T>::encoder_t;
+    template<typename ... Args>
+    auto operator()(channels_t channels, Args ... args) const {
+        return Event::extended_voice(channels, this->encode(std::forward<Args>(args)...));
+    }
+};
+
+template<typename T>
+struct extension_t<family_t::extended_system, T> : encoder_t<T> {
+    using encoder_t<T>::encoder_t;
+    template<typename ... Args>
+    auto operator()(Args ... args) const {
+        return Event::extended_system(this->encode(std::forward<Args>(args)...));
+    }
+};
+
+template<typename T>
+struct extension_t<family_t::extended_meta, T> : encoder_t<T> {
+    using encoder_t<T>::encoder_t;
+    template<typename ... Args>
+    auto operator()(Args ... args) const {
+        return Event::extended_meta(this->encode(std::forward<Args>(args)...));
+    }
+};
+
+}
+
+template<typename T = void>
+using VoiceExtension = extension_ns::extension_t<family_t::extended_voice, T>;
+
+template<typename T = void>
+using SystemExtension = extension_ns::extension_t<family_t::extended_system, T>;
+
+template<typename T = void>
+using MetaExtension = extension_ns::extension_t<family_t::extended_meta, T>;
 
 #endif // CORE_EVENT_H

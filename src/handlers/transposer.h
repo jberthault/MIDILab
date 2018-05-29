@@ -42,7 +42,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 class Transposer : public Handler {
 
 public:
-    static Event transpose_event(channels_t channels, int key);
+    static const VoiceExtension<int> transpose_ext;
 
     explicit Transposer();
 

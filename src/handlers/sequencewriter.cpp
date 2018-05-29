@@ -27,7 +27,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 /// @todo remove the lock guard
 
 SequenceWriter::SequenceWriter() :
-    Handler(Mode::out()), m_recording(false), m_families(families_t::voice() | families_t::meta()) {
+    Handler(Mode::out()), m_recording(false), m_families(families_t::standard_voice() | families_t::standard_meta()) {
 
     m_storage.reserve(8192);
 }

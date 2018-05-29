@@ -318,7 +318,7 @@ void SequenceView::setSequence(const Sequence& sequence, timestamp_t lower, time
 
     // reenable all tracks
     if (mTrackFilter)
-        mTrackFilter->send_message(TrackFilter::enable_all_event());
+        mTrackFilter->send_message(TrackFilter::enable_all_ext());
 
     QMap<track_t, channels_t> trackChannels;
     QMap<track_t, QByteArrayList> trackNames;
@@ -394,7 +394,7 @@ void SequenceView::updateItemVisibility(SequenceViewItem* item) {
 }
 
 void SequenceView::onFamiliesChanged(families_t families) {
-    if (families.all(families_t::midi()))
+    if (families.all(families_t::standard()))
         mFamilySelectorButton->setText("Types");
     else
         mFamilySelectorButton->setText("Types*");
@@ -430,7 +430,7 @@ void SequenceView::onItemChange(QTreeWidgetItem* item, int /*column*/) {
     if (trackItem && mTrackFilter) {
         track_t track = trackItem->track();
         bool checked = item->checkState(0) == Qt::Checked;
-        mTrackFilter->send_message(checked ? TrackFilter::enable_event(track) : TrackFilter::disable_event(track));
+        mTrackFilter->send_message(checked ? TrackFilter::enable_ext(track) : TrackFilter::disable_ext(track));
     }
 }
 

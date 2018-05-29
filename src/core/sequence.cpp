@@ -307,9 +307,9 @@ size_t write_event(uint32_t deltatime, const Event& event, std::ostream& stream,
     // check event type
     if (!event)
         throw std::invalid_argument("can't write null event");
-    if (event.is(~families_t::midi() | families_t::system_realtime()))
+    if (event.is(~families_t::standard() | families_t::standard_system_realtime()))
         throw std::invalid_argument("can't write custom or realtime events");
-    if (event.is(families_t::voice())) {
+    if (event.is(families_t::standard_voice())) {
         // transform note off to note on
         if (event.family() == family_t::note_off && event.at(2) == 0)
             status = 0x90;

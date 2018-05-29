@@ -20,9 +20,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "systemhandler.h"
 
+const SystemExtension<uint32_t> volume_ext {"System.volume"};
+
 Event volume_event(uint16_t left, uint16_t right) {
-    uint32_t volume = (right << 16) | left;
-    return Event::custom({}, "System.volume", marshall(volume));
+    return volume_ext((right << 16) | left);
 }
 
 #ifdef _WIN32
@@ -49,21 +50,21 @@ public:
     }
 
     families_t handled_families() const override {
-        return families_t::fuse(families_t::voice(), family_t::custom, family_t::sysex, family_t::reset);
+        return families_t::fuse(families_t::standard_voice(), family_t::extended_system, family_t::sysex, family_t::reset);
     }
 
     Result handle_message(const Message& message) override {
         MIDI_HANDLE_OPEN;
         MIDI_CHECK_OPEN_RECEIVE;
         if (mode().any(Mode::receive())) {
-            if (message.event.is(families_t::voice()))
+            if (message.event.is(families_t::standard_voice()))
                 return to_result(handle_voice(message.event));
             if (message.event.family() == family_t::sysex)
                 return to_result(handle_sysex(message.event));
             if (message.event.family() == family_t::reset)
                 return to_result(handle_reset());
-            if (message.event.family() == family_t::custom && message.event.has_custom_key("System.volume"))
-                return to_result(handle_volume((DWORD)unmarshall<uint32_t>(message.event.get_custom_value())));
+            if (message.event.family() == family_t::extended_system && volume_ext.affects(message.event))
+                return to_result(handle_volume((DWORD)volume_ext.decode(message.event)));
         }
         return Result::unhandled;
     }
@@ -458,14 +459,14 @@ class LinuxSystemHandler : public Handler {
         }
 
         families_t handled_families() const override {
-            return families_t::fuse(families_t::voice(), family_t::custom, family_t::reset);
+            return families_t::fuse(families_t::standard_voice(), family_t::custom, family_t::reset);
         }
 
         Result handle_message(const Message& message) override {
             MIDI_HANDLE_OPEN;
             MIDI_CHECK_OPEN_RECEIVE;
             if (mode().any(Mode::receive())) {
-                if (message.event.is(families_t::voice()))
+                if (message.event.is(families_t::standard_voice()))
                     return to_result(handle_voice(message.event));
                 if (message.event.family() == family_t::reset)
                     return to_result(handle_reset());

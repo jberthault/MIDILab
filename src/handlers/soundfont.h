@@ -55,10 +55,10 @@ public:
     static reverb_type default_reverb();
     static chorus_type default_chorus();
 
-    static Event gain_event(double gain); /*!< must be in range [0, 10] */
-    static Event file_event(const std::string& file);
-    static Event reverb_event(const optional_reverb_type& reverb);
-    static Event chorus_event(const optional_chorus_type& chorus);
+    static const SystemExtension<double> gain_ext; /*!< must be in range [0, 10] */
+    static const SystemExtension<std::string> file_ext;
+    static const SystemExtension<optional_reverb_type> reverb_ext;
+    static const SystemExtension<optional_chorus_type> chorus_ext;
 
     explicit SoundFontHandler();
     ~SoundFontHandler();
@@ -77,6 +77,54 @@ private:
     std::unique_ptr<Impl> m_pimpl;
 
 };
+
+// ===========
+// marshalling
+// ===========
+
+template<typename T>
+struct marshalling_traits<boost::optional<T>> {
+    std::string operator()(const boost::optional<T>& value) {
+        if (!value)
+            return {};
+        return marshall(*value);
+    }
+};
+
+template<typename T>
+struct unmarshalling_traits<boost::optional<T>> {
+    boost::optional<T> operator()(const std::string& string) {
+        if (string.empty())
+            return {};
+        return {unmarshall<T>(string)};
+    }
+};
+
+template<> inline auto marshall<SoundFontHandler::reverb_type>(const SoundFontHandler::reverb_type& reverb) {
+    std::stringstream ss;
+    ss << reverb.roomsize << ' ' << reverb.damp << ' ' << reverb.level << ' ' << reverb.width;
+    return ss.str();
+}
+
+template<> inline auto unmarshall<SoundFontHandler::reverb_type>(const std::string& string) {
+    SoundFontHandler::reverb_type reverb;
+    std::stringstream ss(string);
+    ss >> reverb.roomsize >> reverb.damp >> reverb.level >> reverb.width;
+    return reverb;
+}
+
+template<> inline auto marshall<SoundFontHandler::chorus_type>(const SoundFontHandler::chorus_type& chorus) {
+    std::stringstream ss;
+    ss << chorus.type << ' ' << chorus.nr << ' ' << chorus.level << ' ' << chorus.speed << ' ' << chorus.depth;
+    return ss.str();
+}
+
+template<> inline auto unmarshall<SoundFontHandler::chorus_type>(const std::string& string) {
+    SoundFontHandler::chorus_type chorus;
+    std::stringstream ss{string};
+    ss >> chorus.type >> chorus.nr >> chorus.level >> chorus.speed >> chorus.depth;
+    return chorus;
+}
 
 #endif // MIDILAB_FLUIDSYNTH_VERSION
 

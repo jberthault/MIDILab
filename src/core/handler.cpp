@@ -573,13 +573,8 @@ void Listeners::hear_message(const Message& message) const {
 // Handler
 //=========
 
-Event Handler::open_event(State state) {
-    return Event::custom({}, "Open", marshall(state));
-}
-
-Event Handler::close_event(State state) {
-    return Event::custom({}, "Close", marshall(state));
-}
+const SystemExtension<Handler::State> Handler::open_ext {"Open"};
+const SystemExtension<Handler::State> Handler::close_ext {"Close"};
 
 Handler::Handler(Mode mode) : m_mode{mode} {
 
@@ -654,12 +649,12 @@ families_t Handler::forwarded_families() const {
 }
 
 Handler::Result Handler::handle_open(const Message& message) {
-    if (message.event.family() == family_t::custom) {
-        if (message.event.has_custom_key("Open")) {
-            on_open(unmarshall<State>(message.event.get_custom_value()));
+    if (message.event.family() == family_t::extended_system) {
+        if (open_ext.affects(message.event)) {
+            on_open(open_ext.decode(message.event));
             return Result::success;
-        } else if (message.event.has_custom_key("Close")) {
-            on_close(unmarshall<State>(message.event.get_custom_value()));
+        } else if (close_ext.affects(message.event)) {
+            on_close(close_ext.decode(message.event));
             return Result::success;
         }
     }

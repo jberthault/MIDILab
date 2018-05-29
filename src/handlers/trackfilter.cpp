@@ -24,17 +24,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // TrackFilter
 //=============
 
-Event TrackFilter::enable_all_event() {
-    return Event::custom({}, "TrackFilter.enable_all");
-}
-
-Event TrackFilter::enable_event(track_t track) {
-    return Event::custom({}, "TrackFilter.enable", marshall(track));
-}
-
-Event TrackFilter::disable_event(track_t track) {
-    return Event::custom({}, "TrackFilter.disable", marshall(track));
-}
+const SystemExtension<> TrackFilter::enable_all_ext {"TrackFilter.enable_all"};
+const SystemExtension<track_t> TrackFilter::enable_ext {"TrackFilter.enable"};
+const SystemExtension<track_t> TrackFilter::disable_ext {"TrackFilter.disable"};
 
 TrackFilter::TrackFilter() : Handler(Mode::thru()), m_filter(true) {
 
@@ -45,16 +37,16 @@ Handler::Result TrackFilter::handle_message(const Message& message) {
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_FORWARD_RECEIVE;
 
-    if (message.event.family() == family_t::custom) {
-        if (message.event.has_custom_key("TrackFilter.disable")) {
-            auto track = unmarshall<track_t>(message.event.get_custom_value());
+    if (message.event.family() == family_t::extended_system) {
+        if (disable_ext.affects(message.event)) {
+            auto track = disable_ext.decode(message.event);
             m_corruption[track].tick();
             m_filter.elements.insert(track);
             return Result::success;
-        } else if (message.event.has_custom_key("TrackFilter.enable")) {
-            m_filter.elements.erase(unmarshall<track_t>(message.event.get_custom_value()));
+        } else if (enable_ext.affects(message.event)) {
+            m_filter.elements.erase(enable_ext.decode(message.event));
             return Result::success;
-        } else if (message.event.has_custom_key("TrackFilter.enable_all")) {
+        } else if (enable_all_ext.affects(message.event)) {
             m_filter.elements.clear();
             return Result::success;
         }

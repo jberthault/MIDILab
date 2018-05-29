@@ -149,7 +149,7 @@ size_t ControllerWheel::setParameter(const Parameter& parameter) {
 }
 
 families_t ControllerWheel::handled_families() const {
-    return families_t::fuse(family_t::custom, family_t::controller, family_t::reset); // channel_pressure;
+    return families_t::fuse(family_t::extended_system, family_t::controller, family_t::reset); // channel_pressure;
 }
 
 Handler::Result ControllerWheel::handle_message(const Message& message) {
@@ -248,7 +248,7 @@ PitchWheel::PitchWheel() : AbstractWheel(Mode::io()) {
 }
 
 families_t PitchWheel::handled_families() const {
-    return families_t::fuse(family_t::custom, family_t::controller, family_t::pitch_wheel, family_t::reset);
+    return families_t::fuse(family_t::extended_system, family_t::controller, family_t::pitch_wheel, family_t::reset);
 }
 
 Handler::Result PitchWheel::handle_message(const Message& message) {
@@ -424,7 +424,7 @@ ProgramWheel::ProgramWheel() : AbstractWheel(Mode::io()) {
 }
 
 families_t ProgramWheel::handled_families() const {
-    return families_t::fuse(family_t::custom, family_t::program_change);
+    return families_t::fuse(family_t::extended_system, family_t::program_change);
 }
 
 Handler::Result ProgramWheel::handle_message(const Message& message) {

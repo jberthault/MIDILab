@@ -25,45 +25,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <sstream>
 #include <fluidsynth.h>
 
-template<>
-struct marshalling_traits<SoundFontHandler::reverb_type> {
-    auto operator()(const SoundFontHandler::reverb_type& reverb) {
-        std::stringstream ss;
-        ss << reverb.roomsize << ' ' << reverb.damp << ' ' << reverb.level << ' ' << reverb.width;
-        return ss.str();
-    }
-};
-
-template<>
-struct unmarshalling_traits<SoundFontHandler::reverb_type> {
-    auto operator()(const std::string& string) {
-        SoundFontHandler::reverb_type reverb;
-        std::stringstream ss(string);
-        ss >> reverb.roomsize >> reverb.damp >> reverb.level >> reverb.width;
-        return reverb;
-    }
-};
-
-template<>
-struct marshalling_traits<SoundFontHandler::chorus_type> {
-    auto operator()(const SoundFontHandler::chorus_type& chorus) {
-        std::stringstream ss;
-        ss << chorus.type << ' ' << chorus.nr << ' ' << chorus.level << ' ' << chorus.speed << ' ' << chorus.depth;
-        return ss.str();
-    }
-};
-
-template<>
-struct unmarshalling_traits<SoundFontHandler::chorus_type> {
-    auto operator()(const std::string& string) {
-        SoundFontHandler::chorus_type chorus;
-        std::stringstream ss(string);
-        ss >> chorus.type >> chorus.nr >> chorus.level >> chorus.speed >> chorus.depth;
-        return chorus;
-    }
-};
-
-
 namespace {
 
 // check if event specifies to turn some channels to drum channels
@@ -90,6 +51,8 @@ struct SoundFontHandler::Impl {
     using Result = Handler::Result;
     using reverb_type = SoundFontHandler::reverb_type;
     using chorus_type = SoundFontHandler::chorus_type;
+    using optional_reverb_type = SoundFontHandler::optional_reverb_type;
+    using optional_chorus_type = SoundFontHandler::optional_chorus_type;
 
     // ---------
     // structors
@@ -164,7 +127,7 @@ struct SoundFontHandler::Impl {
             family_t::pitch_wheel,
             family_t::reset,
             family_t::sysex,
-            family_t::custom
+            family_t::extended_system
         );
     }
 
@@ -178,11 +141,11 @@ struct SoundFontHandler::Impl {
         case family_t::pitch_wheel: return handle_pitch_wheel(event.channels(), event.get_14bits());
         case family_t::reset: return handle_reset();
         case family_t::sysex: return handle_sysex(event);
-        case family_t::custom:
-            if (event.has_custom_key("SoundFont.gain")) return handle_gain(event.get_custom_value());
-            if (event.has_custom_key("SoundFont.reverb")) return handle_reverb(event.get_custom_value());
-            if (event.has_custom_key("SoundFont.chorus")) return handle_chorus(event.get_custom_value());
-            if (event.has_custom_key("SoundFont.file")) return handle_file(event.get_custom_value());
+        case family_t::extended_system:
+            if (SoundFontHandler::gain_ext.affects(event)) return handle_gain(event.get_custom_value());
+            if (SoundFontHandler::reverb_ext.affects(event)) return handle_reverb(event.get_custom_value());
+            if (SoundFontHandler::chorus_ext.affects(event)) return handle_chorus(event.get_custom_value());
+            if (SoundFontHandler::file_ext.affects(event)) return handle_file(event.get_custom_value());
             break;
         }
         return Result::unhandled;
@@ -262,21 +225,19 @@ struct SoundFontHandler::Impl {
     }
 
     Result handle_reverb(const std::string& string) {
-        has_reverb = !string.empty();
-        if (has_reverb) {
-            auto reverb = unmarshall<reverb_type>(string);
-            fluid_synth_set_reverb(synth, reverb.roomsize, reverb.damp, reverb.width, reverb.level);
-        }
+        auto reverb = unmarshall<optional_reverb_type>(string);
+        has_reverb = (bool)reverb;
+        if (has_reverb)
+            fluid_synth_set_reverb(synth, reverb->roomsize, reverb->damp, reverb->width, reverb->level);
         fluid_synth_set_reverb_on(synth, (int)has_reverb);
         return Result::success;
     }
 
     Result handle_chorus(const std::string& string) {
-        has_chorus = !string.empty();
-        if (has_chorus) {
-            auto chorus = unmarshall<chorus_type>(string);
-            fluid_synth_set_chorus(synth, chorus.nr, chorus.level, chorus.speed, chorus.depth, chorus.type);
-        }
+        auto chorus = unmarshall<optional_chorus_type>(string);
+        has_chorus = (bool)chorus;
+        if (has_chorus)
+            fluid_synth_set_chorus(synth, chorus->nr, chorus->level, chorus->speed, chorus->depth, chorus->type);
         fluid_synth_set_chorus_on(synth, (int)has_chorus);
         return Result::success;
     }
@@ -312,32 +273,17 @@ struct SoundFontHandler::Impl {
 // SoundFontHandler
 //==================
 
+const SystemExtension<double> SoundFontHandler::gain_ext {"SoundFont.gain"};
+const SystemExtension<std::string> SoundFontHandler::file_ext {"SoundFont.file"};
+const SystemExtension<SoundFontHandler::optional_reverb_type> SoundFontHandler::reverb_ext {"SoundFont.reverb"};
+const SystemExtension<SoundFontHandler::optional_chorus_type> SoundFontHandler::chorus_ext {"SoundFont.chorus"};
+
 SoundFontHandler::reverb_type SoundFontHandler::default_reverb() {
     return Impl::default_reverb();
 }
 
 SoundFontHandler::chorus_type SoundFontHandler::default_chorus() {
     return Impl::default_chorus();
-}
-
-Event SoundFontHandler::gain_event(double gain) {
-    return Event::custom({}, "SoundFont.gain", marshall(gain));
-}
-
-Event SoundFontHandler::file_event(const std::string& file) {
-    return Event::custom({}, "SoundFont.file", file);
-}
-
-Event SoundFontHandler::reverb_event(const optional_reverb_type &reverb) {
-    if (reverb)
-        return Event::custom({}, "SoundFont.reverb", marshall(*reverb));
-    return Event::custom({}, "SoundFont.reverb");
-}
-
-Event SoundFontHandler::chorus_event(const optional_chorus_type& chorus) {
-    if (chorus)
-        return Event::custom({}, "SoundFont.chorus", marshall(*chorus));
-    return Event::custom({}, "SoundFont.chorus");
 }
 
 SoundFontHandler::SoundFontHandler() : Handler(Mode::out()), m_pimpl(std::make_unique<Impl>()) {

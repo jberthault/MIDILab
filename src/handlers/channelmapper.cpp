@@ -24,13 +24,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // ChannelMapper
 //===============
 
-Event ChannelMapper::remap_event(channels_t channels, channels_t mapped_channels) {
-    return Event::custom(channels, "ChannelMapping.remap", marshall(mapped_channels));
-}
-
-Event ChannelMapper::unmap_event(channels_t channels) {
-    return Event::custom(channels, "ChannelMapping.unmap");
-}
+const VoiceExtension<channels_t> ChannelMapper::remap_ext {"ChannelMapping.remap"};
+const VoiceExtension<> ChannelMapper::unmap_ext {"ChannelMapping.unmap"};
 
 ChannelMapper::ChannelMapper() : Handler(Mode::thru()) {
     for (channel_t c=0 ; c < channels_t::capacity() ; ++c)
@@ -62,13 +57,13 @@ Handler::Result ChannelMapper::handle_message(const Message& message) {
 
     std::lock_guard<std::mutex> guard(m_mutex);
 
-    if (message.event.family() == family_t::custom) {
-        if (message.event.has_custom_key("ChannelMapping.remap")) {
-            auto mapped_channels = unmarshall<channels_t>(message.event.get_custom_value());
+    if (message.event.family() == family_t::extended_voice) {
+        if (remap_ext.affects(message.event)) {
+            auto mapped_channels = remap_ext.decode(message.event);
             channel_ns::store(m_mapping, message.event.channels(), mapped_channels);
             m_corruption.tick();
             return Result::success;
-        } else if (message.event.has_custom_key("ChannelMapping.unmap")) {
+        } else if (unmap_ext.affects(message.event)) {
             for (channel_t channel : message.event.channels())
                 m_mapping[channel] = channels_t::wrap(channel);
             m_corruption.tick();
@@ -77,12 +72,12 @@ Handler::Result ChannelMapper::handle_message(const Message& message) {
     }
 
     /// clean if another note comes in
-    if (message.event.is(families_t::note()))
+    if (message.event.is(families_t::standard_note()))
         clean_corrupted(message.source, message.track);
 
     Message copy(message);
 
-     /// @todo get all relevant families and don't forward if no channels
+     /// @todo don't forward if no channels
     if (message.event.is(families_t::voice()))
         copy.event.set_channels(remap(message.event.channels()));
 

@@ -42,9 +42,9 @@ class TrackFilter : public Handler {
 public:
     using filter_type = blacklist_t<track_t>;
 
-    static Event enable_all_event();
-    static Event enable_event(track_t track);
-    static Event disable_event(track_t track);
+    static const SystemExtension<> enable_all_ext;
+    static const SystemExtension<track_t> enable_ext;
+    static const SystemExtension<track_t> disable_ext;
 
     explicit TrackFilter();
 

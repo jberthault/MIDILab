@@ -75,7 +75,7 @@ Observer::Observer(QObject* parent) : QObject{parent}, Interceptor{} {
 
 Handler::Result Observer::seizeOne(Handler* target, const Message& message) {
     const auto result = target->handle_message(message);
-    if (result == Handler::Result::success && message.event.is(~families_t::note()))
+    if (result == Handler::Result::success && message.event.is(~families_t::standard_note()))
         mQueue.produce(Item{target, message});
     return result;
 }
@@ -246,7 +246,7 @@ void HandlerProxy::setState(bool open, State state) const {
             TRACE_WARNING(name() << " handler already " << (open ? "open" : "closed"));
             return;
         }
-        mHandler->send_message(open ? Handler::open_event(state) : Handler::close_event(state));
+        mHandler->send_message(open ? Handler::open_ext(state) : Handler::close_ext(state));
     }
 }
 

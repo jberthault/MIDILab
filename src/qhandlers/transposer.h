@@ -35,7 +35,6 @@ public:
 
     void setContent(HandlerProxy& proxy) override;
 
-
 };
 
 //==================

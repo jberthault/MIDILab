@@ -191,7 +191,7 @@ Instrument::Instrument(Mode mode) : GraphicalHandler(mode), mVelocity(0x7f) {
 }
 
 families_t Instrument::handled_families() const {
-    return families_t::fuse(family_t::custom, family_t::note_on, family_t::note_off, family_t::controller, family_t::reset);
+    return families_t::fuse(family_t::extended_system, family_t::note_on, family_t::note_off, family_t::controller, family_t::reset);
 }
 
 Handler::Result Instrument::on_close(State state) {

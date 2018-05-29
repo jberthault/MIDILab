@@ -246,7 +246,7 @@ template<> struct unmarshalling_traits<short> : unmarshalling_traits<long> {};
 template<> struct unmarshalling_traits<unsigned short> : unmarshalling_traits<unsigned long> {};
 template<> struct unmarshalling_traits<unsigned int> : unmarshalling_traits<unsigned long> {};
 
-template<typename T> inline auto marshall(T value) { return std::string{marshalling_traits<T>()(value)}; }
+template<typename T> inline auto marshall(const T& value) { return std::string{marshalling_traits<T>()(value)}; }
 template<typename T> inline auto unmarshall(const std::string& string) { return static_cast<T>(unmarshalling_traits<T>()(string)); }
 
 // ===========

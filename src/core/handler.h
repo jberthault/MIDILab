@@ -337,8 +337,8 @@ public:
         error  /*!< an exception has been thrown while handling */
     };
 
-    static Event open_event(State state); /*!< Specific action with key "Open" */
-    static Event close_event(State state); /*!< Specific action with key "Close" */
+    static const SystemExtension<State> open_ext; /*!< Specific action with key "Open" */
+    static const SystemExtension<State> close_ext; /*!< Specific action with key "Close" */
 
     // ---------
     // structors
@@ -412,7 +412,7 @@ private:
 
 };
 
-template<> inline auto marshall<Handler::State>(Handler::State state) { return marshall(state.to_integral()); }
+template<> inline auto marshall<Handler::State>(const Handler::State& state) { return marshall(state.to_integral()); }
 template<> inline auto unmarshall<Handler::State>(const std::string& string) { return Handler::State::from_integral(unmarshall<Handler::State::storage_type>(string)); }
 
 //=============

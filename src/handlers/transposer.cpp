@@ -24,9 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // Transposer
 //============
 
-Event Transposer::transpose_event(channels_t channels, int key) {
-    return Event::custom(channels, "Transpose", marshall(key));
-}
+const VoiceExtension<int> Transposer::transpose_ext {"Transpose"};
 
 Transposer::Transposer() : Handler(Mode::thru()), m_bypass(true) {
     m_keys.fill(0);
@@ -37,12 +35,12 @@ Handler::Result Transposer::handle_message(const Message& message) {
     MIDI_HANDLE_OPEN;
     MIDI_CHECK_OPEN_FORWARD_RECEIVE;
 
-    if (message.event.family() == family_t::custom) {
-        if (message.event.has_custom_key("Transpose")) {
-            set_key(message.event.channels(), unmarshall<int>(message.event.get_custom_value()));
+    if (message.event.family() == family_t::extended_voice) {
+        if (transpose_ext.affects(message.event)) {
+            set_key(message.event.channels(), transpose_ext.decode(message.event));
             return Result::success;
         }
-    } else if (message.event.is(families_t::note())) {
+    } else if (message.event.is(families_t::standard_note())) {
         clean_corrupted(message.source, message.track);
         if (!m_bypass) {
             for (const auto& pair : channel_ns::reverse(m_keys, message.event.channels())) {

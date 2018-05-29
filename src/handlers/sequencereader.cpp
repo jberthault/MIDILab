@@ -38,17 +38,9 @@ SequenceReader::position_type make_upper(const Sequence& sequence) { return {seq
 // SequenceReader
 //================
 
-Event SequenceReader::toggle_event() {
-    return Event::custom({}, "SequenceReader.toggle");
-}
-
-Event SequenceReader::pause_event() {
-    return Event::custom({}, "SequenceReader.pause");
-}
-
-Event SequenceReader::distorsion_event(double distorsion) {
-    return Event::custom({}, "SequenceReader.distorsion", marshall(distorsion));
-}
+const SystemExtension<> SequenceReader::toggle_ext {"SequenceReader.toggle"};
+const SystemExtension<> SequenceReader::pause_ext {"SequenceReader.pause"};
+const SystemExtension<double> SequenceReader::distorsion_ext {"SequenceReader.distorsion"};
 
 SequenceReader::SequenceReader() : Handler{Mode::io()}, m_distorsion{1.}, m_playing{false} {
     m_position = m_first_position = make_lower(m_sequence);
@@ -222,7 +214,7 @@ bool SequenceReader::stop_playing(const Event& final_event) {
 }
 
 families_t SequenceReader::handled_families() const {
-    return families_t::fuse(family_t::custom, family_t::song_position, family_t::song_select, family_t::start, family_t::continue_, family_t::stop);
+    return families_t::fuse(family_t::extended_system, family_t::song_position, family_t::song_select, family_t::start, family_t::continue_, family_t::stop);
 }
 
 Handler::Result SequenceReader::on_close(State state) {
@@ -240,10 +232,10 @@ Handler::Result SequenceReader::handle_message(const Message& message) {
     case family_t::start: return handle_start(true);
     case family_t::continue_: return handle_start(false);
     case family_t::stop: return handle_stop(stop_all);
-    case family_t::custom:
-        if (message.event.has_custom_key("SequenceReader.pause")) return handle_stop(stop_sounds);
-        if (message.event.has_custom_key("SequenceReader.distorsion")) return handle_distorsion(message.event.get_custom_value());
-        if (message.event.has_custom_key("SequenceReader.toggle")) return m_playing ? handle_stop(stop_sounds) : handle_start(false);
+    case family_t::extended_system:
+        if (pause_ext.affects(message.event)) return handle_stop(stop_sounds);
+        if (distorsion_ext.affects(message.event)) return handle_distorsion(message.event.get_custom_value());
+        if (toggle_ext.affects(message.event)) return m_playing ? handle_stop(stop_sounds) : handle_start(false);
         break;
     }
     return Result::unhandled;

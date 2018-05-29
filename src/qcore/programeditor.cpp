@@ -445,8 +445,8 @@ void ProgramEditor::updateSuccess(Handler* handler, Message message) {
     case family_t::program_change:
         receiveProgram(handler, message.event.channels(), message.event.at(1));
         break;
-    case family_t::custom:
-        if (message.event.has_custom_key("Close")) {
+    case family_t::extended_system:
+        if (Handler::close_ext.affects(message.event)) {
             mRecords[handler].second.clear();
             if (handler == mHandlerSelector->currentHandler())
                 mProgramModel->setPrograms(QMap<channel_t, byte_t>());
