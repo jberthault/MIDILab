@@ -1,7 +1,7 @@
 /*
 
 MIDILab | A Versatile MIDI Controller
-Copyright (C) 2017 Julien Berthault
+Copyright (C) 2017-2018 Julien Berthault
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QPushButton>
+#include <boost/version.hpp>
 #include "mainwindow.h"
 #include "qhandlers/handlers.h"
 #include "qtools/displayer.h"
@@ -46,11 +47,12 @@ static const QString aboutText =
     "The project is hosted on <a href=\"https://github.com/jberthault/MIDILab\">Github</a></p>"
     "<p>This project uses:</p>"
     "<ul>"
-    " <li>Qt Project: see related About</li>"
-    " <li><a href=\"http://www.fluidsynth.org\">fluidsynth " MIDILAB_FLUIDSYNTH_VERSION_STRING "</a>: SoundFont Synthetizer</li>"
-    " <li><a href=\"https://github.com/iconic/open-iconic\">Open Iconic 1.1.1</a>: A great icon set</li>"
+    " <li>Qt</li>"
+    " <li><a href=\"http://www.boost.org\">Boost</a> (version " BOOST_LIB_VERSION ")</li>"
+    " <li><a href=\"http://www.fluidsynth.org\">FluidSynth</a> (version " MIDILAB_FLUIDSYNTH_VERSION_STRING ")</li>"
+    " <li><a href=\"https://github.com/iconic/open-iconic\">Open Iconic</a> (version 1.1.1)</li>"
     "</ul>"
-    "<p>Copyright \u00a9 2017 Julien Berthault</p>"
+    "<p>Copyright \u00a9 2017-2018 Julien Berthault</p>"
     "<p><i> " MIDILAB_MODE " " MIDILAB_PLATFORM " " MIDILAB_SIZE " </i></p>";
 
 AboutWindow::AboutWindow(QWidget* parent) :
