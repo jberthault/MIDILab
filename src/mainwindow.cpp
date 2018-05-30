@@ -56,20 +56,20 @@ static const QString aboutText =
     "<p><i> " MIDILAB_MODE " " MIDILAB_PLATFORM " " MIDILAB_SIZE " </i></p>";
 
 AboutWindow::AboutWindow(QWidget* parent) :
-    QDialog(parent, Qt::MSWindowsFixedSizeDialogHint | Qt::WindowTitleHint | Qt::WindowSystemMenuHint | Qt::WindowCloseButtonHint) {
+    QDialog{parent, Qt::MSWindowsFixedSizeDialogHint | Qt::WindowTitleHint | Qt::WindowSystemMenuHint | Qt::WindowCloseButtonHint} {
 
     setWindowTitle("About");
 
-    auto textLabel = new QLabel(aboutText, this);
+    auto* textLabel = new QLabel{aboutText, this};
     textLabel->setOpenExternalLinks(true);
 
-    auto iconLabel = new QLabel(this);
-    QIcon icon = windowIcon();
-    QSize size = icon.actualSize(QSize(64, 64));
+    auto* iconLabel = new QLabel{this};
+    const auto icon = windowIcon();
+    const auto size = icon.actualSize(QSize{64, 64});
     iconLabel->setPixmap(icon.pixmap(size));
 
-    auto aboutQtButton = new QPushButton("About Qt", this);
-    auto okButton = new QPushButton("OK");
+    auto* aboutQtButton = new QPushButton{"About Qt", this};
+    auto* okButton = new QPushButton{"OK"};
     connect(aboutQtButton, &QPushButton::clicked, qApp, &QApplication::aboutQt);
     connect(okButton, &QPushButton::clicked, this, &AboutWindow::close);
 
@@ -80,13 +80,19 @@ AboutWindow::AboutWindow(QWidget* parent) :
 // MainWindow
 //============
 
-MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
-    new Manager(this);
-    Manager::instance->metaHandlerPool()->addFactory(new StandardFactory(this));
-    mManagerEditor = new ManagerEditor(this);
-    mProgramEditor = new ProgramEditor(Manager::instance->channelEditor(), this);
+MainWindow::MainWindow(QWidget* parent) : QMainWindow{parent} {
+    new Manager{this};
+
+    auto* channelEditor = new ChannelEditor{this};
+    Manager::instance->setChannelEditor(channelEditor);
+
+    Manager::instance->metaHandlerPool()->addFactory(new StandardFactory{this});
+
+    mManagerEditor = new ManagerEditor{this};
+    mProgramEditor = new ProgramEditor{channelEditor, this};
+
+    setCentralWidget(new MultiDisplayer{Qt::Horizontal, this});
     setupMenu();
-    setupMainDisplayer();
 }
 
 QStringList MainWindow::getConfigs() const {
@@ -100,15 +106,15 @@ void MainWindow::unloadConfig() {
 }
 
 void MainWindow::loadConfig() {
-    auto fileName = Manager::instance->pathRetrieverPool()->get("configuration")->getReadFile(this);
+    const auto fileName = Manager::instance->pathRetrieverPool()->get("configuration")->getReadFile(this);
     if (!fileName.isEmpty())
         readConfig(fileName, true, false);
 }
 
 void MainWindow::saveConfig() {
-    auto configurations = getConfigs();
-    auto defaultfileName = configurations.empty() ? QString{} : configurations.front();
-    auto fileName = Manager::instance->pathRetrieverPool()->get("configuration")->getWriteFile(this, defaultfileName);
+    const auto configurations = getConfigs();
+    const auto defaultfileName = configurations.empty() ? QString{} : configurations.front();
+    const auto fileName = Manager::instance->pathRetrieverPool()->get("configuration")->getWriteFile(this, defaultfileName);
     if (!fileName.isEmpty())
         writeConfig(fileName);
 }
@@ -119,8 +125,10 @@ void MainWindow::clearConfig() {
     // We replace it by another main displayer.
     auto* previousDisplayer = dynamic_cast<MultiDisplayer*>(centralWidget());
     if (previousDisplayer && !previousDisplayer->isEmpty()) {
+        auto* newDisplayer = new MultiDisplayer{Qt::Horizontal, this};
+        newDisplayer->setLocked(previousDisplayer->isLocked());
         previousDisplayer->setParent(nullptr);
-        setupMainDisplayer();
+        setCentralWidget(newDisplayer);
     }
     // Close existing displayers to make space for the next configuration
     // It also deletes the empty ones
@@ -132,8 +140,8 @@ void MainWindow::clearConfig() {
 }
 
 void MainWindow::readLastConfig() {
-    auto configurations = getConfigs();
-    auto fileName = configurations.empty() ? QString(":/data/config.xml") : configurations.front();
+    const auto configurations = getConfigs();
+    const auto fileName = configurations.empty() ? QString{":/data/config.xml"} : configurations.front();
     readConfig(fileName, false, !configurations.empty());
 }
 
@@ -141,10 +149,10 @@ void MainWindow::readConfig(const QString& fileName, bool raise, bool select) {
     Configuration config;
     // read configuration
     try {
-        QFile file(fileName);
+        QFile file{fileName};
         config = Configuration::read(&file);
     } catch (const QString& error) {
-        QMessageBox::critical(this, {}, QString("Failed reading configuration file\n%1\n\n%2").arg(fileName, error));
+        QMessageBox::critical(this, {}, QString{"Failed reading configuration file\n%1\n\n%2"}.arg(fileName, error));
         return;
     }
     // clear previous configuration
@@ -161,7 +169,7 @@ void MainWindow::readConfig(const QString& fileName, bool raise, bool select) {
 }
 
 void MainWindow::writeConfig(const QString& fileName) {
-    auto config = Manager::instance->getConfiguration();
+    const auto config = Manager::instance->getConfiguration();
     QSaveFile saveFile(fileName);
     saveFile.open(QSaveFile::WriteOnly);
     Configuration::write(&saveFile, config);
@@ -171,8 +179,7 @@ void MainWindow::writeConfig(const QString& fileName) {
 
 void MainWindow::raiseConfig(const QString& fileName) {
     QSettings settings;
-    QVariant variant = settings.value("config");
-    QStringList configurations = variant.toStringList();
+    auto configurations = settings.value("config").toStringList();
     // move or insert file at the top
     configurations.removeAll(fileName);
     configurations.prepend(fileName);
@@ -187,20 +194,20 @@ void MainWindow::raiseConfig(const QString& fileName) {
 void MainWindow::updateMenu(const QStringList& configs) {
     mConfigMenu->clear();
     if (!configs.isEmpty()) {
-        for (const QString& configurationFile : configs) {
-            QFileInfo fileInfo(configurationFile);
-            QAction* fileAction = mConfigMenu->addAction(QIcon(":/data/grid-three-up.svg"), fileInfo.completeBaseName());
+        for (const auto& configurationFile : configs) {
+            const QFileInfo fileInfo{configurationFile};
+            auto* fileAction = mConfigMenu->addAction(QIcon{":/data/grid-three-up.svg"}, fileInfo.completeBaseName());
             fileAction->setData(configurationFile);
             fileAction->setToolTip(configurationFile);
         }
         mConfigMenu->addSeparator();
     }
-    QAction* clearAction = mConfigMenu->addAction(QIcon(":/data/trash.svg"), "Clear");
+    auto* clearAction = mConfigMenu->addAction(QIcon{":/data/trash.svg"}, "Clear");
     clearAction->setEnabled(!configs.isEmpty());
 }
 
 void MainWindow::about() {
-    auto aboutWindow = new AboutWindow(this);
+    auto* aboutWindow = new AboutWindow{this};
     aboutWindow->setAttribute(Qt::WA_DeleteOnClose);
     aboutWindow->exec();
 }
@@ -229,64 +236,59 @@ void MainWindow::addFiles(const QStringList& files) {
     }
 }
 
-void MainWindow::setupMainDisplayer() {
-    auto* mainDisplayer = new MultiDisplayer(Qt::Horizontal, this);
-    mainDisplayer->setLocked(mLockAction->isChecked());
-    setCentralWidget(mainDisplayer);
-    connect(mLockAction, &QAction::toggled, mainDisplayer, &MultiDisplayer::setLocked);
-}
-
 void MainWindow::setupMenu() {
 
-//    QToolBar* toolbar = addToolBar("quick actions");
+    auto* menuToolBar = addToolBar("Menu actions");
+    auto* handlerToolBar = addToolBar("Handler actions");
+    Manager::instance->setQuickToolBar(handlerToolBar);
 
-    QMenuBar* menu = new QMenuBar(this);
+    auto* menu = new QMenuBar{this};
     setMenuBar(menu);
 
     // extends menu
-    QMenu* fileMenu = menu->addMenu("File");
-    fileMenu->addAction(QIcon(":/data/rain.svg"), "Unload configuration", this, SLOT(unloadConfig()));
-    fileMenu->addAction(QIcon(":/data/cloud-download.svg"), "Load configuration", this, SLOT(loadConfig()));
-    fileMenu->addAction(QIcon(":/data/cloud-upload.svg"), "Save configuration", this, SLOT(saveConfig()));
-    mConfigMenu = fileMenu->addMenu(QIcon(":/data/cloud.svg"), "Recent configurations");
+    auto* fileMenu = menu->addMenu("File");
+    fileMenu->addAction(QIcon{":/data/rain.svg"}, "Unload configuration", this, SLOT(unloadConfig()));
+    fileMenu->addAction(QIcon{":/data/cloud-download.svg"}, "Load configuration", this, SLOT(loadConfig()));
+    fileMenu->addAction(QIcon{":/data/cloud-upload.svg"}, "Save configuration", this, SLOT(saveConfig()));
+    mConfigMenu = fileMenu->addMenu(QIcon{":/data/cloud.svg"}, "Recent configurations");
     mConfigMenu->setToolTipsVisible(true);
     connect(mConfigMenu, &QMenu::triggered, this, &MainWindow::onConfigSelection);
     updateMenu(getConfigs());
 
     // add recent config / midi files loaded
     fileMenu->addSeparator();
-    fileMenu->addAction(QIcon(":/data/power-standby.svg"), "Exit", this, SLOT(close()));
+    fileMenu->addAction(QIcon{":/data/power-standby.svg"}, "Exit", this, SLOT(close()));
 
-    QMenu* handlersMenu = menu->addMenu("Handlers");
+    auto* handlersMenu = menu->addMenu("Handlers");
     handlersMenu->addAction(mManagerEditor->windowIcon(), "Handlers", mManagerEditor, SLOT(show()));
     handlersMenu->addAction(mProgramEditor->windowIcon(), "Programs", mProgramEditor, SLOT(show()));
     handlersMenu->addSeparator();
-    handlersMenu->addAction(QIcon(":/data/target.svg"), "Panic", this, SLOT(panic()));
+    auto* panicAction = handlersMenu->addAction(QIcon{":/data/target.svg"}, "Panic", this, SLOT(panic()));
+    menuToolBar->addAction(panicAction);
 
-    QMenu* interfaceMenu = menu->addMenu("Interface");
+    auto* interfaceMenu = menu->addMenu("Interface");
     interfaceMenu->addAction(Manager::instance->channelEditor()->windowIcon(), Manager::instance->channelEditor()->windowTitle(), Manager::instance->channelEditor(), SLOT(show()));
-    // interfaceMenu->addAction(QIcon(":/data/cog.svg"), "Settings", this, SLOT(unimplemented()));
+    // interfaceMenu->addAction(QIcon{":/data/cog.svg"}, "Settings", this, SLOT(unimplemented()));
 
-    QIcon lockIcon;
-    lockIcon.addFile(":/data/lock-locked.svg", QSize(), QIcon::Normal, QIcon::On);
-    lockIcon.addFile(":/data/lock-unlocked.svg", QSize(), QIcon::Normal, QIcon::Off);
-    mLockAction = new QAction(lockIcon, "Lock Layout", this);
-    mLockAction->setCheckable(true);
-    mLockAction->setChecked(true);
-    interfaceMenu->addAction(mLockAction);
+    auto* lockAction = new MultiStateAction{this};
+    lockAction->addState(QIcon{":/data/lock-locked.svg"}, "Unlock layout"); // default is locked
+    lockAction->addState(QIcon{":/data/lock-unlocked.svg"}, "Lock layout");
+    connect(lockAction, &MultiStateAction::stateChanged, this, &MainWindow::onLockStateChange);
+    interfaceMenu->addAction(lockAction);
+    menuToolBar->addAction(lockAction);
 
-    interfaceMenu->addAction(QIcon(":/data/plus.svg"), "Add Container", this, SLOT(newDisplayer()));
+    interfaceMenu->addAction(QIcon{":/data/plus.svg"}, "Add container", this, SLOT(newDisplayer()));
 
-    QMenu* helpMenu = menu->addMenu("Help");
-    helpMenu->addAction(QIcon(":/data/question-mark.svg"), "Help", this, SLOT(unimplemented()));
+    auto* helpMenu = menu->addMenu("Help");
+    helpMenu->addAction(QIcon{":/data/question-mark.svg"}, "Help", this, SLOT(unimplemented()));
     // helpMenu->addAction("What's new ?", this, SLOT(unimplemented()));
     helpMenu->addSeparator();
-    helpMenu->addAction(QIcon(":/data/info.svg"), "About", this, SLOT(about()));
+    helpMenu->addAction(QIcon{":/data/info.svg"}, "About", this, SLOT(about()));
 
 }
 
 void MainWindow::onConfigSelection(QAction* action) {
-    auto fileName = action->data().toString();
+    const auto fileName = action->data().toString();
     if (fileName.isNull()) { // clear action triggerred
         if (QMessageBox::question(this, {}, "Do you want to clear configurations ?") == QMessageBox::Yes) {
             QSettings settings;
@@ -297,6 +299,11 @@ void MainWindow::onConfigSelection(QAction* action) {
         if (QMessageBox::question(this, {}, "Do you want to load this configuration ?") == QMessageBox::Yes)
             readConfig(fileName, true, true);
     }
+}
+
+void MainWindow::onLockStateChange(int state) {
+    if (auto* displayer = dynamic_cast<MultiDisplayer*>(centralWidget()))
+        displayer->setLocked(state == 0);
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {

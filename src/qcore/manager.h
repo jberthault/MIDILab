@@ -87,6 +87,10 @@ public:
     ChannelEditor* channelEditor() override;
     const HandlerProxies& handlerProxies() const override;
     PathRetrieverPool* pathRetrieverPool() override;
+    QToolBar* quickToolBar() override;
+
+    void setChannelEditor(ChannelEditor* editor);
+    void setQuickToolBar(QToolBar* toolbar);
 
     // configuration
 
@@ -124,11 +128,12 @@ private:
     MetaHandlerPool* mMetaHandlerPool;
     GraphicalSynchronizer* mGUISynchronizer;
     StandardSynchronizer<2> mDefaultSynchronizer; /*!< 2 threads are enough */
-    ChannelEditor* mChannelEditor;
     Deleter* mDeleter;
     Observer* mObserver;
     SignalNotifier* mSignalNotifier;
 
+    ChannelEditor* mChannelEditor {nullptr};
+    QToolBar* mQuickToolbar {nullptr};
 };
 
 #endif // QCORE_MANAGER_H

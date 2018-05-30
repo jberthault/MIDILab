@@ -24,6 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QEvent>
 #include <QFormLayout>
 #include <QDir>
+#include <QToolBar>
 #include "core/handler.h"
 #include "qtools/misc.h"
 
@@ -413,6 +414,7 @@ public:
     virtual ChannelEditor* channelEditor() = 0;
     virtual const HandlerProxies& handlerProxies() const = 0;
     virtual PathRetrieverPool* pathRetrieverPool() = 0;
+    virtual QToolBar* quickToolBar() = 0;
 
 };
 

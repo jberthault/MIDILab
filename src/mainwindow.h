@@ -105,11 +105,11 @@ public slots:
     void addFiles(const QStringList& files); /*!< add files to an existing playlist */
 
 private:
-    void setupMainDisplayer();
     void setupMenu();
 
 private slots:
     void onConfigSelection(QAction* action);
+    void onLockStateChange(int state);
 
 protected:
     void closeEvent(QCloseEvent* event) override;
@@ -118,7 +118,6 @@ private:
     ProgramEditor* mProgramEditor;
     ManagerEditor* mManagerEditor;
     QMenu* mConfigMenu;
-    QAction* mLockAction;
 
 };
 

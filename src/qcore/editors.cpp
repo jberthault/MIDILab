@@ -65,6 +65,7 @@ ChannelEditor::ChannelEditor(QWidget* parent) : QWidget(parent) {
 
     setWindowTitle("Channel Colors");
     setWindowIcon(QIcon(":/data/brush.svg"));
+    setWindowFlags(Qt::Dialog);
 
     setButton(Qt::LeftButton, channels_t::wrap(0x0));
     setButton(Qt::RightButton, channels_t::wrap(0x1));

@@ -26,7 +26,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QTableWidget>
 #include <QTextCodec>
 #include <QTimeEdit>
-#include <QToolBar>
 #include <QTreeWidget>
 #include "handlers/sequencereader.h"
 #include "handlers/sequencewriter.h"
@@ -425,41 +424,6 @@ private:
 };
 
 //===========
-// MediaView
-//===========
-
-class MediaView : public QToolBar {
-
-    Q_OBJECT
-
-public:
-
-    enum MediaActionType {
-        PLAY_ACTION,
-        PAUSE_ACTION,
-        STOP_ACTION,
-        PLAY_NEXT_ACTION,
-        PLAY_LAST_ACTION,
-        PLAY_STEP_ACTION,
-        SAVE_ACTION
-    };
-
-    explicit MediaView(QWidget* parent);
-
-    QAction* getAction(MediaActionType type);
-
-    bool isSingle() const; /*!< end the playlist after the current one */
-    bool isLooping() const; /*!< restart from begining when playlist os over */
-
-private:
-
-    QMap<MediaActionType, QAction*> mMediaActions;
-    MultiStateAction* mModeAction;
-    MultiStateAction* mLoopAction;
-
-};
-
-//===========
 // TempoView
 //===========
 
@@ -521,6 +485,9 @@ class Player : public HandlerEditor {
 public:
     explicit Player();
 
+    bool isSingle() const; /*!< end the playlist after the current one */
+    bool isLooping() const; /*!< restart from begining when playlist os over */
+
     bool setNextSequence(int offset); /*!< returns true if a sequence has been set */
     void setSequence(const NamedSequence& sequence);
     void setTrackFilter(Handler* handler);
@@ -561,7 +528,6 @@ private:
 
     Trackbar* mTracker;
     TempoView* mTempoView;
-    MediaView* mMediaView;
     SequenceView* mSequenceView;
     PlaylistTable* mPlaylist;
 
@@ -572,6 +538,9 @@ private:
 
     bool mIsStepping;
     timestamp_t mNextStep;
+
+    MultiStateAction* mModeAction;
+    MultiStateAction* mLoopAction;
 
 };
 

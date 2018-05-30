@@ -710,7 +710,7 @@ template<typename T>
 struct extension_t<family_t::extended_voice, T> : encoder_t<T> {
     using encoder_t<T>::encoder_t;
     template<typename ... Args>
-    auto operator()(channels_t channels, Args ... args) const {
+    auto operator()(channels_t channels, Args&& ... args) const {
         return Event::extended_voice(channels, this->encode(std::forward<Args>(args)...));
     }
 };
@@ -719,7 +719,7 @@ template<typename T>
 struct extension_t<family_t::extended_system, T> : encoder_t<T> {
     using encoder_t<T>::encoder_t;
     template<typename ... Args>
-    auto operator()(Args ... args) const {
+    auto operator()(Args&& ... args) const {
         return Event::extended_system(this->encode(std::forward<Args>(args)...));
     }
 };
@@ -728,7 +728,7 @@ template<typename T>
 struct extension_t<family_t::extended_meta, T> : encoder_t<T> {
     using encoder_t<T>::encoder_t;
     template<typename ... Args>
-    auto operator()(Args ... args) const {
+    auto operator()(Args&& ... args) const {
         return Event::extended_meta(this->encode(std::forward<Args>(args)...));
     }
 };

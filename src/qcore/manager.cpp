@@ -278,9 +278,6 @@ Manager::Manager(QObject* parent) : Context{parent} {
     Q_ASSERT(instance == nullptr);
     instance = this;
 
-    mChannelEditor = new ChannelEditor{static_cast<QWidget*>(parent)};
-    mChannelEditor->setWindowFlags(Qt::Dialog);
-
     mGUISynchronizer = new GraphicalSynchronizer{this};
     mPathRetrieverPool = new PathRetrieverPool{this};
     mMetaHandlerPool = new MetaHandlerPool{this};
@@ -322,6 +319,18 @@ const HandlerProxies& Manager::handlerProxies() const {
 
 PathRetrieverPool* Manager::pathRetrieverPool() {
     return mPathRetrieverPool;
+}
+
+QToolBar* Manager::quickToolBar() {
+    return mQuickToolbar;
+}
+
+void Manager::setChannelEditor(ChannelEditor* editor) {
+    mChannelEditor = editor;
+}
+
+void Manager::setQuickToolBar(QToolBar* toolbar) {
+    mQuickToolbar = toolbar;
 }
 
 Configuration Manager::getConfiguration() {

@@ -1126,45 +1126,6 @@ void Trackbar::cleanMarkers() {
 }
 
 //===========
-// MediaView
-//===========
-
-MediaView::MediaView(QWidget* parent) : QToolBar("Media", parent) {
-    /// @todo get a finer arrow for move-down
-    mMediaActions[PLAY_LAST_ACTION] = addAction(QIcon(":/data/media-step-backward.svg"), "Play Previous");
-    mMediaActions[PLAY_ACTION] = addAction(QIcon(":/data/media-play.svg"), "Play");
-    mMediaActions[PAUSE_ACTION] = addAction(QIcon(":/data/media-pause.svg"), "Pause");
-    mMediaActions[STOP_ACTION] = addAction(QIcon(":/data/media-stop.svg"), "Stop");
-    mMediaActions[PLAY_NEXT_ACTION] = addAction(QIcon(":/data/media-step-forward.svg"), "Play Next");
-    mMediaActions[PLAY_STEP_ACTION] = addAction(QIcon(":/data/chevron-right.svg"), "Play Step");
-    addSeparator();
-    mLoopAction = new MultiStateAction(this);
-    addAction(mLoopAction);
-    mLoopAction->addState(QIcon(":/data/move-down.svg"), "No Loop");
-    mLoopAction->addState(QIcon(":/data/loop-square.svg"), "Loop");
-    mModeAction = new MultiStateAction(this);
-    addAction(mModeAction);
-    mModeAction->addState(QIcon(":/data/lines.svg"), "Play All");
-    mModeAction->addState(QIcon(":/data/highlighted-lines.svg"), "Play Current");
-    addSeparator();
-    mMediaActions[SAVE_ACTION] = addAction(QIcon(":/data/save.svg"), "Save Current Sequence");
-
-    setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Preferred);
-}
-
-bool MediaView::isSingle() const {
-    return mModeAction->state() == 1;
-}
-
-bool MediaView::isLooping() const {
-    return mLoopAction->state() == 1;
-}
-
-QAction* MediaView::getAction(MediaActionType type) {
-    return mMediaActions.value(type, nullptr);
-}
-
-//===========
 // TempoView
 //===========
 
@@ -1276,38 +1237,55 @@ void MetaPlayer::setContent(HandlerProxy& proxy) {
 
 Player::Player() : HandlerEditor(), mIsPlaying(false), mIsStepping(false) {
 
-    mPlaylist = new PlaylistTable(this);
+    mPlaylist = new PlaylistTable{this};
     connect(mPlaylist, &PlaylistTable::itemActivated, this, &Player::launch);
 
-    mSequenceView = new SequenceView(this);
+    mSequenceView = new SequenceView{this};
     connect(mSequenceView, &SequenceView::positionSelected, this, &Player::onPositionSelected);
 
-    mMediaView = new MediaView(this);
-    connect(mMediaView->getAction(MediaView::PLAY_ACTION), &QAction::triggered, this, &Player::playSequence);
-    connect(mMediaView->getAction(MediaView::PAUSE_ACTION), &QAction::triggered, this, &Player::pauseSequence);
-    connect(mMediaView->getAction(MediaView::STOP_ACTION), &QAction::triggered, this, &Player::resetSequence);
-    connect(mMediaView->getAction(MediaView::PLAY_LAST_ACTION), &QAction::triggered, this, &Player::playLastSequence);
-    connect(mMediaView->getAction(MediaView::PLAY_NEXT_ACTION), &QAction::triggered, this, &Player::playNextSequence);
-    connect(mMediaView->getAction(MediaView::SAVE_ACTION), &QAction::triggered, this, &Player::saveSequence);
-    connect(mMediaView->getAction(MediaView::PLAY_STEP_ACTION), &QAction::triggered, this, &Player::stepForward);
-
-    mTracker = new Trackbar(this);
+    mTracker = new Trackbar{this};
     connect(mTracker, &Trackbar::positionChanged, this, &Player::changePosition);
     connect(mTracker, &Trackbar::lowerChanged, this, &Player::changeLower);
     connect(mTracker, &Trackbar::upperChanged, this, &Player::changeUpper);
 
-    mTempoView = new TempoView(this);
+    mTempoView = new TempoView{this};
     connect(mTempoView, &TempoView::distorsionChanged, this, &Player::changeDistorsion);
 
-    mRefreshTimer = new QTimer(this);
+    mRefreshTimer = new QTimer{this};
     mRefreshTimer->setInterval(75); /// @note update every 75ms
     connect(mRefreshTimer, &QTimer::timeout, this, &Player::refreshPosition);
 
-    QTabWidget* tab = new QTabWidget(this);
+    auto* tab = new QTabWidget{this};
     tab->addTab(mPlaylist, "Playlist");
     tab->addTab(mSequenceView, "Events");
 
-    setLayout(make_vbox(margin_tag{0}, mMediaView, mTracker, mTempoView, tab));
+    connect(makeAction(QIcon{":/data/media-step-backward.svg"}, "Play Previous", this), &QAction::triggered, this, &Player::playLastSequence);
+    connect(makeAction(QIcon{":/data/media-play.svg"}, "Play", this), &QAction::triggered, this, &Player::playSequence);
+    connect(makeAction(QIcon{":/data/media-pause.svg"}, "Pause", this), &QAction::triggered, this, &Player::pauseSequence);
+    connect(makeAction(QIcon{":/data/media-stop.svg"}, "Stop", this), &QAction::triggered, this, &Player::resetSequence);
+    connect(makeAction(QIcon{":/data/media-step-forward.svg"}, "Play Next", this), &QAction::triggered, this, &Player::playNextSequence);
+    connect(makeAction(QIcon{":/data/chevron-right.svg"}, "Play Step", this), &QAction::triggered, this, &Player::stepForward);
+    makeSeparator(this);
+    mLoopAction = new MultiStateAction{this};
+    mLoopAction->addState(QIcon{":/data/move-down.svg"}, "No Loop"); /// @todo get a thinner arrow
+    mLoopAction->addState(QIcon{":/data/loop-square.svg"}, "Loop");
+    addAction(mLoopAction);
+    mModeAction = new MultiStateAction{this};
+    mModeAction->addState(QIcon{":/data/lines.svg"}, "Play All");
+    mModeAction->addState(QIcon{":/data/highlighted-lines.svg"}, "Play Current");
+    addAction(mModeAction);
+    makeSeparator(this);
+    connect(makeAction(QIcon{":/data/save.svg"}, "Save Current Sequence", this), &QAction::triggered, this, &Player::saveSequence);
+
+    setLayout(make_vbox(margin_tag{0}, mTracker, mTempoView, tab));
+}
+
+bool Player::isSingle() const {
+    return mModeAction->state() == 1;
+}
+
+bool Player::isLooping() const {
+    return mLoopAction->state() == 1;
 }
 
 HandlerView::Parameters Player::getParameters() const {
@@ -1337,6 +1315,7 @@ Handler* Player::getHandler() {
 void Player::updateContext(Context* context) {
     mSequenceView->setChannelEditor(context->channelEditor());
     mPlaylist->setContext(context);
+    context->quickToolBar()->addActions(actions());
 }
 
 void Player::changePosition(timestamp_t timestamp) {
@@ -1369,9 +1348,9 @@ void Player::setTrackFilter(Handler* handler) {
 
 bool Player::setNextSequence(int offset) {
     resetSequence();
-    if (mMediaView->isSingle() && mPlaylist->isLoaded())
-        return mMediaView->isLooping();
-    auto namedSequence = mPlaylist->loadRelative(offset, mMediaView->isLooping());
+    if (isSingle() && mPlaylist->isLoaded())
+        return isLooping();
+    auto namedSequence = mPlaylist->loadRelative(offset, isLooping());
     if (namedSequence.sequence.empty())
         return false;
     setSequence(namedSequence);
