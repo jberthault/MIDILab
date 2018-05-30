@@ -458,7 +458,6 @@ private:
     SimpleSlider* mDistorsionSlider;
     DistordedClock mDistordedClock;
 
-
 };
 
 //============

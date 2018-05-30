@@ -35,7 +35,6 @@ public:
 
     void setContent(HandlerProxy& proxy) override;
 
-
 };
 
 #endif // QHANDLERS_FORWARDER_H

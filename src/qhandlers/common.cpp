@@ -85,11 +85,11 @@ bool parseNote(const QString& data, Note& note) {
     return (bool)note;
 }
 
-QString serializeRange(const QPair<Note, Note>& range) {
+QString serializeRange(const std::pair<Note, Note>& range) {
     return QString("%1:%2").arg(serializeNote(range.first), serializeNote(range.second));
 }
 
-bool parseRange(const QString& data, QPair<Note, Note>& range) {
+bool parseRange(const QString& data, std::pair<Note, Note>& range) {
     char separator = '\0';
     std::istringstream stream(data.toStdString());
     try {

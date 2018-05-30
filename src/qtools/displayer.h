@@ -242,7 +242,6 @@ public:
 
     std::vector<Displayer*> directChildren();
 
-
 private slots:
     void toggleStretched();
     void toggleScrolling();

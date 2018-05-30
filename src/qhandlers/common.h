@@ -58,8 +58,8 @@ bool parseDouble(const QString& data, double& value);
 QString serializeNote(const Note& note);
 bool parseNote(const QString& data, Note& note);
 
-QString serializeRange(const QPair<Note, Note>& range);
-bool parseRange(const QString& data, QPair<Note, Note>& range);
+QString serializeRange(const std::pair<Note, Note>& range);
+bool parseRange(const QString& data, std::pair<Note, Note>& range);
 
 QString serializeNotes(const std::vector<Note>& notes);
 bool parseNotes(const QString& data, std::vector<Note>& notes);

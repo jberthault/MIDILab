@@ -22,7 +22,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define QHANDLERS_HARMONICA_H
 
 #include <QAbstractButton>
-#include <QMultiMap>
 #include "qhandlers/common.h"
 
 //===============
@@ -35,7 +34,6 @@ public:
     explicit MetaHarmonica(QObject* parent);
 
     void setContent(HandlerProxy& proxy) override;
-
 
 };
 
@@ -83,7 +81,7 @@ private:
     Note buttonNote(int row, int col);
     Note buttonNote(QAbstractButton* button);
 
-    using Index = QPair<int, int>;
+    using Index = std::pair<int, int>;
 
     static const QMap<Index, int> defaultTuning;
 
@@ -95,7 +93,7 @@ private:
 
     QMap<Index, int> mTuning; /*!< harmonica tuning (offsets from tonality) */
     QMap<Index, QAbstractButton*> mButtons; /*!< buttons storage */
-    QMultiMap<int, QAbstractButton*> mForwardNotes; /*!< buttons associated to note values */
+    std::multimap<int, QAbstractButton*> mForwardNotes; /*!< buttons associated to note values */
     QMap<QAbstractButton*, Note> mButtonsNotes; /*!< notes associated to buttons */
 
 };

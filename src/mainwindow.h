@@ -92,8 +92,8 @@ public slots:
     void loadConfig();
     void saveConfig();
     void clearConfig();
-    void readLastConfig();
-    void readConfig(const QString& fileName, bool raise, bool select);
+    void readLastConfig(bool clear);
+    void readConfig(const QString& fileName, bool raise, bool select, bool clear);
     void writeConfig(const QString& fileName);
     void raiseConfig(const QString& fileName);
     void updateMenu(const QStringList &configs);

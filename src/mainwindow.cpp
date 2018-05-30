@@ -108,7 +108,7 @@ void MainWindow::unloadConfig() {
 void MainWindow::loadConfig() {
     const auto fileName = Manager::instance->pathRetrieverPool()->get("configuration")->getReadFile(this);
     if (!fileName.isEmpty())
-        readConfig(fileName, true, false);
+        readConfig(fileName, true, false, true);
 }
 
 void MainWindow::saveConfig() {
@@ -139,13 +139,13 @@ void MainWindow::clearConfig() {
     Manager::instance->clearConfiguration();
 }
 
-void MainWindow::readLastConfig() {
+void MainWindow::readLastConfig(bool clear) {
     const auto configurations = getConfigs();
     const auto fileName = configurations.empty() ? QString{":/data/config.xml"} : configurations.front();
-    readConfig(fileName, false, !configurations.empty());
+    readConfig(fileName, false, !configurations.empty(), clear);
 }
 
-void MainWindow::readConfig(const QString& fileName, bool raise, bool select) {
+void MainWindow::readConfig(const QString& fileName, bool raise, bool select, bool clear) {
     Configuration config;
     // read configuration
     try {
@@ -156,7 +156,8 @@ void MainWindow::readConfig(const QString& fileName, bool raise, bool select) {
         return;
     }
     // clear previous configuration
-    clearConfig();
+    if (clear)
+        clearConfig();
     // set the new configuration
     Manager::instance->setConfiguration(config);
     // redo the layout
@@ -297,7 +298,7 @@ void MainWindow::onConfigSelection(QAction* action) {
         }
     } else {
         if (QMessageBox::question(this, {}, "Do you want to load this configuration ?") == QMessageBox::Yes)
-            readConfig(fileName, true, true);
+            readConfig(fileName, true, true, true);
     }
 }
 

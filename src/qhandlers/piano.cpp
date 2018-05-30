@@ -200,7 +200,7 @@ void MetaPiano::setContent(HandlerProxy& proxy) {
 // Piano
 //=======
 
-Piano::Piano() : Instrument(Mode::io()), mActiveKey(nullptr), mRange(qMakePair(note_ns::A(0), note_ns::C(8))) {
+Piano::Piano() : Instrument{Mode::io()} {
     mKeys.fill(nullptr);
     buildKeys();
 }
@@ -216,11 +216,11 @@ size_t Piano::setParameter(const Parameter& parameter) {
     return Instrument::setParameter(parameter);
 }
 
-const QPair<Note, Note>& Piano::range() const {
+const std::pair<Note, Note>& Piano::range() const {
     return mRange;
 }
 
-void Piano::setRange(const QPair<Note, Note>& range) {
+void Piano::setRange(const std::pair<Note, Note>& range) {
     if (range != mRange && 0 <= range.first.code() && range.second.code() < 0x80) {
         mRange = range;
         clearKeys();

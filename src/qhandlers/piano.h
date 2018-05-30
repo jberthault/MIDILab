@@ -87,7 +87,6 @@ public:
     int heightForWidth(int width) const override;
     QSize sizeHint() const override;
 
-
 private:
     QList<BlackItem> mBlack;
     QList<QLayoutItem*> mWhite;
@@ -106,7 +105,6 @@ public:
     explicit MetaPiano(QObject* parent);
 
     void setContent(HandlerProxy& proxy) override;
-
 
 };
 
@@ -128,8 +126,8 @@ public:
     Parameters getParameters() const override;
     size_t setParameter(const Parameter& parameter) override;
 
-    const QPair<Note, Note>& range() const;
-    void setRange(const QPair<Note, Note>& range);
+    const std::pair<Note, Note>& range() const;
+    void setRange(const std::pair<Note, Note>& range);
 
 protected:
     void receiveNotesOff(channels_t channels) final;
@@ -150,8 +148,8 @@ private:
     void generateKeyOn(PianoKey* key, Qt::MouseButtons buttons);
     void generateKeyOff(PianoKey* key, Qt::MouseButtons buttons);
 
-    PianoKey* mActiveKey;
-    QPair<Note, Note> mRange;
+    PianoKey* mActiveKey {nullptr};
+    std::pair<Note, Note> mRange {note_ns::A(0), note_ns::C(8)};
     std::array<PianoKey*, 0x80> mKeys;
 
 };

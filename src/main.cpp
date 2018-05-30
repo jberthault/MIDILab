@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
     app.processEvents();
     // create main window
     MainWindow window(nullptr);
-    window.readLastConfig();
+    window.readLastConfig(false);
     window.addFiles(parser.positionalArguments());
     window.show();
     // close the splash when window is built

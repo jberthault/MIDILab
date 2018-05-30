@@ -21,7 +21,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "qhandlers/wheel.h"
 #include "handlers/systemhandler.h"
 
-
 namespace {
 
 constexpr range_t<uint16_t> volumeRange = {0, 0xffff};

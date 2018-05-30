@@ -140,12 +140,12 @@ void Harmonica::build(int row, int col) {
     QAbstractButton* button = new QToolButton(this);
     mGroup->addButton(button);
     button->setFixedSize(30, 30);
-    mButtons[qMakePair(row, col)] = button;
+    mButtons[Index{row, col}] = button;
     addElement(button, getTrueRow(row), getTrueCol(col));
 }
 
 Note Harmonica::buttonNote(int row, int col) {
-    return buttonNote(mButtons[qMakePair(row, col)]);
+    return buttonNote(mButtons[Index{row, col}]);
 }
 
 Note Harmonica::buttonNote(QAbstractButton* button) {
@@ -165,7 +165,7 @@ void Harmonica::setTonality(const Note& note) {
         int code = mTonality.code() + offset;
         Note note = Note::from_code(code);
         // register note <-> button (assuming button is not assigned)
-        mForwardNotes.insert(code, button);
+        mForwardNotes.emplace(code, button);
         mButtonsNotes[button] = note;
         // change button text
         button->setText(QString::fromStdString(note.string()));
@@ -183,7 +183,7 @@ void Harmonica::receiveNotesOff(channels_t /*channels*/) {
 void Harmonica::receiveNoteOn(channels_t /*channels*/, const Note& note) {
     auto it = mForwardNotes.equal_range(note.code());
     for ( ; it.first != it.second ; ++it.first) {
-        QAbstractButton* button = it.first.value();
+        QAbstractButton* button = it.first->second;
         if (!button->isDown()) {
             button->setDown(true);
             break;
@@ -194,7 +194,7 @@ void Harmonica::receiveNoteOn(channels_t /*channels*/, const Note& note) {
 void Harmonica::receiveNoteOff(channels_t /*channels*/, const Note& note) {
     auto it = mForwardNotes.equal_range(note.code());
     for ( ; it.first != it.second ; ++it.first) {
-        QAbstractButton* button = it.first.value();
+        QAbstractButton* button = it.first->second;
         button->setDown(false);
     }
 }

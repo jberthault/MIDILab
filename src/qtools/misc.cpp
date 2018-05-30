@@ -62,7 +62,6 @@ QAction* makeSeparator(QWidget* parent) {
     return action;
 }
 
-
 //===============
 // PathRetriever
 //===============
@@ -485,7 +484,6 @@ void SignalNotifier::handleInt() {
     emit terminated();
     mSocketInt->setEnabled(true);
 }
-
 
 void SignalNotifier::handleTerm() {
     mSocketTerm->setEnabled(false);

@@ -45,7 +45,6 @@ enum class tonality_t {
 std::istream& operator>>(std::istream& stream, tonality_t& tonality);
 std::ostream& operator<<(std::ostream& stream, const tonality_t& tonality);
 
-
 class Note {
 
 public:
