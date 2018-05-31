@@ -25,11 +25,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 int main(int argc, char *argv[]) {
     // application
-    QApplication app(argc, argv);
+    QApplication app{argc, argv};
     QApplication::setOrganizationName("MIDILab");
     QApplication::setApplicationName("MIDILab");
     QApplication::setApplicationVersion(MIDILAB_VERSION_STRING);
-    app.setWindowIcon(QIcon(":/data/logo.png"));
+    app.setWindowIcon(QIcon{":/data/logo.png"});
     // register meta types
     qRegisterMetaType<Message>();
     // load default stylesheet if not specified
@@ -42,12 +42,11 @@ int main(int argc, char *argv[]) {
     parser.addPositionalArgument("files", "Paths to midi files", "[files...]");
     parser.process(app);
     // load a splash screen
-    QPixmap pixmap(":/data/logo.png");
-    QSplashScreen splash(pixmap);
+    QSplashScreen splash{QPixmap{":/data/logo.png"}};
     splash.show();
     app.processEvents();
     // create main window
-    MainWindow window(nullptr);
+    MainWindow window{nullptr};
     window.readLastConfig(false);
     window.addFiles(parser.positionalArguments());
     window.show();

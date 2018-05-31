@@ -134,7 +134,6 @@ void ChannelMapperEditor::makeHeader(Qt::Orientation orientation, QGridLayout* g
         auto* colorLabel = new QLabel{this};
         colors[c] = colorLabel;
         colorLabel->setFixedSize(labelSize);
-        colorLabel->setAutoFillBackground(true);
         // number
         auto* numberLabel = new QLabel{QString::number(c), this};
         numberLabel->setFixedSize(labelSize);
