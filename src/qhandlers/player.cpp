@@ -27,7 +27,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QMenu>
 #include "qhandlers/player.h"
 #include "handlers/trackfilter.h"
-#include "qcore/manager.h"
 
 namespace {
 
@@ -183,7 +182,7 @@ SequenceView::SequenceView(QWidget *parent) : QWidget{parent} {
 
     mTreeWidget = new QTreeWidget{this};
     mTreeWidget->setAlternatingRowColors(true);
-    mTreeWidget->setHeaderLabel(QString()); // clear the default "1" displayed
+    mTreeWidget->setHeaderLabel({}); // clear the default "1" displayed
     mTreeWidget->header()->setDefaultAlignment(Qt::AlignCenter);
     mTreeWidget->setSelectionBehavior(QAbstractItemView::SelectItems);
     mTreeWidget->viewport()->installEventFilter(this);
@@ -496,9 +495,6 @@ PlaylistTable::PlaylistTable(QWidget* parent) : QTableWidget(0, 2, parent), mCon
 
     setHorizontalHeaderLabels(QStringList() << "Filename" << "Duration");
 
-    connect(Manager::instance, &Manager::handlerRemoved, this, &PlaylistTable::removeHandler);
-    connect(Manager::instance, &Manager::handlerRenamed, this, &PlaylistTable::renameHandler);
-
     setEditTriggers(NoEditTriggers);
     setAlternatingRowColors(true);
     setSelectionMode(QTableWidget::ExtendedSelection);
@@ -643,6 +639,8 @@ NamedSequence PlaylistTable::loadRelative(int offset, bool wrap) {
 
 void PlaylistTable::setContext(Context* context) {
     mContext = context;
+    connect(context, &Context::handlerRemoved, this, &PlaylistTable::removeHandler);
+    connect(context, &Context::handlerRenamed, this, &PlaylistTable::renameHandler);
 }
 
 void PlaylistTable::browseFiles() {
@@ -657,21 +655,22 @@ void PlaylistTable::browseRecorders() {
         if (dynamic_cast<SequenceWriter*>(proxy.handler()))
             handlers.push_back(proxy.handler());
     if (handlers.empty()) {
-        QMessageBox::information(this, QString(), "No recorder available");
+        QMessageBox::information(this, {}, "No recorder available");
         return;
     }
     // make and fill a selector
-    auto* selector = new HandlerSelector(this);
+    auto* selector = new HandlerSelector{this};
     selector->setWindowTitle("Select the recorder to import");
     for (auto* handler : handlers)
         selector->insertHandler(handler);
     // run it
-    DialogContainer ask(selector, this);
+    DialogContainer ask{selector, this};
     if (ask.exec() == QDialog::Accepted) {
         if (auto* sw = dynamic_cast<SequenceWriter*>(selector->currentHandler())) {
-            insertItem(new WriterItem(sw));
+            insertItem(new WriterItem{sw});
+            scrollToBottom();
         } else {
-            QMessageBox::warning(this, QString(), "No recorder selected");
+            QMessageBox::warning(this, {}, "No recorder selected");
         }
     }
 }
@@ -1394,13 +1393,13 @@ void Player::saveSequence() {
         return;
     const auto sequence = mHandler.sequence();
     if (sequence.empty()) {
-        QMessageBox::critical(this, QString(), "Empty sequence");
+        QMessageBox::critical(this, {}, "Empty sequence");
     } else {
         size_t bytes = dumping::write_file(sequence.to_file(), filename.toStdString(), true);
         if (bytes == 0) {
-            QMessageBox::critical(this, QString(), "Unable to write sequence");
+            QMessageBox::critical(this, {}, "Unable to write sequence");
         } else {
-            QMessageBox::information(this, QString(), "Sequence saved");
+            QMessageBox::information(this, {}, "Sequence saved");
         }
     }
 }
@@ -1412,7 +1411,7 @@ void Player::launch(QTableWidgetItem* item) {
         setSequence(namedSequence);
         playCurrentSequence();
     } else { /// @todo get reason from model
-        QMessageBox::critical(this, QString(), "Can't read MIDI File");
+        QMessageBox::critical(this, {}, "Can't read MIDI File");
     }
 }
 

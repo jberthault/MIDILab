@@ -32,7 +32,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //=============
 
 HandlerNode::HandlerNode(Handler* handler, HandlerGraphEditor* parent) :
-    Node(handlerName(handler), nullptr), mHandler(handler), mParent(parent) {
+    Node{handlerName(handler), nullptr}, mHandler{handler}, mParent{parent} {
 
 }
 
@@ -48,20 +48,11 @@ void HandlerNode::updateLabel() {
     setLabel(handlerName(mHandler));
 }
 
-//void HandlerNode::keyPressEvent(QKeyEvent* event) {
-//    if (event->key() == Qt::Key_Delete) {
-//        Manager::instance->killHandler(mHandler);
-//    } else {
-//        QGraphicsItem::keyPressEvent(event);
-//    }
-//}
-
 //=============
 // EdgeWrapper
 //=============
 
-EdgeWrapper::EdgeWrapper(HandlerNode* sender, HandlerNode* receiver) :
-    Edge(sender, receiver), mFilter() {
+EdgeWrapper::EdgeWrapper(HandlerNode* sender, HandlerNode* receiver) : Edge{sender, receiver} {
 
 }
 
@@ -107,11 +98,11 @@ void EdgeWrapper::updateVisibility() {
 
 void EdgeWrapper::contextMenuEvent(QGraphicsSceneContextMenuEvent* event) {
     QMenu menu;
-    QAction* straightenAction = menu.addAction("Straighten");
+    auto* straightenAction = menu.addAction("Straighten");
     straightenAction->setEnabled(!controlPoints().empty());
-    QAction* deleteAction = menu.addAction(QIcon(":/data/delete.svg"), "Delete");
-    QAction* infoAction = menu.addAction("Info");
-    QAction* selectedAction = menu.exec(event->screenPos());
+    auto* deleteAction = menu.addAction(QIcon{":/data/delete.svg"}, "Delete");
+    auto* infoAction = menu.addAction("Info");
+    auto* selectedAction = menu.exec(event->screenPos());
     if (selectedAction == straightenAction) {
         setControlPoints();
     } else if (selectedAction == deleteAction) {
@@ -125,25 +116,23 @@ void EdgeWrapper::contextMenuEvent(QGraphicsSceneContextMenuEvent* event) {
 // HandlerGraphEditor
 //====================
 
-HandlerGraphEditor::HandlerGraphEditor(QWidget* parent) :
-    QWidget(parent), mNodeColor(Qt::black) {
-
+HandlerGraphEditor::HandlerGraphEditor(Manager* manager, QWidget* parent) : QWidget{parent}, mManager{manager} {
     // graph ! @warning graph removal must be called before selector removal
-    mGraph = new Graph(this);
+    mGraph = new Graph{this};
     connect(mGraph, &Graph::edgeCreation, this, &HandlerGraphEditor::forwardEdgeCreation);
-    // connect changes from mapper @todo fill already created children
-    connect(Manager::instance, &Manager::handlerInserted, this, &HandlerGraphEditor::insertHandler);
-    connect(Manager::instance, &Manager::handlerRemoved, this, &HandlerGraphEditor::removeHandler);
-    connect(Manager::instance, &Manager::handlerListenersChanged, this, &HandlerGraphEditor::updateListeners);
-    connect(Manager::instance, &Manager::handlerRenamed, this, &HandlerGraphEditor::renameHandler);
+    /// @todo fill already created children
+    connect(manager, &Context::handlerInserted, this, &HandlerGraphEditor::insertHandler);
+    connect(manager, &Context::handlerRemoved, this, &HandlerGraphEditor::removeHandler);
+    connect(manager, &Context::handlerListenersChanged, this, &HandlerGraphEditor::updateListeners);
+    connect(manager, &Context::handlerRenamed, this, &HandlerGraphEditor::renameHandler);
     // filter
-    mFilter = new QCheckBox(this);
+    mFilter = new QCheckBox{this};
     mFilter->setToolTip("Filter by source");
     // selector
-    mSelector = new HandlerSelector(this);
+    mSelector = new HandlerSelector{this};
     mSelector->setEnabled(mFilter->isChecked());
     // center
-    QPushButton* centerButton = new QPushButton("Center", this);
+    auto* centerButton = new QPushButton{"Center", this};
     // connections
     connect(mFilter, &QCheckBox::clicked, mSelector, &HandlerSelector::setEnabled);
     connect(mFilter, &QCheckBox::clicked, this, &HandlerGraphEditor::updateEdgesVisibility);
@@ -163,7 +152,7 @@ QBrush HandlerGraphEditor::nodeColor() const {
 
 void HandlerGraphEditor::setNodeColor(const QBrush& brush) {
     mNodeColor = brush;
-    QMapIterator<Handler*, HandlerNode*> it(mNodes);
+    QMapIterator<Handler*, HandlerNode*> it{mNodes};
     while (it.hasNext()) {
         it.next();
         it.value()->setColor(mNodeColor);
@@ -176,7 +165,7 @@ QBrush HandlerGraphEditor::nodeBackgroundColor() const {
 
 void HandlerGraphEditor::setNodeBackgroundColor(const QBrush& brush) {
     mNodeBackgroundColor = brush;
-    QMapIterator<Handler*, HandlerNode*> it(mNodes);
+    QMapIterator<Handler*, HandlerNode*> it{mNodes};
     while (it.hasNext()) {
         it.next();
         it.value()->setBackgroundColor(mNodeBackgroundColor);
@@ -189,7 +178,7 @@ QBrush HandlerGraphEditor::nodeAlternateBackgroundColor() const {
 
 void HandlerGraphEditor::setNodeAlternateBackgroundColor(const QBrush& brush) {
     mNodeAlternateBackgroundColor = brush;
-    QMapIterator<Handler*, HandlerNode*> it(mNodes);
+    QMapIterator<Handler*, HandlerNode*> it{mNodes};
     while (it.hasNext()) {
         it.next();
         it.value()->setAlternateBackgroundColor(mNodeAlternateBackgroundColor);
@@ -206,22 +195,21 @@ EdgeWrapper* HandlerGraphEditor::getEdge(Handler* tail, Handler* head) {
 
 EdgeWrapper* HandlerGraphEditor::getEdge(HandlerNode* tail, HandlerNode* head) {
     if (tail && head)
-        for (Edge* edge : tail->edges())
+        for (auto* edge : tail->edges())
             if (edge->tail() == tail && edge->head() == head)
                 return static_cast<EdgeWrapper*>(edge);
     return nullptr;
 }
 
 void HandlerGraphEditor::renameHandler(Handler* handler) {
-    HandlerNode* node = getNode(handler);
-    if (node)
+    if (auto* node = getNode(handler))
         node->updateLabel();
     mSelector->renameHandler(handler);
 }
 
 void HandlerGraphEditor::insertHandler(Handler* handler) {
     if (!mNodes.contains(handler)) {
-        HandlerNode* node = new HandlerNode(handler, this);
+        auto* node = new HandlerNode{handler, this};
         node->setColor(mNodeColor);
         node->setBackgroundColor(mNodeBackgroundColor);
         node->setAlternateBackgroundColor(mNodeAlternateBackgroundColor);
@@ -234,26 +222,25 @@ void HandlerGraphEditor::insertHandler(Handler* handler) {
 }
 
 void HandlerGraphEditor::removeHandler(Handler* handler) {
-    HandlerNode* node = mNodes.take(handler);
-    if (node != nullptr)
+    if (auto* node = mNodes.take(handler))
         mGraph->deleteNode(node);
     mSelector->removeHandler(handler);
 }
 
 void HandlerGraphEditor::updateListeners(Handler* handler) {
-    auto listeners = handler->listeners();
-    HandlerNode* tailNode = getNode(handler);
+    const auto listeners = handler->listeners();
+    auto* tailNode = getNode(handler);
     // can't update handler if not already registered
     if (tailNode == nullptr)
         return;
     // create or update all edges defined in listeners
     for (auto& listener : listeners) {
-        HandlerNode* headNode = getNode(listener.handler);
+        auto* headNode = getNode(listener.handler);
         Q_ASSERT(headNode != nullptr);
-        EdgeWrapper* edge = getEdge(tailNode, headNode);
+        auto* edge = getEdge(tailNode, headNode);
         if (!edge) {
             // no edge existing, must create it
-            edge = new EdgeWrapper(tailNode, headNode);
+            edge = new EdgeWrapper{tailNode, headNode};
             mGraph->insertEdge(edge);
         }
         edge->setFilter(std::move(listener.filter));
@@ -261,33 +248,33 @@ void HandlerGraphEditor::updateListeners(Handler* handler) {
     }
     // delete old edges that no longer exist
     auto edges = tailNode->edges(); // makes a copy as the list may change
-    for (Edge* edge : edges)
+    for (auto* edge : edges)
         if (edge->tail() == tailNode && listeners.count(static_cast<EdgeWrapper*>(edge)->receiver()->handler()) == 0)
             mGraph->deleteEdge(edge);
 }
 
 void HandlerGraphEditor::forwardEdgeCreation(Node* tail, Node* head) {
-    Handler* sender = static_cast<HandlerNode*>(tail)->handler();
-    Handler* receiver = static_cast<HandlerNode*>(head)->handler();
+    auto* sender = static_cast<HandlerNode*>(tail)->handler();
+    auto* receiver = static_cast<HandlerNode*>(head)->handler();
     if (!sender || !receiver) { // by construction  sender != receiver
-        QMessageBox::critical(this, QString(), "Undefined sender or receiver");
+        QMessageBox::critical(this, {}, "Undefined sender or receiver");
     } else if (receiver->mode().none(Handler::Mode::receive())) {
-        QMessageBox::warning(this, QString(), "Receiver can not handle event");
+        QMessageBox::warning(this, {}, "Receiver can not handle event");
     } else {
         if (mFilter->isChecked()) {
-            Handler* source = mSelector->currentHandler();
+            auto* source = mSelector->currentHandler();
             if (!source || source->mode().none(Handler::Mode::in())) {
-                QMessageBox::critical(this, QString(), "Undefined source");
+                QMessageBox::critical(this, {}, "Undefined source");
             } else if (sender != source && sender->mode().none(Handler::Mode::thru())) {
-                QMessageBox::warning(this, QString(), "Sender must be THRU or source");
+                QMessageBox::warning(this, {}, "Sender must be THRU or source");
             } else {
-                Manager::instance->insertConnection(sender, receiver, Filter::handler(source));
+                mManager->insertConnection(sender, receiver, Filter::handler(source));
             }
         } else {
             if (sender->mode().none(Handler::Mode::forward())) {
-                QMessageBox::information(this, QString(), "Sender can not forward event");
+                QMessageBox::information(this, {}, "Sender can not forward event");
             } else {
-                Manager::instance->insertConnection(sender, receiver);
+                mManager->insertConnection(sender, receiver);
             }
         }
     }
@@ -295,9 +282,9 @@ void HandlerGraphEditor::forwardEdgeCreation(Node* tail, Node* head) {
 
 void HandlerGraphEditor::forwardEdgeRemoval(EdgeWrapper* edge) {
     if (mFilter->isChecked())
-        Manager::instance->removeConnection(edge->sender()->handler(), edge->receiver()->handler(), mSelector->currentHandler());
+        mManager->removeConnection(edge->sender()->handler(), edge->receiver()->handler(), mSelector->currentHandler());
     else
-        Manager::instance->removeConnection(edge->sender()->handler(), edge->receiver()->handler());
+        mManager->removeConnection(edge->sender()->handler(), edge->receiver()->handler());
 }
 
 void HandlerGraphEditor::updateEdgeVisibility(EdgeWrapper* edge) {
@@ -310,11 +297,11 @@ void HandlerGraphEditor::updateEdgeVisibility(EdgeWrapper* edge) {
 
 void HandlerGraphEditor::updateEdgesVisibility() {
     if (mFilter->isChecked()) {
-        Handler* source = mSelector->currentHandler();
-        for (Edge* edge : mGraph->getEdges())
+        auto* source = mSelector->currentHandler();
+        for (auto* edge : mGraph->getEdges())
             static_cast<EdgeWrapper*>(edge)->updateVisibility(source);
     } else {
-        for (Edge* edge : mGraph->getEdges())
+        for (auto* edge : mGraph->getEdges())
             static_cast<EdgeWrapper*>(edge)->updateVisibility();
     }
 }
@@ -333,12 +320,12 @@ void updateIcon(QTreeWidgetItem* item, Handler* handler, int column, Handler::Mo
         filename = ":/data/light-green.svg";
     else
         filename = ":/data/light-red.svg";
-    item->setData(column, Qt::DecorationRole, QIcon(filename));
+    item->setData(column, Qt::DecorationRole, QIcon{filename});
 }
 
 }
 
-HandlerListEditor::HandlerListEditor(QWidget* parent) : QTreeWidget(parent) {
+HandlerListEditor::HandlerListEditor(Manager* manager, QWidget* parent) : QTreeWidget{parent}, mManager{manager} {
 
     setAlternatingRowColors(true);
 
@@ -351,27 +338,27 @@ HandlerListEditor::HandlerListEditor(QWidget* parent) : QTreeWidget(parent) {
     connect(this, &HandlerListEditor::itemDoubleClicked, this, &HandlerListEditor::onDoubleClick);
 
     // header
-    QHeaderView* headerView = header();
+    auto* headerView = header();
     headerView->setStretchLastSection(false);
     headerView->setSectionResizeMode(QHeaderView::ResizeToContents);
     headerView->setSectionResizeMode(nameColumn, QHeaderView::Stretch);
 
     // menu
     setContextMenuPolicy(Qt::CustomContextMenu);
-    mMenu = new QMenu(this);
+    mMenu = new QMenu{this};
     mMenu->addAction("Open", this, SLOT(openSelection()));
     mMenu->addAction("Close", this, SLOT(closeSelection()));
     mMenu->addAction("Toggle", this, SLOT(toggleSelection()));
     mMenu->addSeparator();
-    mMenu->addAction(QIcon(":/data/delete.svg"), "Delete", this, SLOT(destroySelection()));
-    mRenameAction = mMenu->addAction(QIcon(":/data/text.svg"), "Rename", this, SLOT(renameSelection()));
-    mMenu->addAction(QIcon(":/data/eye.svg"), "Edit", this, SLOT(editSelection()));
+    mMenu->addAction(QIcon{":/data/delete.svg"}, "Delete", this, SLOT(destroySelection()));
+    mRenameAction = mMenu->addAction(QIcon{":/data/text.svg"}, "Rename", this, SLOT(renameSelection()));
+    mMenu->addAction(QIcon{":/data/eye.svg"}, "Edit", this, SLOT(editSelection()));
     connect(this, &HandlerListEditor::customContextMenuRequested, this, &HandlerListEditor::showMenu);
 
-    connect(Manager::instance, &Manager::handlerInserted, this, &HandlerListEditor::insertHandler);
-    connect(Manager::instance, &Manager::handlerRemoved, this, &HandlerListEditor::removeHandler);
-    connect(Manager::instance, &Manager::handlerRenamed, this, &HandlerListEditor::renameHandler);
-    connect(Manager::instance->observer(), &Observer::messageHandled, this, &HandlerListEditor::onMessageHandled);
+    connect(manager, &Context::handlerInserted, this, &HandlerListEditor::insertHandler);
+    connect(manager, &Context::handlerRemoved, this, &HandlerListEditor::removeHandler);
+    connect(manager, &Context::handlerRenamed, this, &HandlerListEditor::renameHandler);
+    connect(manager->observer(), &Observer::messageHandled, this, &HandlerListEditor::onMessageHandled);
 }
 
 Handler* HandlerListEditor::handlerForItem(QTreeWidgetItem* item) {
@@ -379,10 +366,9 @@ Handler* HandlerListEditor::handlerForItem(QTreeWidgetItem* item) {
 }
 
 QTreeWidgetItem* HandlerListEditor::insertHandler(Handler* handler) {
-    Q_ASSERT(handler);
     if (mItems.contains(handler))
         return mItems[handler];
-    QTreeWidgetItem* item = new QTreeWidgetItem;
+    auto* item = new QTreeWidgetItem;
     item->setData(nameColumn, Qt::UserRole, qVariantFromValue(handler));
     mItems[handler] = item;
     invisibleRootItem()->addChild(item);
@@ -393,20 +379,18 @@ QTreeWidgetItem* HandlerListEditor::insertHandler(Handler* handler) {
 }
 
 void HandlerListEditor::renameHandler(Handler* handler) {
-    QTreeWidgetItem* item = mItems.value(handler, nullptr);
-    if (item)
+    if (auto* item = mItems.value(handler, nullptr))
         item->setData(nameColumn, Qt::DisplayRole, handlerName(handler));
 }
 
 void HandlerListEditor::removeHandler(Handler* handler) {
-    QTreeWidgetItem* item = mItems.take(handler);
+    auto* item = mItems.take(handler);
     invisibleRootItem()->removeChild(item);
     delete item;
 }
 
 void HandlerListEditor::updateHandler(Handler* handler) {
-    QTreeWidgetItem* item = mItems.value(handler, nullptr);
-    if (item != nullptr) {
+    if (auto* item = mItems.value(handler, nullptr)) {
         updateIcon(item, handler, forwardColumn, Handler::Mode::forward(), Handler::State::forward());
         updateIcon(item, handler, receiveColumn, Handler::Mode::receive(), Handler::State::receive());
     }
@@ -418,7 +402,7 @@ void HandlerListEditor::onMessageHandled(Handler* handler, const Message& messag
 }
 
 void HandlerListEditor::onDoubleClick(QTreeWidgetItem* item, int column) {
-    auto proxy = getProxy(Manager::instance->handlerProxies(), handlerForItem(item));
+    auto proxy = getProxy(mManager->handlerProxies(), handlerForItem(item));
     switch (column) {
     case nameColumn: proxy.toggleState(); break;
     case forwardColumn: proxy.toggleState(Handler::State::forward()); break;
@@ -427,9 +411,9 @@ void HandlerListEditor::onDoubleClick(QTreeWidgetItem* item, int column) {
 }
 
 void HandlerListEditor::showMenu(const QPoint& point) {
-    auto handlers = selectedHandlers();
+    const auto handlers = selectedHandlers();
     if (handlers.size() == 1) {
-        auto proxy = getProxy(Manager::instance->handlerProxies(), *handlers.begin());
+        auto proxy = getProxy(mManager->handlerProxies(), *handlers.begin());
         mRenameAction->setEnabled(!dynamic_cast<ClosedMetaHandler*>(proxy.metaHandler()));
     } else {
         mRenameAction->setEnabled(false);
@@ -438,49 +422,47 @@ void HandlerListEditor::showMenu(const QPoint& point) {
 }
 
 void HandlerListEditor::destroySelection() {
-    if (QMessageBox::question(this, QString(), "Are you sure you want to destroy these handlers ?") == QMessageBox::Yes)
-        for (Handler* handler : selectedHandlers())
-            Manager::instance->removeHandler(handler);
+    if (QMessageBox::question(this, {}, "Are you sure you want to destroy these handlers ?") == QMessageBox::Yes)
+        for (auto* handler : selectedHandlers())
+            mManager->removeHandler(handler);
 }
 
 void HandlerListEditor::openSelection() {
-    for (Handler* handler : selectedHandlers())
-        getProxy(Manager::instance->handlerProxies(), handler).setState(true);
+    for (auto* handler : selectedHandlers())
+        getProxy(mManager->handlerProxies(), handler).setState(true);
 }
 
 void HandlerListEditor::closeSelection() {
-    for (Handler* handler : selectedHandlers())
-        getProxy(Manager::instance->handlerProxies(), handler).setState(false);
+    for (auto* handler : selectedHandlers())
+        getProxy(mManager->handlerProxies(), handler).setState(false);
 }
 
 void HandlerListEditor::toggleSelection() {
-    for (Handler* handler : selectedHandlers())
-        getProxy(Manager::instance->handlerProxies(), handler).toggleState();
+    for (auto* handler : selectedHandlers())
+        getProxy(mManager->handlerProxies(), handler).toggleState();
 }
 
 void HandlerListEditor::editSelection() {
-    for (Handler* handler : selectedHandlers())
-        getProxy(Manager::instance->handlerProxies(), handler).show();
+    for (auto* handler : selectedHandlers())
+        getProxy(mManager->handlerProxies(), handler).show();
 }
 
 void HandlerListEditor::renameSelection() {
-    auto handlers = selectedHandlers();
+    const auto handlers = selectedHandlers();
     if (handlers.size() == 1) {
-        QString name = QInputDialog::getText(this, "Text Selection", "Please set the handler's name");
+        const auto name = QInputDialog::getText(this, "Text Selection", "Please set the handler's name");
         if (!name.isEmpty())
-            Manager::instance->renameHandler(*handlers.begin(), name);
+            mManager->renameHandler(*handlers.begin(), name);
     } else {
-        QMessageBox::warning(this, QString(), tr("You should select one handler"));
+        QMessageBox::warning(this, {}, tr("You should select one handler"));
     }
 }
 
 std::set<Handler*> HandlerListEditor::selectedHandlers() {
     std::set<Handler*> result;
-    for (QTreeWidgetItem* item : selectedItems()) {
-        Handler* handler = handlerForItem(item);
-        if (handler)
+    for (auto* item : selectedItems())
+        if (auto* handler = handlerForItem(item))
             result.insert(handler);
-    }
     return result;
 }
 
@@ -488,7 +470,7 @@ std::set<Handler*> HandlerListEditor::selectedHandlers() {
 // HandlerCatalogEditor
 //======================
 
-HandlerCatalogEditor::HandlerCatalogEditor(QWidget* parent) : QTreeWidget(parent) {
+HandlerCatalogEditor::HandlerCatalogEditor(Manager* manager, QWidget* parent) : QTreeWidget{parent}, mManager{manager} {
     setHeaderHidden(true);
     setColumnCount(1);
     setSelectionMode(QAbstractItemView::SingleSelection);
@@ -496,23 +478,23 @@ HandlerCatalogEditor::HandlerCatalogEditor(QWidget* parent) : QTreeWidget(parent
     setContextMenuPolicy(Qt::CustomContextMenu);
     connect(this, &HandlerCatalogEditor::customContextMenuRequested, this, &HandlerCatalogEditor::showMenu);
     connect(this, &HandlerCatalogEditor::itemDoubleClicked, this, &HandlerCatalogEditor::onDoubleClick);
-    for (auto metaHandler : Manager::instance->metaHandlerPool()->metaHandlers()) {
-        auto item = new QTreeWidgetItem;
+    for (auto* metaHandler : manager->metaHandlerPool()->metaHandlers()) {
+        auto* item = new QTreeWidgetItem;
         item->setText(0, metaHandlerName(metaHandler));
         item->setToolTip(0, metaHandler->description());
         item->setData(0, Qt::UserRole, qVariantFromValue(metaHandler));
         item->setFlags(item->flags() & ~Qt::ItemIsEditable);
         invisibleRootItem()->addChild(item);
-        if (auto closedMetaHandler = dynamic_cast<ClosedMetaHandler*>(metaHandler))
+        if (auto* closedMetaHandler = dynamic_cast<ClosedMetaHandler*>(metaHandler))
             refreshMeta(item, closedMetaHandler->instantiables());
     }
 }
 
 void HandlerCatalogEditor::showMenu(const QPoint& point) {
-    if (auto item = itemAt(point)) {
-        if (auto closedMetaHandler = dynamic_cast<ClosedMetaHandler*>(metaHandlerForItem(item))) {
+    if (auto* item = itemAt(point)) {
+        if (auto* closedMetaHandler = dynamic_cast<ClosedMetaHandler*>(metaHandlerForItem(item))) {
             QMenu menu;
-            auto reloadAction = menu.addAction(QIcon(":/data/reload.svg"), "Reload");
+            auto* reloadAction = menu.addAction(QIcon{":/data/reload.svg"}, "Reload");
             if (menu.exec(mapToGlobal(point)) == reloadAction)
                 refreshMeta(item, closedMetaHandler->instantiables());
         }
@@ -521,13 +503,13 @@ void HandlerCatalogEditor::showMenu(const QPoint& point) {
 
 void HandlerCatalogEditor::onDoubleClick(QTreeWidgetItem* item, int column) {
     QString fixedName;
-    auto metaHandler = metaHandlerForItem(item);
+    auto* metaHandler = metaHandlerForItem(item);
     if (dynamic_cast<ClosedMetaHandler*>(metaHandler))
         return;
     if (!metaHandler) {
         metaHandler = metaHandlerForItem(item->parent());
         fixedName = item->text(column);
-        for (const auto& proxy : Manager::instance->handlerProxies()) {
+        for (const auto& proxy : mManager->handlerProxies()) {
             if (proxy.metaHandler() == metaHandler && proxy.name() == fixedName) {
                 QMessageBox::warning(this, {}, tr("This handler already exists"));
                 return;
@@ -543,7 +525,7 @@ void HandlerCatalogEditor::refreshMeta(QTreeWidgetItem *item, const QStringList&
     qDeleteAll(previousChildren);
     // make new children
     for (const auto& name : instantiables) {
-        auto child = new QTreeWidgetItem;
+        auto* child = new QTreeWidgetItem;
         child->setText(0, name);
         child->setFlags(item->flags() & ~Qt::ItemIsEditable);
         item->addChild(child);
@@ -552,13 +534,13 @@ void HandlerCatalogEditor::refreshMeta(QTreeWidgetItem *item, const QStringList&
 }
 
 void HandlerCatalogEditor::createHandler(MetaHandler* metaHandler, const QString& fixedName) {
-    auto configurator = new HandlerConfigurator(metaHandler, this);
+    auto* configurator = new HandlerConfigurator{metaHandler, this};
     if (!fixedName.isNull())
         configurator->setFixedName(fixedName);
-    DialogContainer ask(configurator, this);
+    DialogContainer ask{configurator, this};
     if (ask.exec() != QDialog::Accepted)
         return;
-    auto proxy = Manager::instance->loadHandler(metaHandler, configurator->name(), nullptr);
+    auto proxy = mManager->loadHandler(metaHandler, configurator->name(), nullptr);
     proxy.setParameters(configurator->parameters());
     proxy.show();
 }
@@ -571,16 +553,16 @@ MetaHandler* HandlerCatalogEditor::metaHandlerForItem(QTreeWidgetItem* item) {
 // ManagerEditor
 //===============
 
-ManagerEditor::ManagerEditor(QWidget* parent) : QTabWidget(parent) {
+ManagerEditor::ManagerEditor(Manager* manager, QWidget* parent) : QTabWidget{parent} {
     setWindowFlags(Qt::Dialog);
     setWindowTitle("Handlers");
-    setWindowIcon(QIcon(":/data/wrench.svg"));
-    mListEditor = new HandlerListEditor(this);
-    mGraphEditor = new HandlerGraphEditor(this);
-    mCatalogEditor = new HandlerCatalogEditor(this);
-    addTab(mListEditor, QIcon(":/data/list.svg"), "List");
-    addTab(mGraphEditor, QIcon(":/data/fork.svg"), "Graph");
-    addTab(mCatalogEditor, QIcon(":/data/book.svg"), "Catalog");
+    setWindowIcon(QIcon{":/data/wrench.svg"});
+    mListEditor = new HandlerListEditor{manager, this};
+    mGraphEditor = new HandlerGraphEditor{manager, this};
+    mCatalogEditor = new HandlerCatalogEditor{manager, this};
+    addTab(mListEditor, QIcon{":/data/list.svg"}, "List");
+    addTab(mGraphEditor, QIcon{":/data/fork.svg"}, "Graph");
+    addTab(mCatalogEditor, QIcon{":/data/book.svg"}, "Catalog");
     setTabToolTip(0, "Edit handlers : rename, delete, mute, ...");
     setTabToolTip(1, "Edit connections");
     setTabToolTip(2, "See & create new handlers");

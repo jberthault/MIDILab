@@ -69,12 +69,7 @@ class Manager final : public Context {
     Q_OBJECT
 
 public:
-    static Manager* instance;
-
-    // structors
-
     explicit Manager(QObject* parent);
-    ~Manager();
 
     // accessors
 
@@ -113,12 +108,6 @@ public:
     void insertConnection(Handler* tail, Handler* head, const Filter& filter = {});
     void removeConnection(Handler* tail, Handler* head);
     void removeConnection(Handler* tail, Handler* head, Handler* source);
-
-signals:
-    void handlerInserted(Handler* handler);
-    void handlerRenamed(Handler* handler);
-    void handlerRemoved(Handler* handler);
-    void handlerListenersChanged(Handler* handler);
 
 private:
     void onDeletion();

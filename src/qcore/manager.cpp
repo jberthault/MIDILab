@@ -32,12 +32,16 @@ namespace {
 class ConfigurationPuller {
 
 public:
+    ConfigurationPuller(Manager* manager) : mManager{manager} {
+
+    }
+
     void addConfiguration(const Configuration& configuration) {
         // set colors
         for (channel_t c=0 ; c < std::min(channels_t::capacity(), (size_t)configuration.colors.size()) ; ++c)
-            Manager::instance->channelEditor()->setColor(c, configuration.colors.at(c));
+            mManager->channelEditor()->setColor(c, configuration.colors.at(c));
         // add frames
-        auto mainDisplayer = Manager::instance->mainDisplayer();
+        auto* mainDisplayer = mManager->mainDisplayer();
         if (!configuration.frames.empty())
             setFrame(mainDisplayer, configuration.frames[0], true);
         for (int i=1 ; i < configuration.frames.size() ; i++)
@@ -62,13 +66,13 @@ public:
             TRACE_WARNING("wrong connection handlers: " << handlerName(tail) << ' ' << handlerName(head) << ' ' << handlerName(source));
             return;
         }
-        Manager::instance->insertConnection(tail, head, hasSource ? Filter::handler(source) : Filter());
+        mManager->insertConnection(tail, head, hasSource ? Filter::handler(source) : Filter());
     }
 
     void addHandler(const Configuration::Handler& handler) {
         // create the handler
         auto host = mViewReferences.value(handler.id, nullptr);
-        auto proxy = Manager::instance->loadHandler(handler.type, handler.name, host);
+        auto proxy = mManager->loadHandler(handler.type, handler.name, host);
         if (proxy.handler()) {
             // register handler
             mHandlersReferences[handler.id] = proxy.handler();
@@ -116,6 +120,7 @@ public:
     }
 
 private:
+    Manager* mManager;
     QMap<QString, Handler*> mHandlersReferences;
     QMap<QString, SingleDisplayer*> mViewReferences;
     std::vector<QWidget*> mVisibleDisplayers;
@@ -135,9 +140,9 @@ public:
         Configuration::Handler parsingData;
     };
 
-    ConfigurationPusher() {
+    ConfigurationPusher(Manager* manager) : mManager{manager} {
         int id=0;
-        const auto& proxies = Manager::instance->handlerProxies();
+        const auto& proxies = mManager->handlerProxies();
         auto it = proxies.begin();
         mCache.resize(proxies.size());
         for (auto& info : mCache) {
@@ -205,17 +210,18 @@ public:
             for (const auto& listener : info.proxy.handler()->listeners())
                 config.connections.push_back(getConnection(info.parsingData.id, listener));
         // frames
-        config.frames.push_back(getFrame(Manager::instance->mainDisplayer()));
+        config.frames.push_back(getFrame(mManager->mainDisplayer()));
         for (auto* displayer : MultiDisplayer::topLevelDisplayers())
             config.frames.push_back(getFrame(displayer));
         // colors
         for (channel_t c=0 ; c < channels_t::capacity() ; ++c)
-            config.colors.push_back(Manager::instance->channelEditor()->color(c));
+            config.colors.push_back(mManager->channelEditor()->color(c));
         return config;
     }
 
 private:
-     std::vector<Info> mCache;
+    Manager* mManager;
+    std::vector<Info> mCache;
 
 };
 
@@ -271,12 +277,7 @@ bool Deleter::deleteProxies() {
 // Manager
 //=========
 
-Manager* Manager::instance = nullptr;
-
 Manager::Manager(QObject* parent) : Context{parent} {
-
-    Q_ASSERT(instance == nullptr);
-    instance = this;
 
     mGUISynchronizer = new GraphicalSynchronizer{this};
     mPathRetrieverPool = new PathRetrieverPool{this};
@@ -290,11 +291,6 @@ Manager::Manager(QObject* parent) : Context{parent} {
     connect(mDeleter, &Deleter::deleted, this, &Manager::onDeletion);
     connect(mSignalNotifier, &SignalNotifier::terminated, qApp, &QApplication::closeAllWindows);
 
-}
-
-Manager::~Manager() {
-    Q_ASSERT(mHandlerProxies.empty());
-    instance = nullptr;
 }
 
 MultiDisplayer* Manager::mainDisplayer() const {
@@ -335,13 +331,13 @@ void Manager::setQuickToolBar(QToolBar* toolbar) {
 
 Configuration Manager::getConfiguration() {
     TRACE_MEASURE("get configuration");
-    ConfigurationPusher pusher;
+    ConfigurationPusher pusher{this};
     return pusher.getConfiguration();
 }
 
 void Manager::setConfiguration(const Configuration& configuration) {
     TRACE_MEASURE("set configuration");
-    ConfigurationPuller puller;
+    ConfigurationPuller puller{this};
     puller.addConfiguration(configuration);
 }
 

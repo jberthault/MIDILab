@@ -115,6 +115,7 @@ protected:
     void closeEvent(QCloseEvent* event) override;
 
 private:
+    Manager* mManager;
     ProgramEditor* mProgramEditor;
     ManagerEditor* mManagerEditor;
     QMenu* mConfigMenu;

@@ -22,7 +22,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QHeaderView>
 #include <QXmlSchema>
 #include <QXmlSchemaValidator>
-#include "qcore/manager.h"
 #include "qcore/programeditor.h"
 #include "core/misc.h"
 
@@ -90,7 +89,7 @@ QString Patch::getProgram(byte_t program, const QString& defaultName) const {
     if (mPrograms.contains(program))
         return mPrograms[program];
     for (auto* child : mChildren) {
-        QString found = child->getProgram(program, QString());
+        const auto found = child->getProgram(program, {});
         if (!found.isNull())
             return found;
     }
@@ -309,7 +308,7 @@ void ProgramModel::updateColor(channel_t channel, const QColor& color) {
 // ProgramEditor
 //===============
 
-ProgramEditor::ProgramEditor(ChannelEditor* channelEditor, QWidget* parent) : QWidget(parent) {
+ProgramEditor::ProgramEditor(Manager* manager, QWidget* parent) : QWidget(parent) {
 
     setWindowTitle("Programs");
     setWindowIcon(QIcon(":/data/trumpet.png"));
@@ -348,11 +347,11 @@ ProgramEditor::ProgramEditor(ChannelEditor* channelEditor, QWidget* parent) : QW
 
     // HANDLERS COMBO
     mHandlerSelector = new HandlerSelector(this);
-    connect(Manager::instance, &Manager::handlerRenamed, mHandlerSelector, &HandlerSelector::renameHandler);
+    connect(manager, &Context::handlerRenamed, mHandlerSelector, &HandlerSelector::renameHandler);
     connect(mHandlerSelector, &HandlerSelector::handlerChanged, this, &ProgramEditor::showHandler);
 
     // CHANNELS
-    mProgramModel = new ProgramModel(channelEditor, this);
+    mProgramModel = new ProgramModel(manager->channelEditor(), this);
     connect(mProgramModel, &ProgramModel::programEdited, this, &ProgramEditor::editProgram);
     QTableView* table = new QTableView(this);
     table->setModel(mProgramModel);
@@ -373,9 +372,9 @@ ProgramEditor::ProgramEditor(ChannelEditor* channelEditor, QWidget* parent) : QW
     // LAYOUT
     setLayout(make_vbox(make_hbox(mHandlerSelector, mPatchesCombo), table));
 
-    connect(Manager::instance, &Manager::handlerInserted, this, &ProgramEditor::insertHandler);
-    connect(Manager::instance, &Manager::handlerRemoved, this, &ProgramEditor::removeHandler);
-    connect(Manager::instance->observer(), &Observer::messageHandled, this, &ProgramEditor::updateSuccess);
+    connect(manager, &Context::handlerInserted, this, &ProgramEditor::insertHandler);
+    connect(manager, &Context::handlerRemoved, this, &ProgramEditor::removeHandler);
+    connect(manager->observer(), &Observer::messageHandled, this, &ProgramEditor::updateSuccess);
 
 }
 
@@ -427,7 +426,7 @@ void ProgramEditor::sendProgram(Handler* handler, channels_t channels, byte_t pr
     if (handler->mode().any(Handler::Mode::out()))
         handler->send_message(Event::program_change(channels, program));
     else
-        QMessageBox::warning(this, QString(), "You can't change program of an non-output handler");
+        QMessageBox::warning(this, {}, "You can't change program of an non-output handler");
 }
 
 void ProgramEditor::editProgram(channels_t channels, byte_t program) {

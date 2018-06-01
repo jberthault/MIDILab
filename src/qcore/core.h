@@ -416,6 +416,12 @@ public:
     virtual PathRetrieverPool* pathRetrieverPool() = 0;
     virtual QToolBar* quickToolBar() = 0;
 
+signals:
+    void handlerInserted(Handler* handler);
+    void handlerRenamed(Handler* handler);
+    void handlerRemoved(Handler* handler);
+    void handlerListenersChanged(Handler* handler);
+
 };
 
 #endif // QCORE_CORE_H

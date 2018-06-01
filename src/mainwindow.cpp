@@ -81,15 +81,15 @@ AboutWindow::AboutWindow(QWidget* parent) :
 //============
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow{parent} {
-    new Manager{this};
+
+    mManager = new Manager{this};
+    mManager->metaHandlerPool()->addFactory(new StandardFactory{this});
 
     auto* channelEditor = new ChannelEditor{this};
-    Manager::instance->setChannelEditor(channelEditor);
+    mManager->setChannelEditor(channelEditor);
 
-    Manager::instance->metaHandlerPool()->addFactory(new StandardFactory{this});
-
-    mManagerEditor = new ManagerEditor{this};
-    mProgramEditor = new ProgramEditor{channelEditor, this};
+    mManagerEditor = new ManagerEditor{mManager, this};
+    mProgramEditor = new ProgramEditor{mManager, this};
 
     setCentralWidget(new MultiDisplayer{Qt::Horizontal, this});
     setupMenu();
@@ -106,7 +106,7 @@ void MainWindow::unloadConfig() {
 }
 
 void MainWindow::loadConfig() {
-    const auto fileName = Manager::instance->pathRetrieverPool()->get("configuration")->getReadFile(this);
+    const auto fileName = mManager->pathRetrieverPool()->get("configuration")->getReadFile(this);
     if (!fileName.isEmpty())
         readConfig(fileName, true, false, true);
 }
@@ -114,7 +114,7 @@ void MainWindow::loadConfig() {
 void MainWindow::saveConfig() {
     const auto configurations = getConfigs();
     const auto defaultfileName = configurations.empty() ? QString{} : configurations.front();
-    const auto fileName = Manager::instance->pathRetrieverPool()->get("configuration")->getWriteFile(this, defaultfileName);
+    const auto fileName = mManager->pathRetrieverPool()->get("configuration")->getWriteFile(this, defaultfileName);
     if (!fileName.isEmpty())
         writeConfig(fileName);
 }
@@ -136,7 +136,7 @@ void MainWindow::clearConfig() {
     for (auto* displayer : MultiDisplayer::topLevelDisplayers())
         displayer->close();
     // Clears configurations asynchronously
-    Manager::instance->clearConfiguration();
+    mManager->clearConfiguration();
 }
 
 void MainWindow::readLastConfig(bool clear) {
@@ -159,18 +159,18 @@ void MainWindow::readConfig(const QString& fileName, bool raise, bool select, bo
     if (clear)
         clearConfig();
     // set the new configuration
-    Manager::instance->setConfiguration(config);
+    mManager->setConfiguration(config);
     // redo the layout
     mManagerEditor->graphEditor()->graph()->doLayout();
     // update config order and retriever
     if (raise)
         raiseConfig(fileName);
     if (select)
-        Manager::instance->pathRetrieverPool()->get("configuration")->setSelection(fileName);
+        mManager->pathRetrieverPool()->get("configuration")->setSelection(fileName);
 }
 
 void MainWindow::writeConfig(const QString& fileName) {
-    const auto config = Manager::instance->getConfiguration();
+    const auto config = mManager->getConfiguration();
     QSaveFile saveFile(fileName);
     saveFile.open(QSaveFile::WriteOnly);
     Configuration::write(&saveFile, config);
@@ -214,12 +214,13 @@ void MainWindow::about() {
 }
 
 void MainWindow::panic() {
-    for (const auto& proxy : Manager::instance->handlerProxies())
+    for (const auto& proxy : mManager->handlerProxies())
         proxy.setState(false);
 }
 
 void MainWindow::newDisplayer() {
-    Manager::instance->mainDisplayer()->insertDetached()->show();
+    if (auto* displayer = dynamic_cast<MultiDisplayer*>(centralWidget()))
+        displayer->insertDetached()->show();
 }
 
 void MainWindow::unimplemented() {
@@ -229,7 +230,7 @@ void MainWindow::unimplemented() {
 void MainWindow::addFiles(const QStringList& files) {
     if (files.empty())
         return;
-    for (const auto& proxy : Manager::instance->handlerProxies()) {
+    for (const auto& proxy : mManager->handlerProxies()) {
         if (proxy.metaHandler()->identifier() == "Player") {
             proxy.setParameter({"playlist", files.join(";")});
             return;
@@ -241,7 +242,7 @@ void MainWindow::setupMenu() {
 
     auto* menuToolBar = addToolBar("Menu actions");
     auto* handlerToolBar = addToolBar("Handler actions");
-    Manager::instance->setQuickToolBar(handlerToolBar);
+    mManager->setQuickToolBar(handlerToolBar);
 
     auto* menu = new QMenuBar{this};
     setMenuBar(menu);
@@ -268,7 +269,7 @@ void MainWindow::setupMenu() {
     menuToolBar->addAction(panicAction);
 
     auto* interfaceMenu = menu->addMenu("Interface");
-    interfaceMenu->addAction(Manager::instance->channelEditor()->windowIcon(), Manager::instance->channelEditor()->windowTitle(), Manager::instance->channelEditor(), SLOT(show()));
+    interfaceMenu->addAction(mManager->channelEditor()->windowIcon(), mManager->channelEditor()->windowTitle(), mManager->channelEditor(), SLOT(show()));
     // interfaceMenu->addAction(QIcon{":/data/cog.svg"}, "Settings", this, SLOT(unimplemented()));
 
     auto* lockAction = new MultiStateAction{this};

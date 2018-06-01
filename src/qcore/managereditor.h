@@ -86,7 +86,7 @@ class HandlerGraphEditor : public QWidget {
     Q_PROPERTY(QBrush nodeAlternateBackgroundColor READ nodeAlternateBackgroundColor WRITE setNodeAlternateBackgroundColor)
 
 public:
-    explicit HandlerGraphEditor(QWidget* parent);
+    explicit HandlerGraphEditor(Manager* manager, QWidget* parent);
 
     Graph* graph();
 
@@ -123,9 +123,10 @@ private:
     QCheckBox* mFilter;
     HandlerSelector* mSelector;
     QMap<Handler*, HandlerNode*> mNodes;
-    QBrush mNodeColor;
+    QBrush mNodeColor {Qt::black};
     QBrush mNodeBackgroundColor;
     QBrush mNodeAlternateBackgroundColor;
+    Manager* mManager;
 
 };
 
@@ -142,7 +143,7 @@ public:
     static const int forwardColumn = 1;
     static const int receiveColumn = 2;
 
-    explicit HandlerListEditor(QWidget* parent);
+    explicit HandlerListEditor(Manager* manager, QWidget* parent);
 
 public slots:
     Handler* handlerForItem(QTreeWidgetItem* item);
@@ -170,6 +171,7 @@ private:
     QMap<Handler*, QTreeWidgetItem*> mItems;
     QMenu* mMenu;
     QAction* mRenameAction;
+    Manager* mManager;
 
 };
 
@@ -182,7 +184,7 @@ class HandlerCatalogEditor : public QTreeWidget {
     Q_OBJECT
 
 public:
-    explicit HandlerCatalogEditor(QWidget* parent);
+    explicit HandlerCatalogEditor(Manager* manager, QWidget* parent);
 
 protected slots:
     void showMenu(const QPoint& point);
@@ -192,6 +194,9 @@ protected slots:
     void createHandler(MetaHandler* metaHandler, const QString& fixedName);
 
     MetaHandler* metaHandlerForItem(QTreeWidgetItem* item);
+
+private:
+    Manager* mManager;
 
 };
 
@@ -204,7 +209,7 @@ class ManagerEditor : public QTabWidget {
     Q_OBJECT
 
 public:
-    explicit ManagerEditor(QWidget* parent);
+    explicit ManagerEditor(Manager* manager, QWidget* parent);
 
     HandlerListEditor* listEditor();
     HandlerGraphEditor* graphEditor();

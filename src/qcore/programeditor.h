@@ -25,6 +25,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QItemDelegate>
 #include <QtXml>
 #include "qcore/editors.h"
+#include "qcore/manager.h"
 
 //=======
 // Patch
@@ -152,7 +153,7 @@ class ProgramEditor : public QWidget {
     using HandlerData = std::pair<int, QMap<channel_t, byte_t>>;
 
 public:
-    explicit ProgramEditor(ChannelEditor* channelEditor, QWidget* parent);
+    explicit ProgramEditor(Manager* manager, QWidget* parent);
     ~ProgramEditor();
 
     Handler* currentHandler();
