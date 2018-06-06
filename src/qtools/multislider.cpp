@@ -32,19 +32,21 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace {
 
-QRectF sizeBoundingRect(const QSizeF& size) {
-    return {QPointF(-size.width()/2., -size.height()/2.), size};
+auto sizeBoundingRect(const QSizeF& size) {
+    return QRectF{QPointF{-size.width()/2., -size.height()/2.}, size};
 }
+
+auto scaleSpan(const Scale& scale) {
+    return std::abs(scale.adjusted().span());
+}
+
+const auto minimalRect = sizeBoundingRect({12., 12.});
 
 }
 
 //=======
 // Scale
 //=======
-
-Scale::Scale() : value(0.), range({0., 1.}), cardinality(0), externalRange({0., 1.}), margins({0., 0.}), reversed(false) {
-
-}
 
 range_t<Scale::discrete_type> Scale::ticks() const {
     return {0, (discrete_type)cardinality - 1};
@@ -102,7 +104,7 @@ void Scale::clamp(internal_type v) {
 // Knob
 //======
 
-Knob::Knob() : QGraphicsObject(), mXScale(), mYScale(), mUpdatePosition(true) {
+Knob::Knob() : QGraphicsObject{} {
     setFlag(ItemIsMovable);
     setFlag(ItemIsFocusable);
     setFlag(ItemSendsGeometryChanges);
@@ -125,7 +127,27 @@ Scale& Knob::yScale() {
     return mYScale;
 }
 
+const QPen& Knob::pen() const {
+    return mPen;
+}
+
+void Knob::setPen(const QPen& pen) {
+    prepareGeometryChange();
+    mPen = pen;
+    update();
+}
+
+const QBrush& Knob::brush() const {
+    return mBrush;
+}
+
+void Knob::setBrush(const QBrush& brush) {
+    mBrush = brush;
+    update();
+}
+
 void Knob::transpose() {
+    prepareGeometryChange();
     std::swap(mXScale.value, mYScale.value);
     std::swap(mXScale.range, mYScale.range);
     std::swap(mXScale.cardinality, mYScale.cardinality);
@@ -134,18 +156,24 @@ void Knob::transpose() {
 
 void Knob::moveToFit() {
     mUpdatePosition = false;
-    // setPos(std::round(mXScale.upscale()), std::round(mYScale.upscale()));
     setPos(mXScale.upscale(), mYScale.upscale());
     mUpdatePosition = true;
 }
 
 void Knob::scroll(int delta) {
     if (flags() & ItemIsMovable) {
-        int increment = std::copysign(1, delta);
+        const int increment = std::copysign(1, delta);
         qreal xWanted = mXScale.cardinality < 2 || !mXScale.range ? x() + increment : mXScale.upscale(mXScale.joint(mXScale.nearest() + increment));
         qreal yWanted = mYScale.cardinality < 2 || !mYScale.range ? y() - increment : mYScale.upscale(mYScale.joint(mYScale.nearest() + increment));
         setPos(xWanted, yWanted);
     }
+}
+
+void Knob::setVisibleRect(const QRectF& rect) {
+    prepareGeometryChange();
+    mXScale.externalRange = {rect.left(), rect.right()};
+    mYScale.externalRange = {rect.top(), rect.bottom()};
+    moveToFit();
 }
 
 QVariant Knob::itemChange(GraphicsItemChange change, const QVariant& value) {
@@ -183,9 +211,8 @@ void Knob::wheelEvent(QGraphicsSceneWheelEvent* event) {
 // ParticleKnob
 //==============
 
-ParticleKnob::ParticleKnob() :
-    Knob(), mShape(shape_type::ellipse), mPen(Qt::NoPen), mColor(Qt::black), mRadius(7.) {
-
+ParticleKnob::ParticleKnob(qreal radius) : Knob{}, mRadius{radius} {
+    setBrush({Qt::black});
 }
 
 ParticleKnob::shape_type ParticleKnob::particleShape() const {
@@ -193,26 +220,8 @@ ParticleKnob::shape_type ParticleKnob::particleShape() const {
 }
 
 void ParticleKnob::setParticleShape(shape_type shape) {
-    mShape = shape;
-    update();
-}
-
-const QPen& ParticleKnob::pen() const {
-    return mPen;
-}
-
-void ParticleKnob::setPen(const QPen& pen) {
     prepareGeometryChange();
-    mPen = pen;
-    update();
-}
-
-const QBrush& ParticleKnob::color() const {
-    return mColor;
-}
-
-void ParticleKnob::setColor(const QBrush& brush) {
-    mColor = brush;
+    mShape = shape;
     update();
 }
 
@@ -227,22 +236,55 @@ void ParticleKnob::setRadius(qreal radius) {
 }
 
 QRectF ParticleKnob::enclosingRect() const {
-    return sizeBoundingRect(QSizeF(2*mRadius, 2*mRadius));
+    return sizeBoundingRect({2*radius(), 2*radius()});
 }
 
 QRectF ParticleKnob::boundingRect() const {
-    qreal w = mPen.widthF();
+    const auto w = pen().widthF();
     return enclosingRect().adjusted(-w, -w, w, w);
 }
 
-void ParticleKnob::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, QWidget* /*widget*/) {
-    painter->setPen(mPen);
-    painter->setBrush(mColor);
+void ParticleKnob::paint(QPainter* painter, const QStyleOptionGraphicsItem*, QWidget*) {
+    painter->setPen(pen());
+    painter->setBrush(brush());
     switch (mShape) {
     case shape_type::round_rect : painter->drawRoundRect(enclosingRect(), 50, 50); break;
     case shape_type::rect : painter->drawRect(enclosingRect()); break;
     case shape_type::ellipse : painter->drawEllipse(enclosingRect()); break;
     }
+}
+
+// ===========
+// GutterKnob
+// ===========
+
+GutterKnob::GutterKnob(qreal radius) : Knob{}, mRadius{radius} {
+    setFlag(ItemIsMovable, false);
+    setFlag(ItemIsSelectable, false);
+    setFlag(ItemIsFocusable, false);
+    setFlag(ItemSendsGeometryChanges, false);
+    setFlag(ItemStacksBehindParent);
+}
+
+qreal GutterKnob::radius() const {
+    return mRadius;
+}
+
+void GutterKnob::setRadius(qreal radius) {
+    prepareGeometryChange();
+    mRadius = radius;
+    update();
+}
+
+QRectF GutterKnob::boundingRect() const {
+    const auto boundingSize = xScale().range ? QSizeF{scaleSpan(xScale()) + 2*radius(), 2*radius()} : QSizeF{2*radius(), scaleSpan(yScale()) + 2*radius()};
+    return sizeBoundingRect(boundingSize);
+}
+
+void GutterKnob::paint(QPainter* painter, const QStyleOptionGraphicsItem*, QWidget*) {
+    painter->setPen(pen());
+    painter->setBrush(brush());
+    painter->drawRoundedRect(boundingRect(), radius(), radius());
 }
 
 //=============
@@ -284,19 +326,8 @@ QPainterPath makeBracket(QBoxLayout::Direction direction, qreal long_size=8., qr
 
 }
 
-BracketKnob::BracketKnob(QBoxLayout::Direction direction) :
-    Knob(), mPen(Qt::black, 1), mDirection(direction), mPath(makeBracket(direction)) {
-
-}
-
-const QPen& BracketKnob::pen() const {
-    return mPen;
-}
-
-void BracketKnob::setPen(const QPen& pen) {
-    prepareGeometryChange();
-    mPen = pen;
-    update();
+BracketKnob::BracketKnob(QBoxLayout::Direction direction) : Knob{}, mDirection{direction}, mPath{makeBracket(direction)} {
+    setPen({Qt::black});
 }
 
 QBoxLayout::Direction BracketKnob::direction() const {
@@ -311,14 +342,13 @@ void BracketKnob::setDirection(QBoxLayout::Direction direction) {
 }
 
 QRectF BracketKnob::boundingRect() const {
-    static const QRectF minimalRect = sizeBoundingRect(QSizeF(12., 12.));
-    qreal w = mPen.widthF();
-    QRectF rect = mPath.controlPointRect().adjusted(-w, -w, w, w);
+    const auto w = pen().widthF();
+    const auto rect = mPath.controlPointRect().adjusted(-w, -w, w, w);
     return rect | minimalRect; /*!< @note extends rect for grabbing */
 }
 
-void BracketKnob::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, QWidget* /*widget*/) {
-    painter->setPen(mPen);
+void BracketKnob::paint(QPainter* painter, const QStyleOptionGraphicsItem*, QWidget*) {
+    painter->setPen(pen());
     painter->drawPath(mPath);
 }
 
@@ -329,7 +359,7 @@ void BracketKnob::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*opt
 namespace {
 
 QPainterPath makeArrow(QBoxLayout::Direction direction, qreal base=12., qreal altitude=12.) {
-    QPainterPath path(QPointF(0., 0.));
+    QPainterPath path(QPointF{0., 0.});
     switch (direction) {
     case QBoxLayout::LeftToRight:
         path.lineTo(-altitude, -base / 2.);
@@ -354,18 +384,8 @@ QPainterPath makeArrow(QBoxLayout::Direction direction, qreal base=12., qreal al
 
 }
 
-ArrowKnob::ArrowKnob(QBoxLayout::Direction direction) :
-    Knob(), mColor(Qt::black), mDirection(direction), mPath(makeArrow(direction)) {
-
-}
-
-const QBrush& ArrowKnob::color() const {
-    return mColor;
-}
-
-void ArrowKnob::setColor(const QBrush& brush) {
-    mColor = brush;
-    update();
+ArrowKnob::ArrowKnob(QBoxLayout::Direction direction) : Knob{}, mDirection{direction}, mPath{makeArrow(direction)} {
+    setBrush({Qt::black});
 }
 
 QBoxLayout::Direction ArrowKnob::direction() const {
@@ -380,13 +400,12 @@ void ArrowKnob::setDirection(QBoxLayout::Direction direction) {
 }
 
 QRectF ArrowKnob::boundingRect() const {
-    static const QRectF minimalRect = sizeBoundingRect(QSizeF(12., 12.));
     return mPath.controlPointRect() | minimalRect; /*!< @note extends rect for grabbing */
 }
 
-void ArrowKnob::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, QWidget* /*widget*/) {
-    painter->setPen(Qt::NoPen);
-    painter->setBrush(mColor);
+void ArrowKnob::paint(QPainter* painter, const QStyleOptionGraphicsItem*, QWidget*) {
+    painter->setPen(pen());
+    painter->setBrush(brush());
     painter->drawPath(mPath);
 }
 
@@ -394,8 +413,8 @@ void ArrowKnob::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*optio
 // TextKnob
 //==========
 
-TextKnob::TextKnob() : Knob(), mText(), mTextSize() {
-
+TextKnob::TextKnob() : Knob{} {
+    setPen({Qt::black});
 }
 
 const QString& TextKnob::text() const {
@@ -405,9 +424,9 @@ const QString& TextKnob::text() const {
 void TextKnob::setText(const QString& text) {
     prepareGeometryChange();
     mText = text;
-    mTextSize = QSizeF();
+    mTextSize = QSizeF{};
     QFont font;
-    QFontMetrics fm(font);
+    const QFontMetrics fm{font};
     if (!mText.isEmpty())
         mTextSize = fm.boundingRect(mText).size();
     update();
@@ -417,9 +436,9 @@ QRectF TextKnob::boundingRect() const {
     return sizeBoundingRect(mTextSize).adjusted(-2, -2, 2, 2);
 }
 
-void TextKnob::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, QWidget* /*widget*/) {
-    painter->setPen(Qt::black);
-    // painter->setBrush(QBrush(Qt::white));
+void TextKnob::paint(QPainter* painter, const QStyleOptionGraphicsItem*, QWidget*) {
+    painter->setPen(pen());
+    painter->setBrush(brush());
     painter->drawText(boundingRect(), Qt::AlignCenter, mText);
 }
 
@@ -427,9 +446,9 @@ void TextKnob::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option
 // KnobView
 //==========
 
-KnobView::KnobView(QWidget* parent) : QGraphicsView(parent), mLastKnobScrolled(nullptr) {
-    QGraphicsScene* scene = new QGraphicsScene(this);
-    scene->setSceneRect(QRectF(0., 0., 200., 50.)); // whatever the value, we just need to set it once for all
+KnobView::KnobView(QWidget* parent) : QGraphicsView{parent} {
+    auto* scene = new QGraphicsScene{this};
+    scene->setSceneRect(QRectF{0., 0., 200., 50.}); // whatever the value, we just need to set it once for all
     scene->setItemIndexMethod(QGraphicsScene::NoIndex);
     setScene(scene);
     horizontalScrollBar()->blockSignals(true);
@@ -445,14 +464,47 @@ QRectF KnobView::visibleRect() const {
 
 void KnobView::insertKnob(Knob* knob) {
     scene()->addItem(knob);
-    setVisibleRect(knob, visibleRect());
+    knob->setVisibleRect(visibleRect());
+}
+
+const QBrush& KnobView::particleColor() const {
+    return mParticleColor;
+}
+
+void KnobView::setParticleColor(const QBrush& brush) {
+    mParticleColor = brush;
+    for (auto* knob : knobs<ParticleKnob>())
+        knob->setBrush(brush);
+}
+
+const QBrush& KnobView::gutterColor() const {
+    return mGutterColor;
+}
+
+void KnobView::setGutterColor(const QBrush& brush) {
+    mGutterColor = brush;
+    for (auto* knob : knobs<GutterKnob>())
+        knob->setBrush(brush);
+}
+
+const QBrush& KnobView::textColor() const {
+    return mTextColor;
+}
+
+void KnobView::setTextColor(const QBrush& brush) {
+    mTextColor = brush;
+    for (auto* knob : knobs<TextKnob>()) {
+        auto pen = knob->pen();
+        pen.setBrush(brush);
+        knob->setPen(pen);
+    }
 }
 
 void KnobView::resizeEvent(QResizeEvent* event) {
     QGraphicsView::resizeEvent(event);
-    auto rect = visibleRect();
-    for (auto knob : knobs())
-        setVisibleRect(knob, rect);
+    const auto rect = visibleRect();
+    for (auto* knob : knobs())
+        knob->setVisibleRect(rect);
 }
 
 void KnobView::leaveEvent(QEvent* event) {
@@ -468,18 +520,12 @@ void KnobView::mouseDoubleClickEvent(QMouseEvent* event) {
 
 void KnobView::wheelEvent(QWheelEvent* event) {
     /// @note do not forward event to the scene
-    auto knob = dynamic_cast<Knob*>(itemAt(event->pos()));
-    if (!knob)
+    auto* knob = dynamic_cast<Knob*>(itemAt(event->pos()));
+    if (!knob || !bool(knob->flags() & Knob::ItemIsMovable))
         knob = mLastKnobScrolled;
     if (knob)
         knob->scroll(event->delta());
     mLastKnobScrolled = knob;
-}
-
-void KnobView::setVisibleRect(Knob* knob, const QRectF& rect) {
-    knob->xScale().externalRange = {rect.left(), rect.right()};
-    knob->yScale().externalRange = {rect.top(), rect.bottom()};
-    knob->moveToFit();
 }
 
 //=============
@@ -502,10 +548,12 @@ void setFixedDimension(QWidget* widget, Qt::Orientation orientation, int size) {
 
 }
 
-MultiSlider::MultiSlider(Qt::Orientation orientation, QWidget* parent) : QWidget(parent), mOrientation(orientation), mTextWidth(0) {
-    mParticleSlider = new KnobView(this);
-    mTextSlider = new KnobView(this);
-    auto layout = new QBoxLayout(orientation == Qt::Vertical ? QBoxLayout::TopToBottom : QBoxLayout::LeftToRight);
+MultiSlider::MultiSlider(Qt::Orientation orientation, QWidget* parent) : QWidget{parent}, mOrientation{orientation} {
+    mParticleSlider = new KnobView{this};
+    mParticleSlider->setObjectName("ParticleSlider");
+    mTextSlider = new KnobView{this};
+    mTextSlider->setObjectName("TextSlider");
+    auto* layout = new QBoxLayout{orientation == Qt::Vertical ? QBoxLayout::TopToBottom : QBoxLayout::LeftToRight};
     fill_box(layout, margin_tag{0}, spacing_tag{0}, mTextSlider, mParticleSlider);
     setLayout(layout);
 }
@@ -545,6 +593,10 @@ void MultiSlider::setTextWidth(int textWidth) {
 
 void MultiSlider::insertKnob(ParticleKnob* particleKnob, TextKnob* textKnob, qreal margin, qreal ratio) {
 
+    auto* gutterKnob = new GutterKnob{.5 * particleKnob->radius()};
+    gutterKnob->setVisible(particleKnob->isVisible());
+    connect(particleKnob, &ParticleKnob::visibleChanged, gutterKnob, [=] { gutterKnob->setVisible(particleKnob->isVisible()); });
+
     const bool isHorizontal = mOrientation == Qt::Horizontal;
     margin += particleKnob->radius();
 
@@ -552,11 +604,18 @@ void MultiSlider::insertKnob(ParticleKnob* particleKnob, TextKnob* textKnob, qre
     auto& particleOffScale = isHorizontal ? particleKnob->yScale() : particleKnob->xScale();
     auto& textMainScale = isHorizontal ? textKnob->xScale() : textKnob->yScale();
     auto& textOffScale = isHorizontal ? textKnob->yScale() : textKnob->xScale();
+    auto& gutterMainScale = isHorizontal ? gutterKnob->xScale() : gutterKnob->yScale();
+    auto& gutterOffScale = isHorizontal ? gutterKnob->yScale() : gutterKnob->xScale();
 
     particleMainScale.margins = {margin, margin};
     particleOffScale.clamp(ratio);
     particleOffScale.margins = {margin, margin};
     particleKnob->yScale().reversed = !isHorizontal;
+
+    gutterMainScale.margins = {margin, margin};
+    gutterMainScale.value = .5;
+    gutterOffScale.margins = {margin, margin};
+    gutterOffScale.clamp(ratio);
 
     textMainScale.value = .5;
     textOffScale.clamp(ratio);
@@ -566,6 +625,8 @@ void MultiSlider::insertKnob(ParticleKnob* particleKnob, TextKnob* textKnob, qre
 
     mParticleSlider->insertKnob(particleKnob);
     mTextSlider->insertKnob(textKnob);
+    mParticleSlider->insertKnob(gutterKnob);
+
 }
 
 Scale& MultiSlider::knobScale(Knob* knob) const {
@@ -582,11 +643,11 @@ void MultiSlider::setKnobRatio(Knob* knob, qreal ratio) const {
 }
 
 void MultiSlider::transpose() {
-    for (auto particle : mParticleSlider->knobs()) {
+    for (auto* particle : mParticleSlider->knobs()) {
         particle->transpose();
         particle->yScale().reversed = mOrientation == Qt::Vertical;
     }
-    for (auto text : mTextSlider->knobs()) {
+    for (auto* text : mTextSlider->knobs()) {
         text->transpose();
         text->setRotation(mOrientation == Qt::Vertical ? -90 : 0);
     }
@@ -595,7 +656,7 @@ void MultiSlider::transpose() {
 void MultiSlider::updateDimensions() {
     // minimum size required for non overlapping
     qreal radiusSum = 0.;
-    for (auto knob : mParticleSlider->knobs<ParticleKnob>())
+    for (auto* knob : mParticleSlider->knobs<ParticleKnob>())
         if (knob->isVisible())
             radiusSum += knob->radius();
     const qreal size = 10. + 2. * radiusSum;
@@ -610,10 +671,9 @@ void MultiSlider::updateTextDimensions() {
 // SimpleSlider
 //==============
 
-SimpleSlider::SimpleSlider(Qt::Orientation orientation, QWidget* parent) : MultiSlider(orientation, parent), mDefaultRatio(0.) {
-    mParticle = new ParticleKnob();
-    mText = new TextKnob();
-    mParticle->setRadius(6.);
+SimpleSlider::SimpleSlider(Qt::Orientation orientation, QWidget* parent) : MultiSlider{orientation, parent} {
+    mParticle = new ParticleKnob{6.};
+    mText = new TextKnob;
     connect(mParticle, &ParticleKnob::knobDoubleClicked, this, &SimpleSlider::onKnobClick);
     connect(mParticle, &ParticleKnob::knobMoved, this, &SimpleSlider::onKnobMove);
     connect(mText, &TextKnob::knobDoubleClicked, this, &SimpleSlider::onKnobClick);

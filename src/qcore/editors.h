@@ -185,6 +185,8 @@ class ChannelsSlider : public MultiSlider {
 
     Q_OBJECT
 
+    Q_PROPERTY(QBrush groupColor READ groupColor WRITE setGroupColor)
+
 public:
     explicit ChannelsSlider(Qt::Orientation orientation, QWidget* parent);
 
@@ -207,6 +209,9 @@ public:
     void setRatios(const channel_map_t<qreal>& ratios);
     void setDefault(channels_t channels);
     void setText(channels_t channels, const QString& text);
+
+    const QBrush& groupColor() const;
+    void setGroupColor(const QBrush& brush);
 
 protected slots:
     void updateColor(channel_t channel, const QColor& color);

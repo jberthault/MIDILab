@@ -32,6 +32,10 @@ namespace {
 
 constexpr range_t<double> distorsionRange = {0., 4.};
 
+QString stringFromDistorsion(double distorsion) {
+    return QString::number(decay_value<int>(100*distorsion)) + "%";
+}
+
 auto findCodecs() {
     QList<QTextCodec*> codecs;
     for (auto mib : QTextCodec::availableMibs()) {
@@ -950,7 +954,7 @@ void TrackedKnob::updateHandle() {
 Trackbar::Trackbar(QWidget* parent) : QWidget{parent} {
 
     // Position
-    mPositionKnob = new ParticleKnob;
+    mPositionKnob = new ParticleKnob{7.};
     mPositionKnob->setZValue(1.);
     mPositionEdit = new TrackedKnob{this};
     mPositionEdit->setDisplayFormat(DistordedClock::timeFormat);
@@ -1015,15 +1019,15 @@ Trackbar::Trackbar(QWidget* parent) : QWidget{parent} {
 }
 
 const QBrush& Trackbar::knobColor() const {
-    return mPositionKnob->color();
+    return mPositionKnob->brush();
 }
 
 void Trackbar::setKnobColor(const QBrush& brush) {
-    mPositionKnob->setColor(brush);
+    mPositionKnob->setBrush(brush);
     for (MarkerKnob* knob : mMarkerKnobs)
-        knob->setColor(brush);
+        knob->setBrush(brush);
     for (MarkerKnob* knob : mCustomMarkerKnobs)
-        knob->setColor(brush);
+        knob->setBrush(brush);
     QPen pen = mLowerKnob->pen();
     pen.setBrush(brush);
     mLowerKnob->setPen(pen);
@@ -1082,7 +1086,7 @@ MarkerKnob* Trackbar::addMarker(bool isCustom) {
         // connection is queued to let the item process its events before being hidden
         connect(knob, &MarkerKnob::rightClicked, this, [knob](){ knob->hide(); }, Qt::QueuedConnection);
     }
-    knob->setColor(knobColor());
+    knob->setBrush(knobColor());
     knob->xScale().margins = {8., 8.};
     knob->yScale().value = isCustom ? .7 : .3;
     mKnobView->insertKnob(knob);
@@ -1156,13 +1160,9 @@ TempoView::TempoView(QWidget* parent) : QWidget(parent) {
     mDistortedTempoSpin->setToolTip("Current Tempo");
 
     /// @todo turn slider label into a rich editor
-    mDistorsionSlider = new SimpleSlider(Qt::Horizontal, this);
-    mDistorsionSlider->setTextWidth(35);
+    mDistorsionSlider = makeSlider(distorsionRange, 1., stringFromDistorsion, this);
     mDistorsionSlider->setToolTip("Tempo Distorsion");
-    mDistorsionSlider->setDefaultRatio(distorsionRange.reduce(1.));
-    connect(mDistorsionSlider, &SimpleSlider::knobChanged, this, &TempoView::updateSliderText);
     connect(mDistorsionSlider, &SimpleSlider::knobMoved, this, &TempoView::onSliderMove);
-    mDistorsionSlider->setDefault();
 
     setLayout(make_hbox(margin_tag{0}, spacing_tag{0}, mDistorsionSlider, mTempoSpin, mDistortedTempoSpin));
 }
@@ -1175,8 +1175,8 @@ void TempoView::updateTimestamp(timestamp_t timestamp) {
     setTempo(mDistordedClock.clock().last_tempo(timestamp));
 }
 
-void TempoView::setSequence(const Sequence& sequence) {
-    mDistordedClock.setClock(sequence.clock());
+void TempoView::setClock(Clock clock) {
+    mDistordedClock.setClock(std::move(clock));
 }
 
 double TempoView::distorsion() const {
@@ -1186,7 +1186,7 @@ double TempoView::distorsion() const {
 void TempoView::setDistorsion(double distorsion) {
     if (distorsionRange.min <= distorsion && distorsion <= distorsionRange.max) {
         mDistordedClock.setDistorsion(distorsion);
-        mDistorsionSlider->setRatio(distorsionRange.reduce(distorsion));
+        mDistorsionSlider->setValue(distorsion);
         updateDistorted();
         emit distorsionChanged(distorsion);
     }
@@ -1201,16 +1201,10 @@ void TempoView::setTempo(const Event& event) {
     updateDistorted();
 }
 
-void TempoView::updateSliderText(qreal ratio) {
-    double distorsion = distorsionRange.expand(ratio);
-    mDistorsionSlider->setText(QString::number(decay_value<int>(100*distorsion)) + "%");
-}
-
-void TempoView::onSliderMove(qreal ratio) {
-    double distorsion = distorsionRange.expand(ratio);
+void TempoView::onSliderMove() {
+    const auto distorsion = mDistorsionSlider->value();
     mDistordedClock.setDistorsion(distorsion);
     updateDistorted();
-    updateSliderText(ratio);
     emit distorsionChanged(distorsion);
 }
 
@@ -1382,7 +1376,7 @@ void Player::refreshPosition() {
 void Player::setSequence(const NamedSequence& sequence) {
     window()->setWindowTitle(sequence.name);
     mHandler.set_sequence(sequence.sequence);
-    mTempoView->setSequence(sequence.sequence);
+    mTempoView->setClock(sequence.sequence.clock());
     mSequenceView->setSequence(sequence.sequence, mHandler.lower(), mHandler.upper());
     mTracker->setSequence(sequence.sequence, mHandler.lower(), mHandler.upper());
 }

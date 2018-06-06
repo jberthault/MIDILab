@@ -437,14 +437,13 @@ public:
 public slots:
     void clearTempo();
     void updateTimestamp(timestamp_t timestamp);
-    void setSequence(const Sequence& sequence);
+    void setClock(Clock clock);
 
     double distorsion() const;
     void setDistorsion(double distorsion);
 
 private slots:
-    void updateSliderText(qreal ratio);
-    void onSliderMove(qreal ratio);
+    void onSliderMove();
     void updateDistorted();
     void setTempo(const Event& event);
 
@@ -455,7 +454,7 @@ private:
     Event mLastTempo;
     QDoubleSpinBox* mTempoSpin;
     QDoubleSpinBox* mDistortedTempoSpin;
-    SimpleSlider* mDistorsionSlider;
+    ContinuousSlider* mDistorsionSlider;
     DistordedClock mDistordedClock;
 
 };

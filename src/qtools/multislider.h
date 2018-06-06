@@ -24,16 +24,17 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QGraphicsItem>
 #include <QGraphicsView>
 #include <QBoxLayout>
-#include <boost/format.hpp>
 #include "tools/bytes.h"
+
+//=======
+// Scale
+//=======
 
 struct Scale {
 
     using discrete_type = int;
     using internal_type = qreal;
     using external_type = qreal;
-
-    Scale();
 
     range_t<discrete_type> ticks() const; /*!< compute the range [0, cardinality) */
     discrete_type nearest() const; /*!< get the index of the nearest tick from current value */
@@ -47,13 +48,13 @@ struct Scale {
     external_type update(external_type v); /*!< update internal value and coerce external value to bounds */
     void clamp(internal_type v); /*!< set internal range fixed on the given value */
 
-    internal_type value; /*!< current value (should be within the range) */
-    range_t<internal_type> range; /*!< range in which value may evolve */
-    size_t cardinality; /*!< if 0, continuous range, else, number of elements allowed in the range */
+    internal_type value {0.}; /*!< current value (should be within the range) */
+    range_t<internal_type> range {0., 1.}; /*!< range in which value may evolve */
+    size_t cardinality {0}; /*!< if 0, continuous range, else, number of elements allowed in the range */
 
-    range_t<external_type> externalRange; /*!< range in which value should be rescaled from and to */
-    range_t<external_type> margins; /*!< reduced space within external range when rescaling */
-    bool reversed; /*!< if true, the external range is reversed when rescaling */
+    range_t<external_type> externalRange {0., 1.}; /*!< range in which value should be rescaled from and to */
+    range_t<external_type> margins {0., 0.}; /*!< reduced space within external range when rescaling */
+    bool reversed {false}; /*!< if true, the external range is reversed when rescaling */
 
 };
 
@@ -74,9 +75,16 @@ public:
     const Scale& yScale() const;
     Scale& yScale();
 
+    const QPen& pen() const;
+    void setPen(const QPen& pen);
+
+    const QBrush& brush() const;
+    void setBrush(const QBrush& brush);
+
     void transpose();
     void moveToFit();
     void scroll(int delta);
+    void setVisibleRect(const QRectF& rect);
 
 signals:
     void knobMoved(qreal xvalue, qreal yvalue);
@@ -94,7 +102,9 @@ protected:
 private:
     Scale mXScale;
     Scale mYScale;
-    bool mUpdatePosition;
+    QPen mPen {Qt::NoPen};
+    QBrush mBrush {Qt::NoBrush};
+    bool mUpdatePosition {true};
 
 };
 
@@ -106,10 +116,6 @@ class ParticleKnob : public Knob {
 
     Q_OBJECT
 
-    Q_PROPERTY(QPen pen READ pen WRITE setPen)
-    Q_PROPERTY(QBrush color READ color WRITE setColor)
-    Q_PROPERTY(qreal radius READ radius WRITE setRadius)
-
 public:
 
     enum class shape_type {
@@ -118,16 +124,10 @@ public:
         ellipse
     };
 
-    explicit ParticleKnob();
+    explicit ParticleKnob(qreal radius);
 
     shape_type particleShape() const;
     void setParticleShape(shape_type shape);
-
-    const QPen& pen() const;
-    void setPen(const QPen& pen);
-
-    const QBrush& color() const;
-    void setColor(const QBrush& brush);
 
     qreal radius() const;
     void setRadius(qreal radius);
@@ -137,9 +137,29 @@ public:
     void paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) override;
 
 private:
-    shape_type mShape;
-    QPen mPen;
-    QBrush mColor;
+    shape_type mShape {shape_type::ellipse};
+    qreal mRadius;
+
+};
+
+// ===========
+// GutterKnob
+// ===========
+
+class GutterKnob : public Knob {
+
+    Q_OBJECT
+
+public:
+    explicit GutterKnob(qreal radius);
+
+    qreal radius() const;
+    void setRadius(qreal radius);
+
+    QRectF boundingRect() const override;
+    void paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) override;
+
+private:
     qreal mRadius;
 
 };
@@ -152,14 +172,8 @@ class BracketKnob : public Knob {
 
     Q_OBJECT
 
-    Q_PROPERTY(QPen pen READ pen WRITE setPen)
-    Q_PROPERTY(QBoxLayout::Direction direction READ direction WRITE setDirection)
-
 public:
     explicit BracketKnob(QBoxLayout::Direction direction = QBoxLayout::LeftToRight);
-
-    const QPen& pen() const;
-    void setPen(const QPen& pen);
 
     QBoxLayout::Direction direction() const;
     void setDirection(QBoxLayout::Direction direction);
@@ -168,7 +182,6 @@ public:
     void paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) override;
 
 private:
-    QPen mPen;
     QBoxLayout::Direction mDirection;
     QPainterPath mPath;
 
@@ -182,14 +195,8 @@ class ArrowKnob : public Knob {
 
     Q_OBJECT
 
-    Q_PROPERTY(QBrush color READ color WRITE setColor)
-    Q_PROPERTY(QBoxLayout::Direction direction READ direction WRITE setDirection)
-
 public:
     explicit ArrowKnob(QBoxLayout::Direction direction = QBoxLayout::LeftToRight);
-
-    const QBrush& color() const;
-    void setColor(const QBrush& brush);
 
     QBoxLayout::Direction direction() const;
     void setDirection(QBoxLayout::Direction direction);
@@ -198,7 +205,6 @@ public:
     void paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) override;
 
 private:
-    QBrush mColor;
     QBoxLayout::Direction mDirection;
     QPainterPath mPath;
 
@@ -235,6 +241,10 @@ class KnobView : public QGraphicsView {
 
     Q_OBJECT
 
+    Q_PROPERTY(QBrush particleColor READ particleColor WRITE setParticleColor)
+    Q_PROPERTY(QBrush gutterColor READ gutterColor WRITE setGutterColor)
+    Q_PROPERTY(QBrush textColor READ textColor WRITE setTextColor)
+
 public:
     explicit KnobView(QWidget* parent);
 
@@ -243,15 +253,24 @@ public:
     template<typename T = Knob>
     auto knobs() const {
         std::vector<T*> result;
-        auto items = scene()->items();
+        const auto items = scene()->items();
         result.reserve(items.size());
-        for (auto item : items)
-            if (auto knob = dynamic_cast<T*>(item))
+        for (auto* item : items)
+            if (auto* knob = dynamic_cast<T*>(item))
                 result.push_back(knob);
         return result;
     }
 
     void insertKnob(Knob* knob);
+
+    const QBrush& particleColor() const;
+    void setParticleColor(const QBrush& brush);
+
+    const QBrush& gutterColor() const;
+    void setGutterColor(const QBrush& brush);
+
+    const QBrush& textColor() const;
+    void setTextColor(const QBrush& brush);
 
 signals:
     void viewDoubleClicked(Qt::MouseButton button);
@@ -263,15 +282,16 @@ protected:
     void wheelEvent(QWheelEvent* event) override;
 
 private:
-    void setVisibleRect(Knob* knob, const QRectF& rect);
-
-    Knob* mLastKnobScrolled;
+    QBrush mParticleColor;
+    QBrush mGutterColor;
+    QBrush mTextColor;
+    Knob* mLastKnobScrolled {nullptr};
 
 };
 
-//================
-// ChannelsSlider
-//================
+//=============
+// MultiSlider
+//=============
 
 class MultiSlider : public QWidget {
 
@@ -304,10 +324,10 @@ protected slots:
     void updateTextDimensions();
 
 private:
-    Qt::Orientation mOrientation;
-    int mTextWidth;
     KnobView* mParticleSlider;
     KnobView* mTextSlider;
+    Qt::Orientation mOrientation;
+    int mTextWidth {0};
 
 };
 
@@ -342,7 +362,7 @@ signals:
     void knobMoved(qreal ratio);
 
 private:
-    qreal mDefaultRatio;
+    qreal mDefaultRatio {0.};
     ParticleKnob* mParticle;
     TextKnob* mText;
 
@@ -357,9 +377,10 @@ class RangedSlider : public SimpleSlider {
 
 public:
     using value_type = typename RangeT::value_type;
+    using formatter_type = QString (*)(value_type);
 
     explicit RangedSlider(RangeT range, Qt::Orientation orientation, QWidget* parent) :
-        SimpleSlider(orientation, parent), mRange(std::move(range)), mFormat("%1%") {
+        SimpleSlider{orientation, parent}, mRange{std::move(range)} {
 
         if (std::is_integral<value_type>::value)
             setCardinality(mRange.span() + 1);
@@ -367,8 +388,12 @@ public:
         connect(this, &RangedSlider::knobMoved, this, &RangedSlider::updateText);
     }
 
-    void setFormat(const std::string& string) {
-        mFormat.parse(string);
+    formatter_type formatter() const {
+        return mFormatter;
+    }
+
+    void setFormatter(formatter_type formatter) {
+        mFormatter = formatter;
     }
 
     value_type defaultValue() const {
@@ -378,7 +403,7 @@ public:
     void setDefaultValue(value_type value) {
         setDefaultRatio(mRange.reduce(value));
         setDefault();
-        setText(textForValue(value));
+        setText(mFormatter(value));
     }
 
     value_type value() const {
@@ -387,22 +412,27 @@ public:
 
     void setValue(value_type value) {
         setRatio(mRange.reduce(value));
-        setText(textForValue(value));
+        setText(mFormatter(value));
     }
 
     void updateText(qreal ratio) {
-        setText(textForValue(mRange.expand(ratio)));
-    }
-
-    QString textForValue(value_type value) {
-        return QString::fromStdString(boost::str(mFormat % value));
+        setText(mFormatter(mRange.expand(ratio)));
     }
 
 private:
-    RangeT mRange;
-    boost::format mFormat;
+    const RangeT mRange;
+    formatter_type mFormatter;
 
 };
+
+template<typename RangeT, typename FormatterT, typename ValueT>
+auto* makeSlider(RangeT range, ValueT defaultValue, FormatterT&& formatter, QWidget* parent) {
+    auto* slider = new RangedSlider<RangeT>{std::move(range), Qt::Horizontal, parent};
+    slider->setFormatter(std::forward<FormatterT>(formatter));
+    slider->setTextWidth(35);
+    slider->setDefaultValue(defaultValue);
+    return slider;
+}
 
 using DiscreteSlider = RangedSlider<range_t<int>>;
 using ContinuousSlider = RangedSlider<range_t<double>>;

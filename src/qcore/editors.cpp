@@ -247,7 +247,7 @@ void ChannelsSelector::setChannelColor(channel_t channel, const QColor& color) {
 // ChannelKnob
 //=============
 
-ChannelKnob::ChannelKnob(channels_t channels) : mChannels(channels) {
+ChannelKnob::ChannelKnob(channels_t channels) : ParticleKnob{6.}, mChannels{channels} {
     connect(this, &ChannelKnob::knobDoubleClicked, this, &ChannelKnob::onClick);
     connect(this, &ChannelKnob::knobMoved, this, &ChannelKnob::onMove);
     connect(this, &ChannelKnob::knobPressed, this, &ChannelKnob::onPress);
@@ -311,7 +311,6 @@ ChannelsSlider::ChannelsSlider(Qt::Orientation orientation, QWidget* parent) :
     connect(particleSlider(), &KnobView::viewDoubleClicked, this, &ChannelsSlider::onViewClick);
 
     mGroupKnob = new ChannelKnob({});
-    mGroupKnob->setRadius(6.);
     mGroupKnob->setVisible(false);
     connect(mGroupKnob, &ChannelKnob::defaulted, this, &ChannelsSlider::onDefault);
     connect(mGroupKnob, &ChannelKnob::moved, this, &ChannelsSlider::onMove);
@@ -327,7 +326,6 @@ ChannelsSlider::ChannelsSlider(Qt::Orientation orientation, QWidget* parent) :
     for (channel_t c=0 ; c < channels_t::capacity() ; c++) {
         // knob
         auto knob = new ChannelKnob(channels_t::wrap(c));
-        knob->setRadius(6.);
         knob->setPen(QPen(Qt::black));
         connect(knob, &ChannelKnob::selected, this, &ChannelsSlider::onSelect);
         connect(knob, &ChannelKnob::surselected, this, &ChannelsSlider::onSurselect);
@@ -430,8 +428,16 @@ void ChannelsSlider::setText(channels_t channels, const QString& text) {
         mGroupLabel->setText(text);
 }
 
+const QBrush& ChannelsSlider::groupColor() const {
+    return mGroupKnob->brush();
+}
+
+void ChannelsSlider::setGroupColor(const QBrush& brush) {
+    mGroupKnob->setBrush(brush);
+}
+
 void ChannelsSlider::updateColor(channel_t channel, const QColor& color) {
-    mKnobs[channel]->setColor(color);
+    mKnobs[channel]->setBrush(color);
 }
 
 void ChannelsSlider::onDefault(channels_t channels) {

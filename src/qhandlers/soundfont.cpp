@@ -24,13 +24,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace {
 
-template<typename RangeT, typename T>
-auto makeSlider(RangeT range, T defaultValue, const std::string& format, QWidget* parent) {
-    auto* slider = new RangedSlider<RangeT>{range, Qt::Horizontal, parent};
-    slider->setFormat(format);
-    slider->setTextWidth(35);
-    slider->setDefaultValue(defaultValue);
-    return slider;
+QString stringFromDouble(double v) {
+    return QString::number(v, 'f', 2);
+}
+
+QString stringFromInt(int v) {
+    return QString::number(v);
 }
 
 }
@@ -65,7 +64,7 @@ void SoundFontInterceptor::seize_messages(Handler* target, const Messages& messa
 //============
 
 GainEditor::GainEditor(QWidget* parent) : QWidget{parent} {
-    mSlider = makeSlider(make_exp_range(0., 1., 10.), .2, "%|.2f|", this);
+    mSlider = makeSlider(make_exp_range(0., 1., 10.), .2, stringFromDouble, this);
     connect(mSlider, &SimpleSlider::knobMoved, this, &GainEditor::notify);
     setLayout(make_vbox(margin_tag{0}, spacing_tag{0}, mSlider));
 }
@@ -85,16 +84,16 @@ void GainEditor::notify() {
 
 ReverbEditor::ReverbEditor(QWidget* parent) : QWidget{parent} {
     const auto reverb = SoundFontHandler::default_reverb();
-    mRoomsizeSlider = makeSlider(make_range(0., 1.2), reverb.roomsize, "%|.2f|", this);
-    mDampSlider = makeSlider(make_range(0., 1.), reverb.damp, "%|.2f|", this);
-    mLevelSlider = makeSlider(make_range(0., 1.), reverb.level, "%|.2f|", this);
-    mWidthSlider = makeSlider(make_exp_range(0., 10., 100.), reverb.width, "%|.2f|", this);
+    mRoomsizeSlider = makeSlider(make_range(0., 1.2), reverb.roomsize, stringFromDouble, this);
+    mDampSlider = makeSlider(make_range(0., 1.), reverb.damp, stringFromDouble, this);
+    mLevelSlider = makeSlider(make_range(0., 1.), reverb.level, stringFromDouble, this);
+    mWidthSlider = makeSlider(make_exp_range(0., 10., 100.), reverb.width, stringFromDouble, this);
     connect(mRoomsizeSlider, &SimpleSlider::knobMoved, this, &ReverbEditor::notify);
     connect(mDampSlider, &SimpleSlider::knobMoved, this, &ReverbEditor::notify);
     connect(mLevelSlider, &SimpleSlider::knobMoved, this, &ReverbEditor::notify);
     connect(mWidthSlider, &SimpleSlider::knobMoved, this, &ReverbEditor::notify);
     auto* form = new QFormLayout;
-    form->setVerticalSpacing(5);
+    form->setVerticalSpacing(0);
     form->addRow("Room Size", mRoomsizeSlider);
     form->addRow("Damp", mDampSlider);
     form->addRow("Level", mLevelSlider);
@@ -200,10 +199,10 @@ ChorusEditor::ChorusEditor(QWidget* parent) : QWidget{parent} {
     mTypeBox->addItem("Triangle Wave");
     mTypeBox->setCurrentIndex(chorus.type);
 
-    mNrSlider = makeSlider(make_range(0, 99), chorus.nr, "%1%", this);
-    mLevelSlider = makeSlider(make_exp_range(0., 1., 10.), chorus.level, "%|.2f|", this);
-    mSpeedSlider = makeSlider(make_range(.3, 5.), chorus.speed, "%|.2f|", this);
-    mDepthSlider = makeSlider(make_range(0., 10.), chorus.depth, "%|.2f|", this);
+    mNrSlider = makeSlider(make_range(0, 99), chorus.nr, stringFromInt, this);
+    mLevelSlider = makeSlider(make_exp_range(0., 1., 10.), chorus.level, stringFromDouble, this);
+    mSpeedSlider = makeSlider(make_range(.3, 5.), chorus.speed, stringFromDouble, this);
+    mDepthSlider = makeSlider(make_range(0., 10.), chorus.depth, stringFromDouble, this);
 
     connect(mTypeBox, SIGNAL(currentIndexChanged(int)), this, SLOT(notify()));
     connect(mNrSlider, &SimpleSlider::knobMoved, this, &ChorusEditor::notify);
@@ -212,7 +211,7 @@ ChorusEditor::ChorusEditor(QWidget* parent) : QWidget{parent} {
     connect(mDepthSlider, &SimpleSlider::knobMoved, this, &ChorusEditor::notify);
 
     auto* form = new QFormLayout;
-    form->setVerticalSpacing(5);
+    form->setVerticalSpacing(0);
     form->addRow("Type", mTypeBox);
     form->addRow("NR", mNrSlider);
     form->addRow("Level", mLevelSlider);

@@ -82,3 +82,22 @@ QToolBar::separator {
     margin: 2px;
     background: lightgray;
 }
+
+KnobView#TextSlider {
+    border: none;
+    qproperty-textColor: white;
+    background-color: #434343;
+}
+
+KnobView#ParticleSlider {
+    border: none;
+    qproperty-gutterColor: lightgray;
+}
+
+SimpleSlider > KnobView#ParticleSlider {
+    qproperty-particleColor: #434343;
+}
+
+ChannelsSlider {
+    qproperty-groupColor: #434343;
+}
