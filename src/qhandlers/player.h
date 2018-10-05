@@ -443,7 +443,6 @@ public slots:
     void setDistorsion(double distorsion);
 
 private slots:
-    void onSliderMove();
     void updateDistorted();
     void setTempo(const Event& event);
 

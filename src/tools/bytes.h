@@ -146,6 +146,17 @@ constexpr auto safe_modulo(T a, T b) {
 // =====
 
 template <typename T>
+struct basic_range_t {
+
+    using value_type = T;
+
+    T min;
+    T max;
+
+};
+
+
+template <typename T>
 struct range_t {
 
     using value_type = T;
@@ -186,9 +197,6 @@ struct exp_range_t {
 
     using value_type = T;
 
-    range_t<T> range;
-    T pivot; /*!< value that will be at 50% on the scale */
-
     constexpr double factor() const {
         return 2. * std::log((range.max - pivot) / (pivot - range.min));
     }
@@ -218,6 +226,9 @@ struct exp_range_t {
         return expand(src.reduce(value));
     }
 
+    range_t<T> range;
+    T pivot; /*!< value that will be at 50% on the scale */
+
 };
 
 template<typename T>
@@ -240,6 +251,7 @@ template<> struct unmarshalling_traits<unsigned long long> { auto operator()(con
 template<> struct unmarshalling_traits<float> { auto operator()(const std::string& string) { return std::stof(string); } } ;
 template<> struct unmarshalling_traits<double> { auto operator()(const std::string& string) { return std::stod(string); } } ;
 template<> struct unmarshalling_traits<long double> { auto operator()(const std::string& string) { return std::stold(string); } } ;
+template<> struct unmarshalling_traits<bool> : unmarshalling_traits<long> {};
 template<> struct unmarshalling_traits<int8_t> : unmarshalling_traits<long> {};
 template<> struct unmarshalling_traits<uint8_t> : unmarshalling_traits<unsigned long> {};
 template<> struct unmarshalling_traits<short> : unmarshalling_traits<long> {};

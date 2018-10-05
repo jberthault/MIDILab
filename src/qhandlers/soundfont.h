@@ -72,11 +72,10 @@ class GainEditor : public QWidget {
 public:
     explicit GainEditor(QWidget* parent);
 
+    double gain() const;
+
 public slots:
     void setGain(double gain);
-
-protected slots:
-    void notify();
 
 signals:
     void gainChanged(double gain);
@@ -90,27 +89,32 @@ private:
 // ReverbEditor
 // =============
 
-class ReverbEditor : public QWidget {
+class ReverbEditor : public FoldableGroupBox {
 
     Q_OBJECT
 
 public:
     explicit ReverbEditor(QWidget* parent);
 
-    SoundFontHandler::reverb_type reverb() const;
+    bool activated() const;
+    double roomSize() const;
+    double damp() const;
+    double level() const;
+    double width() const;
 
 public slots:
+    void setActivated(bool value);
     void setRoomSize(double value);
     void setDamp(double value);
     void setLevel(double value);
     void setWidth(double value);
-    void setReverb(const SoundFontHandler::reverb_type& reverb);
 
 signals:
-    void reverbChanged(SoundFontHandler::reverb_type reverb);
-
-private slots:
-    void notify();
+    void activatedChanged(bool value);
+    void roomSizeChanged(double value);
+    void dampChanged(double value);
+    void levelChanged(double value);
+    void widthChanged(double value);
 
 private:
     ContinuousSlider* mRoomsizeSlider;
@@ -120,61 +124,39 @@ private:
 
 };
 
-// =====================
-// OptionalReverbEditor
-// =====================
-
-class OptionalReverbEditor : public FoldableGroupBox {
-
-    Q_OBJECT
-
-public:
-    explicit OptionalReverbEditor(QWidget* parent);
-
-    SoundFontHandler::optional_reverb_type reverb() const;
-    ReverbEditor* editor();
-
-public slots:
-    void setReverb(const SoundFontHandler::optional_reverb_type& reverb);
-
-signals:
-    void reverbChanged(SoundFontHandler::optional_reverb_type reverb);
-
-private slots:
-    void notifyChecked();
-    void notify();
-
-private:
-    ReverbEditor* mReverbEditor;
-
-};
-
 //==============
 // ChorusEditor
 //==============
 
-class ChorusEditor : public QWidget {
+class ChorusEditor : public FoldableGroupBox {
 
     Q_OBJECT
 
 public:
     explicit ChorusEditor(QWidget* parent);
 
-    SoundFontHandler::chorus_type chorus() const;
+    bool activated() const;
+    int type() const;
+    int nr() const;
+    double level() const;
+    double speed() const;
+    double depth() const;
 
 public slots:
+    void setActivated(bool value);
     void setType(int value);
     void setNr(int value);
     void setLevel(double value);
     void setSpeed(double value);
     void setDepth(double value);
-    void setChorus(const SoundFontHandler::chorus_type& chorus);
 
 signals:
-    void chorusChanged(SoundFontHandler::chorus_type chorus);
-
-private slots:
-    void notify();
+    void activatedChanged(bool value);
+    void typeChanged(int value);
+    void nrChanged(int value);
+    void levelChanged(double value);
+    void speedChanged(double value);
+    void depthChanged(double value);
 
 private:
     QComboBox* mTypeBox;
@@ -182,35 +164,6 @@ private:
     ExpSlider* mLevelSlider;
     ContinuousSlider* mSpeedSlider;
     ContinuousSlider* mDepthSlider;
-
-};
-
-//======================
-// OptionalChorusEditor
-//======================
-
-class OptionalChorusEditor : public FoldableGroupBox {
-
-    Q_OBJECT
-
-public:
-    explicit OptionalChorusEditor(QWidget* parent);
-
-    SoundFontHandler::optional_chorus_type chorus() const;
-    ChorusEditor* editor();
-
-public slots:
-    void setChorus(const SoundFontHandler::optional_chorus_type& chorus);
-
-signals:
-    void chorusChanged(SoundFontHandler::optional_chorus_type chorus);
-
-private slots:
-    void notifyChecked();
-    void notify();
-
-private:
-    ChorusEditor* mChorusEditor;
 
 };
 
@@ -232,16 +185,10 @@ public:
 
 public slots:
     void setFile(const QString& file);
-    void setGain(double gain);
-    void setReverb(const SoundFontHandler::optional_reverb_type& reverb);
-    void setChorus(const SoundFontHandler::optional_chorus_type& chorus);
 
 private slots:
     void onClick();
     void updateFile();
-    void sendGain(double gain);
-    void sendReverb(const SoundFontHandler::optional_reverb_type& reverb);
-    void sendChorus(const SoundFontHandler::optional_chorus_type& chorus);
 
 private:
     SoundFontHandler mHandler;
@@ -250,8 +197,8 @@ private:
     QLabel* mLoadLabel;
     QLineEdit* mFileEditor;
     GainEditor* mGainEditor;
-    OptionalReverbEditor* mReverbEditor;
-    OptionalChorusEditor* mChorusEditor;
+    ReverbEditor* mReverbEditor;
+    ChorusEditor* mChorusEditor;
 
 };
 

@@ -24,12 +24,30 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace {
 
-QString stringFromDouble(double v) {
-    return QString::number(v, 'f', 2);
+template<typename T>
+QString formatDefault(T value) {
+    return QString::number(value);
 }
 
-QString stringFromInt(int v) {
-    return QString::number(v);
+template<>
+QString formatDefault<double>(double value) {
+    return QString::number(value, 'f', 2);
+}
+
+template<typename T>
+auto makeSliderFromExtension(const SoundFontBoundedExtension<T>& ext, QWidget* parent) {
+    auto* slider = makeHorizontalSlider(range_t<T>{ext.range.min, ext.range.max}, ext.default_value, parent);
+    slider->setFormatter(formatDefault<T>);
+    slider->setDefault();
+    return slider;
+}
+
+template<typename T>
+auto makeExpSliderFromExtension(const SoundFontBoundedExtension<T>& ext, T pivot, QWidget* parent) {
+    auto* slider = makeHorizontalSlider(exp_range_t<T>{{ext.range.min, ext.range.max}, pivot}, ext.default_value, parent);
+    slider->setFormatter(formatDefault<T>);
+    slider->setDefault();
+    return slider;
 }
 
 }
@@ -52,7 +70,7 @@ void MetaSoundFont::setContent(HandlerProxy& proxy) {
 
 void SoundFontInterceptor::seize_messages(Handler* target, const Messages& messages) {
     const bool fileSeized = std::any_of(messages.begin(), messages.end(), [](const auto& message) {
-        return message.event.family() == family_t::extended_system && SoundFontHandler::file_ext.affects(message.event);
+        return message.event.family() == family_t::extended_system && SoundFontHandler::ext.file.affects(message.event);
     });
     seizeAll(target, messages);
     if (fileSeized)
@@ -64,171 +82,158 @@ void SoundFontInterceptor::seize_messages(Handler* target, const Messages& messa
 //============
 
 GainEditor::GainEditor(QWidget* parent) : QWidget{parent} {
-    mSlider = makeSlider(make_exp_range(0., 1., 10.), .2, stringFromDouble, this);
-    connect(mSlider, &SimpleSlider::knobMoved, this, &GainEditor::notify);
+    mSlider = makeExpSliderFromExtension(SoundFontHandler::ext.gain, 1., this);
+    mSlider->setNotifier([this](double value) { emit gainChanged(value); });
     setLayout(make_vbox(margin_tag{0}, spacing_tag{0}, mSlider));
+}
+
+double GainEditor::gain() const {
+    return mSlider->value();
 }
 
 void GainEditor::setGain(double gain) {
     mSlider->setValue(gain);
-    emit gainChanged(gain);
-}
-
-void GainEditor::notify() {
-    emit gainChanged(mSlider->value());
 }
 
 // =============
 // ReverbEditor
 // =============
 
-ReverbEditor::ReverbEditor(QWidget* parent) : QWidget{parent} {
-    const auto reverb = SoundFontHandler::default_reverb();
-    mRoomsizeSlider = makeSlider(make_range(0., 1.2), reverb.roomsize, stringFromDouble, this);
-    mDampSlider = makeSlider(make_range(0., 1.), reverb.damp, stringFromDouble, this);
-    mLevelSlider = makeSlider(make_range(0., 1.), reverb.level, stringFromDouble, this);
-    mWidthSlider = makeSlider(make_exp_range(0., 10., 100.), reverb.width, stringFromDouble, this);
-    connect(mRoomsizeSlider, &SimpleSlider::knobMoved, this, &ReverbEditor::notify);
-    connect(mDampSlider, &SimpleSlider::knobMoved, this, &ReverbEditor::notify);
-    connect(mLevelSlider, &SimpleSlider::knobMoved, this, &ReverbEditor::notify);
-    connect(mWidthSlider, &SimpleSlider::knobMoved, this, &ReverbEditor::notify);
+ReverbEditor::ReverbEditor(QWidget* parent) : FoldableGroupBox{"Reverb", parent} {
+
+    setCheckable(true);
+    setActivated(SoundFontHandler::ext.reverb.activated.default_value);
+
+    mRoomsizeSlider = makeSliderFromExtension(SoundFontHandler::ext.reverb.roomsize, this);
+    mDampSlider = makeSliderFromExtension(SoundFontHandler::ext.reverb.damp, this);
+    mLevelSlider = makeSliderFromExtension(SoundFontHandler::ext.reverb.level, this);
+    mWidthSlider = makeExpSliderFromExtension(SoundFontHandler::ext.reverb.width, 10., this);
+
     auto* form = new QFormLayout;
     form->setVerticalSpacing(0);
     form->addRow("Room Size", mRoomsizeSlider);
     form->addRow("Damp", mDampSlider);
     form->addRow("Level", mLevelSlider);
     form->addRow("Width", mWidthSlider);
-    setLayout(form);
+
+    auto* subWidget = new QWidget{this};
+    subWidget->setLayout(form);
+    setWidget(subWidget);
+
+    connect(this, &ReverbEditor::toggled, this, &ReverbEditor::activatedChanged);
+    mRoomsizeSlider->setNotifier([this](double value) { emit roomSizeChanged(value); });
+    mDampSlider->setNotifier([this](double value) { emit dampChanged(value); });
+    mLevelSlider->setNotifier([this](double value) { emit levelChanged(value); });
+    mWidthSlider->setNotifier([this](double value) { emit widthChanged(value); });
+
 }
 
-SoundFontHandler::reverb_type ReverbEditor::reverb() const {
-    return SoundFontHandler::reverb_type {
-        mRoomsizeSlider->value(),
-        mDampSlider->value(),
-        mLevelSlider->value(),
-        mWidthSlider->value()
-    };
+bool ReverbEditor::activated() const {
+    return isChecked();
+}
+
+double ReverbEditor::roomSize() const {
+    return mRoomsizeSlider->value();
+}
+
+double ReverbEditor::damp() const {
+    return mDampSlider->value();
+}
+
+double ReverbEditor::level() const {
+    return mLevelSlider->value();
+}
+
+double ReverbEditor::width() const {
+    return mWidthSlider->value();
+}
+
+void ReverbEditor::setActivated(bool value) {
+    setChecked(value);
 }
 
 void ReverbEditor::setRoomSize(double value) {
     mRoomsizeSlider->setValue(value);
-    notify();
 }
 
 void ReverbEditor::setDamp(double value) {
     mDampSlider->setValue(value);
-    notify();
 }
 
 void ReverbEditor::setLevel(double value) {
     mLevelSlider->setValue(value);
-    notify();
 }
 
 void ReverbEditor::setWidth(double value) {
     mWidthSlider->setValue(value);
-    notify();
-}
-
-void ReverbEditor::setReverb(const SoundFontHandler::reverb_type& reverb) {
-    mRoomsizeSlider->setValue(reverb.roomsize);
-    mDampSlider->setValue(reverb.damp);
-    mLevelSlider->setValue(reverb.level);
-    mWidthSlider->setValue(reverb.width);
-    emit reverbChanged(reverb);
-}
-
-void ReverbEditor::notify() {
-    emit reverbChanged(reverb());
-}
-
-// =====================
-// OptionalReverbEditor
-// =====================
-
-OptionalReverbEditor::OptionalReverbEditor(QWidget* parent) : FoldableGroupBox{"Reverb", parent} {
-    setCheckable(true);
-    setChecked(true);
-    mReverbEditor = new ReverbEditor{this};
-    setWidget(mReverbEditor);
-    connect(this, &OptionalReverbEditor::toggled, this, &OptionalReverbEditor::notify);
-    connect(mReverbEditor, &ReverbEditor::reverbChanged, this, &OptionalReverbEditor::notifyChecked);
-}
-
-SoundFontHandler::optional_reverb_type OptionalReverbEditor::reverb() const {
-    if (isChecked())
-        return {mReverbEditor->reverb()};
-    return {};
-}
-
-ReverbEditor* OptionalReverbEditor::editor() {
-    return mReverbEditor;
-}
-
-void OptionalReverbEditor::setReverb(const SoundFontHandler::optional_reverb_type& reverb) {
-    if (reverb) {
-        {
-            QSignalBlocker guard{this};
-            setChecked(true);
-        }
-        mReverbEditor->setReverb(*reverb);
-    } else {
-        setChecked(false);
-    }
-}
-
-void OptionalReverbEditor::notifyChecked() {
-    if (auto value = reverb())
-        emit reverbChanged(value);
-}
-
-void OptionalReverbEditor::notify() {
-    emit reverbChanged(reverb());
 }
 
 //==============
 // ChorusEditor
 //==============
 
-ChorusEditor::ChorusEditor(QWidget* parent) : QWidget{parent} {
+ChorusEditor::ChorusEditor(QWidget* parent) : FoldableGroupBox{"Chorus", parent} {
 
-    const auto chorus = SoundFontHandler::default_chorus();
+    setCheckable(true);
+    setActivated(SoundFontHandler::ext.chorus.activated.default_value);
 
-    mTypeBox = new QComboBox(this);
+    mTypeBox = new QComboBox{this};
     mTypeBox->addItem("Sine Wave");
     mTypeBox->addItem("Triangle Wave");
-    mTypeBox->setCurrentIndex(chorus.type);
+    setType(SoundFontHandler::ext.chorus.type.default_value);
 
-    mNrSlider = makeSlider(make_range(0, 99), chorus.nr, stringFromInt, this);
-    mLevelSlider = makeSlider(make_exp_range(0., 1., 10.), chorus.level, stringFromDouble, this);
-    mSpeedSlider = makeSlider(make_range(.3, 5.), chorus.speed, stringFromDouble, this);
-    mDepthSlider = makeSlider(make_range(0., 10.), chorus.depth, stringFromDouble, this);
-
-    connect(mTypeBox, SIGNAL(currentIndexChanged(int)), this, SLOT(notify()));
-    connect(mNrSlider, &SimpleSlider::knobMoved, this, &ChorusEditor::notify);
-    connect(mLevelSlider, &SimpleSlider::knobMoved, this, &ChorusEditor::notify);
-    connect(mSpeedSlider, &SimpleSlider::knobMoved, this, &ChorusEditor::notify);
-    connect(mDepthSlider, &SimpleSlider::knobMoved, this, &ChorusEditor::notify);
+    mNrSlider = makeSliderFromExtension(SoundFontHandler::ext.chorus.nr, this);
+    mLevelSlider= makeExpSliderFromExtension(SoundFontHandler::ext.chorus.level, 1., this);
+    mSpeedSlider= makeSliderFromExtension(SoundFontHandler::ext.chorus.speed, this);
+    mDepthSlider= makeSliderFromExtension(SoundFontHandler::ext.chorus.depth, this);
 
     auto* form = new QFormLayout;
     form->setVerticalSpacing(0);
     form->addRow("Type", mTypeBox);
     form->addRow("NR", mNrSlider);
     form->addRow("Level", mLevelSlider);
-    form->addRow("Speed (Hz)", mSpeedSlider);
-    form->addRow("Depth (ms)", mDepthSlider);
-    setLayout(form);
+    form->addRow("Speed", mSpeedSlider);
+    form->addRow("Depth", mDepthSlider);
+
+    auto* subWidget = new QWidget{this};
+    subWidget->setLayout(form);
+    setWidget(subWidget);
+
+    connect(this, &ChorusEditor::toggled, this, &ChorusEditor::activatedChanged);
+    connect(mTypeBox, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int value) { emit typeChanged(value); });
+    mNrSlider->setNotifier([this](int value) { emit nrChanged(value); });
+    mLevelSlider->setNotifier([this](double value) { emit levelChanged(value); });
+    mSpeedSlider->setNotifier([this](double value) { emit speedChanged(value); });
+    mDepthSlider->setNotifier([this](double value) { emit depthChanged(value); });
 
 }
 
-SoundFontHandler::chorus_type ChorusEditor::chorus() const {
-    return SoundFontHandler::chorus_type {
-        mTypeBox->currentIndex(),
-        mNrSlider->value(),
-        mLevelSlider->value(),
-        mSpeedSlider->value(),
-        mDepthSlider->value()
-    };
+bool ChorusEditor::activated() const {
+    return isChecked();
+}
+
+int ChorusEditor::type() const {
+    return mTypeBox->currentIndex();
+}
+
+int ChorusEditor::nr() const {
+    return mNrSlider->value();
+}
+
+double ChorusEditor::level() const {
+    return mLevelSlider->value();
+}
+
+double ChorusEditor::speed() const {
+    return mSpeedSlider->value();
+}
+
+double ChorusEditor::depth() const {
+    return mDepthSlider->value();
+}
+
+void ChorusEditor::setActivated(bool value) {
+    setChecked(value);
 }
 
 void ChorusEditor::setType(int value) {
@@ -237,82 +242,18 @@ void ChorusEditor::setType(int value) {
 
 void ChorusEditor::setNr(int value) {
     mNrSlider->setValue(value);
-    notify();
 }
 
 void ChorusEditor::setLevel(double value) {
     mLevelSlider->setValue(value);
-    notify();
 }
 
 void ChorusEditor::setSpeed(double value) {
     mSpeedSlider->setValue(value);
-    notify();
 }
 
 void ChorusEditor::setDepth(double value) {
     mDepthSlider->setValue(value);
-    notify();
-}
-
-void ChorusEditor::setChorus(const SoundFontHandler::chorus_type& chorus) {
-    {
-        QSignalBlocker guard{mTypeBox};
-        mTypeBox->setCurrentIndex(chorus.type);
-    }
-    mNrSlider->setValue(chorus.nr);
-    mLevelSlider->setValue(chorus.level);
-    mSpeedSlider->setValue(chorus.speed);
-    mDepthSlider->setValue(chorus.depth);
-    emit chorusChanged(chorus);
-}
-
-void ChorusEditor::notify() {
-    emit chorusChanged(chorus());
-}
-
-//======================
-// OptionalChorusEditor
-//======================
-
-OptionalChorusEditor::OptionalChorusEditor(QWidget* parent) : FoldableGroupBox{"Chorus", parent} {
-    setCheckable(true);
-    setChecked(true);
-    mChorusEditor = new ChorusEditor{this};
-    setWidget(mChorusEditor);
-    connect(this, &OptionalChorusEditor::toggled, this, &OptionalChorusEditor::notify);
-    connect(mChorusEditor, &ChorusEditor::chorusChanged, this, &OptionalChorusEditor::notifyChecked);
-}
-
-SoundFontHandler::optional_chorus_type OptionalChorusEditor::chorus() const {
-    if (isChecked())
-        return {mChorusEditor->chorus()};
-    return {};
-}
-
-ChorusEditor* OptionalChorusEditor::editor() {
-    return mChorusEditor;
-}
-
-void OptionalChorusEditor::setChorus(const SoundFontHandler::optional_chorus_type& chorus) {
-    if (chorus) {
-        {
-            QSignalBlocker guard{this};
-            setChecked(true);
-        }
-        mChorusEditor->setChorus(*chorus);
-    } else {
-        setChecked(false);
-    }
-}
-
-void OptionalChorusEditor::notifyChecked() {
-    if (auto value = chorus())
-        emit chorusChanged(value);
-}
-
-void OptionalChorusEditor::notify() {
-    emit chorusChanged(chorus());
 }
 
 //=================
@@ -334,7 +275,6 @@ SoundFontEditor::SoundFontEditor() : HandlerEditor{} {
     mFileEditor = new QLineEdit{this};
     mFileEditor->setMinimumWidth(200);
     mFileEditor->setReadOnly(true);
-    mFileEditor->setText(QString::fromStdString(mHandler.file()));
 
     auto* fileSelector = new QToolButton{this};
     fileSelector->setToolTip("Browse SoundFonts");
@@ -343,13 +283,22 @@ SoundFontEditor::SoundFontEditor() : HandlerEditor{} {
     connect(fileSelector, &QToolButton::clicked, this, &SoundFontEditor::onClick);
 
     mGainEditor = new GainEditor{this};
-    connect(mGainEditor, &GainEditor::gainChanged, this, &SoundFontEditor::sendGain);
+    connect(mGainEditor, &GainEditor::gainChanged, this, [this](double value) { mHandler.send_message(SoundFontHandler::ext.gain(value)); });
 
-    mReverbEditor = new OptionalReverbEditor{this};
-    connect(mReverbEditor, &OptionalReverbEditor::reverbChanged, this, &SoundFontEditor::sendReverb);
+    mReverbEditor = new ReverbEditor{this};
+    connect(mReverbEditor, &ReverbEditor::activatedChanged, this, [this](bool value) { mHandler.send_message(SoundFontHandler::ext.reverb.activated(value)); });
+    connect(mReverbEditor, &ReverbEditor::roomSizeChanged, this, [this](double value) { mHandler.send_message(SoundFontHandler::ext.reverb.roomsize(value)); });
+    connect(mReverbEditor, &ReverbEditor::dampChanged, this, [this](double value) { mHandler.send_message(SoundFontHandler::ext.reverb.damp(value)); });
+    connect(mReverbEditor, &ReverbEditor::levelChanged, this, [this](double value) { mHandler.send_message(SoundFontHandler::ext.reverb.level(value)); });
+    connect(mReverbEditor, &ReverbEditor::widthChanged, this, [this](double value) { mHandler.send_message(SoundFontHandler::ext.reverb.width(value)); });
 
-    mChorusEditor = new OptionalChorusEditor{this};
-    connect(mChorusEditor, &OptionalChorusEditor::chorusChanged, this, &SoundFontEditor::sendChorus);
+    mChorusEditor = new ChorusEditor{this};
+    connect(mChorusEditor, &ChorusEditor::activatedChanged, this, [this](bool value) { mHandler.send_message(SoundFontHandler::ext.chorus.activated(value)); });
+    connect(mChorusEditor, &ChorusEditor::typeChanged, this, [this](int value) { mHandler.send_message(SoundFontHandler::ext.chorus.type(value)); });
+    connect(mChorusEditor, &ChorusEditor::nrChanged, this, [this](int value) { mHandler.send_message(SoundFontHandler::ext.chorus.nr(value)); });
+    connect(mChorusEditor, &ChorusEditor::levelChanged, this, [this](double value) { mHandler.send_message(SoundFontHandler::ext.chorus.level(value)); });
+    connect(mChorusEditor, &ChorusEditor::speedChanged, this, [this](double value) { mHandler.send_message(SoundFontHandler::ext.chorus.speed(value)); });
+    connect(mChorusEditor, &ChorusEditor::depthChanged, this, [this](double value) { mHandler.send_message(SoundFontHandler::ext.chorus.depth(value)); });
 
     auto* form = new QFormLayout;
     form->setMargin(0);
@@ -363,20 +312,20 @@ SoundFontEditor::SoundFontEditor() : HandlerEditor{} {
 HandlerView::Parameters SoundFontEditor::getParameters() const {
     auto result = HandlerEditor::getParameters();
     SERIALIZE("file", QString::fromStdString, mHandler.file(), result);
-    SERIALIZE("gain", serial::serializeNumber, mHandler.gain(), result);
-    SERIALIZE("reverb.active", serial::serializeBool, mReverbEditor->isChecked(), result);
+    SERIALIZE("gain", serial::serializeNumber, mGainEditor->gain(), result);
+    SERIALIZE("reverb.active", serial::serializeBool, mReverbEditor->activated(), result);
     SERIALIZE("reverb.folded", serial::serializeBool, mReverbEditor->isFolded(), result);
-    SERIALIZE("reverb.roomsize", serial::serializeNumber, mReverbEditor->editor()->reverb().roomsize, result);
-    SERIALIZE("reverb.damp", serial::serializeNumber, mReverbEditor->editor()->reverb().damp, result);
-    SERIALIZE("reverb.level", serial::serializeNumber, mReverbEditor->editor()->reverb().level, result);
-    SERIALIZE("reverb.width", serial::serializeNumber, mReverbEditor->editor()->reverb().width, result);
-    SERIALIZE("chorus.active", serial::serializeBool, mChorusEditor->isChecked(), result);
+    SERIALIZE("reverb.roomsize", serial::serializeNumber, mReverbEditor->roomSize(), result);
+    SERIALIZE("reverb.damp", serial::serializeNumber, mReverbEditor->damp(), result);
+    SERIALIZE("reverb.level", serial::serializeNumber, mReverbEditor->level(), result);
+    SERIALIZE("reverb.width", serial::serializeNumber, mReverbEditor->width(), result);
+    SERIALIZE("chorus.active", serial::serializeBool, mChorusEditor->activated(), result);
     SERIALIZE("chorus.folded", serial::serializeBool, mChorusEditor->isFolded(), result);
-    SERIALIZE("chorus.type", serial::serializeNumber, mChorusEditor->editor()->chorus().type, result);
-    SERIALIZE("chorus.nr", serial::serializeNumber, mChorusEditor->editor()->chorus().nr, result);
-    SERIALIZE("chorus.level", serial::serializeNumber, mChorusEditor->editor()->chorus().level, result);
-    SERIALIZE("chorus.speed", serial::serializeNumber, mChorusEditor->editor()->chorus().speed, result);
-    SERIALIZE("chorus.depth", serial::serializeNumber, mChorusEditor->editor()->chorus().depth, result);
+    SERIALIZE("chorus.type", serial::serializeNumber, mChorusEditor->type(), result);
+    SERIALIZE("chorus.nr", serial::serializeNumber, mChorusEditor->nr(), result);
+    SERIALIZE("chorus.level", serial::serializeNumber, mChorusEditor->level(), result);
+    SERIALIZE("chorus.speed", serial::serializeNumber, mChorusEditor->speed(), result);
+    SERIALIZE("chorus.depth", serial::serializeNumber, mChorusEditor->depth(), result);
     return result;
 }
 
@@ -385,20 +334,20 @@ size_t SoundFontEditor::setParameter(const Parameter& parameter) {
         setFile(parameter.value);
         return 1;
     }
-    UNSERIALIZE("gain", serial::parseDouble, setGain, parameter);
-    UNSERIALIZE("reverb.active", serial::parseBool, mReverbEditor->setChecked, parameter);
+    UNSERIALIZE("gain", serial::parseDouble, mGainEditor->setGain, parameter);
+    UNSERIALIZE("reverb.active", serial::parseBool, mReverbEditor->setActivated, parameter);
     UNSERIALIZE("reverb.folded", serial::parseBool, mReverbEditor->setFolded, parameter);
-    UNSERIALIZE("reverb.roomsize", serial::parseDouble, mReverbEditor->editor()->setRoomSize, parameter);
-    UNSERIALIZE("reverb.damp", serial::parseDouble, mReverbEditor->editor()->setDamp, parameter);
-    UNSERIALIZE("reverb.level", serial::parseDouble, mReverbEditor->editor()->setLevel, parameter);
-    UNSERIALIZE("reverb.width", serial::parseDouble, mReverbEditor->editor()->setWidth, parameter);
-    UNSERIALIZE("chorus.active", serial::parseBool, mChorusEditor->setChecked, parameter);
+    UNSERIALIZE("reverb.roomsize", serial::parseDouble, mReverbEditor->setRoomSize, parameter);
+    UNSERIALIZE("reverb.damp", serial::parseDouble, mReverbEditor->setDamp, parameter);
+    UNSERIALIZE("reverb.level", serial::parseDouble, mReverbEditor->setLevel, parameter);
+    UNSERIALIZE("reverb.width", serial::parseDouble, mReverbEditor->setWidth, parameter);
+    UNSERIALIZE("chorus.active", serial::parseBool, mChorusEditor->setActivated, parameter);
     UNSERIALIZE("chorus.folded", serial::parseBool, mChorusEditor->setFolded, parameter);
-    UNSERIALIZE("chorus.type", serial::parseInt, mChorusEditor->editor()->setType, parameter);
-    UNSERIALIZE("chorus.nr", serial::parseInt, mChorusEditor->editor()->setNr, parameter);
-    UNSERIALIZE("chorus.level", serial::parseDouble, mChorusEditor->editor()->setLevel, parameter);
-    UNSERIALIZE("chorus.speed", serial::parseDouble, mChorusEditor->editor()->setSpeed, parameter);
-    UNSERIALIZE("chorus.depth", serial::parseDouble, mChorusEditor->editor()->setDepth, parameter);
+    UNSERIALIZE("chorus.type", serial::parseInt, mChorusEditor->setType, parameter);
+    UNSERIALIZE("chorus.nr", serial::parseInt, mChorusEditor->setNr, parameter);
+    UNSERIALIZE("chorus.level", serial::parseDouble, mChorusEditor->setLevel, parameter);
+    UNSERIALIZE("chorus.speed", serial::parseDouble, mChorusEditor->setSpeed, parameter);
+    UNSERIALIZE("chorus.depth", serial::parseDouble, mChorusEditor->setDepth, parameter);
     return HandlerEditor::setParameter(parameter);
 }
 
@@ -407,41 +356,17 @@ Handler* SoundFontEditor::getHandler() {
 }
 
 void SoundFontEditor::setFile(const QString& file) {
-    mHandler.send_message(SoundFontHandler::file_ext(file.toStdString()));
+    mHandler.send_message(SoundFontHandler::ext.file(file.toStdString()));
     mLoadMovie->start();
     mLoadLabel->show();
 }
 
-void SoundFontEditor::setGain(double gain) {
-    mGainEditor->setGain(gain);
-}
-
-void SoundFontEditor::setReverb(const SoundFontHandler::optional_reverb_type& reverb) {
-    mReverbEditor->setReverb(reverb);
-}
-
-void SoundFontEditor::setChorus(const SoundFontHandler::optional_chorus_type& chorus) {
-    mChorusEditor->setChorus(chorus);
-}
-
 void SoundFontEditor::updateFile() {
-    const QFileInfo fileInfo{QString::fromStdString(mHandler.file())};
+    const auto fileInfo = QFileInfo{QString::fromStdString(mHandler.file())};
     mFileEditor->setText(fileInfo.completeBaseName());
     mFileEditor->setToolTip(fileInfo.absoluteFilePath());
     mLoadMovie->stop();
     mLoadLabel->hide();
-}
-
-void SoundFontEditor::sendGain(double gain) {
-    mHandler.send_message(SoundFontHandler::gain_ext(gain));
-}
-
-void SoundFontEditor::sendReverb(const SoundFontHandler::optional_reverb_type& reverb) {
-    mHandler.send_message(SoundFontHandler::reverb_ext(reverb));
-}
-
-void SoundFontEditor::sendChorus(const SoundFontHandler::optional_chorus_type& chorus) {
-    mHandler.send_message(SoundFontHandler::chorus_ext(chorus));
 }
 
 void SoundFontEditor::onClick() {

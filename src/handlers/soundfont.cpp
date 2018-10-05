@@ -40,7 +40,59 @@ channels_t use_for_rhythm_part(const Event& event) {
     return {};
 }
 
+constexpr auto to_result(int rc) {
+    return rc == FLUID_FAILED ? Handler::Result::fail : Handler::Result::success;
 }
+
+void settings_get_range(fluid_settings_t* settings, const char* name, basic_range_t<double>& range) {
+    fluid_settings_getnum_range(settings, name, &range.min, &range.max);
+}
+
+void settings_get_range(fluid_settings_t* settings, const char* name, basic_range_t<int>& range) {
+    fluid_settings_getint_range(settings, name, &range.min, &range.max);
+}
+
+void settings_get_default(fluid_settings_t* settings, const char* name, double& value) {
+    fluid_settings_getnum_default(settings, name, &value);
+}
+
+void settings_get_default(fluid_settings_t* settings, const char* name, int& value) {
+    fluid_settings_getint_default(settings, name, &value);
+}
+
+void settings_get_default(fluid_settings_t* settings, const char* name, bool& value) {
+    int int_value;
+    fluid_settings_getint_default(settings, name, &int_value);
+    value = static_cast<bool>(int_value);
+}
+
+template<typename T>
+auto settings_default(fluid_settings_t* settings, const char* name) {
+    T value;
+    settings_get_default(settings, name, value);
+    return value;
+}
+
+template<typename T>
+auto settings_range(fluid_settings_t* settings, const char* name) {
+    basic_range_t<T> value;
+    settings_get_range(settings, name, value);
+    return value;
+}
+
+}
+
+struct FluidSettings {
+
+    FluidSettings() = default;
+
+    ~FluidSettings() { delete_fluid_settings(m_settings); }
+
+    operator fluid_settings_t*() { return m_settings; }
+
+    fluid_settings_t* m_settings {new_fluid_settings()};
+
+};
 
 //======
 // Impl
@@ -48,18 +100,7 @@ channels_t use_for_rhythm_part(const Event& event) {
 
 struct SoundFontHandler::Impl {
 
-    using Result = Handler::Result;
-    using reverb_type = SoundFontHandler::reverb_type;
-    using chorus_type = SoundFontHandler::chorus_type;
-    using optional_reverb_type = SoundFontHandler::optional_reverb_type;
-    using optional_chorus_type = SoundFontHandler::optional_chorus_type;
-
-    // ---------
-    // structors
-    // ---------
-
-    Impl() : drums(channels_t::drums()), has_reverb(true), has_chorus(true) {
-        settings = new_fluid_settings();
+    Impl() {
         fluid_settings_setint(settings, "synth.threadsafe-api", 0);
         fluid_settings_setint(settings, "audio.jack.autoconnect", 1);
         fluid_settings_setstr(settings, "audio.jack.id", "MIDILab");
@@ -67,185 +108,132 @@ struct SoundFontHandler::Impl {
         adriver = new_fluid_audio_driver(settings, synth);
         if (!adriver)
             TRACE_ERROR("unable to build audio driver");
-        // chorus seems to be zero until a value is set, so we force the default settings
-        fluid_synth_set_chorus(synth, FLUID_CHORUS_DEFAULT_N, FLUID_CHORUS_DEFAULT_LEVEL, FLUID_CHORUS_DEFAULT_SPEED, FLUID_CHORUS_DEFAULT_DEPTH, FLUID_CHORUS_DEFAULT_TYPE);
     }
 
     ~Impl() {
         if (adriver)
             delete_fluid_audio_driver(adriver);
         delete_fluid_synth(synth);
-        delete_fluid_settings(settings);
     }
 
-    // ---------
-    // accessors
-    // ---------
-
-    auto gain() const {
-        return (double)fluid_synth_get_gain(synth);
-    }
-
-    static auto default_reverb() {
-        return reverb_type{FLUID_REVERB_DEFAULT_ROOMSIZE, FLUID_REVERB_DEFAULT_DAMP, FLUID_REVERB_DEFAULT_LEVEL, FLUID_REVERB_DEFAULT_WIDTH};
-    }
-
-    auto reverb() const {
-        return reverb_type{
-            fluid_synth_get_reverb_roomsize(synth),
-            fluid_synth_get_reverb_damp(synth),
-            fluid_synth_get_reverb_level(synth),
-            fluid_synth_get_reverb_width(synth)
-        };
-    }
-
-    static auto default_chorus() {
-        return chorus_type{FLUID_CHORUS_DEFAULT_TYPE, FLUID_CHORUS_DEFAULT_N, FLUID_CHORUS_DEFAULT_LEVEL, FLUID_CHORUS_DEFAULT_SPEED, FLUID_CHORUS_DEFAULT_DEPTH};
-    }
-
-    auto chorus() const {
-        return chorus_type{
-            fluid_synth_get_chorus_type(synth),
-            fluid_synth_get_chorus_nr(synth),
-            fluid_synth_get_chorus_level(synth),
-            fluid_synth_get_chorus_speed_Hz(synth),
-            fluid_synth_get_chorus_depth_ms(synth)
-        };
-    }
-
-    // --------------
-    // handle methods
-    // --------------
-
-    static constexpr auto handled_families() {
-        return families_t::fuse(
-            family_t::note_off,
-            family_t::note_on,
-            family_t::program_change,
-            family_t::controller,
-            family_t::channel_pressure,
-            family_t::pitch_wheel,
-            family_t::reset,
-            family_t::sysex,
-            family_t::extended_system
-        );
-    }
-
-    Result handle(const Event& event) {
-        switch (event.family()) {
-        case family_t::note_off: return handle_note_off(event.channels(), event.at(1));
-        case family_t::note_on: return handle_note_on(event.channels(), event.at(1), event.at(2));
-        case family_t::program_change: return handle_program_change(event.channels(), event.at(1));
-        case family_t::controller: return handle_controller(event.channels(), event.at(1), event.at(2));
-        case family_t::channel_pressure: return handle_channel_pressure(event.channels(), event.at(1));
-        case family_t::pitch_wheel: return handle_pitch_wheel(event.channels(), event.get_14bits());
-        case family_t::reset: return handle_reset();
-        case family_t::sysex: return handle_sysex(event);
-        case family_t::extended_system:
-            if (SoundFontHandler::gain_ext.affects(event)) return handle_gain(SoundFontHandler::gain_ext.decode(event));
-            if (SoundFontHandler::reverb_ext.affects(event)) return handle_reverb(SoundFontHandler::reverb_ext.decode(event));
-            if (SoundFontHandler::chorus_ext.affects(event)) return handle_chorus(SoundFontHandler::chorus_ext.decode(event));
-            if (SoundFontHandler::file_ext.affects(event)) return handle_file(SoundFontHandler::file_ext.decode(event));
-            break;
-        }
-        return Result::unhandled;
-    }
-
-    Result handle_note_off(channels_t channels, int note) {
+    template<typename CallableT, typename ... Args>
+    auto handle_voice(CallableT callable, channels_t channels, Args ... args) {
         for (channel_t channel : channels)
-            fluid_synth_noteoff(synth, channel, note);
+            callable(synth, static_cast<int>(channel), args...);
         return Result::success;
     }
 
-    Result handle_note_on(channels_t channels, int note, int velocity) {
-        for (channel_t channel : channels)
-            fluid_synth_noteon(synth, channel, note, velocity);
-        return Result::success;
+    auto handle_note_off(channels_t channels, int note) {
+        return handle_voice(fluid_synth_noteoff, channels, note);
     }
 
-    Result handle_program_change(channels_t channels, int program) {
-        for (channel_t channel : channels)
-            fluid_synth_program_change(synth, channel, program);
-        return Result::success;
+    auto handle_note_on(channels_t channels, int note, int velocity) {
+        return handle_voice(fluid_synth_noteon, channels, note, velocity);
     }
 
-    Result handle_controller(channels_t channels, byte_t controller, int value) {
-        for (channel_t channel : channels)
-            fluid_synth_cc(synth, channel, controller, value);
-        return Result::success;
+    auto handle_program_change(channels_t channels, int program) {
+        return handle_voice(fluid_synth_program_change, channels, program);
     }
 
-    Result handle_channel_type(channels_t channels, int type) {
-        channels_t old_drum_channels = drums;
+    auto handle_controller(channels_t channels, byte_t controller, int value) {
+        return handle_voice(fluid_synth_cc, channels, controller, value);
+    }
+
+    auto handle_raw_channel_type(channels_t channels, int type) {
+        for (channel_t channel : channels)
+            TRACE_INFO("SoundFont: changed channel " << static_cast<int>(channel) << " type to " << (type == CHANNEL_TYPE_DRUM ? "drum" : "melodic"));
+        handle_voice(fluid_synth_set_channel_type, channels, type);
+        return handle_program_change(channels, 0);
+    }
+
+    auto handle_channel_type(channels_t channels, int type) {
+        const auto previous_drums = drums;
         drums.commute(channels, type == CHANNEL_TYPE_DRUM);
-        for (channel_t channel : drums ^ old_drum_channels) {
-            TRACE_INFO("SoundFont: changed channel " << (int)channel << " type to " << (type == CHANNEL_TYPE_DRUM ? "drum" : "melodic"));
-            fluid_synth_set_channel_type(synth, channel, type);
-            fluid_synth_program_change(synth, channel, 0);
-        }
-        return Result::success;
+        return handle_raw_channel_type(drums ^ previous_drums, type);
     }
 
-    Result handle_channel_pressure(channels_t channels, int pressure) {
-        for (channel_t channel : channels)
-            fluid_synth_channel_pressure(synth, channel, pressure);
-        return Result::success;
+    auto handle_channel_pressure(channels_t channels, int pressure) {
+        return handle_voice(fluid_synth_channel_pressure, channels, pressure);
     }
 
-    Result handle_pitch_wheel(channels_t channels, int pitch) {
-        for (channel_t channel : channels)
-            fluid_synth_pitch_bend(synth, channel, pitch);
-        return Result::success;
+    auto handle_pitch_wheel(channels_t channels, int pitch) {
+        return handle_voice(fluid_synth_pitch_bend, channels, pitch);
     }
 
-    Result handle_reset() {
+    auto handle_reset() {
         handle_channel_type(channels_t::melodic(), CHANNEL_TYPE_MELODIC);
         handle_channel_type(channels_t::drums(), CHANNEL_TYPE_DRUM);
         for (byte_t controller : controller_ns::reset_controllers)
             handle_controller(channels_t::full(), controller, controller_ns::default_value(controller));
-        for (channel_t channel : channels_t::full())
-            fluid_synth_pitch_wheel_sens(synth, channel, 2);
-        return Result::success;
+        return handle_voice(fluid_synth_pitch_wheel_sens, channels_t::full(), 2);
     }
 
-    Result handle_sysex(const Event& event) {
+    auto handle_sysex(const Event& event) {
         /// @note master volume does not seem to be handled correctly
         // roland handling
-        if (auto channels = use_for_rhythm_part(event))
+        if (const auto channels = use_for_rhythm_part(event))
             return handle_channel_type(channels, CHANNEL_TYPE_DRUM);
         // default handling
-        std::vector<char> sys_ex_data(event.begin()+1, event.end()-1);
-        fluid_synth_sysex(synth, sys_ex_data.data(), sys_ex_data.size(), nullptr, nullptr, nullptr, 0);
+        const auto sys_ex_data = std::vector<char>{event.begin()+1, event.end()-1};
+        return to_result(fluid_synth_sysex(synth, sys_ex_data.data(), static_cast<int>(sys_ex_data.size()), nullptr, nullptr, nullptr, 0));
+    }
+
+    auto handle_gain(double gain) {
+        fluid_synth_set_gain(synth, static_cast<float>(gain));
         return Result::success;
     }
 
-    Result handle_gain(double gain) {
-        fluid_synth_set_gain(synth, (float)gain);
-        return Result::success;
-    }
-
-    Result handle_reverb(const optional_reverb_type& reverb) {
-        has_reverb = (bool)reverb;
-        if (has_reverb)
-            fluid_synth_set_reverb(synth, reverb->roomsize, reverb->damp, reverb->width, reverb->level);
-        fluid_synth_set_reverb_on(synth, (int)has_reverb);
-        return Result::success;
-    }
-
-    Result handle_chorus(const optional_chorus_type& chorus) {
-        has_chorus = (bool)chorus;
-        if (has_chorus)
-            fluid_synth_set_chorus(synth, chorus->nr, chorus->level, chorus->speed, chorus->depth, chorus->type);
-        fluid_synth_set_chorus_on(synth, (int)has_chorus);
-        return Result::success;
-    }
-
-    Result handle_file(std::string string) {
+    auto handle_file(std::string string) {
         TRACE_MEASURE("SoundFont handle_file");
-        if (fluid_synth_sfload(synth, string.c_str(), 1) == -1)
-            return Result::fail;
-        file = std::move(string);
+        return to_result(fluid_synth_sfload(synth, string.c_str(), 1));
+    }
+
+    auto handle_reverb_activated(bool value) {
+        has_reverb = value;
+        fluid_synth_set_reverb_on(synth, static_cast<int>(value));
         return Result::success;
+    }
+
+    auto handle_reverb_roomsize(double value) {
+        return to_result(fluid_synth_set_reverb_roomsize(synth, value));
+    }
+
+    auto handle_reverb_damp(double value) {
+        return to_result(fluid_synth_set_reverb_damp(synth, value));
+    }
+
+    auto handle_reverb_level(double value) {
+        return to_result(fluid_synth_set_reverb_level(synth, value));
+    }
+
+    auto handle_reverb_width(double value) {
+        return to_result(fluid_synth_set_reverb_width(synth, value));
+    }
+
+    auto handle_chorus_activated(bool value) {
+        has_chorus = value;
+        fluid_synth_set_chorus_on(synth, static_cast<int>(value));
+        return Result::success;
+    }
+
+    auto handle_chorus_type(int value) {
+        return to_result(fluid_synth_set_chorus_type(synth, value));
+    }
+
+    auto handle_chorus_nr(int value) {
+        return to_result(fluid_synth_set_chorus_nr(synth, value));
+    }
+
+    auto handle_chorus_level(double value) {
+        return to_result(fluid_synth_set_chorus_level(synth, value));
+    }
+
+    auto handle_chorus_speed(double value) {
+        return to_result(fluid_synth_set_chorus_speed(synth, value));
+    }
+
+    auto handle_chorus_depth(double value) {
+        return to_result(fluid_synth_set_chorus_depth(synth, value));
     }
 
     void handle_close() {
@@ -253,17 +241,12 @@ struct SoundFontHandler::Impl {
         drums = channels_t::drums();
     }
 
-    // ----------
-    // attributes
-    // ----------
-
-    fluid_settings_t* settings;
+    FluidSettings settings;
     fluid_synth_t* synth;
     fluid_audio_driver_t* adriver;
-    std::string file;
-    channels_t drums;
-    bool has_reverb;
-    bool has_chorus;
+    channels_t drums {channels_t::drums()};
+    bool has_reverb {SoundFontHandler::ext.reverb.activated.default_value};
+    bool has_chorus {SoundFontHandler::ext.chorus.activated.default_value};
 
 };
 
@@ -271,20 +254,30 @@ struct SoundFontHandler::Impl {
 // SoundFontHandler
 //==================
 
-const SystemExtension<double> SoundFontHandler::gain_ext {"SoundFont.gain"};
-const SystemExtension<std::string> SoundFontHandler::file_ext {"SoundFont.file"};
-const SystemExtension<SoundFontHandler::optional_reverb_type> SoundFontHandler::reverb_ext {"SoundFont.reverb"};
-const SystemExtension<SoundFontHandler::optional_chorus_type> SoundFontHandler::chorus_ext {"SoundFont.chorus"};
+const SoundFontExtensions SoundFontHandler::ext = [] {
+    FluidSettings settings;
+    return SoundFontExtensions {
+        {"SoundFont.gain", settings_default<double>(settings, "synth.gain"), settings_range<double>(settings, "synth.gain")},
+        {"SoundFont.file"},
+        {
+            {"SoundFont.reverb_activated", settings_default<bool>(settings, "synth.reverb.active")},
+            {"SoundFont.reverb_roomsize", settings_default<double>(settings, "synth.reverb.room-size"), settings_range<double>(settings, "synth.reverb.room-size")},
+            {"SoundFont.reverb_damp", settings_default<double>(settings, "synth.reverb.damp"), settings_range<double>(settings, "synth.reverb.damp")},
+            {"SoundFont.reverb_level", settings_default<double>(settings, "synth.reverb.level"), settings_range<double>(settings, "synth.reverb.level")},
+            {"SoundFont.reverb_width", settings_default<double>(settings, "synth.reverb.width"), settings_range<double>(settings, "synth.reverb.width")}
+        },
+        {
+            {"SoundFont.chorus_activated", settings_default<bool>(settings, "synth.chorus.active")},
+            {"SoundFont.chorus_type", FLUID_CHORUS_MOD_SINE},
+            {"SoundFont.chorus_nr", settings_default<int>(settings, "synth.chorus.nr"), settings_range<int>(settings, "synth.chorus.nr")},
+            {"SoundFont.chorus_level", settings_default<double>(settings, "synth.chorus.level"), settings_range<double>(settings, "synth.chorus.level")},
+            {"SoundFont.chorus_speed", settings_default<double>(settings, "synth.chorus.speed"), settings_range<double>(settings, "synth.chorus.speed")},
+            {"SoundFont.chorus_depth", settings_default<double>(settings, "synth.chorus.depth"), settings_range<double>(settings, "synth.chorus.depth")}
+        }
+    };
+}();
 
-SoundFontHandler::reverb_type SoundFontHandler::default_reverb() {
-    return Impl::default_reverb();
-}
-
-SoundFontHandler::chorus_type SoundFontHandler::default_chorus() {
-    return Impl::default_chorus();
-}
-
-SoundFontHandler::SoundFontHandler() : Handler(Mode::out()), m_pimpl(std::make_unique<Impl>()) {
+SoundFontHandler::SoundFontHandler() : Handler{Mode::out()}, m_pimpl{std::make_unique<Impl>()} {
 
 }
 
@@ -293,41 +286,111 @@ SoundFontHandler::~SoundFontHandler() {
 }
 
 double SoundFontHandler::gain() const {
-    return m_pimpl->gain();
+    return static_cast<double>(fluid_synth_get_gain(m_pimpl->synth));
 }
 
 std::string SoundFontHandler::file() const {
-    return m_pimpl->file;
-}
-
-SoundFontHandler::optional_reverb_type SoundFontHandler::reverb() const {
-    SoundFontHandler::optional_reverb_type result;
-    if (m_pimpl->has_reverb)
-        result = m_pimpl->reverb();
+    std::string result;
+    if(auto* sfont = fluid_synth_get_sfont(m_pimpl->synth, 0))
+        result.assign(fluid_sfont_get_name(sfont));
     return result;
 }
 
-SoundFontHandler::optional_chorus_type SoundFontHandler::chorus() const {
-    SoundFontHandler::optional_chorus_type result;
-    if (m_pimpl->has_chorus)
-        result = m_pimpl->chorus();
-    return result;
+bool SoundFontHandler::reverb_activated() const {
+    return m_pimpl->has_reverb;
+}
+
+double SoundFontHandler::reverb_roomsize() const {
+    return fluid_synth_get_reverb_roomsize(m_pimpl->synth);
+}
+
+double SoundFontHandler::reverb_damp() const {
+    return fluid_synth_get_reverb_damp(m_pimpl->synth);
+}
+
+double SoundFontHandler::reverb_level() const {
+    return fluid_synth_get_reverb_level(m_pimpl->synth);
+}
+
+double SoundFontHandler::reverb_width() const {
+    return fluid_synth_get_reverb_width(m_pimpl->synth);
+}
+
+bool SoundFontHandler::chorus_activated() const {
+    return m_pimpl->has_chorus;
+}
+
+int SoundFontHandler::chorus_type() const {
+    return fluid_synth_get_chorus_type(m_pimpl->synth);
+}
+
+int SoundFontHandler::chorus_nr() const {
+    return fluid_synth_get_chorus_nr(m_pimpl->synth);
+}
+
+double SoundFontHandler::chorus_level() const {
+    return fluid_synth_get_chorus_level(m_pimpl->synth);
+}
+
+double SoundFontHandler::chorus_speed() const {
+    return fluid_synth_get_chorus_speed(m_pimpl->synth);
+}
+
+double SoundFontHandler::chorus_depth() const {
+    return fluid_synth_get_chorus_depth(m_pimpl->synth);
 }
 
 families_t SoundFontHandler::handled_families() const {
-    return Impl::handled_families();
+    return families_t::fuse(
+        family_t::note_off,
+        family_t::note_on,
+        family_t::program_change,
+        family_t::controller,
+        family_t::channel_pressure,
+        family_t::pitch_wheel,
+        family_t::reset,
+        family_t::sysex,
+        family_t::extended_system
+    );
+}
+
+SoundFontHandler::Result SoundFontHandler::handle_message(const Message& message) {
+    MIDI_HANDLE_OPEN;
+    MIDI_CHECK_OPEN_RECEIVE;
+    switch (message.event.family()) {
+    case family_t::note_off: return m_pimpl->handle_note_off(message.event.channels(), message.event.at(1));
+    case family_t::note_on: return m_pimpl->handle_note_on(message.event.channels(), message.event.at(1), message.event.at(2));
+    case family_t::program_change: return m_pimpl->handle_program_change(message.event.channels(), message.event.at(1));
+    case family_t::controller: return m_pimpl->handle_controller(message.event.channels(), message.event.at(1), message.event.at(2));
+    case family_t::channel_pressure: return m_pimpl->handle_channel_pressure(message.event.channels(), message.event.at(1));
+    case family_t::pitch_wheel: return m_pimpl->handle_pitch_wheel(message.event.channels(), message.event.get_14bits());
+    case family_t::reset: return m_pimpl->handle_reset();
+    case family_t::sysex: return m_pimpl->handle_sysex(message.event);
+    case family_t::extended_system:
+        if (ext.gain.affects(message.event)) return m_pimpl->handle_gain(ext.gain.decode(message.event));
+        if (ext.file.affects(message.event)) return m_pimpl->handle_file(ext.file.decode(message.event));
+        if (ext.reverb.activated.affects(message.event)) return m_pimpl->handle_reverb_activated(ext.reverb.activated.decode(message.event));
+        if (ext.reverb.roomsize.affects(message.event)) return m_pimpl->handle_reverb_roomsize(ext.reverb.roomsize.decode(message.event));
+        if (ext.reverb.damp.affects(message.event)) return m_pimpl->handle_reverb_damp(ext.reverb.damp.decode(message.event));
+        if (ext.reverb.level.affects(message.event)) return m_pimpl->handle_reverb_level(ext.reverb.level.decode(message.event));
+        if (ext.reverb.width.affects(message.event)) return m_pimpl->handle_reverb_width(ext.reverb.width.decode(message.event));
+        if (ext.chorus.activated.affects(message.event)) return m_pimpl->handle_chorus_activated(ext.chorus.activated.decode(message.event));
+        if (ext.chorus.type.affects(message.event)) return m_pimpl->handle_chorus_type(ext.chorus.type.decode(message.event));
+        if (ext.chorus.nr.affects(message.event)) return m_pimpl->handle_chorus_nr(ext.chorus.nr.decode(message.event));
+        if (ext.chorus.level.affects(message.event)) return m_pimpl->handle_chorus_level(ext.chorus.level.decode(message.event));
+        if (ext.chorus.speed.affects(message.event)) return m_pimpl->handle_chorus_speed(ext.chorus.speed.decode(message.event));
+        if (ext.chorus.depth.affects(message.event)) return m_pimpl->handle_chorus_depth(ext.chorus.depth.decode(message.event));
+        break;
+    default:
+        break;
+    }
+    return Result::unhandled;
 }
 
 SoundFontHandler::Result SoundFontHandler::on_close(State state) {
     if (state & State::receive())
         m_pimpl->handle_close();
     return Handler::on_close(state);
-}
-
-SoundFontHandler::Result SoundFontHandler::handle_message(const Message& message) {
-    MIDI_HANDLE_OPEN;
-    MIDI_CHECK_OPEN_RECEIVE;
-    return m_pimpl->handle(message.event);
 }
 
 #endif // MIDILAB_FLUIDSYNTH_VERSION

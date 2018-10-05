@@ -377,7 +377,8 @@ class RangedSlider : public SimpleSlider {
 
 public:
     using value_type = typename RangeT::value_type;
-    using formatter_type = QString (*)(value_type);
+    using formatter_type = std::function<QString(value_type)>;
+    using notifier_type = std::function<void(value_type)>;
 
     explicit RangedSlider(RangeT range, Qt::Orientation orientation, QWidget* parent) :
         SimpleSlider{orientation, parent}, mRange{std::move(range)} {
@@ -385,15 +386,24 @@ public:
         if (std::is_integral<value_type>::value)
             setCardinality(mRange.span() + 1);
 
-        connect(this, &RangedSlider::knobMoved, this, &RangedSlider::updateText);
+        connect(this, &RangedSlider::knobChanged, this, &RangedSlider::onKnobChange);
+        connect(this, &RangedSlider::knobMoved, this, &RangedSlider::onKnobChange);
     }
 
-    formatter_type formatter() const {
+    const formatter_type& formatter() const {
         return mFormatter;
     }
 
     void setFormatter(formatter_type formatter) {
-        mFormatter = formatter;
+        mFormatter = std::move(formatter);
+    }
+
+    const notifier_type& notifier() const {
+        return mNotifier;
+    }
+
+    void setNotifier(notifier_type notifier) {
+        mNotifier = std::move(notifier);
     }
 
     value_type defaultValue() const {
@@ -402,8 +412,6 @@ public:
 
     void setDefaultValue(value_type value) {
         setDefaultRatio(mRange.reduce(value));
-        setDefault();
-        setText(mFormatter(value));
     }
 
     value_type value() const {
@@ -412,23 +420,26 @@ public:
 
     void setValue(value_type value) {
         setRatio(mRange.reduce(value));
-        setText(mFormatter(value));
     }
 
-    void updateText(qreal ratio) {
-        setText(mFormatter(mRange.expand(ratio)));
+    void onKnobChange(qreal ratio) {
+        const auto value = mRange.expand(ratio);
+        if (mFormatter)
+            setText(mFormatter(value));
+        if (mNotifier)
+            mNotifier(value);
     }
 
 private:
     const RangeT mRange;
     formatter_type mFormatter;
+    notifier_type mNotifier;
 
 };
 
-template<typename RangeT, typename FormatterT, typename ValueT>
-auto* makeSlider(RangeT range, ValueT defaultValue, FormatterT&& formatter, QWidget* parent) {
+template<typename RangeT, typename ValueT>
+auto* makeHorizontalSlider(RangeT range, ValueT defaultValue, QWidget* parent) {
     auto* slider = new RangedSlider<RangeT>{std::move(range), Qt::Horizontal, parent};
-    slider->setFormatter(std::forward<FormatterT>(formatter));
     slider->setTextWidth(35);
     slider->setDefaultValue(defaultValue);
     return slider;

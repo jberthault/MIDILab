@@ -1160,9 +1160,15 @@ TempoView::TempoView(QWidget* parent) : QWidget(parent) {
     mDistortedTempoSpin->setToolTip("Current Tempo");
 
     /// @todo turn slider label into a rich editor
-    mDistorsionSlider = makeSlider(distorsionRange, 1., stringFromDistorsion, this);
+    mDistorsionSlider = makeHorizontalSlider(distorsionRange, 1., this);
+    mDistorsionSlider->setFormatter(stringFromDistorsion);
     mDistorsionSlider->setToolTip("Tempo Distorsion");
-    connect(mDistorsionSlider, &SimpleSlider::knobMoved, this, &TempoView::onSliderMove);
+    mDistorsionSlider->setNotifier([this](double value) {
+        mDistordedClock.setDistorsion(value);
+        updateDistorted();
+        emit distorsionChanged(value);
+    });
+    mDistorsionSlider->setDefault();
 
     setLayout(make_hbox(margin_tag{0}, spacing_tag{0}, mDistorsionSlider, mTempoSpin, mDistortedTempoSpin));
 }
@@ -1184,12 +1190,8 @@ double TempoView::distorsion() const {
 }
 
 void TempoView::setDistorsion(double distorsion) {
-    if (distorsionRange.min <= distorsion && distorsion <= distorsionRange.max) {
-        mDistordedClock.setDistorsion(distorsion);
+    if (distorsionRange.min <= distorsion && distorsion <= distorsionRange.max)
         mDistorsionSlider->setValue(distorsion);
-        updateDistorted();
-        emit distorsionChanged(distorsion);
-    }
 }
 
 void TempoView::setTempo(const Event& event) {
@@ -1199,13 +1201,6 @@ void TempoView::setTempo(const Event& event) {
     double bpm = event.family() == family_t::tempo ? event.get_bpm() : 0.;
     mTempoSpin->setValue(bpm);
     updateDistorted();
-}
-
-void TempoView::onSliderMove() {
-    const auto distorsion = mDistorsionSlider->value();
-    mDistordedClock.setDistorsion(distorsion);
-    updateDistorted();
-    emit distorsionChanged(distorsion);
 }
 
 void TempoView::updateDistorted() {
