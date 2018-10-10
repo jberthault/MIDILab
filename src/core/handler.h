@@ -333,8 +333,7 @@ public:
         success, /*!< handling was successful */
         fail, /*!< handling failed (general purpose) */
         unhandled, /*!< handling failed (event is not supposed to be handled) */
-        closed,/*!< handling failed because handler was closed */
-        error  /*!< an exception has been thrown while handling */
+        closed /*!< handling failed because handler was closed */
     };
 
     static const SystemExtension<State> open_ext; /*!< Specific action with key "Open" */

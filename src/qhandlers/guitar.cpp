@@ -71,7 +71,7 @@ void MetaGuitar::setContent(HandlerProxy& proxy) {
 
 Guitar::Guitar() : Instrument(Mode::io()), mTuning(defaultTuning), mCapo(0), mState(defaultTuning.size()), mActiveLocation(-1, 0), mBackground(":/data/wood.jpg") {
     clearNotes();
-    setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
 }
 
 HandlerView::Parameters Guitar::getParameters() const {

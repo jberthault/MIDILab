@@ -443,7 +443,7 @@ public slots:
     void setDistorsion(double distorsion);
 
 private slots:
-    void updateDistorted();
+    void updateDistorted(double distorsion);
     void setTempo(const Event& event);
 
 signals:
@@ -454,7 +454,7 @@ private:
     QDoubleSpinBox* mTempoSpin;
     QDoubleSpinBox* mDistortedTempoSpin;
     ContinuousSlider* mDistorsionSlider;
-    DistordedClock mDistordedClock;
+    Clock mClock;
 
 };
 

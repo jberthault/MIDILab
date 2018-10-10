@@ -275,6 +275,7 @@ SoundFontEditor::SoundFontEditor() : HandlerEditor{} {
     mFileEditor = new QLineEdit{this};
     mFileEditor->setMinimumWidth(200);
     mFileEditor->setReadOnly(true);
+    mFileEditor->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
 
     auto* fileSelector = new QToolButton{this};
     fileSelector->setToolTip("Browse SoundFonts");

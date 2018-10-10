@@ -534,16 +534,11 @@ void KnobView::wheelEvent(QWheelEvent* event) {
 
 namespace {
 
-void setFixedDimension(QWidget* widget, Qt::Orientation orientation, int size) {
-    if (orientation == Qt::Vertical) {
-        widget->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
-        widget->setMinimumSize(0, size);
-        widget->setMaximumSize(QWIDGETSIZE_MAX, size);
-    } else {
-        widget->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
-        widget->setMinimumSize(size, 0);
-        widget->setMaximumSize(size, QWIDGETSIZE_MAX);
-    }
+void setDimensions(QWidget* widget, const range_t<int>& width, const range_t<int>& height) {
+    widget->setSizePolicy(width ? QSizePolicy::Preferred : QSizePolicy::Fixed,
+                          height ? QSizePolicy::Preferred : QSizePolicy::Fixed);
+    widget->setMinimumSize(width.min, height.min);
+    widget->setMaximumSize(width.max, height.max);
 }
 
 }
@@ -576,7 +571,6 @@ void MultiSlider::setOrientation(Qt::Orientation orientation) {
     mOrientation = orientation;
     transpose();
     updateDimensions();
-    updateTextDimensions();
     static_cast<QBoxLayout*>(layout())->setDirection(orientation == Qt::Vertical ? QBoxLayout::TopToBottom : QBoxLayout::LeftToRight);
     emit orientationChanged(orientation);
 }
@@ -587,7 +581,7 @@ int MultiSlider::textWidth() const {
 
 void MultiSlider::setTextWidth(int textWidth) {
     mTextWidth = textWidth;
-    updateTextDimensions();
+    updateDimensions();
     emit textWidthChanged(textWidth);
 }
 
@@ -659,12 +653,14 @@ void MultiSlider::updateDimensions() {
     for (auto* knob : mParticleSlider->knobs<ParticleKnob>())
         if (knob->isVisible())
             radiusSum += knob->radius();
-    const qreal size = 10. + 2. * radiusSum;
-    setFixedDimension(this, mOrientation == Qt::Vertical ? Qt::Horizontal : Qt::Vertical, (int)size);
-}
-
-void MultiSlider::updateTextDimensions() {
-    setFixedDimension(mTextSlider, mOrientation, mTextWidth);
+    const auto size = decay_value<int>(10. + 2. * radiusSum);
+    if (mOrientation == Qt::Horizontal) {
+        setDimensions(mParticleSlider, {0, QWIDGETSIZE_MAX}, {size, size});
+        setDimensions(mTextSlider, {mTextWidth, mTextWidth}, {size, size});
+    } else {
+        setDimensions(mParticleSlider, {size, size}, {0, QWIDGETSIZE_MAX});
+        setDimensions(mTextSlider, {size, size}, {mTextWidth, mTextWidth});
+    }
 }
 
 //==============

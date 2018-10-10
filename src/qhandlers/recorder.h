@@ -21,7 +21,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef QHANDLERS_RECORDER_H
 #define QHANDLERS_RECORDER_H
 
-#include <QPushButton>
 #include <QLabel>
 #include "handlers/sequencewriter.h"
 #include "qcore/core.h"
@@ -52,17 +51,14 @@ public:
 
     Handler* getHandler() override;
 
-public slots:
-    void setRecording(bool recording);
+protected:
+    void updateContext(Context* context) override;
 
 private slots:
     void setHandlerRecording(bool recording);
-    void startRecording();
-    void stopRecording();
 
 private:
     SequenceWriter mHandler;
-    QPushButton* mRecordButton;
     QLabel* mLabel;
 
 };

@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
+#include <QToolButton>
 #include "qhandlers/recorder.h"
 #include "qtools/misc.h"
 
@@ -25,7 +26,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // MetaRecorder
 //==============
 
-MetaRecorder::MetaRecorder(QObject* parent) : OpenMetaHandler(parent) {
+MetaRecorder::MetaRecorder(QObject* parent) : OpenMetaHandler{parent} {
     setIdentifier("Recorder");
 }
 
@@ -37,44 +38,40 @@ void MetaRecorder::setContent(HandlerProxy& proxy) {
 // RecorderEditor
 //================
 
-RecorderEditor::RecorderEditor() : HandlerEditor() {
+RecorderEditor::RecorderEditor() : HandlerEditor{} {
 
-    mRecordButton = new QPushButton("Status", this);
-    QIcon icon;
-    icon.addFile(":/data/light-red.svg", QSize(), QIcon::Normal, QIcon::On);
-    icon.addFile(":/data/light-gray.svg", QSize(), QIcon::Normal, QIcon::Off);
-    mRecordButton->setIcon(icon);
-    mRecordButton->setCheckable(true);
-    mRecordButton->setFlat(true);
-    connect(mRecordButton, SIGNAL(clicked(bool)), SLOT(setHandlerRecording(bool)));
+    QIcon recordIcon;
+    recordIcon.addFile(":/data/light-red.svg", QSize{}, QIcon::Normal, QIcon::On);
+    recordIcon.addFile(":/data/light-gray.svg", QSize{}, QIcon::Normal, QIcon::Off);
 
-    mLabel = new QLabel(this);
+    auto* recordAction = makeAction(recordIcon, "Record", this);
+    recordAction->setCheckable(true);
+    connect(recordAction, &QAction::triggered, this, &RecorderEditor::setHandlerRecording);
+
+    auto* recordButton = new QToolButton{this};
+    recordButton->setAutoRaise(true);
+    recordButton->setDefaultAction(recordAction);
+
+    mLabel = new QLabel{this};
     mLabel->setText("");
 
-    setLayout(make_vbox(margin_tag{0}, mRecordButton, mLabel));
+    setLayout(make_hbox(margin_tag{0}, recordButton, mLabel));
 }
 
 Handler* RecorderEditor::getHandler() {
     return &mHandler;
 }
 
-void RecorderEditor::setRecording(bool recording) {
-    mRecordButton->setChecked(recording);
+void RecorderEditor::updateContext(Context* context) {
+    context->quickToolBar()->addActions(actions());
 }
 
 void RecorderEditor::setHandlerRecording(bool recording) {
-    if (recording)
-        startRecording();
-    else
-        stopRecording();
-}
-
-void RecorderEditor::startRecording() {
-    mHandler.start_recording();
-    mLabel->setText("Recording ...");
-}
-
-void RecorderEditor::stopRecording() {
-    mHandler.stop_recording();
-    mLabel->setText("");
+    if (recording) {
+        mHandler.start_recording();
+        mLabel->setText("Recording ...");
+    } else {
+        mHandler.stop_recording();
+        mLabel->setText("");
+    }
 }

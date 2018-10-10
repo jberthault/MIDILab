@@ -321,7 +321,6 @@ signals:
 protected slots:
     void transpose();
     void updateDimensions();
-    void updateTextDimensions();
 
 private:
     KnobView* mParticleSlider;
