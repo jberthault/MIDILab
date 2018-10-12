@@ -58,32 +58,34 @@ public:
     }
 
     void addConnection(const Configuration::Connection& connection) {
-        bool hasSource = !connection.source.isEmpty();
-        Handler* tail = mHandlersReferences.value(connection.tail, nullptr);
-        Handler* head = mHandlersReferences.value(connection.head, nullptr);
-        Handler* source = hasSource ? mHandlersReferences.value(connection.source, nullptr) : nullptr;
+        const bool hasSource = !connection.source.isEmpty();
+        auto* tail = mHandlersReferences.value(connection.tail, nullptr);
+        auto* head = mHandlersReferences.value(connection.head, nullptr);
+        auto* source = hasSource ? mHandlersReferences.value(connection.source, nullptr) : nullptr;
         if (!tail || !head || (hasSource && !source)) {
             TRACE_WARNING("wrong connection handlers: " << handlerName(tail) << ' ' << handlerName(head) << ' ' << handlerName(source));
             return;
         }
-        mManager->insertConnection(tail, head, hasSource ? Filter::handler(source) : Filter());
+        mManager->insertConnection(tail, head, hasSource ? Filter::handler(source) : Filter{});
     }
 
     void addHandler(const Configuration::Handler& handler) {
         // create the handler
-        auto host = mViewReferences.value(handler.id, nullptr);
+        auto* host = mViewReferences.value(handler.id, nullptr);
         auto proxy = mManager->loadHandler(handler.type, handler.name, host);
         if (proxy.handler()) {
-            // register handler
             mHandlersReferences[handler.id] = proxy.handler();
-            // set handler parameters
             for (const auto& prop : handler.properties)
                 proxy.setParameter({prop.key, prop.value});
-            // if the view does not belong to a frame, make it visible
-            if (!host && proxy.view())
-                mVisibleDisplayers.push_back(proxy.view()->window());
         } else {
-            TRACE_ERROR("Unable to build handler " << handler.type << "(\"" << handler.name << "\")");
+            TRACE_ERROR("unable to build handler " << handler.type << "(\"" << handler.name << "\")");
+        }
+        // if the view does not belong to a frame, make it visible
+        if (!host && proxy.view())
+            mVisibleDisplayers.push_back(proxy.view()->window());
+        if (host && !proxy.view()) {
+            TRACE_ERROR("no view available for " << handler.name);
+            host->deleteLater();
         }
     }
 
@@ -95,7 +97,7 @@ public:
     }
 
     void addFrame(MultiDisplayer* parent, const Configuration::Frame& frame, bool isTopLevel) {
-        MultiDisplayer* displayer = isTopLevel ? parent->insertDetached() : parent->insertMulti();
+        auto* displayer = isTopLevel ? parent->insertDetached() : parent->insertMulti();
         setFrame(displayer, frame, isTopLevel);
         if (isTopLevel && frame.visible)
             mVisibleDisplayers.push_back(displayer);
@@ -106,7 +108,7 @@ public:
         for (const auto& widget : frame.widgets)
             addWidget(displayer, widget);
         if (isTopLevel) {
-            auto window = displayer->window();
+            auto* window = displayer->window();
             window->setWindowTitle(frame.name);
             if (frame.size.isValid())
                 window->resize(frame.size);

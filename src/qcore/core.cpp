@@ -264,8 +264,8 @@ HandlerProxy::Parameters HandlerProxy::getParameters() const {
 }
 
 void HandlerProxy::setParameter(const Parameter& parameter) const {
-    if (mView && !mView->setParameter(parameter))
-        TRACE_WARNING(name() << ": unable to set parameter " << parameter.name);
+    if (!mView || !mView->setParameter(parameter))
+        TRACE_ERROR(name() << ": unable to set parameter " << parameter.name);
 }
 
 void HandlerProxy::setParameters(const Parameters& parameters) const {
