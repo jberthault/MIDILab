@@ -49,8 +49,16 @@ public:
         }
     }
 
-    families_t handled_families() const override {
-        return families_t::fuse(families_t::standard_voice(), family_t::extended_system, family_t::sysex, family_t::reset);
+protected:
+
+    Result handle_open(State state) override {
+        return to_result(open_system(state));
+    }
+
+    Result handle_close(State state) override {
+        if (is_receive_enabled())
+            handle_reset();
+        return to_result(close_system(state));
     }
 
     Result handle_message(const Message& message) override {
@@ -65,14 +73,8 @@ public:
         return Result::unhandled;
     }
 
-    Result handle_open(State state) override {
-        return to_result(open_system(state));
-    }
-
-    Result handle_close(State state) override {
-        if (is_receive_enabled())
-            handle_reset();
-        return to_result(close_system(state));
+    families_t handled_families() const override {
+        return families_t::fuse(families_t::standard_voice(), family_t::sysex, family_t::reset, family_t::extended_system);
     }
 
 private:
@@ -105,8 +107,8 @@ private:
         /// @note 'param2' could be used to set message time
         WinSystemHandler* handler = reinterpret_cast<WinSystemHandler*>(instance);
         switch (msg) {
-        case MIM_OPEN: handler->alter_state(State::forward(), true); break;
-        case MIM_CLOSE: handler->alter_state(State::forward(), false); break;
+        case MIM_OPEN: handler->activate_state(State::forward()); break;
+        case MIM_CLOSE: handler->deactivate_state(State::forward()); break;
         case MIM_DATA: handler->read_event(param1); break;
         case MIM_LONGDATA: TRACE_DEBUG(handler << " long-data received"); break;
         case MIM_ERROR: TRACE_DEBUG(handler << " error received"); break;
@@ -119,8 +121,8 @@ private:
     static void CALLBACK callback_out(HMIDIOUT, UINT msg, DWORD_PTR instance, DWORD, DWORD) {
         WinSystemHandler* handler = reinterpret_cast<WinSystemHandler*>(instance);
         switch (msg) {
-        case MOM_CLOSE: handler->alter_state(State::receive(), false); break;
-        case MOM_OPEN: handler->alter_state(State::receive(), true); break;
+        case MOM_CLOSE: handler->deactivate_state(State::receive()); break;
+        case MOM_OPEN: handler->activate_state(State::receive()); break;
         case MOM_DONE: break;
         default: /*should never happen*/ break;
         }
@@ -337,6 +339,8 @@ class LinuxSystemHandler : public Handler {
             }
         }
 
+    protected:
+
         Result handle_open(State state) override {
             return to_result(open_system(state));
         }
@@ -345,6 +349,18 @@ class LinuxSystemHandler : public Handler {
             if (is_receive_enabled())
                 handle_reset();
             return to_result(close_system(state));
+        }
+
+        Result handle_message(const Message& message) override {
+            if (message.event.is(families_t::standard_voice()))
+                return to_result(handle_voice(message.event));
+            if (message.event.family() == family_t::reset)
+                return to_result(handle_reset());
+            return Result::unhandled;
+        }
+
+        families_t handled_families() const override {
+            return families_t::fuse(families_t::standard_voice(), family_t::reset);
         }
 
     private:
@@ -375,7 +391,7 @@ class LinuxSystemHandler : public Handler {
             if (!errors) {
                 if (in_opening)
                     m_i_reader = std::thread([this](){i_callback();});
-                alter_state(s, true);
+                activate_state(s);
             }
             return errors;
         }
@@ -384,13 +400,13 @@ class LinuxSystemHandler : public Handler {
             size_t errors = 0;
             // close input handler
             if (mode().any(Mode::in()) && s.any(State::forward()) && state().any(State::forward())) {
-                alter_state(State::forward(), false);
+                deactivate_state(State::forward());
                 m_i_reader.join();
                 errors += check(snd_rawmidi_close(m_i_handler));
             }
             // close output handler
             if (mode().any(Mode::out()) && s.any(State::receive()) && state().any(State::receive())) {
-                alter_state(State::receive(), false);
+                deactivate_state(State::receive());
                 errors += check(snd_rawmidi_close(m_o_handler));
             }
             return errors;
@@ -453,18 +469,6 @@ class LinuxSystemHandler : public Handler {
 
         bool is_receive_enabled() const {
             return state().any(State::receive()) && mode().any(Mode::receive());
-        }
-
-        families_t handled_families() const override {
-            return families_t::fuse(families_t::standard_voice(), family_t::extended_system, family_t::reset);
-        }
-
-        Result handle_message(const Message& message) override {
-            if (message.event.is(families_t::standard_voice()))
-                return to_result(handle_voice(message.event));
-            if (message.event.family() == family_t::reset)
-                return to_result(handle_reset());
-            return Result::unhandled;
         }
 
         size_t handle_reset() {

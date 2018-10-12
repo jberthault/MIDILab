@@ -98,9 +98,10 @@ public:
     Parameters getParameters() const override;
     size_t setParameter(const Parameter& parameter) override;
 
-    families_t handled_families() const override;
-    Result handle_message(const Message& message) override;
+protected:
     Result handle_close(State state) override;
+    Result handle_message(const Message& message) override;
+    families_t handled_families() const override;
 
 protected slots:
     void onMove(channels_t channels, qreal ratio) override;
@@ -146,9 +147,10 @@ class PitchWheel : public AbstractWheel {
 public:
     explicit PitchWheel();
 
-    families_t handled_families() const override;
-    Result handle_message(const Message& message) override;
+protected:
     Result handle_close(State state) override;
+    Result handle_message(const Message& message) override;
+    families_t handled_families() const override;
 
 protected slots:
     void onPress(channels_t channels);
@@ -203,10 +205,11 @@ class ProgramWheel : public AbstractWheel {
 public:
     explicit ProgramWheel();
 
-    families_t handled_families() const override;
-    Result handle_message(const Message& message) override;
-
     void setProgramChange(channels_t channels, byte_t program);
+
+protected:
+    Result handle_message(const Message& message) override;
+    families_t handled_families() const override;
 
 protected slots:
     void onMove(channels_t channels, qreal ratio) override;

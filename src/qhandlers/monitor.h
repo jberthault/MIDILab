@@ -50,6 +50,7 @@ public:
 
     void setFamilies(families_t families);
 
+protected:
     Result handle_message(const Message& message) override;
 
 protected slots:

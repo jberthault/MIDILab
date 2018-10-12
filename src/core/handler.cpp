@@ -597,15 +597,15 @@ Handler::Mode Handler::mode() const {
 }
 
 Handler::State Handler::state() const {
-    return m_state;
+    return State::from_integral(m_state.load());
 }
 
-void Handler::set_state(State state) {
-    m_state = state;
+void Handler::activate_state(State state) {
+    m_state |= state.to_integral();
 }
 
-void Handler::alter_state(State state, bool on) {
-    m_state.commute(state, on);
+void Handler::deactivate_state(State state) {
+    m_state &= ~state.to_integral();
 }
 
 Synchronizer* Handler::synchronizer() const {
@@ -634,22 +634,12 @@ void Handler::set_listeners(Listeners listeners) {
     m_listeners = std::move(listeners);
 }
 
-families_t Handler::handled_families() const {
-    return families_t::full();
+families_t Handler::received_families() const {
+    return families_t::fuse(handled_families(), family_t::extended_system);
 }
 
 families_t Handler::forwarded_families() const {
     return families_t::full();
-}
-
-Handler::Result Handler::handle_open(State state) {
-    alter_state(state, true);
-    return Result::success;
-}
-
-Handler::Result Handler::handle_close(State state) {
-    alter_state(state, false);
-    return Result::success;
 }
 
 void Handler::send_message(const Message& message) {
@@ -664,11 +654,7 @@ void Handler::flush_messages() {
             m_metrics.add_latency(message.time_point);
         m_metrics.add_payload(messages.size());
 #endif
-        try {
-            m_interceptor->seize_messages(this, messages);
-        } catch (const std::exception& error) {
-            TRACE_ERROR(m_name << " handling exception: " << error.what());
-        }
+        m_interceptor->seize_messages(this, messages);
     });
 }
 
@@ -676,20 +662,22 @@ bool Handler::is_consumed() const {
     return m_pending_messages.is_consumed();
 }
 
-Handler::Result Handler::receive_message(const Message& message) {
-    if (message.event.family() == family_t::extended_system) {
-        if (open_ext.affects(message.event))
-            return handle_open(open_ext.decode(message.event));
-        if (close_ext.affects(message.event))
-            return handle_close(close_ext.decode(message.event));
+Handler::Result Handler::receive_message(const Message& message) noexcept {
+    try {
+        if (message.event.family() == family_t::extended_system) {
+            if (open_ext.affects(message.event))
+                return handle_open(open_ext.decode(message.event));
+            if (close_ext.affects(message.event))
+                return handle_close(close_ext.decode(message.event));
+        }
+        const auto current_state = state();
+        const auto open = (m_mode.any(Handler::Mode::thru()) && current_state.all(Handler::State::endpoints()))
+                       || (m_mode.any(Handler::Mode::out()) && current_state.any(Handler::State::receive()));
+        return open ? handle_message(message) : Result::closed;
+    } catch (const std::exception& error) {
+        TRACE_ERROR(m_name << " exception caught for event " << message.event << ": " << error.what());
+        return Result::fail;
     }
-    const bool open = (m_mode.any(Handler::Mode::thru()) && m_state.all(Handler::State::endpoints()))
-                   || (m_mode.any(Handler::Mode::out()) && m_state.any(Handler::State::receive()));
-    return open ? handle_message(message) : Result::closed;
-}
-
-Handler::Result Handler::handle_message(const Message&) {
-    return Handler::Result::unhandled;
 }
 
 void Handler::forward_message(const Message& message) {
@@ -697,4 +685,22 @@ void Handler::forward_message(const Message& message) {
     for (const auto& listener : m_listeners)
         if (listener.filter.match_message(message))
             listener.handler->send_message(message);
+}
+
+Handler::Result Handler::handle_open(State state) {
+    activate_state(state);
+    return Result::success;
+}
+
+Handler::Result Handler::handle_close(State state) {
+    deactivate_state(state);
+    return Result::success;
+}
+
+Handler::Result Handler::handle_message(const Message&) {
+    return Handler::Result::unhandled;
+}
+
+families_t Handler::handled_families() const {
+    return families_t::full();
 }

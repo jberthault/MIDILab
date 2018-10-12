@@ -71,9 +71,10 @@ public:
     bool stop_playing(bool rewind); /*!< return false if already stopped */
     bool stop_playing(const Event& final_event); /*!< return false if already stopped */
 
-    families_t handled_families() const override;
-    Result handle_message(const Message& message) override;
+protected:
     Result handle_close(State state) override;
+    Result handle_message(const Message& message) override;
+    families_t handled_families() const override;
 
 private:
     // handle callbacks

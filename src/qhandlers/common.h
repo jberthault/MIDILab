@@ -155,10 +155,6 @@ class Instrument : public GraphicalHandler {
 public:
     using GraphicalHandler::GraphicalHandler;
 
-    families_t handled_families() const override;
-    Result handle_message(const Message& message) override;
-    Result handle_close(State state) override;
-
     Parameters getParameters() const override;
     size_t setParameter(const Parameter& parameter) override;
 
@@ -166,6 +162,10 @@ public:
     void setVelocity(byte_t velocity);
 
 protected:
+    Result handle_close(State state) final;
+    Result handle_message(const Message& message) final;
+    families_t handled_families() const final;
+
     virtual void receiveClose();
     virtual void receiveReset();
     virtual void receiveNotesOff(channels_t channels);

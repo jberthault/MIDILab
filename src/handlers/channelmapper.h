@@ -40,6 +40,7 @@ public:
     void set_mapping(const channel_map_t<channels_t>& mapping);
     void reset_mapping(channels_t channels = channels_t::full());
 
+protected:
     Result handle_message(const Message& message) override;
 
 private:

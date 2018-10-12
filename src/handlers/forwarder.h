@@ -32,6 +32,7 @@ class ForwardHandler : public Handler {
 public:
     explicit ForwardHandler();
 
+protected:
     Result handle_message(const Message& message) override;
 
 };

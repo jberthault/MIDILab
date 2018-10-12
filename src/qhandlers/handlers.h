@@ -56,8 +56,9 @@ private:
 
 //    PatternHandler(Event target = Event());
 
-//    Result handle_message(const Message& message) override;
+//protected:
 //    Result handle_open(State state) override;
+//    Result handle_message(const Message& message) override;
 
 //private:
 

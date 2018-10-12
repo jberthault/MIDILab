@@ -46,6 +46,7 @@ public:
 
     explicit Transposer();
 
+protected:
     Result handle_message(const Message& message) override;
 
 private:

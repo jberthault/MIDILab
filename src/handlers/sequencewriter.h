@@ -45,6 +45,7 @@ public:
     void start_recording(); /*!< first event received will be mark as t0, no effect if handler is recording */
     void stop_recording();
 
+protected:
     Result handle_message(const Message& message) override;
 
 private:

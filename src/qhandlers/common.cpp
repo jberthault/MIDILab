@@ -183,7 +183,7 @@ MetaInstrument::MetaInstrument(QObject* parent) : MetaGraphicalHandler(parent) {
 //============
 
 families_t Instrument::handled_families() const {
-    return families_t::fuse(family_t::extended_system, family_t::note_on, family_t::note_off, family_t::controller, family_t::reset);
+    return families_t::fuse(family_t::note_on, family_t::note_off, family_t::controller, family_t::reset);
 }
 
 Handler::Result Instrument::handle_close(State state) {

@@ -388,7 +388,7 @@ Handler* ProgramEditor::currentHandler() {
 }
 
 void ProgramEditor::insertHandler(Handler* handler) {
-    if (handler->mode().any(Handler::Mode::out()) && handler->handled_families().test(family_t::program_change)) {
+    if (handler->mode().any(Handler::Mode::out()) && handler->received_families().test(family_t::program_change)) {
         mRecords[handler] = HandlerData(0, QMap<channel_t, byte_t>());
         mHandlerSelector->insertHandler(handler);
     }

@@ -48,6 +48,7 @@ public:
 
     explicit TrackFilter();
 
+protected:
     Result handle_message(const Message& message) override;
 
 private:

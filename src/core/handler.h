@@ -352,8 +352,8 @@ public:
     Mode mode() const;
 
     State state() const;
-    void set_state(State state); /*!< replace the whole state */
-    void alter_state(State state, bool on); /*! set all states specified to on or off leaving others */
+    void activate_state(State state);
+    void deactivate_state(State state);
 
     Synchronizer* synchronizer() const;
     void set_synchronizer(Synchronizer* synchronizer);
@@ -371,7 +371,7 @@ public:
      * @todo delegate to the meta class
      */
 
-    virtual families_t handled_families() const;
+    families_t received_families() const;
     virtual families_t forwarded_families() const;
 
     // ---------
@@ -382,18 +382,19 @@ public:
     void flush_messages(); /*!< will synchronously pass pending messages to the interceptor */
     bool is_consumed() const; /*!< true if there is no pending messages waiting to be handled */
 
-    Result receive_message(const Message& message); /*!< calls handle_* after checking mode and state */
+    Result receive_message(const Message& message) noexcept; /*!< calls handle_* after checking mode and state */
     void forward_message(const Message& message); /*!< sends message to all listeners matching their filters */
 
 protected:
     virtual Result handle_open(State state); /*!< process an open message, updates internal state by default */
     virtual Result handle_close(State state); /*!< process a close message, updates internal state by default */
     virtual Result handle_message(const Message& message); /*!< process any other message, does nothing by default */
+    virtual families_t handled_families() const; /*!< get families processed within handle_message */
 
 private:
     std::string m_name;
     const Mode m_mode;
-    State m_state;
+    std::atomic<State::storage_type> m_state {};
     Synchronizer* m_synchronizer {nullptr};
     Interceptor* m_interceptor {nullptr};
     mutable std::mutex m_listeners_mutex;

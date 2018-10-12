@@ -85,9 +85,10 @@ public:
     double chorus_speed() const;
     double chorus_depth() const;
 
-    families_t handled_families() const override;
-    Result handle_message(const Message& message) override;
+protected:
     Result handle_close(State state) override;
+    Result handle_message(const Message& message) override;
+    families_t handled_families() const override;
 
 private:
     struct Impl;
