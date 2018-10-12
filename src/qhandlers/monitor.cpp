@@ -76,8 +76,6 @@ void Monitor::setFamilies(families_t families) {
 }
 
 Handler::Result Monitor::handle_message(const Message& message) {
-    MIDI_HANDLE_OPEN;
-    MIDI_CHECK_OPEN_RECEIVE;
 
     if (!message.event.is(mFamilySelector->families()))
         return Result::unhandled;

@@ -33,10 +33,6 @@ TrackFilter::TrackFilter() : Handler(Mode::thru()), m_filter(true) {
 }
 
 Handler::Result TrackFilter::handle_message(const Message& message) {
-
-    MIDI_HANDLE_OPEN;
-    MIDI_CHECK_OPEN_FORWARD_RECEIVE;
-
     if (message.event.family() == family_t::extended_system) {
         if (disable_ext.affects(message.event)) {
             auto track = disable_ext.decode(message.event);
@@ -51,7 +47,6 @@ Handler::Result TrackFilter::handle_message(const Message& message) {
             return Result::success;
         }
     }
-
     clean_corrupted(message.source, message.track);
     if (m_filter.match(message.track))
         feed_forward(message);

@@ -87,7 +87,7 @@ public:
 
     families_t handled_families() const override;
     Result handle_message(const Message& message) override;
-    Result on_close(State state) override;
+    Result handle_close(State state) override;
 
 private:
     struct Impl;

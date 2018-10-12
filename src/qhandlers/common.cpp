@@ -186,15 +186,13 @@ families_t Instrument::handled_families() const {
     return families_t::fuse(family_t::extended_system, family_t::note_on, family_t::note_off, family_t::controller, family_t::reset);
 }
 
-Handler::Result Instrument::on_close(State state) {
+Handler::Result Instrument::handle_close(State state) {
     if (state & State::receive())
         receiveClose();
-    return GraphicalHandler::on_close(state);
+    return GraphicalHandler::handle_close(state);
 }
 
 Handler::Result Instrument::handle_message(const Message& message) {
-    MIDI_HANDLE_OPEN;
-    MIDI_CHECK_OPEN_RECEIVE;
     switch (message.event.family()) {
     case family_t::note_on:
         receiveNoteOn(message.event.channels(), message.event.get_note());

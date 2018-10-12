@@ -257,8 +257,6 @@ public:
     iterator begin();
     iterator end();
 
-    void hear_message(const Message& message) const;
-
 private:
     listeners_type m_listeners;
 
@@ -267,10 +265,6 @@ private:
 //=========
 // Handler
 //=========
-
-#define MIDI_HANDLE_OPEN do { if (handle_open(message) == ::Handler::Result::success) return ::Handler::Result::success; } while (false)
-#define MIDI_CHECK_OPEN_RECEIVE do { if (state().none(::Handler::State::receive())) return ::Handler::Result::closed; } while (false)
-#define MIDI_CHECK_OPEN_FORWARD_RECEIVE do { if (!state().all(::Handler::State::endpoints())) return ::Handler::Result::closed; } while (false)
 
 /**
  * The Handler class is the minimum interface required to deal with midi events.
@@ -384,17 +378,17 @@ public:
     // messaging
     // ---------
 
-    Result handle_open(const Message& message); /*!< dispatch open/close events to on_open/on_close */
-    virtual Result on_open(State state); /*!< by default, just updates internal state */
-    virtual Result on_close(State state); /*!< @see on_open */
-
     void send_message(const Message& message); /*!< add pending message and notifies the synchronizer */
     void flush_messages(); /*!< will synchronously pass pending messages to the interceptor */
     bool is_consumed() const; /*!< true if there is no pending messages waiting to be handled */
 
-    virtual Result handle_message(const Message& message); /*!< actual processing of messages, by default handles open/close actions */
+    Result receive_message(const Message& message); /*!< calls handle_* after checking mode and state */
+    void forward_message(const Message& message); /*!< sends message to all listeners matching their filters */
 
-    void forward_message(const Message& message) const; /*!< sends message to all listeners matching their filters */
+protected:
+    virtual Result handle_open(State state); /*!< process an open message, updates internal state by default */
+    virtual Result handle_close(State state); /*!< process a close message, updates internal state by default */
+    virtual Result handle_message(const Message& message); /*!< process any other message, does nothing by default */
 
 private:
     std::string m_name;

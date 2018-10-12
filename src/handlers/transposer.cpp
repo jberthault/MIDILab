@@ -31,10 +31,6 @@ Transposer::Transposer() : Handler(Mode::thru()), m_bypass(true) {
 }
 
 Handler::Result Transposer::handle_message(const Message& message) {
-
-    MIDI_HANDLE_OPEN;
-    MIDI_CHECK_OPEN_FORWARD_RECEIVE;
-
     if (message.event.family() == family_t::extended_voice) {
         if (transpose_ext.affects(message.event)) {
             set_key(message.event.channels(), transpose_ext.decode(message.event));
@@ -53,7 +49,6 @@ Handler::Result Transposer::handle_message(const Message& message) {
             return Result::success;
         }
     }
-
     feed_forward(message); // to feed controller events
     return Result::success;
 }

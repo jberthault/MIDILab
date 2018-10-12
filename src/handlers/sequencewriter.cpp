@@ -43,8 +43,6 @@ Sequence SequenceWriter::load_sequence() const {
 
 Handler::Result SequenceWriter::handle_message(const Message& message) {
     std::lock_guard<std::mutex> guard(m_storage_mutex);
-    MIDI_HANDLE_OPEN;
-    MIDI_CHECK_OPEN_RECEIVE;
     if (!message.event.is(m_families) || !m_recording)
         return Result::unhandled;
     m_storage.push_back({clock_type::now(), message.event, message.track});

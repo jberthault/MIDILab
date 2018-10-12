@@ -50,7 +50,7 @@ public:
     Parameters getParameters() const override;
     size_t setParameter(const Parameter& parameter) override;
 
-    Result on_close(State state) override;
+    Result handle_close(State state) override;
 
 protected:
     void prepare(qreal defaultRatio);
@@ -100,7 +100,7 @@ public:
 
     families_t handled_families() const override;
     Result handle_message(const Message& message) override;
-    Result on_close(State state) override;
+    Result handle_close(State state) override;
 
 protected slots:
     void onMove(channels_t channels, qreal ratio) override;
@@ -148,7 +148,7 @@ public:
 
     families_t handled_families() const override;
     Result handle_message(const Message& message) override;
-    Result on_close(State state) override;
+    Result handle_close(State state) override;
 
 protected slots:
     void onPress(channels_t channels);

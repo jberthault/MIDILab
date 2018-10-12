@@ -355,8 +355,6 @@ families_t SoundFontHandler::handled_families() const {
 }
 
 SoundFontHandler::Result SoundFontHandler::handle_message(const Message& message) {
-    MIDI_HANDLE_OPEN;
-    MIDI_CHECK_OPEN_RECEIVE;
     switch (message.event.family()) {
     case family_t::note_off: return m_pimpl->handle_note_off(message.event.channels(), message.event.at(1));
     case family_t::note_on: return m_pimpl->handle_note_on(message.event.channels(), message.event.at(1), message.event.at(2));
@@ -387,10 +385,10 @@ SoundFontHandler::Result SoundFontHandler::handle_message(const Message& message
     return Result::unhandled;
 }
 
-SoundFontHandler::Result SoundFontHandler::on_close(State state) {
+SoundFontHandler::Result SoundFontHandler::handle_close(State state) {
     if (state & State::receive())
         m_pimpl->handle_close();
-    return Handler::on_close(state);
+    return Handler::handle_close(state);
 }
 
 #endif // MIDILAB_FLUIDSYNTH_VERSION

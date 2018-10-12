@@ -219,15 +219,13 @@ families_t SequenceReader::handled_families() const {
     return families_t::fuse(family_t::extended_system, family_t::song_position, family_t::song_select, family_t::start, family_t::continue_, family_t::stop);
 }
 
-Handler::Result SequenceReader::on_close(State state) {
+Handler::Result SequenceReader::handle_close(State state) {
     if (state & State::forward())
         stop_playing(stop_all);
-    return Handler::on_close(state);
+    return Handler::handle_close(state);
 }
 
 Handler::Result SequenceReader::handle_message(const Message& message) {
-    MIDI_HANDLE_OPEN;
-    MIDI_CHECK_OPEN_RECEIVE;
     switch (message.event.family()) {
     case family_t::song_position: return handle_beat((double)message.event.get_14bits());
     case family_t::song_select: return handle_sequence(message.event.at(1));

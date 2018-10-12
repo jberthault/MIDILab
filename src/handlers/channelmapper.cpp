@@ -52,9 +52,6 @@ void ChannelMapper::reset_mapping(channels_t channels) {
 
 Handler::Result ChannelMapper::handle_message(const Message& message) {
 
-    MIDI_HANDLE_OPEN;
-    MIDI_CHECK_OPEN_FORWARD_RECEIVE;
-
     std::lock_guard<std::mutex> guard{m_mutex};
 
     if (message.event.family() == family_t::extended_voice) {

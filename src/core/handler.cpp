@@ -563,12 +563,6 @@ Listeners::iterator Listeners::end() {
     return m_listeners.end();
 }
 
-void Listeners::hear_message(const Message& message) const {
-    for (const auto& listener : m_listeners)
-        if (listener.filter.match_message(message))
-            listener.handler->send_message(message);
-}
-
 //=========
 // Handler
 //=========
@@ -648,25 +642,12 @@ families_t Handler::forwarded_families() const {
     return families_t::full();
 }
 
-Handler::Result Handler::handle_open(const Message& message) {
-    if (message.event.family() == family_t::extended_system) {
-        if (open_ext.affects(message.event)) {
-            on_open(open_ext.decode(message.event));
-            return Result::success;
-        } else if (close_ext.affects(message.event)) {
-            on_close(close_ext.decode(message.event));
-            return Result::success;
-        }
-    }
-    return Result::unhandled;
-}
-
-Handler::Result Handler::on_open(State state) {
+Handler::Result Handler::handle_open(State state) {
     alter_state(state, true);
     return Result::success;
 }
 
-Handler::Result Handler::on_close(State state) {
+Handler::Result Handler::handle_close(State state) {
     alter_state(state, false);
     return Result::success;
 }
@@ -695,11 +676,25 @@ bool Handler::is_consumed() const {
     return m_pending_messages.is_consumed();
 }
 
-Handler::Result Handler::handle_message(const Message& message) {
-    return handle_open(message);
+Handler::Result Handler::receive_message(const Message& message) {
+    if (message.event.family() == family_t::extended_system) {
+        if (open_ext.affects(message.event))
+            return handle_open(open_ext.decode(message.event));
+        if (close_ext.affects(message.event))
+            return handle_close(close_ext.decode(message.event));
+    }
+    const bool open = (m_mode.any(Handler::Mode::thru()) && m_state.all(Handler::State::endpoints()))
+                   || (m_mode.any(Handler::Mode::out()) && m_state.any(Handler::State::receive()));
+    return open ? handle_message(message) : Result::closed;
 }
 
-void Handler::forward_message(const Message& message) const {
+Handler::Result Handler::handle_message(const Message&) {
+    return Handler::Result::unhandled;
+}
+
+void Handler::forward_message(const Message& message) {
     std::lock_guard<std::mutex> guard(m_listeners_mutex);
-    m_listeners.hear_message(message);
+    for (const auto& listener : m_listeners)
+        if (listener.filter.match_message(message))
+            listener.handler->send_message(message);
 }

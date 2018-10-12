@@ -77,9 +77,9 @@ size_t AbstractWheel::setParameter(const Parameter& parameter) {
     return GraphicalHandler::setParameter(parameter);
 }
 
-Handler::Result AbstractWheel::on_close(State state) {
+Handler::Result AbstractWheel::handle_close(State state) {
     mSlider->setDefault(channels_t::full());
-    return GraphicalHandler::on_close(state);
+    return GraphicalHandler::handle_close(state);
 }
 
 void AbstractWheel::prepare(qreal defaultRatio) {
@@ -152,8 +152,6 @@ families_t ControllerWheel::handled_families() const {
 }
 
 Handler::Result ControllerWheel::handle_message(const Message& message) {
-    MIDI_HANDLE_OPEN;
-    MIDI_CHECK_OPEN_RECEIVE;
     switch (message.event.family()) {
     case family_t::controller: return handleController(message.event.channels(), message.event.at(1), message.event.at(2));
     case family_t::reset: return handleReset();
@@ -161,9 +159,9 @@ Handler::Result ControllerWheel::handle_message(const Message& message) {
     }
 }
 
-Handler::Result ControllerWheel::on_close(State state) {
+Handler::Result ControllerWheel::handle_close(State state) {
     resetAll();
-    return AbstractWheel::on_close(state);
+    return AbstractWheel::handle_close(state);
 }
 
 void ControllerWheel::onControlChange() {
@@ -252,8 +250,6 @@ families_t PitchWheel::handled_families() const {
 
 Handler::Result PitchWheel::handle_message(const Message& message) {
     /// @note data_entry_fine_controller is ignored
-    MIDI_HANDLE_OPEN;
-    MIDI_CHECK_OPEN_RECEIVE;
     switch (message.event.family()) {
     case family_t::controller:
         switch (message.event.at(1)) {
@@ -271,9 +267,9 @@ Handler::Result PitchWheel::handle_message(const Message& message) {
     return Result::unhandled;
 }
 
-Handler::Result PitchWheel::on_close(State state) {
+Handler::Result PitchWheel::handle_close(State state) {
     resetAll();
-    return AbstractWheel::on_close(state);
+    return AbstractWheel::handle_close(state);
 }
 
 void PitchWheel::onPress(channels_t channels) {
@@ -427,8 +423,6 @@ families_t ProgramWheel::handled_families() const {
 }
 
 Handler::Result ProgramWheel::handle_message(const Message& message) {
-    MIDI_HANDLE_OPEN;
-    MIDI_CHECK_OPEN_RECEIVE;
     if (message.event.family() == family_t::program_change) {
         setProgramChange(message.event.channels(), message.event.at(1));
         return Result::success;

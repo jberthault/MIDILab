@@ -29,8 +29,6 @@ ForwardHandler::ForwardHandler() : Handler(Mode::thru()) {
 }
 
 Handler::Result ForwardHandler::handle_message(const Message& message) {
-    MIDI_HANDLE_OPEN;
-    MIDI_CHECK_OPEN_FORWARD_RECEIVE;
     forward_message(message);
     return Result::success;
 }

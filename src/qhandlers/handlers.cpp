@@ -75,18 +75,16 @@ const MetaHandlers& StandardFactory::spawn() const {
 //=================
 
 //PatternHandler::PatternHandler(Event target) :
-//    Handler(io_mode), current_state(0), target_state(3), target_event(std::move(target)) {
+//    Handler(Mode::io()), current_state(0), target_state(3), target_event(std::move(target)) {
 
 //}
 
-//Handler::Result PatternHandler::on_open(State state) {
+//Handler::Result PatternHandler::handle_open(State state) {
 //    current_state = 0;
-//    return Handler::on_open(state);
+//    return Handler::handle_open(state);
 //}
 
 //Handler::Result PatternHandler::handle_message(const Message& message) {
-//    MIDI_HANDLE_OPEN;
-//    MIDI_CHECK_OPEN_FORWARD_RECEIVE;
 //    switch (advance(message.event)) {
 //    case ignored:
 //        return success_result;

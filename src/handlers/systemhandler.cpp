@@ -54,26 +54,22 @@ public:
     }
 
     Result handle_message(const Message& message) override {
-        MIDI_HANDLE_OPEN;
-        MIDI_CHECK_OPEN_RECEIVE;
-        if (mode().any(Mode::receive())) {
-            if (message.event.is(families_t::standard_voice()))
-                return to_result(handle_voice(message.event));
-            if (message.event.family() == family_t::sysex)
-                return to_result(handle_sysex(message.event));
-            if (message.event.family() == family_t::reset)
-                return to_result(handle_reset());
-            if (message.event.family() == family_t::extended_system && volume_ext.affects(message.event))
-                return to_result(handle_volume((DWORD)volume_ext.decode(message.event)));
-        }
+        if (message.event.is(families_t::standard_voice()))
+            return to_result(handle_voice(message.event));
+        if (message.event.family() == family_t::sysex)
+            return to_result(handle_sysex(message.event));
+        if (message.event.family() == family_t::reset)
+            return to_result(handle_reset());
+        if (message.event.family() == family_t::extended_system && volume_ext.affects(message.event))
+            return to_result(handle_volume((DWORD)volume_ext.decode(message.event)));
         return Result::unhandled;
     }
 
-    Result on_open(State state) override {
+    Result handle_open(State state) override {
         return to_result(open_system(state));
     }
 
-    Result on_close(State state) override {
+    Result handle_close(State state) override {
         if (is_receive_enabled())
             handle_reset();
         return to_result(close_system(state));
@@ -186,7 +182,7 @@ private:
     }
 
     size_t handle_voice(const Event& event) {
-        /// merge all in a midiOutLongMsg() ?
+        /// @todo midiOutLongMsg
         size_t errors = 0;
         uint32_t frame = *reinterpret_cast<const uint32_t*>(&event.data()[0]);
         frame &= ~0xf; // clear low nibble
@@ -196,6 +192,7 @@ private:
     }
 
     size_t handle_reset() {
+        /// @todo midiOutLongMsg
         size_t errors = 0;
         for (byte_t controller : controller_ns::reset_controllers)
             errors += handle_voice(Event::controller(channels_t::full(), controller));
@@ -340,11 +337,11 @@ class LinuxSystemHandler : public Handler {
             }
         }
 
-        Result on_open(State state) override {
+        Result handle_open(State state) override {
             return to_result(open_system(state));
         }
 
-        Result on_close(State state) override {
+        Result handle_close(State state) override {
             if (is_receive_enabled())
                 handle_reset();
             return to_result(close_system(state));
@@ -463,14 +460,10 @@ class LinuxSystemHandler : public Handler {
         }
 
         Result handle_message(const Message& message) override {
-            MIDI_HANDLE_OPEN;
-            MIDI_CHECK_OPEN_RECEIVE;
-            if (mode().any(Mode::receive())) {
-                if (message.event.is(families_t::standard_voice()))
-                    return to_result(handle_voice(message.event));
-                if (message.event.family() == family_t::reset)
-                    return to_result(handle_reset());
-            }
+            if (message.event.is(families_t::standard_voice()))
+                return to_result(handle_voice(message.event));
+            if (message.event.family() == family_t::reset)
+                return to_result(handle_reset());
             return Result::unhandled;
         }
 
