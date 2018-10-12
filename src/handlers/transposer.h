@@ -56,7 +56,6 @@ private:
 
     channel_map_t<int> m_keys; /*!< number of semi-tones shifted by channel */
     Corruption m_corruption;
-    bool m_bypass;
 
 };
 

@@ -220,8 +220,8 @@ public:
 
     State currentState() const;
     State supportedState() const;
-    void setState(bool open, State state = State::endpoints()) const;
-    void toggleState(State state = State::endpoints()) const;
+    void setState(bool open, State state = State::duplex()) const;
+    void toggleState(State state = State::duplex()) const;
 
     Parameters getParameters() const;
     void setParameter(const Parameter& parameter) const;

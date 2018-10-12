@@ -92,9 +92,8 @@ private:
     position_type m_position; /*!< current position */
     position_type m_first_position; /*!< position of the first event to be played */
     position_type m_last_position; /*!< position of the last event to be played (not included) */
-    double m_distorsion; /*!< distorsion factor: slower (<1) faster (>1) freezed (0) (default 1) */
+    double m_distorsion {1.}; /*!< distorsion factor: slower (<1) faster (>1) freezed (0) (default 1) */
     std::thread m_worker; /*!< thread forwarding status when started */
-    bool m_playing; /*!< boolean controlling play/stop */
     mutable std::mutex m_mutex;  /*!< mutex protecting positions & distorsion */
 
 };

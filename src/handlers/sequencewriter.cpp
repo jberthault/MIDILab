@@ -20,15 +20,19 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "sequencewriter.h"
 
+namespace {
+
+constexpr auto recording_state = Handler::State::from_integral(0x4);
+
+}
+
 //================
 // SequenceWriter
 //================
 
 /// @todo remove the lock guard
 
-SequenceWriter::SequenceWriter() :
-    Handler(Mode::out()), m_recording(false), m_families(families_t::standard_voice() | families_t::standard_meta()) {
-
+SequenceWriter::SequenceWriter() : Handler{Mode::out()} {
     m_storage.reserve(8192);
 }
 
@@ -42,22 +46,20 @@ Sequence SequenceWriter::load_sequence() const {
 }
 
 Handler::Result SequenceWriter::handle_message(const Message& message) {
-    std::lock_guard<std::mutex> guard(m_storage_mutex);
-    if (!message.event.is(m_families) || !m_recording)
+    if (!message.event.is(m_families) || state().none(recording_state))
         return Result::unhandled;
+    std::lock_guard<std::mutex> guard(m_storage_mutex);
     m_storage.push_back({clock_type::now(), message.event, message.track});
     return Result::success;
 }
 
 void SequenceWriter::start_recording() {
-    std::lock_guard<std::mutex> guard(m_storage_mutex);
-    if (!m_recording) {
+    if (activate_state(recording_state).none(recording_state)) {
+        std::lock_guard<std::mutex> guard(m_storage_mutex);
         m_storage.clear();
-        m_recording = true;
     }
 }
 
 void SequenceWriter::stop_recording() {
-    std::lock_guard<std::mutex> guard(m_storage_mutex);
-    m_recording = false;
+    deactivate_state(recording_state);
 }

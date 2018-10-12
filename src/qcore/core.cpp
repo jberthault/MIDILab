@@ -237,7 +237,7 @@ void HandlerProxy::setState(bool open, State state) const {
     if (mHandler) {
         if (mHandler->mode().any(Mode::thru())) {
             // thru mode should process all states at once
-            state = State::endpoints();
+            state = State::duplex();
         } else {
             // do not process states that are not supported
             state &= supportedState();

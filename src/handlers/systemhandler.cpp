@@ -45,7 +45,7 @@ public:
     ~WinSystemHandler() {
         if (is_receive_enabled()) {
             handle_reset();
-            close_system(State::endpoints());
+            close_system(State::duplex());
         }
     }
 
@@ -335,7 +335,7 @@ class LinuxSystemHandler : public Handler {
         ~LinuxSystemHandler() {
             if (is_receive_enabled()) {
                 handle_reset();
-                close_system(State::endpoints());
+                close_system(State::duplex());
             }
         }
 

@@ -20,14 +20,21 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "transposer.h"
 
+namespace {
+
+constexpr auto bypass_state = Handler::State::from_integral(0x4);
+
+}
+
 //============
 // Transposer
 //============
 
 const VoiceExtension<int> Transposer::transpose_ext {"Transpose"};
 
-Transposer::Transposer() : Handler(Mode::thru()), m_bypass(true) {
+Transposer::Transposer() : Handler{Mode::thru()} {
     m_keys.fill(0);
+    activate_state(bypass_state);
 }
 
 Handler::Result Transposer::handle_message(const Message& message) {
@@ -38,7 +45,7 @@ Handler::Result Transposer::handle_message(const Message& message) {
         }
     } else if (message.event.is(families_t::standard_note())) {
         clean_corrupted(message.source, message.track);
-        if (!m_bypass) {
+        if (state().none(bypass_state)) {
             for (const auto& pair : channel_ns::reverse(m_keys, message.event.channels())) {
                 Message copy(message);
                 Event::iterator note_it = ++copy.event.begin(); // second byte contains the note
@@ -73,7 +80,10 @@ void Transposer::set_key(channels_t channels, int key) {
         }
     }
     // bypass handler if no keys is shifted
-    m_bypass = channel_ns::find(m_keys, 0) == channels_t::full();
+    if (channel_ns::find(m_keys, 0) == channels_t::full())
+        activate_state(bypass_state);
+    else
+        deactivate_state(bypass_state);
     // mark channels as corrupted
     m_corruption.tick(channels_changed);
 

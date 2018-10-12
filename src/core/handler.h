@@ -269,15 +269,14 @@ private:
 /**
  * The Handler class is the minimum interface required to deal with midi events.
  * It has the following attributes:
- * - name: a simple identifier with no other purpose that helping users
- * - mode: the roles supported by the handler (constant)
- * - state: runtime information about the open/closed status
- * - synchronizer: the object responsible for processing incoming messages asynchronously
- * - interceptor: the object that will receive synchronized messages, meant for altering behavior
- * - listeners: the list of handlers that will receive forwarded messages
+ * - name: a simple identifier with no other purpose that helping users [not thread-safe]
+ * - mode: the roles supported by the handler (constant) [thread-safe]
+ * - state: runtime information about the open/closed status [thread-safe]
+ * - synchronizer: the object responsible for processing incoming messages asynchronously [not thread-safe]
+ * - interceptor: the object that will receive synchronized messages, meant for altering behavior [not thread-safe]
+ * - listeners: the list of handlers that will receive forwarded messages [thread-safe]
  *
  * @warning the lifetime of synchronizer, interceptor and listeners is not considered within this class
- * @warning altering any of these attribute is hazardous in a multi-threaded context except for listeners
  *
  */
 
@@ -312,14 +311,13 @@ public:
     // the handler can store different boolean states
     // handlers use two different states to enable forwarding and receiving messages
     // @note to forward/receive an event, the respective states must be open
-    // @warning messages will be handled even if the handler is closed, you must check it.
 
-    struct State : flags_t<State, size_t, 8> {
+    struct State : flags_t<State, size_t, 32> {
         using flags_t::flags_t;
 
         static constexpr auto forward() { return from_integral(0x1); }
         static constexpr auto receive() { return from_integral(0x2); }
-        static constexpr auto endpoints() { return forward() | receive(); } /*!< @note junction may be a better name */
+        static constexpr auto duplex() { return forward() | receive(); }
 
     };
 
@@ -352,8 +350,8 @@ public:
     Mode mode() const;
 
     State state() const;
-    void activate_state(State state);
-    void deactivate_state(State state);
+    State activate_state(State state); /*!< atomically activates the given state and returns previous state */
+    State deactivate_state(State state); /*!< atomically deactivates the given state and returns previous state */
 
     Synchronizer* synchronizer() const;
     void set_synchronizer(Synchronizer* synchronizer);

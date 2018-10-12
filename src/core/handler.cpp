@@ -600,12 +600,12 @@ Handler::State Handler::state() const {
     return State::from_integral(m_state.load());
 }
 
-void Handler::activate_state(State state) {
-    m_state |= state.to_integral();
+Handler::State Handler::activate_state(State state) {
+    return State::from_integral(m_state.fetch_or(state.to_integral()));
 }
 
-void Handler::deactivate_state(State state) {
-    m_state &= ~state.to_integral();
+Handler::State Handler::deactivate_state(State state) {
+    return State::from_integral(m_state.fetch_and(~state.to_integral()));
 }
 
 Synchronizer* Handler::synchronizer() const {
@@ -671,7 +671,7 @@ Handler::Result Handler::receive_message(const Message& message) noexcept {
                 return handle_close(close_ext.decode(message.event));
         }
         const auto current_state = state();
-        const auto open = (m_mode.any(Handler::Mode::thru()) && current_state.all(Handler::State::endpoints()))
+        const auto open = (m_mode.any(Handler::Mode::thru()) && current_state.all(Handler::State::duplex()))
                        || (m_mode.any(Handler::Mode::out()) && current_state.any(Handler::State::receive()));
         return open ? handle_message(message) : Result::closed;
     } catch (const std::exception& error) {

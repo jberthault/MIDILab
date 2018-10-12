@@ -32,6 +32,8 @@ SequenceReader::position_type make_lower(const Sequence& sequence, timestamp_t t
 SequenceReader::position_type make_upper(const Sequence& sequence, timestamp_t timestamp) { return {std::upper_bound(sequence.begin(), sequence.end(), timestamp), timestamp}; }
 SequenceReader::position_type make_upper(const Sequence& sequence) { return {sequence.end(), sequence.last_timestamp()}; }
 
+constexpr auto playing_state = Handler::State::from_integral(0x4);
+
 }
 
 //================
@@ -42,7 +44,7 @@ const SystemExtension<> SequenceReader::toggle_ext {"SequenceReader.toggle"};
 const SystemExtension<> SequenceReader::pause_ext {"SequenceReader.pause"};
 const SystemExtension<double> SequenceReader::distorsion_ext {"SequenceReader.distorsion"};
 
-SequenceReader::SequenceReader() : Handler{Mode::io()}, m_distorsion{1.}, m_playing{false} {
+SequenceReader::SequenceReader() : Handler{Mode::io()} {
     m_position = m_first_position = make_lower(m_sequence);
     m_last_position = make_upper(m_sequence);
 }
@@ -93,7 +95,7 @@ Handler::Result SequenceReader::set_distorsion(double distorsion) {
 }
 
 bool SequenceReader::is_playing() const {
-    return m_playing;
+    return state().any(playing_state);
 }
 
 bool SequenceReader::is_completed() const {
@@ -139,7 +141,7 @@ void SequenceReader::set_upper(timestamp_t timestamp) {
 }
 
 void SequenceReader::jump_position(position_type position) {
-    bool playing = m_playing;
+    bool playing = is_playing();
     stop_playing(false);
     forward_message({stop_notes, this});
     m_position = std::move(position);
@@ -150,7 +152,7 @@ void SequenceReader::jump_position(position_type position) {
 bool SequenceReader::start_playing(bool rewind) {
     /// @todo adopt a strategy to forward settings at 0, when no note is available
     // handler must be stopped
-    if (m_playing)
+    if (is_playing())
         return false;
     // ensure previous run is terminated
     stop_playing(stop_sounds);
@@ -166,11 +168,11 @@ bool SequenceReader::start_playing(bool rewind) {
     // @note it may be a good idea to clean current notes on: forward_message({stop_notes, this});
     // starts worker thread
     m_worker = std::thread{ [this] {
-        m_playing = true;
+        activate_state(playing_state);
         duration_type base_time = m_sequence.clock().base_time(m_sequence.clock().last_tempo(position())); // current base time for 1 deltatime
         time_type t1, t0 = clock_type::now();
         Sequence::const_iterator it, last;
-        while (m_playing) {
+        while (is_playing()) {
             // compute time elapsed since last loop
             t1 = clock_type::now();
             duration_type elapsed = t1 - t0;
@@ -182,7 +184,7 @@ bool SequenceReader::start_playing(bool rewind) {
                 m_position.first = std::lower_bound(it, m_last_position.first, m_position.second); // get next position
                 last = m_position.first; // memorize next position
                 if (m_position.first == m_last_position.first) // stop when last event is reached
-                    m_playing = false;
+                    deactivate_state(playing_state);
             }
             // forward events in the current range
             for ( ; it != last ; ++it) {
@@ -199,7 +201,7 @@ bool SequenceReader::start_playing(bool rewind) {
 }
 
 bool SequenceReader::stop_playing(bool rewind) {
-    m_playing = false; // notify the playing thread to stop
+    deactivate_state(playing_state); // notify the playing thread to stop
     const bool started = m_worker.joinable();
     if (started)
         m_worker.join();
@@ -235,7 +237,7 @@ Handler::Result SequenceReader::handle_message(const Message& message) {
     case family_t::extended_system:
         if (pause_ext.affects(message.event)) return handle_stop(stop_sounds);
         if (distorsion_ext.affects(message.event)) return set_distorsion(distorsion_ext.decode(message.event));
-        if (toggle_ext.affects(message.event)) return m_playing ? handle_stop(stop_sounds) : handle_start(false);
+        if (toggle_ext.affects(message.event)) return is_playing() ? handle_stop(stop_sounds) : handle_start(false);
         break;
     }
     return Result::unhandled;

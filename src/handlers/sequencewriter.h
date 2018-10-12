@@ -49,8 +49,7 @@ protected:
     Result handle_message(const Message& message) override;
 
 private:
-    bool m_recording;
-    families_t m_families; /*!< accepted families */
+    families_t m_families {families_t::standard_voice() | families_t::standard_meta()}; /*!< accepted families */
     Sequence::realtime_type m_storage;
     mutable std::mutex m_storage_mutex;
 
