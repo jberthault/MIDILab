@@ -86,6 +86,16 @@ bool variable_t::set_encoded_value(uint32_t value) {
 
 namespace dumping {
 
+size_t expected_size(byte_t status) {
+    if (0x80 <= status && status < 0xf0)
+        return (0xc0 <= status && status < 0xe0) ? 1 : 2;
+    if (status == 0xf1 || status == 0xf3)
+        return 1;
+    if (status == 0xf2)
+        return 2;
+    return 0;
+}
+
 byte_t read_data_byte(std::istream& stream) {
     byte_t byte = stream.get();
     if (is_msb_set(byte)) {
@@ -128,6 +138,10 @@ variable_t read_variable(std::istream& stream) {
     return result;
 }
 
+uint32_t read_as_variable(std::istream& stream) {
+    return read_variable(stream).true_value;
+}
+
 size_t write_variable(const variable_t& variable, std::ostream& stream) {
     size_t bytes = 0;
     uint32_t buffer = variable.encoded_value;
@@ -141,6 +155,13 @@ size_t write_variable(const variable_t& variable, std::ostream& stream) {
             break;
     }
     return bytes;
+}
+
+size_t write_as_variable(uint32_t value, std::ostream& stream) {
+    variable_t variable;
+    if (!variable.set_true_value(value))
+        throw std::logic_error("variable error");
+    return write_variable(variable, stream);
 }
 
 Event read_event(std::istream& stream, bool is_realtime, byte_t* running_status) {
@@ -163,33 +184,27 @@ Event read_event(std::istream& stream, bool is_realtime, byte_t* running_status)
 
     if (status == 0xf0) {
         size_t i=0;
-        variable_t v = read_variable(stream);
-        write_variable(v, bytes);
+        const auto size = is_realtime ? 0u : read_as_variable(stream);
         while (true) {
-            byte_t byte = stream.get();
+            const byte_t byte = stream.get();
             bytes << byte;
-            if (byte == 0xf7 || ++i == v.true_value)
+            if (++i == size || byte == 0xf7)
                 break;
             if (is_msb_set(byte))
                 throw std::logic_error("wrong data byte in sysex event");
         }
-    } else if (status == 0xff) { // META EVENT (type as data_byte) (size as variable) (fixed size)
+    } else if (status == 0xff) {
         bytes << read_data_byte(stream); // read meta type
-        variable_t size = read_variable(stream); // meta size
+        const auto size = read_variable(stream); // meta size
         write_variable(size, bytes);
         copy_sequence(stream, bytes, size.true_value);
-    } else if (0x80 <= status && status < 0xf0) { // VOICE EVENT (1 or 2 data bytes)
-        bytes << read_data_byte(stream);
-        if (!(0xc0 <= status && status < 0xe0))
+    } else {
+        const auto size = expected_size(status);
+        for(size_t i=0 ; i < size ; ++i)
             bytes << read_data_byte(stream);
-    } else if (status == 0xf1 || status == 0xf3) {
-        bytes << read_data_byte(stream); // read single byte
-    } else if (status == 0xf2) {
-        bytes << read_data_byte(stream); // read 2 bytes
-        bytes << read_data_byte(stream);
     }
 
-    std::string data = bytes.str();
+    const auto data = bytes.str();
     return Event::raw(is_realtime, {data.begin(), data.end()});
 }
 
@@ -204,7 +219,7 @@ void read_track(std::istream& stream, StandardMidiFile::track_type& track) {
     bool eot = false; // true if end-of-track event is found
     while (!eot && stream.tellg() < end) {
         // read deltatime and add it to timestamp
-        deltatime = read_variable(stream).true_value;
+        deltatime = read_as_variable(stream);
         timestamp += deltatime;
         // read event and check its validity
         event = read_event(stream, false, &running_status);
@@ -261,13 +276,6 @@ StandardMidiFile read_file(const std::string& filename) {
     }
 }
 
-size_t write_deltatime(uint32_t delatime, std::ostream& stream) {
-    variable_t variable;
-    if (!variable.set_true_value(delatime))
-        throw std::logic_error("variable error");
-    return write_variable(variable, stream);
-}
-
 size_t write_raw_event(byte_t status, const Event& event, std::ostream& stream, byte_t* running_status) {
     size_t bytes = 0;
     // update running status
@@ -276,24 +284,20 @@ size_t write_raw_event(byte_t status, const Event& event, std::ostream& stream, 
         write_status = status != *running_status;
         *running_status = status;
     }
-    // write status
-    if (write_status) {
-        bytes++; stream << status;
+    // write status (always written for sysex events in case the size has msb set)
+    if (write_status || status == 0xf0) {
+        bytes++;
+        stream << status;
     }
     // get the number of bytes to write
-    size_t count = 0;
-    if (status == 0xf0 || status == 0xff) {
+    size_t count = expected_size(status);
+    if (status == 0xf0 || status == 0xff)
         count = event.size() - 1; // all bytes
-    } else if (0x80 <= status && status < 0xf0) {
-        count = (0xc0 <= status && status < 0xe0) ? 1 : 2;
-    } else if (status == 0xf1 || status == 0xf3) {
-        count = 1;
-    } else if (status == 0xf2) {
-        count = 2;
-    }
+    // write sysex size
+    if (status == 0xf0)
+        bytes += write_as_variable(static_cast<uint32_t>(count), stream);
     // get event data as a stream (without the status)
-    std::string event_string(event.begin() + 1, event.end());
-    std::stringstream event_data(event_string);
+    std::stringstream event_data{std::string{event.begin() + 1, event.end()}};
     bytes += copy_sequence(event_data, stream, count);
     return bytes;
 }
@@ -318,12 +322,12 @@ size_t write_event(uint32_t deltatime, const Event& event, std::ostream& stream,
             throw std::invalid_argument("voice event is not bound to any channel");
         // insert one event per channel
         for (channel_t channel : event.channels()) {
-            bytes += write_deltatime(deltatime, stream);
+            bytes += write_as_variable(deltatime, stream);
             bytes += write_raw_event((0xf0 & status) | channel, event, stream, running_status);
             deltatime = 0;
         }
     } else {
-        bytes += write_deltatime(deltatime, stream);
+        bytes += write_as_variable(deltatime, stream);
         bytes += write_raw_event(status, event, stream, running_status);
     }
 

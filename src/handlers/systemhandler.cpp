@@ -20,12 +20,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "systemhandler.h"
 
-const SystemExtension<uint32_t> volume_ext {"System.volume"};
-
-Event volume_event(uint16_t left, uint16_t right) {
-    return volume_ext((right << 16) | left);
-}
-
 #ifdef _WIN32
 
 #include <windows.h>
@@ -35,18 +29,23 @@ Event volume_event(uint16_t left, uint16_t right) {
 
 class WinSystemHandler : public Handler {
 
-public:
+private:
+    using buffer_type = std::pair<MIDIHDR, std::vector<char>>;
 
+    HMIDIIN m_handle_in;
+    HMIDIOUT m_handle_out;
+    UINT m_id_in;
+    UINT m_id_out;
+    std::list<buffer_type> m_buffers;
+
+public:
     explicit WinSystemHandler(Mode mode, UINT id_in, UINT id_out) :
-        Handler(mode), m_id_in(id_in), m_id_out(id_out) {
+        Handler{mode}, m_id_in{id_in}, m_id_out{id_out} {
 
     }
 
     ~WinSystemHandler() {
-        if (is_receive_enabled()) {
-            handle_reset();
-            close_system(State::duplex());
-        }
+        close_system(State::duplex());
     }
 
 protected:
@@ -56,25 +55,22 @@ protected:
     }
 
     Result handle_close(State state) override {
-        if (is_receive_enabled())
-            handle_reset();
         return to_result(close_system(state));
     }
 
     Result handle_message(const Message& message) override {
+        update_buffers();
         if (message.event.is(families_t::standard_voice()))
             return to_result(handle_voice(message.event));
         if (message.event.family() == family_t::sysex)
             return to_result(handle_sysex(message.event));
         if (message.event.family() == family_t::reset)
             return to_result(handle_reset());
-        if (message.event.family() == family_t::extended_system && volume_ext.affects(message.event))
-            return to_result(handle_volume((DWORD)volume_ext.decode(message.event)));
         return Result::unhandled;
     }
 
     families_t handled_families() const override {
-        return families_t::fuse(families_t::standard_voice(), family_t::sysex, family_t::reset, family_t::extended_system);
+        return families_t::fuse(families_t::standard_voice(), family_t::sysex, family_t::reset);
     }
 
 private:
@@ -87,7 +83,7 @@ private:
         if (result != MMSYSERR_NOERROR) {
             char text[MAXERRORLENGTH];
             midiInGetErrorTextA(result, text, MAXERRORLENGTH);
-            TRACE_WARNING("IN " << name() << ": " << text);
+            TRACE_ERROR(name() << " (in): " << text);
         }
         return result == MMSYSERR_NOERROR ? 0 : 1;
     }
@@ -96,7 +92,7 @@ private:
         if (result != MMSYSERR_NOERROR) {
             char text[MAXERRORLENGTH];
             midiOutGetErrorTextA(result, text, MAXERRORLENGTH);
-            TRACE_WARNING("OUT " << name() << ": " << text);
+            TRACE_ERROR(name() << " (out): " << text);
         }
         return result == MMSYSERR_NOERROR ? 0 : 1;
     }
@@ -105,7 +101,7 @@ private:
         /// @warning system realtime messages can be in between other messages
         /// @todo do something with all messages (LONGDATA ...)
         /// @note 'param2' could be used to set message time
-        WinSystemHandler* handler = reinterpret_cast<WinSystemHandler*>(instance);
+        auto* handler = reinterpret_cast<WinSystemHandler*>(instance);
         switch (msg) {
         case MIM_OPEN: handler->activate_state(State::forward()); break;
         case MIM_CLOSE: handler->deactivate_state(State::forward()); break;
@@ -119,7 +115,7 @@ private:
     }
 
     static void CALLBACK callback_out(HMIDIOUT, UINT msg, DWORD_PTR instance, DWORD, DWORD) {
-        WinSystemHandler* handler = reinterpret_cast<WinSystemHandler*>(instance);
+        auto* handler = reinterpret_cast<WinSystemHandler*>(instance);
         switch (msg) {
         case MOM_CLOSE: handler->deactivate_state(State::receive()); break;
         case MOM_OPEN: handler->activate_state(State::receive()); break;
@@ -136,7 +132,7 @@ private:
         }
         if (mode().any(Mode::out()) && s.any(State::receive()) && state().none(State::receive())) {
             errors += check_out(midiOutOpen(&m_handle_out, m_id_out, (DWORD_PTR)callback_out, (DWORD_PTR)this, CALLBACK_FUNCTION));
-            handle_volume(0xffffffff); // full volume (volume settings are done using sysex messages) (ignoring errors here)
+            check_out(midiOutSetVolume(m_handle_out, 0xffffffff)); // full volume (volume settings are done using sysex messages) (ignoring errors here)
         }
         return errors;
     }
@@ -148,6 +144,9 @@ private:
             errors += check_in(midiInClose(m_handle_in));
         }
         if (mode().any(Mode::out()) && s.any(State::receive()) && state().any(State::receive())) {
+            errors += handle_reset();
+            while (!m_buffers.empty())
+                update_buffers();
             errors += check_out(midiOutClose(m_handle_out));
         }
         return errors;
@@ -155,46 +154,28 @@ private:
 
     Result read_event(DWORD data) {
         if (state().any(State::forward())) {
-            byte_t* bytes = reinterpret_cast<byte_t*>(&data);
+            auto* bytes = reinterpret_cast<byte_t*>(&data);
             forward_message({Event::raw(true, {bytes, bytes+4}), this});
             return Result::success;
         }
         return Result::closed;
     }
 
-    bool is_receive_enabled() const {
-        return state().any(State::receive()) && mode().any(Mode::receive());
-    }
-
-    size_t handle_volume(DWORD volume) {
-        return check_out(midiOutSetVolume(m_handle_out, volume));
-    }
-
     size_t handle_sysex(const Event& event) {
-        size_t errors = 0;
-        MIDIHDR hdr;
-        memset(&hdr, 0, sizeof(MIDIHDR));
-        std::vector<char> sys_ex_data(event.begin(), event.end());
-        hdr.dwBufferLength = (DWORD)event.size();
-        hdr.lpData = sys_ex_data.data();
-        errors += check_out(midiOutPrepareHeader(m_handle_out, &hdr, sizeof(MIDIHDR)));
-        errors += check_out(midiOutLongMsg(m_handle_out, &hdr, sizeof(MIDIHDR)));
-        errors += check_out(midiOutUnprepareHeader(m_handle_out, &hdr, sizeof(MIDIHDR)));
-        return errors;
+        return handle_buffer({event.begin(), event.end()});
     }
 
     size_t handle_voice(const Event& event) {
-        /// @todo midiOutLongMsg
+        /// @note can't bufferize in a single midiOutLongMsg due to a lack of support of somes devices
         size_t errors = 0;
-        uint32_t frame = *reinterpret_cast<const uint32_t*>(&event.data()[0]);
-        frame &= ~0xf; // clear low nibble
+        const auto frame = *reinterpret_cast<const uint32_t*>(&event.data()[0]) & ~0xf; // event data with channel cleared
         for (channel_t channel : event.channels())
             errors += check_out(midiOutShortMsg(m_handle_out, frame | channel));
         return errors;
     }
 
     size_t handle_reset() {
-        /// @todo midiOutLongMsg
+        /// @note can't bufferize in a single midiOutLongMsg due to a lack of support of somes devices
         size_t errors = 0;
         for (byte_t controller : controller_ns::reset_controllers)
             errors += handle_voice(Event::controller(channels_t::full(), controller));
@@ -206,14 +187,34 @@ private:
         return errors;
     }
 
-    HMIDIIN m_handle_in;
-    HMIDIOUT m_handle_out;
-    UINT m_id_in;
-    UINT m_id_out;
+    size_t handle_buffer(std::vector<char>&& buffer_data) {
+        m_buffers.emplace_back(MIDIHDR{}, std::move(buffer_data));
+        auto& buf = m_buffers.back();
+
+        ::memset(&buf.first, 0, sizeof(MIDIHDR));
+        buf.first.dwBufferLength = static_cast<DWORD>(buf.second.capacity());
+        buf.first.dwBytesRecorded = static_cast<DWORD>(buf.second.size());
+        buf.first.lpData = buf.second.data();
+
+        size_t errors = 0;
+        errors += check_out(midiOutPrepareHeader(m_handle_out, &buf.first, sizeof(MIDIHDR)));
+        errors += check_out(midiOutLongMsg(m_handle_out, &buf.first, sizeof(MIDIHDR)));
+        return errors;
+    }
+
+    void update_buffers() {
+        auto it = m_buffers.begin();
+        while (it != m_buffers.end()) {
+            if (MIDIERR_STILLPLAYING == midiOutUnprepareHeader(m_handle_out, &it->first, sizeof(MIDIHDR))) {
+                ++it;
+            } else {
+                it = m_buffers.erase(it);
+            }
+        }
+    }
 
     // unused features:
     //midiOutMessage()
-    //midiOutLongMsg()
     //midiOutCacheDrumPatches()
     //midiOutCachePatches()
     //midiOutGetVolume()

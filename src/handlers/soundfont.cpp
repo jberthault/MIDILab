@@ -30,13 +30,13 @@ namespace {
 // check if event specifies to turn some channels to drum channels
 channels_t use_for_rhythm_part(const Event& event) {
     if (   event.family() == family_t::sysex             // sysex event
-        && event.at(2) == 0x41                           // roland manufacturer
-        && event.at(5) == 0x12                           // sending data
-        && event.at(6) == 0x40                           //
-        && (event.at(7) & 0xf0) == 0x10                  //
-        && event.at(8) == 0x15                           // 0x40 0x1X 0x15 <=> address of USE_FOR_RHYTHM_PART
-        && (event.at(9) == 0x01 || event.at(9) == 0x02)) // value {0x00: OFF, 0x01: MAP1, 0x02: MAP2}
-        return channels_t::wrap(event.at(7) & 0x0f);
+        && event.at(1) == 0x41                           // roland manufacturer
+        && event.at(4) == 0x12                           // sending data
+        && event.at(5) == 0x40                           //
+        && (event.at(6) & 0xf0) == 0x10                  //
+        && event.at(7) == 0x15                           // 0x40 0x1X 0x15 <=> address of USE_FOR_RHYTHM_PART
+        && (event.at(8) == 0x01 || event.at(8) == 0x02)) // value {0x00: OFF, 0x01: MAP1, 0x02: MAP2}
+        return channels_t::wrap(event.at(6) & 0x0f);
     return {};
 }
 

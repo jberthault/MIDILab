@@ -37,32 +37,31 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // StandardFactory
 //=================
 
-StandardFactory::StandardFactory(QObject* parent) : QObject(parent), MetaHandlerFactory() {
+StandardFactory::StandardFactory(QObject* parent) : QObject{parent}, MetaHandlerFactory{} {
     mMetaHandlers = {
         // instruments
-        new MetaPiano(this),
-        new MetaHarmonica(this),
-        new MetaGuitar(this),
+        new MetaPiano{this},
+        new MetaHarmonica{this},
+        new MetaGuitar{this},
         // wheels
-        new MetaControllerWheel(this),
-        new MetaPitchWheel(this),
-        new MetaProgramWheel(this),
-        new MetaVolume1Wheel(this),
-        new MetaVolume2Wheel(this),
+        new MetaControllerWheel{this},
+        new MetaPitchWheel{this},
+        new MetaProgramWheel{this},
+        new MetaVolumeWheel{this},
         // editors for basic handlers
-        new MetaTransposer(this),
-        new MetaRecorder(this),
-        new MetaSystem(this),
+        new MetaTransposer{this},
+        new MetaRecorder{this},
+        new MetaSystem{this},
     #ifdef MIDILAB_FLUIDSYNTH_VERSION
-        new MetaSoundFont(this),
+        new MetaSoundFont{this},
     #endif // MIDILAB_FLUIDSYNTH_VERSION
-        new MetaPlayer(this),
+        new MetaPlayer{this},
         // other graphical handlers
-        new MetaMonitor(this),
+        new MetaMonitor{this},
         // basic handlers
-        new MetaForwarder(this),
-        new MetaChannelMapper(this),
-        new MetaTrackFilter(this)
+        new MetaForwarder{this},
+        new MetaChannelMapper{this},
+        new MetaTrackFilter{this}
     };
 }
 

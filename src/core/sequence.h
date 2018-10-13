@@ -107,6 +107,8 @@ public:
 
 namespace dumping {
 
+size_t expected_size(byte_t status); /*!< number of data bytes expected, without the status byte itself */
+
 Event read_event(std::istream& stream, bool is_realtime, byte_t* running_status = nullptr);
 
 StandardMidiFile read_file(std::istream& stream);

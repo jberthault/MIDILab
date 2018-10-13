@@ -220,14 +220,14 @@ private:
 
 };
 
-//==================
-// MetaVolume1Wheel
-//==================
+//=================
+// MetaVolumeWheel
+//=================
 
-class MetaVolume1Wheel : public MetaWheel {
+class MetaVolumeWheel : public MetaWheel {
 
 public:
-    explicit MetaVolume1Wheel(QObject* parent);
+    explicit MetaVolumeWheel(QObject* parent);
 
     void setContent(HandlerProxy& proxy) override;
 
@@ -237,42 +237,12 @@ public:
 // Volume1Wheel
 //==============
 
-class Volume1Wheel : public AbstractWheel {
+class VolumeWheel : public AbstractWheel {
 
     Q_OBJECT
 
 public:
-    explicit Volume1Wheel();
-
-protected slots:
-    void onMove(channels_t channels, qreal ratio) override;
-    void updateText(channels_t channels) override;
-
-};
-
-//==================
-// MetaVolume2Wheel
-//==================
-
-class MetaVolume2Wheel : public MetaWheel {
-
-public:
-    explicit MetaVolume2Wheel(QObject* parent);
-
-    void setContent(HandlerProxy& proxy) override;
-
-};
-
-//==============
-// Volume2Wheel
-//==============
-
-class Volume2Wheel : public AbstractWheel {
-
-    Q_OBJECT
-
-public:
-    explicit Volume2Wheel();
+    explicit VolumeWheel();
 
 protected slots:
     void onMove(channels_t channels, qreal ratio) override;

@@ -451,62 +451,29 @@ void ProgramWheel::updateText(channels_t channels) {
 // MetaVolume1Wheel
 //==================
 
-MetaVolume1Wheel::MetaVolume1Wheel(QObject* parent) : MetaWheel(parent) {
-    setIdentifier("Volume1Wheel");
+MetaVolumeWheel::MetaVolumeWheel(QObject* parent) : MetaWheel(parent) {
+    setIdentifier("VolumeWheel");
 }
 
-void MetaVolume1Wheel::setContent(HandlerProxy& proxy) {
-    proxy.setContent(new Volume1Wheel);
+void MetaVolumeWheel::setContent(HandlerProxy& proxy) {
+    proxy.setContent(new VolumeWheel);
 }
 
-//==============
-// Volume1Wheel
-//==============
+//=============
+// VolumeWheel
+//=============
 
-Volume1Wheel::Volume1Wheel() : AbstractWheel(Mode::in()) {
+VolumeWheel::VolumeWheel() : AbstractWheel(Mode::in()) {
     slider()->setExpanded(false);
     slider()->setOrientation(Qt::Horizontal);
     prepare(.5);
 }
 
-void Volume1Wheel::onMove(channels_t /*channels*/, qreal ratio) {
+void VolumeWheel::onMove(channels_t /*channels*/, qreal ratio) {
     if (canGenerate())
         generate(Event::master_volume(data14Range.expand(ratio)));
 }
 
-void Volume1Wheel::updateText(channels_t channels) {
-    slider()->setText(channels, stringForRatio(slider()->ratio()));
-}
-
-//==================
-// MetaVolume2Wheel
-//==================
-
-MetaVolume2Wheel::MetaVolume2Wheel(QObject* parent) : MetaWheel(parent) {
-    setIdentifier("Volume2Wheel");
-}
-
-void MetaVolume2Wheel::setContent(HandlerProxy& proxy) {
-    proxy.setContent(new Volume2Wheel);
-}
-
-//==============
-// Volume2Wheel
-//==============
-
-Volume2Wheel::Volume2Wheel() : AbstractWheel(Mode::in()) {
-    slider()->setExpanded(false);
-    slider()->setOrientation(Qt::Horizontal);
-    prepare(.5);
-}
-
-void Volume2Wheel::onMove(channels_t /*channels*/, qreal ratio) {
-    if (canGenerate()) {
-        auto volume = volumeRange.expand(ratio);
-        generate(volume_event(volume, volume));
-    }
-}
-
-void Volume2Wheel::updateText(channels_t channels) {
+void VolumeWheel::updateText(channels_t channels) {
     slider()->setText(channels, stringForRatio(slider()->ratio()));
 }

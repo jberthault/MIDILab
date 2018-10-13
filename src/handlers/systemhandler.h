@@ -29,8 +29,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
   * @todo order handlers to get the default one at first
   */
 
-Event volume_event(uint16_t left, uint16_t right);
-
 //======================
 // SystemHandlerFactory
 //======================
