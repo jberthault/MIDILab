@@ -650,8 +650,6 @@ void Handler::send_message(const Message& message) {
 void Handler::flush_messages() {
     m_pending_messages.consume([this](const auto& messages) {
 #ifdef MIDILAB_ENABLE_TIMING
-        for (const auto& message : messages)
-            m_metrics.add_latency(message.time_point);
         m_metrics.add_payload(messages.size());
 #endif
         m_interceptor->seize_messages(this, messages);
@@ -664,6 +662,9 @@ bool Handler::is_consumed() const {
 
 Handler::Result Handler::receive_message(const Message& message) noexcept {
     try {
+#ifdef MIDILAB_ENABLE_TIMING
+        m_metrics.add_latency(message.time_point);
+#endif
         if (message.event.family() == family_t::extended_system) {
             if (open_ext.affects(message.event))
                 return handle_open(open_ext.decode(message.event));

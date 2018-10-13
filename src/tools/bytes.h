@@ -300,7 +300,7 @@ public:
 
     template<typename T>
     constexpr auto& operator+=(T&& element) {
-        using tag_type = std::conditional_t<is_accumulator<std::decay<T>>::value, accumulator_type_tag, accumulator_any_tag>;
+        using tag_type = std::conditional_t<is_accumulator<std::decay_t<T>>::value, accumulator_type_tag, accumulator_any_tag>;
         add(tag_type{}, std::forward<T>(element));
         return *this;
     }
@@ -308,8 +308,8 @@ public:
 private:
     template<typename T>
     constexpr void add(accumulator_type_tag, T&& element) {
-        m_value += element.value;
-        m_count += element.count;
+        m_value += element.value();
+        m_count += element.count();
     }
 
     template<typename T>
