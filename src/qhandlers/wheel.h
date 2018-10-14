@@ -41,10 +41,8 @@ public:
     Parameters getParameters() const override;
     size_t setParameter(const Parameter& parameter) override;
 
-    Result handle_close(State state) override;
-
 protected:
-    void prepare(qreal defaultRatio);
+    Result handle_close(State state) override;
     void updateContext(Context* context) override;
 
 protected slots:
@@ -184,16 +182,21 @@ private:
 
 MetaHandler* makeMetaVolumeWheel(QObject* parent);
 
-class VolumeWheel : public AbstractWheel {
+class VolumeWheel : public GraphicalHandler {
 
     Q_OBJECT
 
 public:
     explicit VolumeWheel();
 
-protected slots:
-    void onMove(channels_t channels, qreal ratio) override;
-    void updateText(channels_t channels) override;
+    Parameters getParameters() const override;
+    size_t setParameter(const Parameter& parameter) override;
+
+protected:
+    Result handle_close(State state) override;
+
+private:
+    SimpleSlider* mSlider;
 
 };
 

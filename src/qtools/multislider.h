@@ -45,7 +45,8 @@ struct Scale {
     external_type upscale() const; /*!< upscale current value */
     external_type upscale(internal_type v) const; /*!< rescale value from internal to external range */
     internal_type downscale(external_type v) const; /*!< rescale value from external to internal range */
-    external_type update(external_type v); /*!< update internal value and coerce external value to bounds */
+
+    void update(external_type& v); /*!< update internal value and coerce external value to bounds */
     void clamp(internal_type v); /*!< set internal range fixed on the given value */
 
     internal_type value {0.}; /*!< current value (should be within the range) */

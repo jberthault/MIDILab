@@ -27,15 +27,12 @@ constexpr range_t<byte_t> semitonesRange = {0, 24};
 constexpr range_t<byte_t> data7Range = {0, 0x7f};
 constexpr range_t<uint16_t> data14Range = {0, 0x3fff};
 constexpr range_t<int> panRange = {-50, 50};
+constexpr range_t<int> percentRange {0, 100};
 
 constexpr byte_t defaultSemitones = 2;
 constexpr uint16_t defaultRPN = 0x3fff;
 constexpr uint16_t defaultPitch = 0x2000;
 constexpr uint16_t pitchBendRangeRPN = 0x0000;
-
-QString stringForRatio(qreal ratio) {
-    return QString::number(decay_value<int>(100*ratio)) + "%";
-}
 
 }
 
@@ -49,13 +46,11 @@ MetaHandler* makeMetaWheel(QObject* parent) {
     return meta;
 }
 
-AbstractWheel::AbstractWheel(Mode mode) : GraphicalHandler(mode) {
-
-    mSlider = new ChannelsSlider(Qt::Horizontal, this);
+AbstractWheel::AbstractWheel(Mode mode) : GraphicalHandler{mode} {
+    mSlider = new ChannelsSlider{Qt::Horizontal, this};
     mSlider->setTextWidth(40);
     connect(mSlider, &ChannelsSlider::knobChanged, this, &AbstractWheel::updateText);
     connect(mSlider, &ChannelsSlider::knobMoved, this, &AbstractWheel::onValueMove);
-
     setLayout(make_vbox(margin_tag{0}, spacing_tag{0}, mSlider));
 }
 
@@ -79,11 +74,6 @@ Handler::Result AbstractWheel::handle_close(State state) {
     return GraphicalHandler::handle_close(state);
 }
 
-void AbstractWheel::prepare(qreal defaultRatio) {
-    mSlider->setDefaultRatio(defaultRatio);
-    mSlider->setDefault(channels_t::full());
-}
-
 void AbstractWheel::updateContext(Context* context) {
     mSlider->setChannelEditor(context->channelEditor());
 }
@@ -105,13 +95,13 @@ MetaHandler* makeMetaControllerWheel(QObject* parent) {
     return meta;
 }
 
-ControllerWheel::ControllerWheel() : AbstractWheel(Mode::io()) {
-    resetAll();
-    mControllerBox = new QComboBox(this);
+ControllerWheel::ControllerWheel() : AbstractWheel{Mode::io()} {
+    mControllerBox = new QComboBox{this};
     for (const auto& value : controller_ns::controller_names())
         if (!controller_ns::is_channel_mode_message(value.first))
-            mControllerBox->addItem(QString::fromStdString(value.second), QVariant(value.first));
+            mControllerBox->addItem(QString::fromStdString(value.second), QVariant{value.first});
     connect(mControllerBox, SIGNAL(currentIndexChanged(int)), SLOT(onControlChange()));
+    resetAll();
     onControlChange(); // update controller
     static_cast<QVBoxLayout*>(layout())->insertWidget(0, mControllerBox);
 }
@@ -121,7 +111,7 @@ byte_t ControllerWheel::controller() const {
 }
 
 void ControllerWheel::setController(byte_t controller) {
-    int index = mControllerBox->findData(controller);
+    const int index = mControllerBox->findData(controller);
     if (index == -1)
         TRACE_WARNING("unknown controller");
     else
@@ -161,12 +151,13 @@ void ControllerWheel::onControlChange() {
     channel_map_t<qreal> ratios;
     for (channel_t c=0 ; c < channels_t::capacity() ; c++)
         ratios[c] = data7Range.reduce(mValues[mController][c]);
+    slider()->setCardinality(data7Range.span() + 1);
     slider()->setDefaultRatio(data7Range.reduce(controller_ns::default_value(mController)));
     slider()->setRatios(ratios);
 }
 
 void ControllerWheel::onMove(channels_t channels, qreal ratio) {
-    auto byte = data7Range.expand(ratio);
+    const auto byte = data7Range.expand(ratio);
     channel_ns::store(mValues[mController], channels, byte);
     if (canGenerate() && channels)
         generate(Event::controller(channels, mController, byte));
@@ -219,15 +210,15 @@ MetaHandler* makeMetaPitchWheel(QObject* parent) {
     return meta;
 }
 
-PitchWheel::PitchWheel() : AbstractWheel(Mode::io()) {
-    mTypeBox = new QComboBox(this);
+PitchWheel::PitchWheel() : AbstractWheel{Mode::io()} {
+    mTypeBox = new QComboBox{this};
     mTypeBox->addItem("Pitch Bend");
     mTypeBox->addItem("Pitch Bend Range");
     connect(mTypeBox, SIGNAL(currentIndexChanged(int)), SLOT(onTypeChange(int)));
     connect(slider(), &ChannelsSlider::knobPressed, this, &PitchWheel::onPress);
     connect(slider(), &ChannelsSlider::knobReleased, this, &PitchWheel::onRelease);
     resetAll();
-    prepare(.5);
+    onTypeChange(0);
     static_cast<QVBoxLayout*>(layout())->insertWidget(0, mTypeBox);
 }
 
@@ -271,16 +262,16 @@ void PitchWheel::onRelease(channels_t channels) {
 
 void PitchWheel::onMove(channels_t channels, qreal ratio) {
     if (rangeDisplayed()) {
-        auto semitones = semitonesRange.expand(ratio);
+        const auto semitones = semitonesRange.expand(ratio);
         channel_ns::store(mPitchRanges, channels, semitones);
         if (canGenerate() && channels) {
-            channels_t channelsNotReady = channels & ~channel_ns::find(mRegisteredParameters, pitchBendRangeRPN);
+            const auto channelsNotReady = channels & ~channel_ns::find(mRegisteredParameters, pitchBendRangeRPN);
             generateRegisteredParameter(channelsNotReady, pitchBendRangeRPN);
             generate(Event::controller(channels, controller_ns::data_entry_controller.coarse, semitones));
             generateRegisteredParameter(channelsNotReady, defaultRPN);
         }
     } else {
-        auto value = data14Range.expand(ratio);
+        const auto value = data14Range.expand(ratio);
         channel_ns::store(mPitchValues, channels, value);
         if (canGenerate() && channels)
             generate(Event::pitch_wheel(channels, value));
@@ -295,17 +286,21 @@ void PitchWheel::updateText(channels_t channels) {
 }
 
 void PitchWheel::onTypeChange(int index) {
+    size_t cardinality;
     qreal defaultRatio;
     channel_map_t<qreal> ratios;
     if (index == 1) {
+        cardinality = semitonesRange.span() + 1;
         defaultRatio = semitonesRange.reduce(defaultSemitones);
         for (channel_t c=0 ; c < channels_t::capacity() ; c++)
             ratios[c] = semitonesRange.reduce(mPitchRanges[c]);
     } else {
+        cardinality = data14Range.span() + 1;
         defaultRatio = .5;
         for (channel_t c=0 ; c < channels_t::capacity() ; c++)
             ratios[c] = data14Range.reduce(mPitchValues[c]);
     }
+    slider()->setCardinality(cardinality);
     slider()->setDefaultRatio(defaultRatio);
     slider()->setRatios(ratios);
 }
@@ -329,9 +324,9 @@ void PitchWheel::updatePitchRangeText(channels_t channels) {
 
 void PitchWheel::updatePitchValueText(channels_t channels) {
     for (channel_t channel : channels) {
-        auto scale = (double)mPitchRanges[channel];
-        range_t<double> scaleRange = {-scale, scale};
-        double semitones = scaleRange.rescale(data14Range, mPitchValues[channel]);
+        const auto scale = static_cast<double>(mPitchRanges[channel]);
+        const auto scaleRange = make_range(-scale, scale);
+        const auto semitones = scaleRange.rescale(data14Range, mPitchValues[channel]);
         slider()->setText(channels_t::wrap(channel), number2string(semitones, 'f', 2));
     }
 }
@@ -395,9 +390,11 @@ MetaHandler* makeMetaProgramWheel(QObject* parent) {
     return meta;
 }
 
-ProgramWheel::ProgramWheel() : AbstractWheel(Mode::io()) {
+ProgramWheel::ProgramWheel() : AbstractWheel{Mode::io()} {
     mPrograms.fill(0);
-    prepare(.0);
+    slider()->setCardinality(data7Range.span() + 1);
+    slider()->setDefaultRatio(0.);
+    slider()->setDefault(channels_t::full());
 }
 
 families_t ProgramWheel::handled_families() const {
@@ -418,7 +415,7 @@ void ProgramWheel::setProgramChange(channels_t channels, byte_t program) {
 }
 
 void ProgramWheel::onMove(channels_t channels, qreal ratio) {
-    auto program = data7Range.expand(ratio);
+    const auto program = data7Range.expand(ratio);
     channel_ns::store(mPrograms, channels, program);
     if (canGenerate() && channels)
         generate(Event::program_change(channels, program));
@@ -440,17 +437,32 @@ MetaHandler* makeMetaVolumeWheel(QObject* parent) {
     return meta;
 }
 
-VolumeWheel::VolumeWheel() : AbstractWheel{Mode::in()} {
-    slider()->setExpanded(false);
-    slider()->setOrientation(Qt::Horizontal);
-    prepare(.5);
+VolumeWheel::VolumeWheel() : GraphicalHandler{Mode::in()} {
+    auto* slider = makeHorizontalSlider(data14Range, data14Range.expand(.5), this);
+    slider->setFormatter([](auto value) {
+        return QString::number(percentRange.rescale(data14Range, value)) + "%";
+    });
+    slider->setDefault();
+    slider->setNotifier([this](auto value) {
+        if (canGenerate())
+            generate(Event::master_volume(value));
+    });
+    mSlider = slider;
+    setLayout(make_vbox(margin_tag{0}, spacing_tag{0}, slider));
 }
 
-void VolumeWheel::onMove(channels_t /*channels*/, qreal ratio) {
-    if (canGenerate())
-        generate(Event::master_volume(data14Range.expand(ratio)));
+HandlerView::Parameters VolumeWheel::getParameters() const {
+    auto result = GraphicalHandler::getParameters();
+    SERIALIZE("orientation", serial::serializeOrientation, mSlider->orientation(), result);
+    return result;
 }
 
-void VolumeWheel::updateText(channels_t channels) {
-    slider()->setText(channels, stringForRatio(slider()->ratio()));
+size_t VolumeWheel::setParameter(const Parameter& parameter) {
+    UNSERIALIZE("orientation", serial::parseOrientation, mSlider->setOrientation, parameter);
+    return GraphicalHandler::setParameter(parameter);
+}
+
+Handler::Result VolumeWheel::handle_close(State state) {
+    mSlider->setDefault();
+    return GraphicalHandler::handle_close(state);
 }

@@ -83,16 +83,15 @@ Scale::internal_type Scale::downscale(external_type v) const {
     return adjusted().reduce(v);
 }
 
-Scale::external_type Scale::update(external_type v) {
+void Scale::update(external_type& v) {
     value = downscale(v);
     if (value > range.max) {
         value = range.max;
-        return upscale(range.max);
+        v = upscale(range.max);
     } else if (value < range.min) {
         value = range.min;
-        return upscale(range.min);
+        v = upscale(range.min);
     }
-    return v;
 }
 
 void Scale::clamp(internal_type v) {
@@ -162,9 +161,9 @@ void Knob::moveToFit() {
 
 void Knob::scroll(int delta) {
     if (flags() & ItemIsMovable) {
-        const int increment = std::copysign(1, delta);
-        qreal xWanted = mXScale.cardinality < 2 || !mXScale.range ? x() + increment : mXScale.upscale(mXScale.joint(mXScale.nearest() + increment));
-        qreal yWanted = mYScale.cardinality < 2 || !mYScale.range ? y() - increment : mYScale.upscale(mYScale.joint(mYScale.nearest() + increment));
+        const auto increment = static_cast<int>(std::copysign(1, delta));
+        const qreal xWanted = mXScale.cardinality < 2 || !mXScale.range ? x() + increment : mXScale.upscale(mXScale.joint(mXScale.nearest() + increment));
+        const qreal yWanted = mYScale.cardinality < 2 || !mYScale.range ? y() - increment : mYScale.upscale(mYScale.joint(mYScale.nearest() + increment));
         setPos(xWanted, yWanted);
     }
 }
@@ -179,9 +178,12 @@ void Knob::setVisibleRect(const QRectF& rect) {
 QVariant Knob::itemChange(GraphicsItemChange change, const QVariant& value) {
     if (change == ItemPositionChange && mUpdatePosition) {
         auto newValue = value.toPointF();
-        newValue.setX(mXScale.update(newValue.x()));
-        newValue.setY(mYScale.update(newValue.y()));
-        emit knobMoved(mXScale.value, mYScale.value);
+        const auto xvalue = mXScale.value;
+        const auto yvalue = mYScale.value;
+        mXScale.update(newValue.rx());
+        mYScale.update(newValue.ry());
+        if (mXScale.value != xvalue || mYScale.value != yvalue)
+            emit knobMoved(mXScale.value, mYScale.value);
         return newValue;
     }
     return QGraphicsItem::itemChange(change, value);
