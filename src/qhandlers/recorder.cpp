@@ -22,21 +22,16 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "qhandlers/recorder.h"
 #include "qtools/misc.h"
 
-//==============
-// MetaRecorder
-//==============
-
-MetaRecorder::MetaRecorder(QObject* parent) : OpenMetaHandler{parent} {
-    setIdentifier("Recorder");
-}
-
-void MetaRecorder::setContent(HandlerProxy& proxy) {
-    proxy.setContent(new RecorderEditor);
-}
-
 //================
 // RecorderEditor
 //================
+
+MetaHandler* makeMetaRecorder(QObject* parent) {
+    auto* meta = new MetaHandler{parent};
+    meta->setIdentifier("Recorder");
+    meta->setFactory(new OpenProxyFactory<RecorderEditor>);
+    return meta;
+}
 
 RecorderEditor::RecorderEditor() : HandlerEditor{} {
 

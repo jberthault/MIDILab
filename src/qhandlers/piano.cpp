@@ -182,23 +182,18 @@ QSize PianoLayout::sizeHint() const {
     return {600, whiteHeightForWidth(600. / 52)};
 }
 
-//===========
-// MetaPiano
-//===========
-
-MetaPiano::MetaPiano(QObject* parent) : MetaInstrument(parent) {
-    setIdentifier("Piano");
-    setDescription("Interactive Piano Keyboard");
-    addParameter("range", ":NoteRange", "closed range \"<first_note>:<last_note>\" of notes composing the keyboard", "A0:C8");
-}
-
-void MetaPiano::setContent(HandlerProxy& proxy) {
-    proxy.setContent(new Piano);
-}
-
 //=======
 // Piano
 //=======
+
+MetaHandler* makeMetaPiano(QObject* parent) {
+    auto* meta = makeMetaInstrument(parent);
+    meta->setIdentifier("Piano");
+    meta->setDescription("Interactive Piano Keyboard");
+    meta->addParameter("range", ":NoteRange", "closed range \"<first_note>:<last_note>\" of notes composing the keyboard", "A0:C8");
+    meta->setFactory(new OpenProxyFactory<Piano>);
+    return meta;
+}
 
 Piano::Piano() : Instrument{Mode::io()} {
     mKeys.fill(nullptr);

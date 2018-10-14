@@ -32,21 +32,16 @@ static const QSize labelSize {16, 16};
 
 }
 
-//===================
-// MetaChannelMapper
-//===================
-
-MetaChannelMapper::MetaChannelMapper(QObject* parent) : OpenMetaHandler{parent} {
-    setIdentifier("ChannelMapper");
-}
-
-void MetaChannelMapper::setContent(HandlerProxy& proxy) {
-    proxy.setContent(new ChannelMapperEditor);
-}
-
 //=====================
 // ChannelMapperEditor
 //=====================
+
+MetaHandler* makeMetaChannelMapper(QObject* parent) {
+    auto* meta = new MetaHandler{parent};
+    meta->setIdentifier("ChannelMapper");
+    meta->setFactory(new OpenProxyFactory<ChannelMapperEditor>);
+    return meta;
+}
 
 ChannelMapperEditor::ChannelMapperEditor() : HandlerEditor{} {
 

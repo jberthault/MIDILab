@@ -95,22 +95,11 @@ private:
 
 };
 
-//===========
-// MetaPiano
-//===========
-
-class MetaPiano : public MetaInstrument {
-
-public:
-    explicit MetaPiano(QObject* parent);
-
-    void setContent(HandlerProxy& proxy) override;
-
-};
-
 //=======
 // Piano
 //=======
+
+MetaHandler* makeMetaPiano(QObject* parent);
 
 /**
  * @todo features enchancement : freeze, snapshot, step by step, filtering, pulse ...

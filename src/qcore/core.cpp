@@ -165,10 +165,6 @@ EditableHandler::EditableHandler(Mode mode) : HandlerView(), Handler(mode) {
 // HandlerProxy
 //==============
 
-HandlerProxy::HandlerProxy(MetaHandler* metaHandler) : mHandler(nullptr), mView(nullptr), mMetaHandler(metaHandler) {
-
-}
-
 Handler* HandlerProxy::handler() const {
     return mHandler;
 }
@@ -198,6 +194,10 @@ void HandlerProxy::setContent(HandlerEditor* editor) {
     mHandler = editor->getHandler();
     mView = editor;
     Q_ASSERT(editable() == nullptr);
+}
+
+void HandlerProxy::setMetaHandler(MetaHandler* metaHandler) {
+    mMetaHandler = metaHandler;
 }
 
 void HandlerProxy::setObserver(Observer* observer) const {
@@ -322,6 +322,10 @@ const MetaHandler::MetaParameters& MetaHandler::parameters() const {
     return mParameters;
 }
 
+HandlerProxyFactory* MetaHandler::factory() {
+    return mFactory;
+}
+
 void MetaHandler::addParameters(const MetaParameters& parameters) {
     mParameters.insert(mParameters.end(), parameters.begin(), parameters.end());
 }
@@ -334,14 +338,15 @@ void MetaHandler::addParameter(const QString& name, const QString& type, const Q
     addParameter({name, type, description, defaultValue});
 }
 
-//=================
-// OpenMetaHandler
-//=================
+void MetaHandler::setFactory(HandlerProxyFactory* factory) {
+    Q_ASSERT(!mFactory);
+    mFactory = factory;
+    mFactory->setParent(this);
+}
 
-HandlerProxy OpenMetaHandler::instantiate(const QString& name) {
-    HandlerProxy proxy{this};
-    setContent(proxy);
-    proxy.setName(name);
+HandlerProxy MetaHandler::instantiate(const QString& name) {
+    auto proxy = mFactory->instantiate(name);
+    proxy.setMetaHandler(this);
     return proxy;
 }
 

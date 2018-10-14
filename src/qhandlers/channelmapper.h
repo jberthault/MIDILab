@@ -24,22 +24,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "handlers/channelmapper.h"
 #include "qcore/core.h"
 
-//===================
-// MetaChannelMapper
-//===================
-
-class MetaChannelMapper : public OpenMetaHandler {
-
-public:
-    explicit MetaChannelMapper(QObject* parent);
-
-    void setContent(HandlerProxy& proxy) override;
-
-};
-
 //=====================
 // ChannelMapperEditor
 //=====================
+
+MetaHandler* makeMetaChannelMapper(QObject* parent);
 
 class ChannelMapperEditor : public HandlerEditor {
 

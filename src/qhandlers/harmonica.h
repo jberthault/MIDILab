@@ -24,22 +24,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QAbstractButton>
 #include "qhandlers/common.h"
 
-//===============
-// MetaHarmonica
-//===============
-
-class MetaHarmonica : public MetaInstrument {
-
-public:
-    explicit MetaHarmonica(QObject* parent);
-
-    void setContent(HandlerProxy& proxy) override;
-
-};
-
 //===========
 // Harmonica
 //===========
+
+MetaHandler* makeMetaHarmonica(QObject* parent);
 
 /**
  * representation of a diatonic harmonica

@@ -52,18 +52,6 @@ auto makeExpSliderFromExtension(const SoundFontBoundedExtension<T>& ext, T pivot
 
 }
 
-//===============
-// MetaSoundFont
-//===============
-
-MetaSoundFont::MetaSoundFont(QObject* parent) : OpenMetaHandler{parent} {
-    setIdentifier("SoundFont");
-}
-
-void MetaSoundFont::setContent(HandlerProxy& proxy) {
-    proxy.setContent(new SoundFontEditor);
-}
-
 //======================
 // SoundFontInterceptor
 //======================
@@ -259,6 +247,13 @@ void ChorusEditor::setDepth(double value) {
 //=================
 // SoundFontEditor
 //=================
+
+MetaHandler* makeMetaSoundFont(QObject* parent) {
+    auto* meta = new MetaHandler{parent};
+    meta->setIdentifier("SoundFont");
+    meta->setFactory(new OpenProxyFactory<SoundFontEditor>);
+    return meta;
+}
 
 SoundFontEditor::SoundFontEditor() : HandlerEditor{} {
 

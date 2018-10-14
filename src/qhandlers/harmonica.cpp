@@ -28,23 +28,18 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 static constexpr auto defaultChannels = channels_t::wrap(0);
 
-//===============
-// MetaHarmonica
-//===============
-
-MetaHarmonica::MetaHarmonica(QObject* parent) : MetaInstrument(parent) {
-    setIdentifier("Harmonica");
-    setDescription("diatonic harmonica");
-    addParameter("tonality", ":note", "tonality of the harmonica with the octave, the harmonica is tuned with the richter system", "C3");
-}
-
-void MetaHarmonica::setContent(HandlerProxy& proxy) {
-    proxy.setContent(new Harmonica);
-}
-
 //===========
 // Harmonica
 //===========
+
+MetaHandler* makeMetaHarmonica(QObject* parent) {
+    auto* meta = makeMetaInstrument(parent);
+    meta->setIdentifier("Harmonica");
+    meta->setDescription("diatonic harmonica");
+    meta->addParameter("tonality", ":note", "tonality of the harmonica with the octave, the harmonica is tuned with the richter system", "C3");
+    meta->setFactory(new OpenProxyFactory<Harmonica>);
+    return meta;
+}
 
 const QMap<Harmonica::Index, int> Harmonica::defaultTuning = {
    // blow alterations                    blow          aspirate      aspirate alterations ...

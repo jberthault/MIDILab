@@ -131,17 +131,15 @@ bool parseOrientation(const QString& data, Qt::Orientation& orientation) {
 
 }
 
-//======================
-// MetaGraphicalHandler
-//======================
-
-MetaGraphicalHandler::MetaGraphicalHandler(QObject* parent) : OpenMetaHandler(parent) {
-    addParameter("track", ":uint", "message's track of generated events", "0");
-}
-
 //==================
 // GraphicalHandler
 //==================
+
+MetaHandler* makeMetaGraphicalHandler(QObject* parent) {
+    auto* meta = new MetaHandler{parent};
+    meta->addParameter("track", ":uint", "message's track of generated events", "0");
+    return meta;
+}
 
 HandlerView::Parameters GraphicalHandler::getParameters() const {
     auto result = EditableHandler::getParameters();
@@ -170,17 +168,15 @@ void GraphicalHandler::generate(Event event) {
     forward_message({std::move(event), this, mTrack});
 }
 
-//================
-// MetaInstrument
-//================
-
-MetaInstrument::MetaInstrument(QObject* parent) : MetaGraphicalHandler(parent) {
-    addParameter("velocity", ":byte", "velocity of note event generated while pressing keys in range [0, 0x80[, values out of range are coerced", "0x7f");
-}
-
 //============
 // Instrument
 //============
+
+MetaHandler* makeMetaInstrument(QObject* parent) {
+    auto* meta = makeMetaGraphicalHandler(parent);
+    meta->addParameter("velocity", ":byte", "velocity of note event generated while pressing keys in range [0, 0x80[, values out of range are coerced", "0x7f");
+    return meta;
+}
 
 families_t Instrument::handled_families() const {
     return families_t::fuse(family_t::note_on, family_t::note_off, family_t::controller, family_t::reset);

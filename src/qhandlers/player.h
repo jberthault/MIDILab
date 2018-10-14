@@ -458,22 +458,11 @@ private:
 
 };
 
-//============
-// MetaPlayer
-//============
-
-class MetaPlayer : public OpenMetaHandler {
-
-public:
-    explicit MetaPlayer(QObject* parent);
-
-    void setContent(HandlerProxy& proxy) override;
-
-};
-
 //========
 // Player
 //========
+
+MetaHandler* makeMetaPlayer(QObject* parent);
 
 class Player : public HandlerEditor {
 

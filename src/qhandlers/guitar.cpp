@@ -50,24 +50,19 @@ const Guitar::Tuning defaultTuning = {note_ns::E(2), note_ns::A(2), note_ns::D(3
 
 }
 
-//============
-// MetaGuitar
-//============
-
-MetaGuitar::MetaGuitar(QObject* parent) : MetaInstrument(parent) {
-    setIdentifier("Guitar");
-    setDescription("Interactive Guitar Fretboard");
-    addParameter("tuning", ":Notes", "list of notes separated by ';' from lower string to higher string", serial::serializeNotes(defaultTuning));
-    addParameter("capo", ":ULong", "capo position, no capo if 0", "0");
-}
-
-void MetaGuitar::setContent(HandlerProxy& proxy) {
-    proxy.setContent(new Guitar);
-}
-
 //========
 // Guitar
 //========
+
+MetaHandler* makeMetaGuitar(QObject* parent) {
+    auto* meta = makeMetaInstrument(parent);
+    meta->setIdentifier("Guitar");
+    meta->setDescription("Interactive Guitar Fretboard");
+    meta->addParameter("tuning", ":Notes", "list of notes separated by ';' from lower string to higher string", serial::serializeNotes(defaultTuning));
+    meta->addParameter("capo", ":ULong", "capo position, no capo if 0", "0");
+    meta->setFactory(new OpenProxyFactory<Guitar>);
+    return meta;
+}
 
 Guitar::Guitar() : Instrument(Mode::io()), mTuning(defaultTuning), mCapo(0), mState(defaultTuning.size()), mActiveLocation(-1, 0), mBackground(":/data/wood.jpg") {
     clearNotes();

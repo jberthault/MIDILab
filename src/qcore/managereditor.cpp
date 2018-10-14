@@ -412,13 +412,16 @@ void HandlerListEditor::onDoubleClick(QTreeWidgetItem* item, int column) {
 
 void HandlerListEditor::showMenu(const QPoint& point) {
     const auto handlers = selectedHandlers();
-    if (handlers.size() == 1) {
-        auto proxy = getProxy(mManager->handlerProxies(), *handlers.begin());
-        mRenameAction->setEnabled(!dynamic_cast<ClosedMetaHandler*>(proxy.metaHandler()));
-    } else {
-        mRenameAction->setEnabled(false);
+    if (!handlers.empty()) {
+        bool renameEnabled = false;
+        if (handlers.size() == 1) {
+            auto proxy = getProxy(mManager->handlerProxies(), *handlers.begin());
+            if (proxy.metaHandler() && !dynamic_cast<ClosedProxyFactory*>(proxy.metaHandler()->factory()))
+                renameEnabled = true;
+        }
+        mRenameAction->setEnabled(renameEnabled);
+        mMenu->exec(mapToGlobal(point));
     }
-    mMenu->exec(mapToGlobal(point));
 }
 
 void HandlerListEditor::destroySelection() {
@@ -485,18 +488,20 @@ HandlerCatalogEditor::HandlerCatalogEditor(Manager* manager, QWidget* parent) : 
         item->setData(0, Qt::UserRole, qVariantFromValue(metaHandler));
         item->setFlags(item->flags() & ~Qt::ItemIsEditable);
         invisibleRootItem()->addChild(item);
-        if (auto* closedMetaHandler = dynamic_cast<ClosedMetaHandler*>(metaHandler))
-            refreshMeta(item, closedMetaHandler->instantiables());
+        if (auto* factory = dynamic_cast<ClosedProxyFactory*>(metaHandler->factory()))
+            refreshMeta(item, factory->instantiables());
     }
 }
 
 void HandlerCatalogEditor::showMenu(const QPoint& point) {
     if (auto* item = itemAt(point)) {
-        if (auto* closedMetaHandler = dynamic_cast<ClosedMetaHandler*>(metaHandlerForItem(item))) {
-            QMenu menu;
-            auto* reloadAction = menu.addAction(QIcon{":/data/reload.svg"}, "Reload");
-            if (menu.exec(mapToGlobal(point)) == reloadAction)
-                refreshMeta(item, closedMetaHandler->instantiables());
+        if (auto* metaHandler = metaHandlerForItem(item)) {
+            if (auto* factory = dynamic_cast<ClosedProxyFactory*>(metaHandler->factory())) {
+                QMenu menu;
+                auto* reloadAction = menu.addAction(QIcon{":/data/reload.svg"}, "Reload");
+                if (menu.exec(mapToGlobal(point)) == reloadAction)
+                    refreshMeta(item, factory->instantiables());
+            }
         }
     }
 }
@@ -504,9 +509,9 @@ void HandlerCatalogEditor::showMenu(const QPoint& point) {
 void HandlerCatalogEditor::onDoubleClick(QTreeWidgetItem* item, int column) {
     QString fixedName;
     auto* metaHandler = metaHandlerForItem(item);
-    if (dynamic_cast<ClosedMetaHandler*>(metaHandler))
+    if (metaHandler && dynamic_cast<ClosedProxyFactory*>(metaHandler->factory()))
         return;
-    if (!metaHandler) {
+    if (!metaHandler) { // fixed name clicked
         metaHandler = metaHandlerForItem(item->parent());
         fixedName = item->text(column);
         for (const auto& proxy : mManager->handlerProxies()) {
@@ -519,7 +524,7 @@ void HandlerCatalogEditor::onDoubleClick(QTreeWidgetItem* item, int column) {
     createHandler(metaHandler, fixedName);
 }
 
-void HandlerCatalogEditor::refreshMeta(QTreeWidgetItem *item, const QStringList& instantiables) {
+void HandlerCatalogEditor::refreshMeta(QTreeWidgetItem* item, const QStringList& instantiables) {
     // remove previous children
     auto previousChildren = item->takeChildren();
     qDeleteAll(previousChildren);

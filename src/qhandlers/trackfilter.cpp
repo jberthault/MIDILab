@@ -18,16 +18,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
+#include "handlers/trackfilter.h"
 #include "qhandlers/trackfilter.h"
 
-//=================
-// MetaTrackFilter
-//=================
-
-MetaTrackFilter::MetaTrackFilter(QObject* parent) : OpenMetaHandler(parent) {
-    setIdentifier("TrackFilter");
-}
-
-void MetaTrackFilter::setContent(HandlerProxy& proxy) {
-    proxy.setContent(new TrackFilter);
+MetaHandler* makeMetaTrackFilter(QObject* parent) {
+    auto* meta = new MetaHandler{parent};
+    meta->setIdentifier("TrackFilter");
+    meta->setFactory(new OpenProxyFactory<TrackFilter>);
+    return meta;
 }

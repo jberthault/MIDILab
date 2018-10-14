@@ -40,28 +40,28 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 StandardFactory::StandardFactory(QObject* parent) : QObject{parent}, MetaHandlerFactory{} {
     mMetaHandlers = {
         // instruments
-        new MetaPiano{this},
-        new MetaHarmonica{this},
-        new MetaGuitar{this},
+        makeMetaPiano(this),
+        makeMetaHarmonica(this),
+        makeMetaGuitar(this),
         // wheels
-        new MetaControllerWheel{this},
-        new MetaPitchWheel{this},
-        new MetaProgramWheel{this},
-        new MetaVolumeWheel{this},
+        makeMetaControllerWheel(this),
+        makeMetaPitchWheel(this),
+        makeMetaProgramWheel(this),
+        makeMetaVolumeWheel(this),
         // editors for basic handlers
-        new MetaTransposer{this},
-        new MetaRecorder{this},
-        new MetaSystem{this},
+        makeMetaTransposer(this),
+        makeMetaRecorder(this),
+        makeMetaSystem(this),
     #ifdef MIDILAB_FLUIDSYNTH_VERSION
-        new MetaSoundFont{this},
+        makeMetaSoundFont(this),
     #endif // MIDILAB_FLUIDSYNTH_VERSION
-        new MetaPlayer{this},
+        makeMetaPlayer(this),
         // other graphical handlers
-        new MetaMonitor{this},
+        makeMetaMonitor(this),
         // basic handlers
-        new MetaForwarder{this},
-        new MetaChannelMapper{this},
-        new MetaTrackFilter{this}
+        makeMetaForwarder(this),
+        makeMetaChannelMapper(this),
+        makeMetaTrackFilter(this)
     };
 }
 

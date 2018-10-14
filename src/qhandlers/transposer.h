@@ -24,22 +24,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "handlers/transposer.h"
 #include "qhandlers/common.h"
 
-//================
-// MetaTransposer
-//================
-
-class MetaTransposer : public OpenMetaHandler {
-
-public:
-    explicit MetaTransposer(QObject* parent);
-
-    void setContent(HandlerProxy& proxy) override;
-
-};
-
 //==================
 // TransposerEditor
 //==================
+
+MetaHandler* makeMetaTransposer(QObject* parent);
 
 class TransposerEditor : public HandlerEditor {
 

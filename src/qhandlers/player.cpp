@@ -1207,21 +1207,16 @@ void TempoView::updateDistorted(double distorsion) {
     mDistortedTempoSpin->setValue(mTempoSpin->value() * distorsion);
 }
 
-//============
-// MetaPlayer
-//============
-
-MetaPlayer::MetaPlayer(QObject* parent) : OpenMetaHandler(parent) {
-    setIdentifier("Player");
-}
-
-void MetaPlayer::setContent(HandlerProxy& proxy) {
-    proxy.setContent(new Player);
-}
-
 //========
 // Player
 //========
+
+MetaHandler* makeMetaPlayer(QObject* parent) {
+    auto* meta = new MetaHandler{parent};
+    meta->setIdentifier("Player");
+    meta->setFactory(new OpenProxyFactory<Player>);
+    return meta;
+}
 
 Player::Player() : HandlerEditor(), mIsPlaying(false), mIsStepping(false) {
 

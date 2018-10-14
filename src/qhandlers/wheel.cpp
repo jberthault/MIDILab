@@ -23,7 +23,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace {
 
-constexpr range_t<uint16_t> volumeRange = {0, 0xffff};
 constexpr range_t<byte_t> semitonesRange = {0, 24};
 constexpr range_t<byte_t> data7Range = {0, 0x7f};
 constexpr range_t<uint16_t> data14Range = {0, 0x3fff};
@@ -40,21 +39,19 @@ QString stringForRatio(qreal ratio) {
 
 }
 
-//===========
-// MetaWheel
-//===========
-
-MetaWheel::MetaWheel(QObject* parent) : MetaGraphicalHandler(parent) {
-    addParameter("orientation", ":orientation", "orientation of the slider", "Vertical");
-}
-
 //===============
 // AbstractWheel
 //===============
 
+MetaHandler* makeMetaWheel(QObject* parent) {
+    auto* meta = makeMetaGraphicalHandler(parent);
+    meta->addParameter("orientation", ":orientation", "orientation of the slider", "Horizontal");
+    return meta;
+}
+
 AbstractWheel::AbstractWheel(Mode mode) : GraphicalHandler(mode) {
 
-    mSlider = new ChannelsSlider(Qt::Vertical, this);
+    mSlider = new ChannelsSlider(Qt::Horizontal, this);
     mSlider->setTextWidth(40);
     connect(mSlider, &ChannelsSlider::knobChanged, this, &AbstractWheel::updateText);
     connect(mSlider, &ChannelsSlider::knobMoved, this, &AbstractWheel::onValueMove);
@@ -96,22 +93,17 @@ void AbstractWheel::onValueMove(channels_t channels, qreal ratio) {
     updateText(channels);
 }
 
-//=====================
-// MetaControllerWheel
-//=====================
-
-MetaControllerWheel::MetaControllerWheel(QObject* parent) : MetaWheel(parent) {
-    setIdentifier("ControllerWheel");
-    addParameter("controller", ":controller", "controller id(s) reacting over the GUI", "0x00");
-}
-
-void MetaControllerWheel::setContent(HandlerProxy& proxy) {
-    proxy.setContent(new ControllerWheel);
-}
-
 //=================
 // ControllerWheel
 //=================
+
+MetaHandler* makeMetaControllerWheel(QObject* parent) {
+    auto* meta = makeMetaWheel(parent);
+    meta->setIdentifier("ControllerWheel");
+    meta->addParameter("controller", ":controller", "controller id(s) reacting over the GUI", "0x00");
+    meta->setFactory(new OpenProxyFactory<ControllerWheel>);
+    return meta;
+}
 
 ControllerWheel::ControllerWheel() : AbstractWheel(Mode::io()) {
     resetAll();
@@ -216,21 +208,16 @@ Handler::Result ControllerWheel::handleReset() {
     return Result::success;
 }
 
-//================
-// MetaPitchWheel
-//================
-
-MetaPitchWheel::MetaPitchWheel(QObject* parent) : MetaWheel(parent) {
-    setIdentifier("PitchWheel");
-}
-
-void MetaPitchWheel::setContent(HandlerProxy& proxy) {
-    proxy.setContent(new PitchWheel);
-}
-
 //============
 // PitchWheel
 //============
+
+MetaHandler* makeMetaPitchWheel(QObject* parent) {
+    auto* meta = makeMetaWheel(parent);
+    meta->setIdentifier("PitchWheel");
+    meta->setFactory(new OpenProxyFactory<PitchWheel>);
+    return meta;
+}
 
 PitchWheel::PitchWheel() : AbstractWheel(Mode::io()) {
     mTypeBox = new QComboBox(this);
@@ -397,21 +384,16 @@ Handler::Result PitchWheel::handleReset() {
     return Result::success;
 }
 
-//==================
-// MetaProgramWheel
-//==================
-
-MetaProgramWheel::MetaProgramWheel(QObject* parent) : MetaWheel(parent) {
-    setIdentifier("ProgramWheel");
-}
-
-void MetaProgramWheel::setContent(HandlerProxy& proxy) {
-    proxy.setContent(new ProgramWheel);
-}
-
 //==============
 // ProgramWheel
 //==============
+
+MetaHandler* makeMetaProgramWheel(QObject* parent) {
+    auto* meta = makeMetaWheel(parent);
+    meta->setIdentifier("ProgramWheel");
+    meta->setFactory(new OpenProxyFactory<ProgramWheel>);
+    return meta;
+}
 
 ProgramWheel::ProgramWheel() : AbstractWheel(Mode::io()) {
     mPrograms.fill(0);
@@ -447,23 +429,18 @@ void ProgramWheel::updateText(channels_t channels) {
         slider()->setText(pair.second, QString::number(pair.first));
 }
 
-//==================
-// MetaVolume1Wheel
-//==================
-
-MetaVolumeWheel::MetaVolumeWheel(QObject* parent) : MetaWheel(parent) {
-    setIdentifier("VolumeWheel");
-}
-
-void MetaVolumeWheel::setContent(HandlerProxy& proxy) {
-    proxy.setContent(new VolumeWheel);
-}
-
 //=============
 // VolumeWheel
 //=============
 
-VolumeWheel::VolumeWheel() : AbstractWheel(Mode::in()) {
+MetaHandler* makeMetaVolumeWheel(QObject* parent) {
+    auto* meta = makeMetaWheel(parent);
+    meta->setIdentifier("VolumeWheel");
+    meta->setFactory(new OpenProxyFactory<VolumeWheel>);
+    return meta;
+}
+
+VolumeWheel::VolumeWheel() : AbstractWheel{Mode::in()} {
     slider()->setExpanded(false);
     slider()->setOrientation(Qt::Horizontal);
     prepare(.5);

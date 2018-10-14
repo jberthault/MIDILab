@@ -21,25 +21,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef QHANDLERS_SYSTEM_H
 #define QHANDLERS_SYSTEM_H
 
-#include "handlers/systemhandler.h"
 #include "qcore/editors.h"
 
-//============
-// MetaSystem
-//============
-
-class MetaSystem : public ClosedMetaHandler {
-
-public:
-    explicit MetaSystem(QObject* parent);
-
-    QStringList instantiables() override;
-
-    HandlerProxy instantiate(const QString& name) override;
-
-private:
-    SystemHandlerFactory mFactory;
-
-};
+MetaHandler* makeMetaSystem(QObject* parent);
 
 #endif // QHANDLERS_SYSTEM_H

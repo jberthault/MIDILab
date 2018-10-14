@@ -30,19 +30,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "handlers/soundfont.h"
 #include "qhandlers/common.h"
 
-//===============
-// MetaSoundFont
-//===============
-
-class MetaSoundFont : public OpenMetaHandler {
-
-public:
-    explicit MetaSoundFont(QObject* parent);
-
-    void setContent(HandlerProxy& proxy) override;
-
-};
-
 //======================
 // SoundFontInterceptor
 //======================
@@ -170,6 +157,8 @@ private:
 //=================
 // SoundFontEditor
 //=================
+
+MetaHandler* makeMetaSoundFont(QObject* parent);
 
 class SoundFontEditor : public HandlerEditor {
 

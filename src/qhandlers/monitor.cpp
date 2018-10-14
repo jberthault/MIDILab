@@ -34,21 +34,16 @@ QString specialText(const QString& text) {
 
 }
 
-//=============
-// MetaMonitor
-//=============
-
-MetaMonitor::MetaMonitor(QObject* parent) : OpenMetaHandler(parent) {
-    setIdentifier("Monitor");
-}
-
-void MetaMonitor::setContent(HandlerProxy& proxy) {
-    proxy.setContent(new Monitor);
-}
-
 //=========
 // Monitor
 //=========
+
+MetaHandler* makeMetaMonitor(QObject* parent) {
+    auto* meta = new MetaHandler{parent};
+    meta->setIdentifier("Monitor");
+    meta->setFactory(new OpenProxyFactory<Monitor>);
+    return meta;
+}
 
 Monitor::Monitor() : EditableHandler{Mode::out()} {
 

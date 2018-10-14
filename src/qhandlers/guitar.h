@@ -23,22 +23,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "qhandlers/common.h"
 
-//============
-// MetaGuitar
-//============
-
-class MetaGuitar : public MetaInstrument {
-
-public:
-    explicit MetaGuitar(QObject* parent);
-
-    void setContent(HandlerProxy& proxy) override;
-
-};
-
 //========
 // Guitar
 //========
+
+MetaHandler* makeMetaGuitar(QObject* parent);
 
 /**
  * @todo ...

@@ -18,17 +18,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
+#include "handlers/forwarder.h"
 #include "qhandlers/forwarder.h"
 
-//===============
-// MetaForwarder
-//===============
-
-MetaForwarder::MetaForwarder(QObject* parent) : OpenMetaHandler(parent) {
-    setIdentifier("Forwarder");
-    setDescription("Connection Tool");
-}
-
-void MetaForwarder::setContent(HandlerProxy& proxy) {
-    proxy.setContent(new ForwardHandler);
+MetaHandler* makeMetaForwarder(QObject* parent) {
+    auto* meta = new MetaHandler{parent};
+    meta->setIdentifier("Forwarder");
+    meta->setDescription("Connection Tool");
+    meta->setFactory(new OpenProxyFactory<ForwardHandler>);
+    return meta;
 }

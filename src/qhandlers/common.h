@@ -93,22 +93,11 @@ struct parser_traits<bool(const QString&, T&)> {
 
 }
 
-//======================
-// MetaGraphicalHandler
-//======================
-
-class MetaGraphicalHandler : public OpenMetaHandler {
-
-    Q_OBJECT
-
-public:
-    explicit MetaGraphicalHandler(QObject* parent);
-
-};
-
 //==================
 // GraphicalHandler
 //==================
+
+MetaHandler* makeMetaGraphicalHandler(QObject* parent);
 
 class GraphicalHandler : public EditableHandler {
 
@@ -131,22 +120,11 @@ private:
 
 };
 
-//================
-// MetaInstrument
-//================
-
-class MetaInstrument : public MetaGraphicalHandler {
-
-    Q_OBJECT
-
-public:
-    explicit MetaInstrument(QObject* parent);
-
-};
-
 //============
 // Instrument
 //============
+
+MetaHandler* makeMetaInstrument(QObject* parent);
 
 class Instrument : public GraphicalHandler {
 

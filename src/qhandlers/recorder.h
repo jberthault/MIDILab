@@ -25,22 +25,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "handlers/sequencewriter.h"
 #include "qcore/core.h"
 
-//==============
-// MetaRecorder
-//==============
-
-class MetaRecorder : public OpenMetaHandler {
-
-public:
-    explicit MetaRecorder(QObject* parent);
-
-    void setContent(HandlerProxy& proxy) override;
-
-};
-
 //================
 // RecorderEditor
 //================
+
+MetaHandler* makeMetaRecorder(QObject* parent);
 
 class RecorderEditor : public HandlerEditor {
 

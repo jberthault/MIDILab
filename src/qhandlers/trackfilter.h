@@ -21,20 +21,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef QHANDLERS_TRACKFILTER_H
 #define QHANDLERS_TRACKFILTER_H
 
-#include "handlers/trackfilter.h"
 #include "qcore/core.h"
 
-//=================
-// MetaTrackFilter
-//=================
-
-class MetaTrackFilter : public OpenMetaHandler {
-
-public:
-    explicit MetaTrackFilter(QObject* parent);
-
-    void setContent(HandlerProxy& proxy) override;
-
-};
+MetaHandler* makeMetaTrackFilter(QObject* parent);
 
 #endif // QHANDLERS_TRACKFILTER_H

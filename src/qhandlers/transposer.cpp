@@ -26,21 +26,16 @@ constexpr range_t<int> transpositionRange = {-12, 12};
 
 }
 
-//================
-// MetaTransposer
-//================
-
-MetaTransposer::MetaTransposer(QObject* parent) : OpenMetaHandler(parent) {
-    setIdentifier("Transposer");
-}
-
-void MetaTransposer::setContent(HandlerProxy& proxy) {
-    proxy.setContent(new TransposerEditor);
-}
-
 //==================
 // TransposerEditor
 //==================
+
+MetaHandler* makeMetaTransposer(QObject* parent) {
+    auto* meta = new MetaHandler{parent};
+    meta->setIdentifier("Transposer");
+    meta->setFactory(new OpenProxyFactory<TransposerEditor>);
+    return meta;
+}
 
 TransposerEditor::TransposerEditor() : HandlerEditor{} {
 

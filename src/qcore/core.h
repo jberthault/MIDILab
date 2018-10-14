@@ -202,8 +202,6 @@ public:
     using Parameter = HandlerView::Parameter;
     using Parameters = HandlerView::Parameters;
 
-    HandlerProxy(MetaHandler* metaHandler = nullptr);
-
     Handler* handler() const;
     HandlerView* view() const;
     EditableHandler* editable() const;
@@ -212,6 +210,7 @@ public:
 
     void setContent(Handler* handler);
     void setContent(HandlerEditor* editor);
+    void setMetaHandler(MetaHandler* metaHandler);
 
     void setObserver(Observer* observer) const;
 
@@ -233,9 +232,9 @@ public:
     void show() const;
 
 private:
-    Handler* mHandler;
-    HandlerView* mView;
-    MetaHandler* mMetaHandler;
+    Handler* mHandler {nullptr};
+    HandlerView* mView {nullptr};
+    MetaHandler* mMetaHandler {nullptr};
 
 };
 
@@ -261,11 +260,60 @@ auto takeProxyIf(HandlerProxies& proxies, PredicateT predicate) {
 HandlerProxy getProxy(const HandlerProxies& proxies, const Handler* handler);
 HandlerProxy takeProxy(HandlerProxies& proxies, const Handler* handler);
 
+//=====================
+// HandlerProxyFactory
+//=====================
+
+class HandlerProxyFactory : public QObject {
+
+    Q_OBJECT
+
+public:
+    using QObject::QObject;
+
+    virtual HandlerProxy instantiate(const QString& name) = 0;
+
+};
+
+//==================
+// OpenProxyFactory
+//==================
+
+template<typename ContentT>
+class OpenProxyFactory final : public HandlerProxyFactory {
+
+public:
+    using HandlerProxyFactory::HandlerProxyFactory;
+
+    HandlerProxy instantiate(const QString& name) override {
+        HandlerProxy proxy;
+        proxy.setContent(new ContentT);
+        proxy.setName(name);
+        return proxy;
+    }
+
+};
+
+//====================
+// ClosedProxyFactory
+//====================
+
+class ClosedProxyFactory : public HandlerProxyFactory {
+
+    Q_OBJECT
+
+public:
+    using HandlerProxyFactory::HandlerProxyFactory;
+
+    virtual QStringList instantiables() = 0;
+
+};
+
 //=============
 // MetaHandler
 //=============
 
-class MetaHandler : public QObject {
+class MetaHandler final : public QObject {
 
     Q_OBJECT
 
@@ -285,57 +333,26 @@ public:
     const QString& identifier() const;
     const QString& description() const;
     const MetaParameters& parameters() const;
+    HandlerProxyFactory* factory();
 
-    virtual HandlerProxy instantiate(const QString& name) = 0;
-
-protected:
     void setIdentifier(const QString& identifier);
     void setDescription(const QString& description);
     void addParameters(const MetaParameters& parameters);
     void addParameter(const MetaParameter& parameter);
     void addParameter(const QString& name, const QString& type, const QString& description, const QString& defaultValue);
+    void setFactory(HandlerProxyFactory* factory);
+
+    HandlerProxy instantiate(const QString& name);
 
 private:
     QString mIdentifier;
     QString mDescription;
     MetaParameters mParameters;
+    HandlerProxyFactory* mFactory {nullptr};
 
 };
 
 using MetaHandlers = std::vector<MetaHandler*>;
-
-//=================
-// OpenMetaHandler
-//=================
-
-class OpenMetaHandler : public MetaHandler {
-
-    Q_OBJECT
-
-public:
-    using MetaHandler::MetaHandler;
-
-    HandlerProxy instantiate(const QString& name) final;
-
-protected:
-    virtual void setContent(HandlerProxy& proxy) = 0;
-
-};
-
-//===================
-// ClosedMetaHandler
-//===================
-
-class ClosedMetaHandler : public MetaHandler {
-
-    Q_OBJECT
-
-public:
-    using MetaHandler::MetaHandler;
-
-    virtual QStringList instantiables() = 0;
-
-};
 
 //====================
 // MetaHandlerFactory

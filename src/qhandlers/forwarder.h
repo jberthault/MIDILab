@@ -21,20 +21,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef QHANDLERS_FORWARDER_H
 #define QHANDLERS_FORWARDER_H
 
-#include "handlers/forwarder.h"
 #include "qcore/core.h"
 
-//===============
-// MetaForwarder
-//===============
-
-class MetaForwarder : public OpenMetaHandler {
-
-public:
-    explicit MetaForwarder(QObject* parent);
-
-    void setContent(HandlerProxy& proxy) override;
-
-};
+MetaHandler* makeMetaForwarder(QObject* parent);
 
 #endif // QHANDLERS_FORWARDER_H

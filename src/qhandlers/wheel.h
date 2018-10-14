@@ -23,20 +23,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "qhandlers/common.h"
 
-//===========
-// MetaWheel
-//===========
-
-class MetaWheel : public MetaGraphicalHandler {
-
-public:
-    explicit MetaWheel(QObject* parent);
-
-};
-
 //===============
 // AbstractWheel
 //===============
+
+MetaHandler* makeMetaWheel(QObject* parent);
 
 class AbstractWheel : public GraphicalHandler {
 
@@ -68,22 +59,11 @@ private:
 
 };
 
-//=====================
-// MetaControllerWheel
-//=====================
-
-class MetaControllerWheel : public MetaWheel {
-
-public:
-    explicit MetaControllerWheel(QObject* parent);
-
-    void setContent(HandlerProxy& proxy) override;
-
-};
-
 //=================
 // ControllerWheel
 //=================
+
+MetaHandler* makeMetaControllerWheel(QObject* parent);
 
 class ControllerWheel : public AbstractWheel {
 
@@ -123,22 +103,11 @@ private:
 
 };
 
-//================
-// MetaPitchWheel
-//================
-
-class MetaPitchWheel : public MetaWheel {
-
-public:
-    explicit MetaPitchWheel(QObject* parent);
-
-    void setContent(HandlerProxy& proxy) override;
-
-};
-
 //===========
 // PitchWeel
 //===========
+
+MetaHandler* makeMetaPitchWheel(QObject* parent);
 
 class PitchWheel : public AbstractWheel {
 
@@ -181,22 +150,11 @@ private:
 
 };
 
-//==================
-// MetaProgramWheel
-//==================
-
-class MetaProgramWheel : public MetaWheel {
-
-public:
-    explicit MetaProgramWheel(QObject* parent);
-
-    void setContent(HandlerProxy& proxy) override;
-
-};
-
 //==============
 // ProgramWheel
 //==============
+
+MetaHandler* makeMetaProgramWheel(QObject* parent);
 
 class ProgramWheel : public AbstractWheel {
 
@@ -220,22 +178,11 @@ private:
 
 };
 
-//=================
-// MetaVolumeWheel
-//=================
+//=============
+// VolumeWheel
+//=============
 
-class MetaVolumeWheel : public MetaWheel {
-
-public:
-    explicit MetaVolumeWheel(QObject* parent);
-
-    void setContent(HandlerProxy& proxy) override;
-
-};
-
-//==============
-// Volume1Wheel
-//==============
+MetaHandler* makeMetaVolumeWheel(QObject* parent);
 
 class VolumeWheel : public AbstractWheel {
 

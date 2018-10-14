@@ -24,22 +24,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QTextEdit>
 #include "qhandlers/common.h"
 
-//=============
-// MetaMonitor
-//=============
-
-class MetaMonitor : public OpenMetaHandler {
-
-public:
-    explicit MetaMonitor(QObject* parent);
-
-    void setContent(HandlerProxy& proxy) override;
-
-};
-
 //=========
 // Monitor
 //=========
+
+MetaHandler* makeMetaMonitor(QObject* parent);
 
 class Monitor : public EditableHandler {
 

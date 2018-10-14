@@ -18,26 +18,36 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
+#include "handlers/systemhandler.h"
 #include "qhandlers/system.h"
 
-//============
-// MetaSystem
-//============
+class SystemProxyFactory final : public ClosedProxyFactory {
 
-MetaSystem::MetaSystem(QObject* parent) : ClosedMetaHandler(parent) {
-    setIdentifier("System");
-}
+public:
+    using ClosedProxyFactory::ClosedProxyFactory;
 
-QStringList MetaSystem::instantiables() {
-    QStringList result;
-    mFactory.update();
-    for (const auto& name : mFactory.available())
-        result.append(QString::fromStdString(name));
-    return result;
-}
+    QStringList instantiables() override {
+        QStringList result;
+        mFactory.update();
+        for (const auto& name : mFactory.available())
+            result.append(QString::fromStdString(name));
+        return result;
+    }
 
-HandlerProxy MetaSystem::instantiate(const QString& name) {
-    HandlerProxy proxy(this);
-    proxy.setContent(mFactory.instantiate(name.toStdString()).release());
-    return proxy;
+    HandlerProxy instantiate(const QString& name) override {
+        HandlerProxy proxy;
+        proxy.setContent(mFactory.instantiate(name.toStdString()).release());
+        return proxy;
+    }
+
+private:
+    SystemHandlerFactory mFactory;
+
+};
+
+MetaHandler* makeMetaSystem(QObject* parent) {
+    auto* meta = new MetaHandler{parent};
+    meta->setIdentifier("System");
+    meta->setFactory(new SystemProxyFactory);
+    return meta;
 }
