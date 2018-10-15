@@ -173,12 +173,14 @@ private:
  * A queue wraps a container so that accessing it is safe in multi-threaded environments.
  *
  * This queue is designed for multiple producers and single consumer.
- * values may be produced individually, but consumption must be done on all values available
+ * Values may be produced individually, but consumption must be done on all values available.
  *
- * produce will return true if all values produced previously have been consumed.
+ * The queue is considered busy while there are produced values that have not been consumed yet.
  *
- * ContainerT may be any objects providing methods 'push_back', 'empty' and 'clear'
- * It should also be swappable and default constructible
+ * 'produce' will return false if the queue was not busy before producing the value.
+ *
+ * ContainerT may be any objects providing methods 'push_back', 'empty' and 'clear'.
+ * It should also be swappable and default constructible.
  *
  */
 
@@ -187,21 +189,21 @@ class Queue {
 
 public:
 
-    bool is_consumed() const {
+    bool is_busy() const {
         std::lock_guard<std::mutex> guard{m_mutex};
-        return m_consumed;
+        return m_busy;
     }
 
     template<typename U>
     bool produce(U&& value) {
         std::lock_guard<std::mutex> guard{m_mutex};
         m_frontend.push_back(std::forward<U>(value));
-        return std::exchange(m_consumed, false);
+        return std::exchange(m_busy, true);
     }
 
     template<typename CallableT>
     void consume(CallableT&& callable) {
-        while (!stash()) {
+        while (stash()) {
             callable(m_backend);
             m_backend.clear();
         }
@@ -211,13 +213,13 @@ public:
         using std::swap;
         std::lock_guard<std::mutex> guard{m_mutex};
         swap(m_frontend, m_backend);
-        return ( m_consumed = m_backend.empty() );
+        return ( m_busy = !m_backend.empty() );
     }
 
 private:
     ContainerT m_frontend;
     ContainerT m_backend;
-    bool m_consumed {true};
+    bool m_busy {false};
     mutable std::mutex m_mutex;
 
 };

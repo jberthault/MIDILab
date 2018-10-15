@@ -43,7 +43,7 @@ class Handler;
  * A message is the main component used by handlers to manage events.
  * It basically adds meta data such as:
  * @li the absolute time of generation to provide fine resolution (depending on system)
- * @li the source of the event (the handler the first generated the event)
+ * @li the source of the event (the handler that first produced the event)
  *
  * @todo delete track and handle track filtering in the SequenceReader
  * or keep it and take profit of this additional parameter to implement
@@ -289,17 +289,17 @@ public:
     // -----
 
     // each handler has a mode associated which must be one of:
-    // - in: handler can generate messages
-    // - out: handler can receive messages
+    // - in: handler can produce messages
+    // - out: handler can consume messages
     // - thru: handler can forward messages (on reception)
-    // - io: handler can both generate and receive messages
+    // - io: handler can both produce and consume messages
     // it is guaranteed to be constant for each handler
 
     struct Mode : flags_t<Mode, size_t, 8> {
         using flags_t::flags_t;
 
-        static constexpr auto in() { return from_integral(0x1); } /*!< can generate events */
-        static constexpr auto out() { return from_integral(0x2); } /*!< can handle events */
+        static constexpr auto in() { return from_integral(0x1); } /*!< can produce events */
+        static constexpr auto out() { return from_integral(0x2); } /*!< can consume events */
         static constexpr auto thru() { return from_integral(0x4); } /*!< can forward on handling */
         static constexpr auto io() { return in() | out(); }
 
@@ -337,12 +337,16 @@ public:
 
     explicit Handler(Mode mode);
     Handler(const Handler&) = delete;
+    Handler(Handler&&) = delete;
     Handler& operator=(const Handler&) = delete;
+    Handler& operator=(Handler&&) = delete;
     virtual ~Handler();
 
     // ----------
     // properties
     // ----------
+
+    bool is_busy() const; /*!< true if there are pending messages waiting to be handled */
 
     const std::string& name() const;
     void set_name(std::string name);
@@ -370,26 +374,42 @@ public:
      */
 
     families_t received_families() const;
-    virtual families_t forwarded_families() const;
+    families_t forwarded_families() const;
 
-    // ---------
-    // messaging
-    // ---------
+    // ------------------
+    // reception features
+    // ------------------
 
     void send_message(const Message& message); /*!< add pending message and notifies the synchronizer */
     void flush_messages(); /*!< will synchronously pass pending messages to the interceptor */
-    bool is_consumed() const; /*!< true if there is no pending messages waiting to be handled */
-
     Result receive_message(const Message& message) noexcept; /*!< calls handle_* after checking mode and state */
-    void forward_message(const Message& message); /*!< sends message to all listeners matching their filters */
 
 protected:
+
+    // ------------------
+    // forwading features
+    // ------------------
+
+    void forward_message(const Message& message); /*!< sends message to all listeners matching their filters */
+    void produce_message(Event event, track_t track = Message::no_track); /*!< creates and forwards a new message */
+
+    // --------
+    // behavior
+    // --------
+
     virtual Result handle_open(State state); /*!< process an open message, updates internal state by default */
     virtual Result handle_close(State state); /*!< process a close message, updates internal state by default */
     virtual Result handle_message(const Message& message); /*!< process any other message, does nothing by default */
     virtual families_t handled_families() const; /*!< get families processed within handle_message */
+    virtual families_t produced_families() const; /*!< get families produced */
 
 private:
+
+    // ----------
+    // attributes
+    // ----------
+
+    Queue<Messages> m_pending_messages;
     std::string m_name;
     const Mode m_mode;
     std::atomic<State::storage_type> m_state {};
@@ -397,7 +417,6 @@ private:
     Interceptor* m_interceptor {nullptr};
     mutable std::mutex m_listeners_mutex;
     Listeners m_listeners;
-    Queue<Messages> m_pending_messages;
 #ifdef MIDILAB_ENABLE_TIMING
     Metrics m_metrics;
 #endif

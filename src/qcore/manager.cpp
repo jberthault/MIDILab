@@ -264,7 +264,7 @@ void Deleter::timerEvent(QTimerEvent*) {
 
 bool Deleter::deleteProxies() {
     while (true) {
-        auto px  = takeProxyIf(mProxies, [](const auto& proxy) { return proxy.handler()->is_consumed(); });
+        auto px  = takeProxyIf(mProxies, [](const auto& proxy) { return !proxy.handler()->is_busy(); });
         if (px.view())
             delete px.view();
         else if (px.handler())

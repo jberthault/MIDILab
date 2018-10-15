@@ -93,7 +93,7 @@ const MetaHandlers& StandardFactory::spawn() const {
 //    default:
 //        if (++current_state == target_state) {
 //            current_state = 0;
-//            return forward_message({target_event, this});
+//            produce_message(target_event);
 //        }
 //        return success_result;
 //    }

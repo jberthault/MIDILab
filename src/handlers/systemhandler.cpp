@@ -155,7 +155,7 @@ private:
     Result read_event(DWORD data) {
         if (state().any(State::forward())) {
             auto* bytes = reinterpret_cast<byte_t*>(&data);
-            forward_message({Event::raw(true, {bytes, bytes+4}), this});
+            produce_message(Event::raw(true, {bytes, bytes+4}));
             return Result::success;
         }
         return Result::closed;
@@ -454,7 +454,7 @@ class LinuxSystemHandler : public Handler {
                         // stream.tellg()
                         missed = 0;
                         buffer.str(""); // clear buffer
-                        forward_message(event);
+                        produce_message(event);
                     } catch (const std::exception& /*err*/) {
                         missed++;
                         if (missed > max_miss) {

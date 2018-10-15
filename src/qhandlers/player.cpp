@@ -1430,7 +1430,7 @@ void Player::pauseSequence() {
     if (mIsPlaying) {
         mIsPlaying = false;
         mIsStepping = false;
-        mHandler.stop_playing(Event::controller(channels_t::full(), controller_ns::all_sound_off_controller));
+        mHandler.stop_playing(Event::controller(channels_t::full(), controller_ns::all_sound_off_controller), false, false);
         mRefreshTimer->stop();
         mTempoView->clearTempo();
         mPlaylist->setCurrentStatus(PAUSED);
@@ -1438,8 +1438,7 @@ void Player::pauseSequence() {
 }
 
 void Player::resetSequence() {
-    mHandler.stop_playing(true);
-    mHandler.forward_message({Event::reset(), &mHandler}); // force reset
+    mHandler.stop_playing(Event::reset(), true, true);
     if (mIsPlaying) {
         mIsPlaying = false;
         mIsStepping = false;

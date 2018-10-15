@@ -50,7 +50,7 @@ SequenceReader::SequenceReader() : Handler{Mode::io()} {
 }
 
 SequenceReader::~SequenceReader() {
-    stop_playing(stop_all);
+    stop_playing(stop_all, false, false);
 }
 
 const Sequence& SequenceReader::sequence() const {
@@ -58,7 +58,7 @@ const Sequence& SequenceReader::sequence() const {
 }
 
 void SequenceReader::set_sequence(Sequence sequence) {
-    stop_playing(stop_all);
+    stop_playing(stop_all, false, false);
     std::lock_guard<std::mutex> guard(m_mutex);
     m_sequence = std::move(sequence);
     m_position = m_first_position = make_lower(m_sequence);
@@ -141,9 +141,8 @@ void SequenceReader::set_upper(timestamp_t timestamp) {
 }
 
 void SequenceReader::jump_position(position_type position) {
-    bool playing = is_playing();
-    stop_playing(false);
-    forward_message({stop_notes, this});
+    const bool playing = is_playing();
+    stop_playing(stop_notes, true, false);
     m_position = std::move(position);
     if (playing)
         start_playing(false);
@@ -155,7 +154,7 @@ bool SequenceReader::start_playing(bool rewind) {
     if (is_playing())
         return false;
     // ensure previous run is terminated
-    stop_playing(stop_sounds);
+    stop_playing(stop_sounds, false, false);
     // can't start if unable to generate events
     if (state().none(State::forward()))
         return false;
@@ -165,7 +164,7 @@ bool SequenceReader::start_playing(bool rewind) {
     // check upper bound
     if (is_completed())
         return false;
-    // @note it may be a good idea to clean current notes on: forward_message({stop_notes, this});
+    // @note it may be a good idea to clean current notes on: produce_message(stop_notes);
     // starts worker thread
     m_worker = std::thread{ [this] {
         activate_state(playing_state);
@@ -191,7 +190,7 @@ bool SequenceReader::start_playing(bool rewind) {
                 const Event& event = it->event;
                 if (event.family() == family_t::tempo)
                     base_time = m_sequence.clock().base_time(event);
-                forward_message({event, this, it->track});
+                produce_message(event, it->track);
             }
             // asleep this thread for a minimal period
             std::this_thread::sleep_for(std::chrono::milliseconds{2});
@@ -200,21 +199,16 @@ bool SequenceReader::start_playing(bool rewind) {
     return true;
 }
 
-bool SequenceReader::stop_playing(bool rewind) {
+bool SequenceReader::stop_playing(const Event& final_event, bool always_send, bool rewind) {
     deactivate_state(playing_state); // notify the playing thread to stop
     const bool started = m_worker.joinable();
     if (started)
         m_worker.join();
     if (rewind)
         m_position = m_first_position;
+    if (started || always_send)
+        produce_message(final_event);
     return started;
-}
-
-bool SequenceReader::stop_playing(const Event& final_event) {
-    const bool stopped = stop_playing(false);
-    if (stopped)
-        forward_message({final_event, this});
-    return stopped;
 }
 
 families_t SequenceReader::handled_families() const {
@@ -223,7 +217,7 @@ families_t SequenceReader::handled_families() const {
 
 Handler::Result SequenceReader::handle_close(State state) {
     if (state & State::forward())
-        stop_playing(stop_all);
+        stop_playing(stop_all, false, false);
     return Handler::handle_close(state);
 }
 
@@ -260,6 +254,6 @@ Handler::Result SequenceReader::handle_start(bool rewind) {
 }
 
 Handler::Result SequenceReader::handle_stop(const Event& final_event) {
-    stop_playing(final_event);
+    stop_playing(final_event, false, false);
     return Result::success;
 }

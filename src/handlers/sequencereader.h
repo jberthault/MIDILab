@@ -68,8 +68,7 @@ public:
     void set_upper(timestamp_t timestamp);
 
     bool start_playing(bool rewind); /*!< return false if already started */
-    bool stop_playing(bool rewind); /*!< return false if already stopped */
-    bool stop_playing(const Event& final_event); /*!< return false if already stopped */
+    bool stop_playing(const Event& final_event, bool always_send, bool rewind); /*!< return false if already stopped */
 
 protected:
     Result handle_close(State state) override;

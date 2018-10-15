@@ -584,6 +584,10 @@ Handler::~Handler() {
 #endif
 }
 
+bool Handler::is_busy() const {
+    return m_pending_messages.is_busy();
+}
+
 const std::string& Handler::name() const {
     return m_name;
 }
@@ -625,12 +629,12 @@ void Handler::set_interceptor(Interceptor* interceptor) {
 }
 
 Listeners Handler::listeners() const {
-    std::lock_guard<std::mutex> guard(m_listeners_mutex);
+    std::lock_guard<std::mutex> guard{m_listeners_mutex};
     return m_listeners;
 }
 
 void Handler::set_listeners(Listeners listeners) {
-    std::lock_guard<std::mutex> guard(m_listeners_mutex);
+    std::lock_guard<std::mutex> guard{m_listeners_mutex};
     m_listeners = std::move(listeners);
 }
 
@@ -639,11 +643,11 @@ families_t Handler::received_families() const {
 }
 
 families_t Handler::forwarded_families() const {
-    return families_t::full();
+    return produced_families();
 }
 
 void Handler::send_message(const Message& message) {
-    if (m_pending_messages.produce(message))
+    if (!m_pending_messages.produce(message))
         m_synchronizer->sync_handler(this);
 }
 
@@ -654,10 +658,6 @@ void Handler::flush_messages() {
 #endif
         m_interceptor->seize_messages(this, messages);
     });
-}
-
-bool Handler::is_consumed() const {
-    return m_pending_messages.is_consumed();
 }
 
 Handler::Result Handler::receive_message(const Message& message) noexcept {
@@ -682,10 +682,14 @@ Handler::Result Handler::receive_message(const Message& message) noexcept {
 }
 
 void Handler::forward_message(const Message& message) {
-    std::lock_guard<std::mutex> guard(m_listeners_mutex);
+    std::lock_guard<std::mutex> guard{m_listeners_mutex};
     for (const auto& listener : m_listeners)
         if (listener.filter.match_message(message))
             listener.handler->send_message(message);
+}
+
+void Handler::produce_message(Event event, track_t track) {
+    forward_message({std::move(event), this, track});
 }
 
 Handler::Result Handler::handle_open(State state) {
@@ -705,3 +709,8 @@ Handler::Result Handler::handle_message(const Message&) {
 families_t Handler::handled_families() const {
     return families_t::full();
 }
+
+families_t Handler::produced_families() const {
+    return families_t::full();
+}
+

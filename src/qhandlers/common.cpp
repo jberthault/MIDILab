@@ -165,7 +165,7 @@ bool GraphicalHandler::canGenerate() const {
 }
 
 void GraphicalHandler::generate(Event event) {
-    forward_message({std::move(event), this, mTrack});
+    produce_message(std::move(event), mTrack);
 }
 
 //============
