@@ -36,7 +36,7 @@ QString formatDefault<double>(double value) {
 
 template<typename T>
 auto makeSliderFromExtension(const SoundFontBoundedExtension<T>& ext, QWidget* parent) {
-    auto* slider = makeHorizontalSlider(range_t<T>{ext.range.min, ext.range.max}, ext.default_value, parent);
+    auto* slider = makeHorizontalSlider(ext.range, ext.default_value, parent);
     slider->setFormatter(formatDefault<T>);
     slider->setDefault();
     return slider;
@@ -44,7 +44,7 @@ auto makeSliderFromExtension(const SoundFontBoundedExtension<T>& ext, QWidget* p
 
 template<typename T>
 auto makeExpSliderFromExtension(const SoundFontBoundedExtension<T>& ext, T pivot, QWidget* parent) {
-    auto* slider = makeHorizontalSlider(exp_range_t<T>{{ext.range.min, ext.range.max}, pivot}, ext.default_value, parent);
+    auto* slider = makeHorizontalSlider(exp_range_t<T>{ext.range, pivot}, ext.default_value, parent);
     slider->setFormatter(formatDefault<T>);
     slider->setDefault();
     return slider;

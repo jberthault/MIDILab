@@ -223,32 +223,32 @@ void Guitar::paintEvent(QPaintEvent*) {
     painter.drawPixmap(r, mBackground);
     // draw frets
     painter.setPen(QPen(QColor("#444444"), 3.));
-    for (auto pos : fretPositions) {
-        auto x = xrange.expand(pos);
+    for (const auto pos : fretPositions) {
+        const auto x = expand(pos, xrange);
         painter.drawLine(x, yrange.min, x, yrange.max);
     }
     // draw marks
     painter.setPen(Qt::NoPen);
     painter.setBrush(QBrush(Qt::black));
-    for (auto mark : singleMarkPositions) {
-        auto x = xrange.expand(mark);
+    for (const auto mark : singleMarkPositions) {
+        const auto x = expand(mark, xrange);
         painter.drawEllipse({x, ycenter}, markRadius, markRadius);
     }
-    for (auto mark : doubleMarkPositions) {
-        auto x = xrange.expand(mark);
+    for (const auto mark : doubleMarkPositions) {
+        const auto x = expand(mark, xrange);
         painter.drawEllipse({x, r.top() + h/4}, markRadius, markRadius);
         painter.drawEllipse({x, r.bottom() - h/4}, markRadius, markRadius);
     }
     // draw strings
     painter.setPen(QPen(QColor("#86865d"), 2.));
     for (size_t n = 0 ; n < stringsCount ; n++) {
-        auto y = yrange.expand(stringPosition(n, stringsCount));
+        const auto y = expand(stringPosition(n, stringsCount), yrange);
         painter.drawLine(xrange.min, y, r.right(), y);
     }
     // draw capo
     if (mCapo > 0) {
         painter.setPen(Qt::NoPen);
-        auto x = xrange.expand(fretCenters[mCapo]);
+        const auto x = expand(fretCenters[mCapo], xrange);
         QRectF capoRect({}, QSizeF(capoWidth, h));
         capoRect.moveCenter({(qreal)x, (qreal)ycenter});
         painter.drawRoundedRect(capoRect, capoRadius, capoRadius);
@@ -261,11 +261,11 @@ void Guitar::paintEvent(QPaintEvent*) {
     if (channelEditor()) {
         painter.setPen(QColor(Qt::black));
         for (size_t n = 0 ; n < stringsCount ; n++) {
-            int y = yrange.expand(stringPosition(n, stringsCount));
+            const int y = expand(stringPosition(n, stringsCount), yrange);
             size_t fret = 0;
             for (channels_t cs : mState[n]) {
                 if (cs) {
-                    auto x = xrange.expand(fretCenters[fret]);
+                    const auto x = expand(fretCenters[fret], xrange);
                     painter.setBrush(channelEditor()->brush(cs));
                     painter.drawEllipse({x, y}, channelRadius, channelRadius);
                 }
@@ -325,6 +325,6 @@ Guitar::Location Guitar::locationAt(const QPoint& point) const {
     const range_t<double> stringRange = {0., (double)mTuning.size()};
     int fret = -1;
     if (r.left() <= point.x() && point.x() <= r.right())
-        fret = nearestFretCenter(xrange.reduce(point.x()));
-    return {(int)stringRange.rescale(yrange, point.y()), fret};
+        fret = nearestFretCenter(reduce(xrange, point.x()));
+    return {static_cast<int>(rescale(yrange, point.y(), stringRange)), fret};
 }

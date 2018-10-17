@@ -44,11 +44,11 @@ constexpr auto to_result(int rc) {
     return rc == FLUID_FAILED ? Handler::Result::fail : Handler::Result::success;
 }
 
-void settings_get_range(fluid_settings_t* settings, const char* name, basic_range_t<double>& range) {
+void settings_get_range(fluid_settings_t* settings, const char* name, range_t<double>& range) {
     fluid_settings_getnum_range(settings, name, &range.min, &range.max);
 }
 
-void settings_get_range(fluid_settings_t* settings, const char* name, basic_range_t<int>& range) {
+void settings_get_range(fluid_settings_t* settings, const char* name, range_t<int>& range) {
     fluid_settings_getint_range(settings, name, &range.min, &range.max);
 }
 
@@ -75,7 +75,7 @@ auto settings_default(fluid_settings_t* settings, const char* name) {
 
 template<typename T>
 auto settings_range(fluid_settings_t* settings, const char* name) {
-    basic_range_t<T> value;
+    range_t<T> value;
     settings_get_range(settings, name, value);
     return value;
 }

@@ -46,7 +46,7 @@ TransposerEditor::TransposerEditor() : HandlerEditor{} {
     mSlider->setExpanded(false);
     mSlider->setSelection(channels_t::melodic());
     mSlider->setDefaultRatio(.5);
-    mSlider->setCardinality(transpositionRange.span() + 1);
+    mSlider->setCardinality(span(transpositionRange) + 1);
     connect(mSlider, &ChannelsSlider::knobChanged, this, &TransposerEditor::updateText);
     connect(mSlider, &ChannelsSlider::knobMoved, this, &TransposerEditor::onMove);
     mSlider->setDefault(channels_t::full()); // will call updateText
@@ -74,7 +74,7 @@ Handler* TransposerEditor::getHandler() {
 }
 
 void TransposerEditor::onMove(channels_t channels, qreal ratio) {
-    auto key = transpositionRange.expand(ratio);
+    const auto key = expand(ratio, transpositionRange);
     channel_ns::store(mKeys, channels, key);
     mSlider->setText(channels, number2string(key));
     if (channels)

@@ -37,7 +37,7 @@ auto sizeBoundingRect(const QSizeF& size) {
 }
 
 auto scaleSpan(const Scale& scale) {
-    return std::abs(scale.adjusted().span());
+    return std::abs(span(scale.adjusted()));
 }
 
 const auto minimalRect = sizeBoundingRect({12., 12.});
@@ -57,11 +57,11 @@ Scale::discrete_type Scale::nearest() const {
 }
 
 Scale::discrete_type Scale::nearest(internal_type v) const {
-    return ticks().rescale(range, v);
+    return rescale(range, v, ticks());
 }
 
 Scale::internal_type Scale::joint(discrete_type v) const {
-    return range.rescale(ticks(), v);
+    return rescale(ticks(), v, range);
 }
 
 range_t<Scale::external_type> Scale::adjusted() const {
@@ -76,11 +76,11 @@ Scale::external_type Scale::upscale() const {
 }
 
 Scale::external_type Scale::upscale(internal_type v) const {
-    return adjusted().expand(v);
+    return expand(v, adjusted());
 }
 
 Scale::internal_type Scale::downscale(external_type v) const {
-    return adjusted().reduce(v);
+    return reduce(adjusted(), v);
 }
 
 void Scale::update(external_type& v) {

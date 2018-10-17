@@ -35,8 +35,8 @@ struct SoundFontExtension : SystemExtension<T> {
 
 template<typename T>
 struct SoundFontBoundedExtension : SoundFontExtension<T> {
-    SoundFontBoundedExtension(std::string key, T default_value, const basic_range_t<T>& range) : SoundFontExtension<T>{std::move(key), default_value}, range{range} {}
-    basic_range_t<T> range;
+    SoundFontBoundedExtension(std::string key, T default_value, const range_t<T>& range) : SoundFontExtension<T>{std::move(key), default_value}, range{range} {}
+    range_t<T> range;
 };
 
 struct SoundFontExtensions {

@@ -145,16 +145,7 @@ constexpr auto safe_modulo(T a, T b) {
 // range
 // =====
 
-template <typename T>
-struct basic_range_t {
-
-    using value_type = T;
-
-    T min;
-    T max;
-
-};
-
+namespace range_ns {
 
 template <typename T>
 struct range_t {
@@ -162,24 +153,7 @@ struct range_t {
     using value_type = T;
 
     constexpr explicit operator bool() const {
-        return min != max;
-    }
-
-    constexpr auto span() const {
-        return max - min;
-    }
-
-    constexpr auto reduce(T value) const {
-        return (double)(value - min) / span();
-    }
-
-    constexpr auto expand(double value) const {
-        return decay_value<T>(min + value * span());
-    }
-
-    template<typename U>
-    constexpr auto rescale(const range_t<U>& src, U value) const {
-        return expand(src.reduce(value));
+        return !(min == max);
     }
 
     T min;
@@ -201,29 +175,12 @@ struct exp_range_t {
         return 2. * std::log((range.max - pivot) / (pivot - range.min));
     }
 
-    constexpr range_t<double> expRange() const {
-        return {1., std::exp(factor())};
+    constexpr auto lifted() const {
+        return range_t<double>{1., std::exp(factor())};
     }
 
     constexpr explicit operator bool() const {
         return range;
-    }
-
-    constexpr auto span() const {
-        return range.span();
-    }
-
-    constexpr double reduce(T value) const {
-        return std::log(expRange().rescale(range, value)) / factor();
-    }
-
-    constexpr T expand(double value) const {
-        return range.rescale(expRange(), std::exp(factor() * value));
-    }
-
-    template<typename U>
-    constexpr T rescale(const range_t<U>& src, U value) const {
-        return expand(src.reduce(value));
     }
 
     range_t<T> range;
@@ -235,6 +192,47 @@ template<typename T>
 constexpr auto make_exp_range(T min, T pivot, T max) {
     return exp_range_t<T>{{min, max}, pivot};
 }
+
+template<typename IRangeT, typename IValueT, typename ORangeT>
+constexpr auto rescale(const IRangeT& irange, IValueT value, const ORangeT& orange) {
+    return expand(reduce(irange, value), orange);
+}
+
+template<typename T>
+constexpr auto span(const range_t<T>& range) {
+    return range.max - range.min;
+}
+
+template<typename T>
+constexpr auto reduce(const range_t<T>& range, T value) {
+    return static_cast<double>(value - range.min) / span(range);
+}
+
+template<typename T>
+constexpr auto expand(double value, const range_t<T>& range) {
+    /// @todo get min out of the double operation
+    return decay_value<T>(range.min + value * span(range));
+}
+
+template<typename T>
+constexpr auto span(const exp_range_t<T>& range) {
+    return span(range.range);
+}
+
+template<typename T>
+constexpr auto reduce(const exp_range_t<T>& range, T value) {
+    return std::log(rescale(range.range, value, range.lifted())) / range.factor();
+}
+
+template<typename T>
+constexpr auto expand(double value, const exp_range_t<T>& range) {
+    return rescale(range.lifted(), std::exp(range.factor() * value), range.range);
+}
+
+}
+
+using range_ns::range_t;
+using range_ns::exp_range_t;
 
 // ===========
 // marshalling

@@ -384,7 +384,7 @@ public:
         SimpleSlider{orientation, parent}, mRange{std::move(range)} {
 
         if (std::is_integral<value_type>::value)
-            setCardinality(mRange.span() + 1);
+            setCardinality(span(mRange) + 1);
 
         connect(this, &RangedSlider::knobChanged, this, &RangedSlider::onKnobChange);
         connect(this, &RangedSlider::knobMoved, this, &RangedSlider::onKnobChange);
@@ -407,23 +407,23 @@ public:
     }
 
     value_type defaultValue() const {
-        return mRange.expand(defaultRatio());
+        return expand(defaultRatio(), mRange);
     }
 
     void setDefaultValue(value_type value) {
-        setDefaultRatio(mRange.reduce(value));
+        setDefaultRatio(reduce(mRange, value));
     }
 
     value_type value() const {
-        return mRange.expand(ratio());
+        return expand(ratio(), mRange);
     }
 
     void setValue(value_type value) {
-        setRatio(mRange.reduce(value));
+        setRatio(reduce(mRange, value));
     }
 
     void onKnobChange(qreal ratio) {
-        const auto value = mRange.expand(ratio);
+        const auto value = expand(ratio, mRange);
         if (mFormatter)
             setText(mFormatter(value));
         if (mNotifier)
