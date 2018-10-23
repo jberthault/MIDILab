@@ -576,11 +576,11 @@ public:
     static Event controller(channels_t channels, byte_t controller, byte_t value);
     static Event program_change(channels_t channels, byte_t program);
     static Event channel_pressure(channels_t channels, byte_t pressure);
-    static Event pitch_wheel(channels_t channels, uint16_t pitch);
-    static Event sys_ex(data_type data); /*!< data must provide every byte [0xf0, ..., 0xf7] (none event if problem) */
-    static Event master_volume(uint16_t volume, byte_t sysex_channel = 0x7f);
+    static Event pitch_wheel(channels_t channels, short_ns::uint14_t pitch);
+    static Event sys_ex(data_type data); /*!< data should contain all bytes, including end-of-sysex, but not the status */
+    static Event master_volume(short_ns::uint14_t volume, byte_t sysex_channel = 0x7f);
     static Event mtc_frame(byte_t value);
-    static Event song_position(uint16_t value);
+    static Event song_position(short_ns::uint14_t position);
     static Event song_select(byte_t value);
     static Event tune_request();
     static Event clock();
@@ -590,12 +590,12 @@ public:
     static Event stop();
     static Event active_sense();
     static Event reset();
+    static Event meta(data_type data); /*!< data should contain meta type, meta size and the rest if data, but not the status */
     static Event tempo(double bpm);
     static Event end_of_track();
     static Event extended_voice(channels_t channels, data_type data);
     static Event extended_system(data_type data);
     static Event extended_meta(data_type data);
-    static Event raw(bool is_realtime, data_type data); /*!< check data content to get a coherent event & updates associated family */
 
     // constructors
 
@@ -619,7 +619,6 @@ public:
 
     family_t family() const noexcept; /*!< family accessor */
     bool is(families_t families) const noexcept; /*!< true if family belongs to families */
-    family_t extract_family(bool is_realtime) const; /*!< get family from raw data */
 
     explicit operator bool() const noexcept; /*!< true if event is valid */
 

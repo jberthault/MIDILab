@@ -147,7 +147,7 @@ constexpr auto safe_modulo(T a, T b) {
 
 namespace range_ns {
 
-template <typename T>
+template <typename T, typename = void>
 struct range_t {
 
     using value_type = T;
@@ -161,10 +161,26 @@ struct range_t {
 
 };
 
-template<typename T>
-constexpr auto make_range(T min, T max) {
-    return range_t<T>{min, max};
-}
+template <typename T>
+struct range_t<T, typename std::enable_if_t<!std::is_same<typename std::iterator_traits<T>::value_type, void>::value>> {
+
+    using iterator_category = typename std::iterator_traits<T>::iterator_category;
+    using value_type = typename std::iterator_traits<T>::value_type;
+    using difference_type = typename std::iterator_traits<T>::difference_type;
+    using pointer = typename std::iterator_traits<T>::pointer;
+    using reference = typename std::iterator_traits<T>::reference;
+
+    constexpr explicit operator bool() const {
+        return !(min == max);
+    }
+
+    constexpr auto begin() const { return min; }
+    constexpr auto end() const { return max; }
+
+    T min;
+    T max;
+
+};
 
 template<typename T>
 struct exp_range_t {
@@ -187,11 +203,6 @@ struct exp_range_t {
     T pivot; /*!< value that will be at 50% on the scale */
 
 };
-
-template<typename T>
-constexpr auto make_exp_range(T min, T pivot, T max) {
-    return exp_range_t<T>{{min, max}, pivot};
-}
 
 template<typename IRangeT, typename IValueT, typename ORangeT>
 constexpr auto rescale(const IRangeT& irange, IValueT value, const ORangeT& orange) {
@@ -227,6 +238,16 @@ constexpr auto reduce(const exp_range_t<T>& range, T value) {
 template<typename T>
 constexpr auto expand(double value, const exp_range_t<T>& range) {
     return rescale(range.lifted(), std::exp(range.factor() * value), range.range);
+}
+
+template<typename T>
+constexpr auto from_bounds(T min, T max) {
+    return range_t<T>{min, max};
+}
+
+template<typename T, typename U>
+constexpr auto from_span(T min, U span) {
+    return range_t<T>{min, min + span};
 }
 
 }

@@ -25,7 +25,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <chrono>     // std::chrono::duration
 #include <map>        // std::map
 #include <vector>     // std::vector
-#include <list>       // std::list
 #include <set>        // std::set
 #include "event.h"    // Event
 #include "tools/containers.h"
@@ -42,6 +41,8 @@ using track_t = size_t;
 
 using ppqn_t = uint16_t;
 
+constexpr ppqn_t default_ppqn {192};
+
 /**
  * @brief timestamp_t is a type abstracting a quantity
  * representing the time markers of events.
@@ -56,12 +57,10 @@ using timestamp_t = double;
 // StandardMidiFile
 //==================
 
-class StandardMidiFile {
-
-public:
+struct StandardMidiFile {
 
     using value_type = std::pair<uint32_t, Event>;
-    using track_type = std::list<value_type>;
+    using track_type = std::vector<value_type>;
     using container_type = std::vector<track_type>;
 
     using format_type = uint16_t;
@@ -69,34 +68,15 @@ public:
     static const format_type simultaneous_format = 1;
     static const format_type sequencing_format = 2;
 
-    StandardMidiFile();
-
-    format_type format; /*!< default simultaneous_format */
-    ppqn_t ppqn; /*!< default is 192 */
-    container_type tracks; /*!< default is empty */
+    format_type format {simultaneous_format};
+    ppqn_t ppqn {default_ppqn};
+    container_type tracks;
 
 };
 
-//============
-// variable_t
-//============
-
-/**
-  A variable value can be holden by a 32 bits value but is encoded differently.
-  It belongs to the range [0, 0x10000000[
-  */
-
-class variable_t {
-
-public:
-
-    bool set_true_value(uint32_t value); /*!< will return false if value is not in the accepted range */
-    bool set_encoded_value(uint32_t value); /*!< first byte of encoded value is considered to be the LSB (e.g. 0x00 0x00 0x68 0x89) */
-
-    uint32_t encoded_value;
-    uint32_t true_value;
-
-};
+//=========
+// dumping
+//=========
 
 /**
  *
@@ -107,11 +87,10 @@ public:
 
 namespace dumping {
 
-size_t expected_size(byte_t status); /*!< number of data bytes expected, without the status byte itself */
+using input_buffer_t = range_t<const byte_t*>;
 
-Event read_event(std::istream& stream, bool is_realtime, byte_t* running_status = nullptr);
+Event read_event(input_buffer_t& buf, bool is_realtime, byte_t* running_status = nullptr);
 
-StandardMidiFile read_file(std::istream& stream);
 StandardMidiFile read_file(const std::string& filename); /*!< return an empty file on error */
 
 size_t write_file(const StandardMidiFile& file, std::ostream& stream, bool use_running_status);
@@ -149,7 +128,7 @@ public:
         duration_type duration;
     };
 
-    Clock(ppqn_t ppqn = 192);
+    Clock(ppqn_t ppqn = default_ppqn);
 
     ppqn_t ppqn() const;
 
@@ -234,7 +213,7 @@ public:
 
     // builders
     static Sequence from_file(const StandardMidiFile& data);
-    static Sequence from_realtime(const realtime_type& data, ppqn_t ppqn = 192);
+    static Sequence from_realtime(const realtime_type& data, ppqn_t ppqn = default_ppqn);
 
     // clock
     const Clock& clock() const;

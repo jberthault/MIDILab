@@ -152,13 +152,19 @@ private:
         return errors;
     }
 
-    Result read_event(DWORD data) {
-        if (state().any(State::forward())) {
-            auto* bytes = reinterpret_cast<byte_t*>(&data);
-            produce_message(Event::raw(true, {bytes, bytes+4}));
-            return Result::success;
+    static Event event_from_data(DWORD data) {
+        auto buf = range_ns::from_span(reinterpret_cast<const byte_t*>(&data), 4);
+        try {
+            return dumping::read_event(buf, true);
+        } catch (...) {
+            return {};
         }
-        return Result::closed;
+    }
+
+    void read_event(DWORD data) {
+        if (state().any(State::forward()))
+            if (auto event = event_from_data(data))
+                produce_message(std::move(event));
     }
 
     size_t handle_sysex(const Event& event) {
@@ -425,36 +431,28 @@ class LinuxSystemHandler : public Handler {
 
         void i_callback() {
 
-            /// @todo improve using create a special stl stream using rawmidi_read
             /// @todo integrate running status (with a dummy one on exceptions)
-
-            std::stringbuf buffer;
 
             snd_rawmidi_nonblock(m_i_handler, 1);
             static const size_t max_miss = 15;
 
             size_t missed = 0;
-            int err;
             byte_t readed;
-            Event event;
-            std::stringstream stream;
-            stream.exceptions(std::ios_base::failbit);
+            std::vector<byte_t> storage;
 
             while (state().any(State::forward())) {
-                err = snd_rawmidi_read(m_i_handler, &readed, 1);
+                int err = snd_rawmidi_read(m_i_handler, &readed, 1);
                 if (err < 0 && (err != -EBUSY) && (err != -EAGAIN)) {
                     TRACE_WARNING("Can't read data from " << name() << ": " << snd_strerror(err));
                     break;
                 } else if (err >= 0) {
-                    buffer.sputc(readed);
-                    stream.clear();
-                    stream.str(buffer.str());
+                    storage.push_back(readed);
                     try {
-                        event = dumping::read_event(stream, true);
-                        // stream.tellg()
+                        auto buf = range_ns::from_span<const byte*>(storage.data(), storage.size());
+                        if (auto event = dumping::read_event(buf, true))
+                            produce_message(std::move(event));
                         missed = 0;
-                        buffer.str(""); // clear buffer
-                        produce_message(event);
+                        storage.clear();
                     } catch (const std::exception& /*err*/) {
                         missed++;
                         if (missed > max_miss) {
@@ -613,7 +611,7 @@ struct SystemHandlerFactory::Impl {
 struct SystemHandlerFactory::Impl {
     std::vector<std::string> available() const { return {}; }
     void update() { }
-    Handler* instantiate(const std::string& /*name*/) { return nullptr; }
+    std::unique_ptr<Handler> instantiate(const std::string& /*name*/) { return nullptr; }
 };
 
 #endif
@@ -622,7 +620,7 @@ struct SystemHandlerFactory::Impl {
 // SystemHandlerFactory
 //======================
 
-SystemHandlerFactory::SystemHandlerFactory() : m_impl(std::make_unique<Impl>()) {
+SystemHandlerFactory::SystemHandlerFactory() : m_impl{std::make_unique<Impl>()} {
     update();
 }
 

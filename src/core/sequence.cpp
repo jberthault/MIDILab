@@ -26,65 +26,16 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "tools/trace.h"
 
 //=========
-// details
+// dumping
 //=========
 
-namespace {
+namespace dumping {
 
 size_t copy_sequence(std::istream& from, std::ostream& to, size_t count) {
     for (size_t i=0 ; i < count ; i++)
         to.put(from.get());
     return count;
 }
-
-void find_pattern(const char* pattern, std::istream& stream) {
-    // void same as read_pattern except that it accepts noise before finding
-    // the pattern
-    const char* p = pattern;
-    while (*p != 0) {
-        if (*p == stream.get()) { // advance if match
-            ++p;
-        } else if (p != pattern) { // reset if unmatch
-            p = pattern;
-            stream.unget();
-        }
-    }
-}
-
-}
-
-//==================
-// StandardMidiFile
-//==================
-
-StandardMidiFile::StandardMidiFile() :
-    format(simultaneous_format), ppqn(192) {
-
-}
-
-//============
-// variable_t
-//============
-
-bool variable_t::set_true_value(uint32_t value) {
-    true_value = value;
-    encoded_value = to_data_byte(value);
-    while (value >>= 7)
-        encoded_value = (encoded_value << 8) | 0x80 | to_data_byte(value);
-    return is_msb_cleared(encoded_value >> 24);
-}
-
-bool variable_t::set_encoded_value(uint32_t value) {
-    encoded_value = value;
-    true_value = to_data_byte(value);
-    while (is_msb_set(value)) {
-        value >>= 8;
-        true_value = (true_value << 7) | to_data_byte(value);
-    }
-    return is_msb_cleared(value);
-}
-
-namespace dumping {
 
 size_t expected_size(byte_t status) {
     if (0x80 <= status && status < 0xf0)
@@ -96,50 +47,261 @@ size_t expected_size(byte_t status) {
     return 0;
 }
 
-byte_t read_data_byte(std::istream& stream) {
-    byte_t byte = stream.get();
-    if (is_msb_set(byte)) {
-        TRACE_WARNING("expected byte with bit #7 cleared before " << stream.tellg());
-        return 0x00;
-    }
-    return byte;
+// -----
+// read
+// -----
+
+auto make_buffer(const char* string) {
+    return range_ns::from_span(reinterpret_cast<const byte_t*>(string), ::strlen(string));
 }
 
-uint16_t read_uint16(std::istream& stream) {
-    return byte_traits<uint16_t>::read_little_endian(stream, 2);
+auto read_n(input_buffer_t& buf, ptrdiff_t count) {
+    if (span(buf) < count)
+        throw std::logic_error{"not enough bytes available"};
+    const auto previous = std::exchange(buf.min, buf.min + count);
+    return input_buffer_t{previous, buf.min};
 }
+
+auto read_at_most_n(input_buffer_t& buf, ptrdiff_t count) {
+    const auto pos = std::min(buf.min + count, buf.max);
+    const auto previous = std::exchange(buf.min, pos);
+    return input_buffer_t{previous, pos};
+}
+
+template<typename T, ptrdiff_t count = sizeof(T)>
+auto read_le(input_buffer_t& buf) {
+    const auto data = read_n(buf, count);
+    return byte_traits<T>::read_little_endian(data.min, data.max);
+}
+
+auto read_byte(input_buffer_t& buf) {
+    return *read_n(buf, 1).min;
+}
+
+auto read_uint14(input_buffer_t& buf) {
+    const auto data = read_n(buf, 2).min;
+    return short_ns::uint14_t{data[1], data[0]};
+}
+
+void read_prefix(input_buffer_t& buf, const input_buffer_t& prefix) {
+    const auto data = read_n(buf, span(prefix));
+    if (!std::equal(data.min, data.max, prefix.min))
+        throw std::logic_error{"wrong prefix"};
+}
+
+auto read_status(input_buffer_t& buf, byte_t* running_status = nullptr) {
+    auto status = read_byte(buf);
+    if (is_msb_set(status)) {
+        if (running_status != nullptr)
+            *running_status = status;
+    } else {
+        --buf.min; // undo read
+        if (running_status != nullptr)
+            status = *running_status;
+        if (is_msb_cleared(status))
+            throw std::logic_error{"unknown event status"};
+    }
+    return status;
+}
+
+auto read_variable(input_buffer_t& buf) {
+    const auto last = std::min(buf.max, buf.min + 3); // do not go beyond 4 bytes
+    const auto pos = std::find_if(buf.min, last, is_msb_cleared<byte_t>);
+    uint32_t value = 0;
+    for (const byte_t byte : read_n(buf, pos + 1 - buf.min))
+        value = (value << 7) | to_data_byte(byte);
+    return value;
+}
+
+auto read_sysex_size(input_buffer_t& buf, bool is_realtime) {
+    if (!is_realtime)
+        return static_cast<ptrdiff_t>(read_variable(buf));
+    const auto pos = std::find_if(buf.min, buf.max, [](byte_t byte) { return byte == 0xf7; });
+    return pos + 1 - buf.min;
+}
+
+auto read_sysex(input_buffer_t& buf, bool is_realtime) {
+    const auto sysex_size = read_sysex_size(buf, is_realtime);
+    const auto sysex_buf = read_n(buf, sysex_size);
+    return Event::sys_ex({sysex_buf.min, sysex_buf.max});
+}
+
+auto read_meta(input_buffer_t& buf) {
+    const auto meta_type_buf = read_n(buf, 1);
+    const auto meta_size = read_variable(buf);
+    const auto meta_data_buf = read_n(buf, meta_size);
+    return Event::meta({meta_type_buf.min, meta_data_buf.max});
+}
+
+auto read_note_off(input_buffer_t& buf, channels_t channels) {
+    const auto data = read_n(buf, 2).min;
+    return Event::note_off(channels, data[0], data[1]);
+}
+
+auto read_note_on(input_buffer_t& buf, channels_t channels) {
+    const auto data = read_n(buf, 2).min;
+    return data[1] == 0 ? Event::note_off(channels, data[0]) : Event::note_on(channels, data[0], data[1]);
+}
+
+auto read_aftertouch(input_buffer_t& buf,channels_t channels) {
+    const auto data = read_n(buf, 2).min;
+    return Event::aftertouch(channels, data[0], data[1]);
+}
+
+auto read_controller(input_buffer_t& buf, channels_t channels) {
+    const auto data = read_n(buf, 2).min;
+    return Event::controller(channels, data[0], data[1]);
+}
+
+Event read_event(input_buffer_t& buf, bool is_realtime, byte_t* running_status) {
+    const auto status = read_status(buf, running_status);
+    // ignoring 0xf4, 0xf5, 0xfd, 0xf7
+    switch(status) {
+    case 0xf0: return read_sysex(buf, is_realtime);
+    case 0xf1: return Event::mtc_frame(read_byte(buf));
+    case 0xf2: return Event::song_position(read_uint14(buf));
+    case 0xf3: return Event::song_select(read_byte(buf));
+    case 0xf6: return Event::tune_request();
+    case 0xf8: return Event::clock();
+    case 0xf9: return Event::tick();
+    case 0xfa: return Event::start();
+    case 0xfb: return Event::continue_();
+    case 0xfc: return Event::stop();
+    case 0xfe: return Event::active_sense();
+    case 0xff: return is_realtime ? Event::reset() : read_meta(buf);
+    default: switch (status & 0xf0) {
+        case 0x80: return read_note_off(buf, channels_t::wrap(status & 0xf));
+        case 0x90: return read_note_on(buf, channels_t::wrap(status & 0xf));
+        case 0xa0: return read_aftertouch(buf, channels_t::wrap(status & 0xf));
+        case 0xb0: return read_controller(buf, channels_t::wrap(status & 0xf));
+        case 0xc0: return Event::program_change(channels_t::wrap(status & 0xf), read_byte(buf));
+        case 0xd0: return Event::channel_pressure(channels_t::wrap(status & 0xf), read_byte(buf));
+        case 0xe0: return Event::pitch_wheel(channels_t::wrap(status & 0xf), read_uint14(buf));
+        default: return Event{};
+        }
+    }
+}
+
+void read_track_events(input_buffer_t& buf, StandardMidiFile::track_type& track) {
+    byte_t running_status = 0; // initialize running status
+    uint64_t timestamp = 0; // cumulated deltatimes
+    bool eot = false; // true if end-of-track event is found
+    while (!eot) {
+        // read deltatime and add it to timestamp
+        const auto deltatime = read_variable(buf);
+        timestamp += deltatime;
+        // read event and check its validity
+        if (const auto event = read_event(buf, false, &running_status)) {
+            eot = event.family() == family_t::end_of_track;
+            if (deltatime == 0 && !track.empty() && Event::equivalent(track.back().second, event)) {
+                // check if current event can be merged with the last one
+                // it aims to remove duplicated events while combining voice events on different channels
+                track.back().second.set_channels(track.back().second.channels() | event.channels());
+            } else {
+                // add event in the track, ignores deltatime for EOT when a particular timestamp is reached
+                // it may be an annoying feature/bug of some editor
+                track.emplace_back(eot && timestamp == 0x03ffff ? 0 : deltatime, event);
+            }
+        } else {
+            TRACE_WARNING("ignoring illformed event");
+        }
+    }
+}
+
+auto read_file(input_buffer_t& buf) {
+    StandardMidiFile file;
+    if (read_le<uint32_t>(buf) != 6)
+        throw std::logic_error{"unexpected header size"};
+    file.format = read_le<uint16_t>(buf);
+    if (file.format > 2)
+        throw std::logic_error{"unexpected midi file format"};
+    file.tracks.resize(read_le<uint16_t>(buf));
+    file.ppqn = read_le<uint16_t>(buf); /// @todo check values of ppqn
+    for (auto& track : file.tracks) {
+        input_buffer_t track_buf;
+        try {
+            read_prefix(buf, make_buffer("MTrk"));
+            const auto size = read_le<uint32_t>(buf);
+            track_buf = read_at_most_n(buf, size);
+            track.reserve(size / 3); // rough estimation of the number of events
+        } catch (const std::exception& err) {
+            TRACE_ERROR("failed parsing track header: " << err.what());
+            break;
+        }
+        try {
+            read_track_events(track_buf, track);
+            if (track_buf)
+                throw std::logic_error{"premature end-of-track"};
+        } catch (const std::exception& err) {
+            TRACE_ERROR("failed parsing track events: " << err.what());
+        }
+    }
+    return file;
+}
+
+auto remaining_size(std::istream& is) {
+    const auto pos = is.tellg();
+    is.seekg(0, is.end);
+    const auto length = is.tellg();
+    is.seekg(pos);
+    return length - pos;
+}
+
+auto fill_range(std::istream& is, const range_t<byte_t*>& range) {
+    if (!is.read(reinterpret_cast<char*>(range.min), span(range)))
+        throw std::runtime_error{"can't read data"};
+    return input_buffer_t{range.min, range.max};
+}
+
+StandardMidiFile read_file(const std::string& filename) {
+    TRACE_MEASURE("read file");
+    try  {
+        std::ifstream ifs{filename, std::ios_base::binary};
+        if (!ifs)
+            throw std::runtime_error{"can't open file"};
+        // check header before loading the whole file
+        std::array<byte_t, 4> header_storage;
+        auto header_buf = fill_range(ifs, range_ns::from_span(header_storage.data(), header_storage.size()));
+        read_prefix(header_buf, make_buffer("MThd"));
+        // compute the file size and read it
+        std::vector<byte_t> file_storage(static_cast<size_t>(remaining_size(ifs)));
+        auto file_buf = fill_range(ifs, range_ns::from_span(file_storage.data(), file_storage.size()));
+        return read_file(file_buf);
+    } catch (const std::exception& err) {
+        TRACE_WARNING(filename << ": " << err.what());
+        return StandardMidiFile{};
+    }
+}
+
+// ------
+// write
+// ------
+
+class variable_t {
+
+public:
+
+    bool set_true_value(uint32_t value) {
+        true_value = value;
+        encoded_value = to_data_byte(value);
+        while (value >>= 7)
+            encoded_value = (encoded_value << 8) | 0x80 | to_data_byte(value);
+        return is_msb_cleared(encoded_value >> 24);
+    }
+
+    uint32_t encoded_value;
+    uint32_t true_value;
+
+};
 
 size_t write_uint16(uint16_t value, std::ostream& stream) {
     byte_traits<uint16_t>::write_little_endian(value, stream, 2);
     return 2;
 }
 
-uint32_t read_uint32(std::istream& stream) {
-    return byte_traits<uint32_t>::read_little_endian(stream, 4);
-}
-
 size_t write_uint32(uint32_t value, std::ostream& stream) {
     byte_traits<uint32_t>::write_little_endian(value, stream, 4);
     return 4;
-}
-
-variable_t read_variable(std::istream& stream) {
-    variable_t result;
-    uint32_t buffer = 0;
-    size_t count = 0;
-    byte_t byte = 0xff; // initial value unused
-    while (is_msb_set(byte) && count < 4) {
-        byte = stream.get();
-        buffer |= byte << (8*count);
-        ++count;
-    }
-    if (!result.set_encoded_value(buffer))
-        throw std::logic_error("can't read variable length data");
-    return result;
-}
-
-uint32_t read_as_variable(std::istream& stream) {
-    return read_variable(stream).true_value;
 }
 
 size_t write_variable(const variable_t& variable, std::ostream& stream) {
@@ -162,118 +324,6 @@ size_t write_as_variable(uint32_t value, std::ostream& stream) {
     if (!variable.set_true_value(value))
         throw std::logic_error("variable error");
     return write_variable(variable, stream);
-}
-
-Event read_event(std::istream& stream, bool is_realtime, byte_t* running_status) {
-
-    // read status byte
-    byte_t status = stream.get();
-    if (is_msb_set(status)) {
-        if (running_status != nullptr)
-            *running_status = status;
-    } else {
-        if (running_status != nullptr)
-            status = *running_status;
-        if (is_msb_cleared(status))
-            throw std::logic_error("unknown event status");
-        stream.unget();
-    }
-
-    std::stringstream bytes;
-    bytes << status; // add status to data
-
-    if (status == 0xf0) {
-        size_t i=0;
-        const auto size = is_realtime ? 0u : read_as_variable(stream);
-        while (true) {
-            const byte_t byte = stream.get();
-            bytes << byte;
-            if (++i == size || byte == 0xf7)
-                break;
-            if (is_msb_set(byte))
-                throw std::logic_error("wrong data byte in sysex event");
-        }
-    } else if (status == 0xff) {
-        bytes << read_data_byte(stream); // read meta type
-        const auto size = read_variable(stream); // meta size
-        write_variable(size, bytes);
-        copy_sequence(stream, bytes, size.true_value);
-    } else {
-        const auto size = expected_size(status);
-        for(size_t i=0 ; i < size ; ++i)
-            bytes << read_data_byte(stream);
-    }
-
-    const auto data = bytes.str();
-    return Event::raw(is_realtime, {data.begin(), data.end()});
-}
-
-void read_track(std::istream& stream, StandardMidiFile::track_type& track) {
-    find_pattern("MTrk", stream); // throw if header is not found
-    uint32_t size = read_uint32(stream); // number of bytes in the chunk
-    std::streampos end = stream.tellg() + (std::streampos)size; // position of end of track
-    byte_t running_status = 0; // initialize running status
-    uint32_t deltatime; // temporary deltatime
-    uint64_t timestamp = 0; // cumulated deltatimes
-    Event event; // temporary event
-    bool eot = false; // true if end-of-track event is found
-    while (!eot && stream.tellg() < end) {
-        // read deltatime and add it to timestamp
-        deltatime = read_as_variable(stream);
-        timestamp += deltatime;
-        // read event and check its validity
-        event = read_event(stream, false, &running_status);
-        if (!event)
-            throw std::logic_error("none event found");
-        eot = event.family() == family_t::end_of_track;
-        if (deltatime == 0 && !track.empty() && Event::equivalent(track.back().second, event)) {
-            // check if current event can be merged with the last one
-            // it aims to remove duplicated events while combining voice events on different channels
-            track.back().second.set_channels(track.back().second.channels() | event.channels());
-        } else {
-            // add event in the track, ignores deltatime for EOT when a particular timestamp is reached
-            // it may be an annoying feature/bug of some editor
-            track.emplace_back(eot && timestamp == 0x03ffff ? 0 : deltatime, event);
-        }
-    }
-    if (!eot || stream.tellg() != end)
-        throw std::logic_error("unexpected end of track");
-}
-
-StandardMidiFile read_file(std::istream& stream) {
-    StandardMidiFile file;
-    find_pattern("MThd", stream);
-    uint32_t header_size = read_uint32(stream);
-    if (header_size != 6)
-        throw std::logic_error("unexpected header size");
-    file.format = read_uint16(stream);
-    if (file.format > 2)
-        throw std::logic_error("unexpected midi file format");
-    file.tracks.resize(read_uint16(stream));
-    file.ppqn = read_uint16(stream); /// @todo check values of ppqn
-    for (auto& track : file.tracks) {
-        try {
-            read_track(stream, track);
-        } catch (const std::exception& err) {
-            TRACE_ERROR("failed parsing track: " << err.what());
-            break;
-        }
-    }
-    return file;
-}
-
-StandardMidiFile read_file(const std::string& filename) {
-    TRACE_MEASURE("read file");
-    try  {
-        std::fstream filestream(filename, std::ios_base::in | std::ios_base::binary);
-        if (!filestream)
-            throw std::logic_error("can't open file");
-        filestream.exceptions(std::ios_base::failbit);
-        return read_file(filestream);
-    } catch (const std::exception& err) {
-        TRACE_WARNING(filename << ": " << err.what());
-        return StandardMidiFile();
-    }
 }
 
 size_t write_raw_event(byte_t status, const Event& event, std::ostream& stream, byte_t* running_status) {
@@ -423,7 +473,7 @@ private:
 // Clock
 //=======
 
-Clock::Clock(ppqn_t ppqn) : m_ppqn(ppqn) {
+Clock::Clock(ppqn_t ppqn) : m_ppqn{ppqn} {
     reset();
 }
 
@@ -514,7 +564,7 @@ double Clock::timestamp2beat(timestamp_t timestamp) const {
 
 Sequence Sequence::from_file(const StandardMidiFile& data) {
     Sequence sequence;
-    bool enqueue = data.format == StandardMidiFile::sequencing_format;
+    const bool enqueue = data.format == StandardMidiFile::sequencing_format;
     track_t track = 0;
     for (const auto& track_data : data.tracks)
         sequence.insert_track(track_data, track++, enqueue ? sequence.last_timestamp() : 0);
@@ -524,7 +574,7 @@ Sequence Sequence::from_file(const StandardMidiFile& data) {
 
 Sequence Sequence::from_realtime(const realtime_type& data, ppqn_t ppqn) {
     Sequence sequence;
-    Clock::time_type t0 = data.empty() ? Clock::time_type() : data.begin()->timepoint;
+    const auto t0 = data.empty() ? Clock::time_type{} : data.begin()->timepoint;
     // compute clock
     sequence.m_clock.reset(ppqn);
     for (const RealtimeItem& item : data)

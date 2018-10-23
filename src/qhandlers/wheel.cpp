@@ -274,7 +274,7 @@ void PitchWheel::onMove(channels_t channels, qreal ratio) {
         const auto value = expand(ratio, data14Range);
         channel_ns::store(mPitchValues, channels, value);
         if (canGenerate() && channels)
-            generate(Event::pitch_wheel(channels, value));
+            generate(Event::pitch_wheel(channels, short_ns::cut(value)));
     }
 }
 
@@ -325,7 +325,7 @@ void PitchWheel::updatePitchRangeText(channels_t channels) {
 void PitchWheel::updatePitchValueText(channels_t channels) {
     for (channel_t channel : channels) {
         const auto scale = static_cast<double>(mPitchRanges[channel]);
-        const auto scaleRange = range_ns::make_range(-scale, scale);
+        const auto scaleRange = range_ns::from_bounds(-scale, scale);
         const auto semitones = rescale(data14Range, mPitchValues[channel], scaleRange);
         slider()->setText(channels_t::wrap(channel), number2string(semitones, 'f', 2));
     }
@@ -445,7 +445,7 @@ VolumeWheel::VolumeWheel() : GraphicalHandler{Mode::in()} {
     slider->setDefault();
     slider->setNotifier([this](auto value) {
         if (canGenerate())
-            generate(Event::master_volume(value));
+            generate(Event::master_volume(short_ns::cut(value)));
     });
     mSlider = slider;
     setLayout(make_vbox(margin_tag{0}, spacing_tag{0}, slider));
