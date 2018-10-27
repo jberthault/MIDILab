@@ -107,20 +107,6 @@ std::ostream& print_bytes(std::ostream& stream, ByteInputIterator first, ByteInp
 // algorithms
 // ==========
 
-/**
- * return true if both range are equal (like std::equal would do),
- * but if ranges have different sizes, it will also return true
- * if all remaining element match the predicate
- */
-
-template<typename InpuIt1, typename InpuIt2, typename UnaryPredicate>
-bool equal_padding(InpuIt1 first1, InpuIt1 last1, InpuIt2 first2, InpuIt2 last2, UnaryPredicate p) {
-    auto its = std::mismatch(first1, last1, first2, last2);
-    if (its.first == last1) return std::all_of(its.second, last2, p);
-    if (its.second == last2) return std::all_of(its.first, last1, p);
-    return false;
-}
-
 template<typename T>
 constexpr std::enable_if_t<std::is_integral<T>::value, T> decay_value(double value) {
     return (T)std::round(value);
@@ -203,6 +189,16 @@ struct exp_range_t {
     T pivot; /*!< value that will be at 50% on the scale */
 
 };
+
+template<typename T>
+constexpr bool operator==(const range_t<T>& lhs, const range_t<T>& rhs) {
+    return lhs.min == rhs.min && lhs.max == rhs.max;
+}
+
+template<typename T>
+constexpr bool operator!=(const range_t<T>& lhs, const range_t<T>& rhs) {
+    return !(lhs == rhs);
+}
 
 template<typename IRangeT, typename IValueT, typename ORangeT>
 constexpr auto rescale(const IRangeT& irange, IValueT value, const ORangeT& orange) {

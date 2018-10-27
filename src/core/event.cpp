@@ -664,16 +664,7 @@ Event::Event(family_t family, channels_t channels, data_type data) noexcept :
 // comparison
 
 bool Event::equivalent(const Event& lhs, const Event& rhs) {
-    if (lhs.m_family != rhs.m_family)
-        return false;
-    auto ilhs = lhs.begin();
-    auto irhs = rhs.begin();
-    // skip status byte
-    if (lhs.is(families_t::standard())) {
-        ++ilhs;
-        ++irhs;
-    }
-    return equal_padding(ilhs, lhs.end(), irhs, rhs.end(), [](byte_t value) { return value == 0x00; });
+    return lhs.m_family == rhs.m_family && lhs.m_data.size() == rhs.m_data.size() && std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
 }
 
 bool operator==(const Event& lhs, const Event& rhs) {

@@ -1379,7 +1379,7 @@ void Player::saveSequence() {
     if (sequence.empty()) {
         QMessageBox::critical(this, {}, "Empty sequence");
     } else {
-        size_t bytes = dumping::write_file(sequence.to_file(), filename.toStdString(), true);
+        const size_t bytes = dumping::write_file(sequence.to_file(), filename.toStdString());
         if (bytes == 0) {
             QMessageBox::critical(this, {}, "Unable to write sequence");
         } else {

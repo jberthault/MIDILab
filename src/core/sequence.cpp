@@ -31,29 +31,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace dumping {
 
-size_t copy_sequence(std::istream& from, std::ostream& to, size_t count) {
-    for (size_t i=0 ; i < count ; i++)
-        to.put(from.get());
-    return count;
-}
-
-size_t expected_size(byte_t status) {
-    if (0x80 <= status && status < 0xf0)
-        return (0xc0 <= status && status < 0xe0) ? 1 : 2;
-    if (status == 0xf1 || status == 0xf3)
-        return 1;
-    if (status == 0xf2)
-        return 2;
-    return 0;
+auto make_buffer(const char* string) {
+    return range_ns::from_span(reinterpret_cast<const byte_t*>(string), ::strlen(string));
 }
 
 // -----
 // read
 // -----
-
-auto make_buffer(const char* string) {
-    return range_ns::from_span(reinterpret_cast<const byte_t*>(string), ::strlen(string));
-}
 
 auto read_n(input_buffer_t& buf, ptrdiff_t count) {
     if (span(buf) < count)
@@ -108,7 +92,7 @@ auto read_variable(input_buffer_t& buf) {
     const auto last = std::min(buf.max, buf.min + 3); // do not go beyond 4 bytes
     const auto pos = std::find_if(buf.min, last, is_msb_cleared<byte_t>);
     uint32_t value = 0;
-    for (const byte_t byte : read_n(buf, pos + 1 - buf.min))
+    for (const auto byte : read_n(buf, pos + 1 - buf.min))
         value = (value << 7) | to_data_byte(byte);
     return value;
 }
@@ -277,57 +261,23 @@ StandardMidiFile read_file(const std::string& filename) {
 // write
 // ------
 
-class variable_t {
-
-public:
-
-    bool set_true_value(uint32_t value) {
-        true_value = value;
-        encoded_value = to_data_byte(value);
-        while (value >>= 7)
-            encoded_value = (encoded_value << 8) | 0x80 | to_data_byte(value);
-        return is_msb_cleared(encoded_value >> 24);
-    }
-
-    uint32_t encoded_value;
-    uint32_t true_value;
-
-};
-
-size_t write_uint16(uint16_t value, std::ostream& stream) {
-    byte_traits<uint16_t>::write_little_endian(value, stream, 2);
-    return 2;
+size_t write_byte(byte_t value, std::ostream& stream) {
+    stream << value;
+    return 1;
 }
 
-size_t write_uint32(uint32_t value, std::ostream& stream) {
-    byte_traits<uint32_t>::write_little_endian(value, stream, 4);
-    return 4;
+template<typename T, size_t count = sizeof(T)>
+size_t write_le(T value, std::ostream& stream) {
+    byte_traits<T>::write_little_endian(value, stream, count);
+    return count;
 }
 
-size_t write_variable(const variable_t& variable, std::ostream& stream) {
-    size_t bytes = 0;
-    uint32_t buffer = variable.encoded_value;
-    while (true) {
-        bytes++;
-        byte_t byte = to_byte(buffer);
-        stream << byte;
-        if (is_msb_set(byte)) {
-            buffer >>= 8;
-        } else
-            break;
-    }
-    return bytes;
+size_t write_buf(const input_buffer_t& buf, std::ostream& stream) {
+    stream.write(reinterpret_cast<const char*>(buf.min), span(buf));
+    return static_cast<size_t>(span(buf));
 }
 
-size_t write_as_variable(uint32_t value, std::ostream& stream) {
-    variable_t variable;
-    if (!variable.set_true_value(value))
-        throw std::logic_error("variable error");
-    return write_variable(variable, stream);
-}
-
-size_t write_raw_event(byte_t status, const Event& event, std::ostream& stream, byte_t* running_status) {
-    size_t bytes = 0;
+size_t write_status(byte_t status, std::ostream& stream, byte_t* running_status) {
     // update running status
     bool write_status = true;
     if (running_status != nullptr) {
@@ -335,20 +285,35 @@ size_t write_raw_event(byte_t status, const Event& event, std::ostream& stream, 
         *running_status = status;
     }
     // write status (always written for sysex events in case the size has msb set)
-    if (write_status || status == 0xf0) {
-        bytes++;
-        stream << status;
-    }
+    size_t bytes = 0;
+    if (write_status || status == 0xf0)
+        bytes += write_byte(status, stream);
+    return bytes;
+}
+
+size_t write_variable(uint32_t value, std::ostream& stream) {
+    size_t bytes = 0;
+    if (value >> 28)
+        throw std::out_of_range{"wrong variable value"};
+    if (const auto v3 = value >> 21)
+        bytes += write_byte(0x80 | to_data_byte(v3), stream);
+    if (const auto v2 = value >> 14)
+        bytes += write_byte(0x80 | to_data_byte(v2), stream);
+    if (const auto v1 = value >> 7)
+        bytes += write_byte(0x80 | to_data_byte(v1), stream);
+    bytes += write_byte(to_data_byte(value), stream);
+    return bytes;
+}
+
+size_t write_raw_event(const Event& event, std::ostream& stream) {
+    size_t bytes = 0;
     // get the number of bytes to write
-    size_t count = expected_size(status);
-    if (status == 0xf0 || status == 0xff)
-        count = event.size() - 1; // all bytes
+    const size_t count = event.size() - 1;
     // write sysex size
-    if (status == 0xf0)
-        bytes += write_as_variable(static_cast<uint32_t>(count), stream);
-    // get event data as a stream (without the status)
-    std::stringstream event_data{std::string{event.begin() + 1, event.end()}};
-    bytes += copy_sequence(event_data, stream, count);
+    if (event.at(0) == 0xf0)
+        bytes += write_variable(static_cast<uint32_t>(count), stream);
+    // write event data (without the status)
+    bytes += write_buf(range_ns::from_span(event.data().data() + 1, count), stream);
     return bytes;
 }
 
@@ -357,30 +322,31 @@ size_t write_event(uint32_t deltatime, const Event& event, std::ostream& stream,
     byte_t status = event.at(0);
     // check status
     if (!is_msb_set(status))
-        throw std::invalid_argument("wrong status byte");
+        throw std::invalid_argument{"wrong status byte"};
     // check event type
     if (!event)
-        throw std::invalid_argument("can't write null event");
+        throw std::invalid_argument{"can't write null event"};
     if (event.is(~families_t::standard() | families_t::standard_system_realtime()))
-        throw std::invalid_argument("can't write custom or realtime events");
+        throw std::invalid_argument{"can't write custom or realtime events"};
     if (event.is(families_t::standard_voice())) {
         // transform note off to note on
         if (event.family() == family_t::note_off && event.at(2) == 0)
             status = 0x90;
         // check voice event's channel
         if (!event.channels())
-            throw std::invalid_argument("voice event is not bound to any channel");
+            throw std::invalid_argument{"voice event is not bound to any channel"};
         // insert one event per channel
         for (channel_t channel : event.channels()) {
-            bytes += write_as_variable(deltatime, stream);
-            bytes += write_raw_event((0xf0 & status) | channel, event, stream, running_status);
+            bytes += write_variable(deltatime, stream);
+            bytes += write_status(status | channel, stream, running_status);
+            bytes += write_raw_event(event, stream);
             deltatime = 0;
         }
     } else {
-        bytes += write_as_variable(deltatime, stream);
-        bytes += write_raw_event(status, event, stream, running_status);
+        bytes += write_variable(deltatime, stream);
+        bytes += write_status(status, stream, running_status);
+        bytes += write_raw_event(event, stream);
     }
-
     return bytes;
 }
 
@@ -390,30 +356,30 @@ size_t write_track(const StandardMidiFile::track_type& track, std::ostream& stre
     byte_t* running_status_ptr = use_running_status ? &running_status : nullptr;
     std::stringstream oss;
     // check track integrity
-    auto rfirst = track.rbegin();
-    if (rfirst == track.rend())
-        throw std::invalid_argument("empty track");
+    if (track.empty())
+        throw std::invalid_argument{"empty track"};
     // write data
     for (const StandardMidiFile::value_type& value: track)
         size += write_event(value.first, value.second, oss, running_status_ptr);
-    if (rfirst->second.family() != family_t::end_of_track)
+    if (track.back().second.family() != family_t::end_of_track)
         size += write_event(0, Event::end_of_track(), oss, running_status_ptr);
     // prepend a header
     size_t bytes = 0;
-    bytes += 4; stream << "MTrk";
-    bytes += write_uint32((uint32_t)size, stream);
-    bytes += copy_sequence(oss, stream, size);
+    bytes += write_buf(make_buffer("MTrk"), stream);
+    bytes += write_le(static_cast<uint32_t>(size), stream);
+    stream << oss.rdbuf();
+    bytes += size;
     return bytes;
 }
 
 size_t write_file(const StandardMidiFile& file, std::ostream& stream, bool use_running_status) {
     /// @todo check format & tracks & ppqn
     size_t bytes = 0;
-    bytes += 4; stream << "MThd";
-    bytes += write_uint32(6, stream);
-    bytes += write_uint16(file.format, stream);
-    bytes += write_uint16((uint16_t)file.tracks.size(), stream);
-    bytes += write_uint16(file.ppqn, stream);
+    bytes += write_buf(make_buffer("MThd"), stream);
+    bytes += write_le(static_cast<uint32_t>(6), stream);
+    bytes += write_le(static_cast<uint16_t>(file.format), stream);
+    bytes += write_le(static_cast<uint16_t>(file.tracks.size()), stream);
+    bytes += write_le(static_cast<uint16_t>(file.ppqn), stream);
     for (const StandardMidiFile::track_type& track: file.tracks)
         bytes += write_track(track, stream, use_running_status);
     return bytes;
@@ -421,11 +387,11 @@ size_t write_file(const StandardMidiFile& file, std::ostream& stream, bool use_r
 
 size_t write_file(const StandardMidiFile& file, const std::string& filename, bool use_running_status) {
     try  {
-        std::fstream filestream(filename, std::ios_base::out | std::ios_base::binary);
-        if (!filestream)
-            throw std::logic_error("can't open file");
-        filestream.exceptions(std::ios_base::failbit);
-        return write_file(file, filestream, use_running_status);
+        std::ofstream ofs{filename, std::ios_base::binary};
+        if (!ofs)
+            throw std::logic_error{"can't open file"};
+        ofs.exceptions(std::ios_base::failbit);
+        return write_file(file, ofs, use_running_status);
     } catch (const std::exception& err) {
         TRACE_WARNING(filename << ": " << err.what());
         return 0;

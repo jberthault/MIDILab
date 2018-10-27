@@ -115,8 +115,8 @@ public:
     Parameters getParameters() const override;
     size_t setParameter(const Parameter& parameter) override;
 
-    const std::pair<Note, Note>& range() const;
-    void setRange(const std::pair<Note, Note>& range);
+    const range_t<Note>& range() const;
+    void setRange(const range_t<Note>& range);
 
 protected:
     void receiveNotesOff(channels_t channels) final;
@@ -138,7 +138,7 @@ private:
     void generateKeyOff(PianoKey* key, Qt::MouseButtons buttons);
 
     PianoKey* mActiveKey {nullptr};
-    std::pair<Note, Note> mRange {note_ns::A(0), note_ns::C(8)};
+    range_t<Note> mRange {note_ns::A(0), note_ns::C(8)};
     std::array<PianoKey*, 0x80> mKeys;
 
 };

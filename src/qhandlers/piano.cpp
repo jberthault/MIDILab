@@ -211,12 +211,12 @@ size_t Piano::setParameter(const Parameter& parameter) {
     return Instrument::setParameter(parameter);
 }
 
-const std::pair<Note, Note>& Piano::range() const {
+const range_t<Note>& Piano::range() const {
     return mRange;
 }
 
-void Piano::setRange(const std::pair<Note, Note>& range) {
-    if (range != mRange && 0 <= range.first.code() && range.second.code() < 0x80) {
+void Piano::setRange(const range_t<Note>& range) {
+    if (range != mRange && 0 <= range.min.code() && range.max.code() < 0x80) {
         mRange = range;
         clearKeys();
         buildKeys();
@@ -235,7 +235,7 @@ void Piano::clearKeys() {
 void Piano::buildKeys() {
     auto* pianoLayout = new PianoLayout{nullptr};
     pianoLayout->setMargin(0);
-    for (int code = mRange.first.code() ; code <= mRange.second.code() ; code++) {
+    for (int code = mRange.min.code() ; code <= mRange.max.code() ; code++) {
         auto* key = new PianoKey{Note::from_code(code), this};
         mKeys[code] = key;
         pianoLayout->addKey(key);

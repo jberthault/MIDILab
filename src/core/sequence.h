@@ -23,7 +23,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <iostream>
 #include <chrono>     // std::chrono::duration
-#include <map>        // std::map
 #include <vector>     // std::vector
 #include <set>        // std::set
 #include "event.h"    // Event
@@ -92,9 +91,7 @@ using input_buffer_t = range_t<const byte_t*>;
 Event read_event(input_buffer_t& buf, bool is_realtime, byte_t* running_status = nullptr);
 
 StandardMidiFile read_file(const std::string& filename); /*!< return an empty file on error */
-
-size_t write_file(const StandardMidiFile& file, std::ostream& stream, bool use_running_status);
-size_t write_file(const StandardMidiFile& file, const std::string& filename, bool use_running_status); /*!< return 0 on error */
+size_t write_file(const StandardMidiFile& file, const std::string& filename, bool use_running_status = true); /*!< return 0 on error */
 
 }
 

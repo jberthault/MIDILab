@@ -174,7 +174,7 @@ private:
     size_t handle_voice(const Event& event) {
         /// @note can't bufferize in a single midiOutLongMsg due to a lack of support of somes devices
         size_t errors = 0;
-        const auto frame = *reinterpret_cast<const uint32_t*>(&event.data()[0]) & ~0xf; // event data with channel cleared
+        const auto frame = *reinterpret_cast<const uint32_t*>(&event.data()[0]);
         for (channel_t channel : event.channels())
             errors += check_out(midiOutShortMsg(m_handle_out, frame | channel));
         return errors;

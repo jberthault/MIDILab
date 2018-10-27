@@ -82,18 +82,18 @@ QString serializeNote(const Note& note) {
 
 bool parseNote(const QString& data, Note& note) {
     note = Note::from_string(data.toStdString());
-    return (bool)note;
+    return static_cast<bool>(note);
 }
 
-QString serializeRange(const std::pair<Note, Note>& range) {
-    return QString("%1:%2").arg(serializeNote(range.first), serializeNote(range.second));
+QString serializeRange(const range_t<Note>& range) {
+    return QString{"%1:%2"}.arg(serializeNote(range.min), serializeNote(range.max));
 }
 
-bool parseRange(const QString& data, std::pair<Note, Note>& range) {
+bool parseRange(const QString& data, range_t<Note>& range) {
     char separator = '\0';
-    std::istringstream stream(data.toStdString());
+    std::istringstream stream{data.toStdString()};
     try {
-        stream >> range.first >> separator >> range.second;
+        stream >> range.min >> separator >> range.max;
         return separator == ':';
     } catch (const std::exception&) {
         return false;
@@ -102,15 +102,15 @@ bool parseRange(const QString& data, std::pair<Note, Note>& range) {
 
 QString serializeNotes(const std::vector<Note>& notes) {
     QStringList stringList;
-    for (const Note& note : notes)
-        stringList.append(QString::fromStdString(note.string()));
+    for (const auto& note : notes)
+        stringList.append(serializeNote(note));
     return stringList.join(";");
 }
 
 bool parseNotes(const QString& data, std::vector<Note>& notes) {
-    for (const QString string : data.split(';')) {
-        auto note = Note::from_string(string.toStdString());
-        if (!note)
+    Note note;
+    for (const auto& string : data.split(';')) {
+        if (!parseNote(string, note))
             return false;
         notes.push_back(note);
     }
