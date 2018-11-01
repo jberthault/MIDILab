@@ -442,7 +442,7 @@ void ProgramEditor::updateSuccess(Handler* handler, Message message) {
     /// @todo treat bank messages
     switch (message.event.family()) {
     case family_t::program_change:
-        receiveProgram(handler, message.event.channels(), message.event.at(1));
+        receiveProgram(handler, message.event.channels(), extraction_ns::program(message.event));
         break;
     case family_t::extended_system:
         if (Handler::close_ext.affects(message.event)) {

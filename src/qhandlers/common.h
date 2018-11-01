@@ -116,7 +116,7 @@ public:
     void generate(Event event);
 
 private:
-    track_t mTrack {Message::no_track};
+    track_t mTrack {default_track};
 
 };
 

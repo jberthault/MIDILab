@@ -24,13 +24,34 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <array>
 #include <map>
 #include <unordered_map>
-#include <boost/container/small_vector.hpp>
-#include <boost/version.hpp>
+#include <memory>
 #include "note.h"
 #include "tools/bytes.h"
 #include "tools/flags.h"
 
-class Event;
+//======
+// View
+//======
+
+using byte_cview = range_t<const byte_t*>;
+using byte_view = range_t<byte_t*>;
+
+byte_cview make_view(const char* string);
+byte_cview make_view(const char* string, size_t size);
+byte_cview make_view(const std::string& string);
+
+template<size_t N>
+byte_cview make_view(const byte_t (& array)[N]) {
+    return {array, array + N};
+}
+
+//=======
+// Track
+//=======
+
+using track_t = uint16_t;
+
+constexpr track_t default_track {0};
 
 //=======
 // Short
@@ -39,8 +60,6 @@ class Event;
 /// @todo find a better name
 
 namespace short_ns {
-
-static constexpr uint16_t maximum_value{0x3fff};
 
 static constexpr byte_t coarse(uint16_t value) {
     return (value >> 7) & 0x7f;
@@ -530,6 +549,23 @@ struct families_t : flags_t<families_t, family_t, 64> {
         family_t::lyrics, family_t::marker, family_t::cue_point, family_t::program_name, family_t::device_name
     ); }
 
+    static constexpr auto size_0() { return wrap(family_t::invalid); }
+
+    static constexpr auto size_1() { return fuse(
+        family_t::xf4, family_t::xf5, family_t::tune_request, family_t::end_of_sysex, standard_system_realtime()
+    ); }
+
+    static constexpr auto size_2() { return fuse(
+        family_t::program_change, family_t::channel_pressure, family_t::mtc_frame, family_t::song_select
+    ); }
+
+    static constexpr auto size_3() { return fuse(
+        standard_note(), family_t::controller, family_t::pitch_wheel, family_t::song_position
+    ); }
+
+    static constexpr auto static_() { return size_0() | size_1() | size_2() | size_3(); }
+    static constexpr auto dynamic() { return full() & ~static_(); }
+
 };
 
 //=======
@@ -547,66 +583,66 @@ struct families_t : flags_t<families_t, family_t, 64> {
 class Event final {
 
 public:
-
-    // types definition
-
-    /**
-      *
-      * @note we are looking for a version of small_vector with proper constructors
-      * (it might not be that one particularly)
-      * for old versions, we fallback on standard vector
-      *
-      */
-
-#if BOOST_VERSION > 105800
-    using data_type = boost::container::small_vector<byte_t, 4>;
-#else
-    using data_type = std::vector<byte_t>;
-#endif
-
-    using const_iterator = data_type::const_iterator;
-    using iterator = data_type::iterator;
-
     // event builders (no 0xf4, 0xf5, 0xfd) @todo make meta events builder
 
-    static Event note_off(channels_t channels, byte_t note, byte_t velocity = 0);
-    static Event note_on(channels_t channels, byte_t note, byte_t velocity);
-    static Event aftertouch(channels_t channels, byte_t note, byte_t pressure);
-    static Event controller(channels_t channels, byte_t controller);
-    static Event controller(channels_t channels, byte_t controller, byte_t value);
-    static Event program_change(channels_t channels, byte_t program);
-    static Event channel_pressure(channels_t channels, byte_t pressure);
-    static Event pitch_wheel(channels_t channels, short_ns::uint14_t pitch);
-    static Event sys_ex(data_type data); /*!< data should contain all bytes, including end-of-sysex, but not the status */
+    static Event note_off(channels_t channels, byte_t note, byte_t velocity = 0) noexcept;
+    static Event note_on(channels_t channels, byte_t note, byte_t velocity) noexcept;
+    static Event aftertouch(channels_t channels, byte_t note, byte_t pressure) noexcept;
+    static Event controller(channels_t channels, byte_t controller) noexcept;
+    static Event controller(channels_t channels, byte_t controller, byte_t value) noexcept;
+    static Event program_change(channels_t channels, byte_t program) noexcept;
+    static Event channel_pressure(channels_t channels, byte_t pressure) noexcept;
+    static Event pitch_wheel(channels_t channels, short_ns::uint14_t pitch) noexcept;
+    static Event sys_ex(byte_cview data); /*!< data should contain all bytes, including end-of-sysex, but not the status */
     static Event master_volume(short_ns::uint14_t volume, byte_t sysex_channel = 0x7f);
-    static Event mtc_frame(byte_t value);
-    static Event song_position(short_ns::uint14_t position);
-    static Event song_select(byte_t value);
-    static Event tune_request();
-    static Event clock();
-    static Event tick();
-    static Event start();
-    static Event continue_();
-    static Event stop();
-    static Event active_sense();
-    static Event reset();
-    static Event meta(data_type data); /*!< data should contain meta type, meta size and the rest if data, but not the status */
+    static Event mtc_frame(byte_t value) noexcept;
+    static Event song_position(short_ns::uint14_t position) noexcept;
+    static Event song_select(byte_t value) noexcept;
+    static Event tune_request() noexcept;
+    static Event clock() noexcept;
+    static Event tick() noexcept;
+    static Event start() noexcept;
+    static Event continue_() noexcept;
+    static Event stop() noexcept;
+    static Event active_sense() noexcept;
+    static Event reset() noexcept;
+    static Event meta(byte_cview data); /*!< data should contain meta type, meta size and the rest if data, but not the status */
     static Event tempo(double bpm);
     static Event end_of_track();
-    static Event extended_voice(channels_t channels, data_type data);
-    static Event extended_system(data_type data);
-    static Event extended_meta(data_type data);
 
-    // constructors
+    // structors
 
     Event() noexcept = default; /*!< default constructor makes an invalid event */
+    Event(const Event& event);
+    Event(Event&& event) noexcept = default;
+    ~Event() noexcept = default;
+
+    Event& operator=(const Event& event);
+    Event& operator=(Event&& event) noexcept = default;
+
+    // accessors
+
+    inline family_t family() const noexcept { return m_family; }
+    inline bool is(families_t families) const noexcept { return families.test(m_family); } /*!< true if family belongs to families */
+    inline explicit operator bool() const noexcept { return m_family != family_t::invalid; } /*!< true if event is valid */
+
+    uint32_t static_size() const noexcept;
+    inline const byte_t* static_data() const noexcept { return m_static_data.data(); }
+    inline byte_t* static_data() noexcept { return m_static_data.data(); }
+
+    inline track_t track() const noexcept { return m_track; }
+    inline void set_track(track_t track) noexcept { m_track = track; }
+
+    inline channels_t channels() const noexcept { return m_channels; }
+    inline void set_channels(channels_t channels) noexcept { m_channels = channels; }
+
+    uint32_t dynamic_size() const noexcept;
+    inline const byte_t* dynamic_data() const noexcept { return m_dynamic_data.get(); }
+    inline byte_t* dynamic_data() noexcept { return m_dynamic_data.get(); }
 
     // comparison
 
-    static bool equivalent(const Event& lhs, const Event& rhs); /*!< test if both events are equivalent, they may have different channels */
-
-    friend bool operator==(const Event& lhs, const Event& rhs); /*!< true if events are equivalent and have the same channels */
-    friend bool operator!=(const Event& lhs, const Event& rhs); /*!< @see operator== */
+    static bool equivalent(const Event& lhs, const Event& rhs); /*!< test if both events are equivalent, meaning same family and same data */
 
     // string
 
@@ -615,55 +651,80 @@ public:
 
     friend std::ostream& operator<<(std::ostream& os, const Event& event);
 
-    // family accessors
-
-    family_t family() const noexcept; /*!< family accessor */
-    bool is(families_t families) const noexcept; /*!< true if family belongs to families */
-
-    explicit operator bool() const noexcept; /*!< true if event is valid */
-
-    // channels accessors
-
-    channels_t channels() const noexcept;
-    void set_channels(channels_t channels);
-
-    // data accessors
-
-    size_t size() const; /*!< returns number of bytes stored in data */
-
-    const data_type& data() const; /*!< data accessor (first data byte is the status) */
-    data_type& data(); /*!< @see data */
-
-    byte_t at(size_t index, byte_t default_byte = 0x00) const; /*!< data byte accessor (default byte is returned if data is too short) */
-
-    const_iterator begin() const;
-    const_iterator end() const;
-    iterator begin();
-    iterator end();
-
-    const_iterator meta_begin() const; /*!< return position of the first data byte of meta events (removing encoded size) */
-
-    // data observers (extracted values may have a different sense if the event is not the expected one)
-
-    Note get_note() const; /*!< returns a null note if extraction fails */
-    uint16_t get_14bits() const; /*!< song position or pitch (in range [0, 0x3fff]) */
-    double get_bpm() const; /*!< (set tempo event only) */
-    std::string get_meta_string() const; /*!< interprets meta data as a string */
-    std::string get_custom_key() const; /*!< extract custom event key */
-    std::string get_custom_value() const; /*!< extract custom event value */
-    bool has_custom_key(const char* key) const; /*!< test if the given key is the one stored */
-
-    template<class T = int64_t>
-    T get_meta_int() const { /*!< interprets meta data as an integer */
-        return byte_traits<T>::read_little_endian(meta_begin(), end());
-    }
-
 private:
-    Event(family_t family, channels_t channels, data_type data) noexcept;
+    friend class EventPrivate;
+    Event(family_t family, track_t track, channels_t channels) noexcept;
 
-    family_t m_family {family_t::invalid};
-    channels_t m_channels;
-    data_type m_data;
+    family_t m_family {family_t::invalid}; // 1 byte
+    std::array<byte_t, 3> m_static_data {0x00, 0x00, 0x00}; // 3 bytes
+    track_t m_track {default_track}; // 2 bytes
+    channels_t m_channels {}; // 2 bytes
+    std::unique_ptr<byte_t[]> m_dynamic_data {}; // 4 or 8 bytes
+
+};
+
+// ==========
+// Extraction
+// ==========
+
+namespace extraction_ns {
+
+struct static_tag {};
+struct dynamic_tag {};
+struct any_tag {};
+
+inline uint32_t get_size(static_tag, const Event& event) noexcept { return event.static_size(); }
+inline uint32_t get_size(dynamic_tag, const Event& event) noexcept { return event.dynamic_size(); }
+inline uint32_t get_size(any_tag, const Event& event) noexcept { return event.dynamic_data() ? event.dynamic_size() : event.static_size(); }
+
+inline const byte_t* get_cdata(static_tag, const Event& event) noexcept { return event.static_data(); }
+inline const byte_t* get_cdata(dynamic_tag, const Event& event) noexcept { return event.dynamic_data(); }
+inline const byte_t* get_cdata(any_tag, const Event& event) noexcept { return event.dynamic_data() ? event.dynamic_data() : event.static_data(); }
+
+inline byte_t* get_data(static_tag, Event& event) noexcept { return event.static_data(); }
+inline byte_t* get_data(dynamic_tag, Event& event) noexcept { return event.dynamic_data(); }
+inline byte_t* get_data(any_tag, Event& event) noexcept { return event.dynamic_data() ? event.dynamic_data() : event.static_data(); }
+
+template<typename Tag>
+struct ViewExtracter {
+    byte_cview operator()(const Event& event) const { return range_ns::from_span(get_cdata(Tag{}, event), get_size(Tag{}, event)); }
+    byte_view operator()(Event& event) const { return range_ns::from_span(get_data(Tag{}, event), get_size(Tag{}, event)); }
+};
+
+static constexpr auto static_view = ViewExtracter<static_tag>{};
+static constexpr auto dynamic_view = ViewExtracter<dynamic_tag>{};
+static constexpr auto view = ViewExtracter<any_tag>{};
+
+template<typename Tag, size_t index>
+struct ByteExtracter {
+    byte_t operator()(const Event& event) const noexcept { return get_cdata(Tag{}, event)[index]; }
+    byte_t& operator()(Event& event) const noexcept { return get_data(Tag{}, event)[index]; }
+};
+
+static constexpr auto status = ByteExtracter<any_tag, 0>{};
+static constexpr auto controller = ByteExtracter<static_tag, 1>{};
+static constexpr auto controller_value = ByteExtracter<static_tag, 2>{};
+static constexpr auto note = ByteExtracter<static_tag, 1>{};
+static constexpr auto program = ByteExtracter<static_tag, 1>{};
+static constexpr auto velocity = ByteExtracter<static_tag, 2>{};
+static constexpr auto song = ByteExtracter<static_tag, 1>{};
+static constexpr auto channel_pressure = ByteExtracter<static_tag, 1>{};
+
+byte_cview get_meta_cview(const Event& event);
+byte_view get_meta_view(Event& event);
+
+Note get_note(const Event& event);
+uint16_t get_14bits(const Event& event);
+double get_bpm(const Event& event);
+
+template<class T = int64_t>
+T get_meta_int(const Event& event) { /*!< interprets meta data as an integer */
+    const auto view = get_meta_cview(event);
+    return byte_traits<T>::read_le(view.min, view.max);
+}
+
+/// check if event specifies to turn some channels to drum channels */
+channels_t use_for_rhythm_part(const Event& event); /*!< precondition: event.family() == family_t::sysex */
 
 };
 
@@ -673,74 +734,80 @@ private:
 
 namespace extension_ns {
 
-Event::data_type encode_key(const std::string& key);
-Event::data_type encode_key_value(const std::string& key, const std::string& value);
+struct extension_t {
 
-struct encoder_base_t {
+    explicit extension_t(family_t family, std::string key);
+
+    Event make_event(channels_t channels) const;
+    Event make_event(channels_t channels, byte_cview value) const;
+    Event make_event(channels_t channels, const std::string& value) const;
+
+    template<typename T>
+    Event make_event(channels_t channels, const T& value) const {
+        return make_event(channels, marshall(value));
+    }
+
+    bool affects(const Event& event) const; /*!< precondition: event.is(families_t::extended()) */
+
+    static std::string extract_key(const Event& event); /*!< precondition: event.is(families_t::extended()) */
+    std::string extract_value(const Event& event) const; /*!< precondition: affects(event) */
+
+    const family_t family;
     const std::string key;
-    encoder_base_t(std::string key);
-    bool affects(const Event& event) const;
+
 };
 
 template<typename T>
-struct encoder_t : encoder_base_t {
-    using encoder_base_t::encoder_base_t;
-    auto encode(const T& value) const { return encode_key_value(key, marshall(value)); }
-    static auto decode(const Event& event) { return unmarshall<T>(event.get_custom_value()); }
+struct extension_facade_t : extension_t {
+    using extension_t::extension_t;
+    auto encode(channels_t channels, const T& value) const { return make_event(channels, value); }
+    auto decode(const Event& event) const { return unmarshall<T>(extract_value(event)); }
 };
 
 template<>
-struct encoder_t<std::string> : encoder_base_t {
-    using encoder_base_t::encoder_base_t;
-    auto encode(const std::string& value) const { return encode_key_value(key, value); }
-    static auto decode(const Event& event) { return event.get_custom_value(); }
+struct extension_facade_t<std::string> : extension_t {
+    using extension_t::extension_t;
+    auto encode(channels_t channels, const std::string& value) const { return make_event(channels, value); }
+    auto decode(const Event& event) const { return extract_value(event); }
 };
 
 template<>
-struct encoder_t<void> : encoder_base_t {
-    using encoder_base_t::encoder_base_t;
-    auto encode() const { return encode_key(key); }
+struct extension_facade_t<void> : extension_t {
+    using extension_t::extension_t;
+    auto encode(channels_t channels) const { return make_event(channels); }
 };
 
-template<family_t F, typename T>
-struct extension_t;
-
-template<typename T>
-struct extension_t<family_t::extended_voice, T> : encoder_t<T> {
-    using encoder_t<T>::encoder_t;
+template<typename T = void>
+struct VoiceExtension : extension_facade_t<T> {
+    VoiceExtension(std::string key) : extension_facade_t<T>{family_t::extended_voice, std::move(key)} {}
     template<typename ... Args>
-    auto operator()(channels_t channels, Args&& ... args) const {
-        return Event::extended_voice(channels, this->encode(std::forward<Args>(args)...));
+    auto operator()(Args&& ... args) const {
+        return this->encode(std::forward<Args>(args)...);
     }
 };
 
-template<typename T>
-struct extension_t<family_t::extended_system, T> : encoder_t<T> {
-    using encoder_t<T>::encoder_t;
+template<typename T = void>
+struct SystemExtension : extension_facade_t<T> {
+    SystemExtension(std::string key) : extension_facade_t<T>{family_t::extended_system, std::move(key)} {}
     template<typename ... Args>
     auto operator()(Args&& ... args) const {
-        return Event::extended_system(this->encode(std::forward<Args>(args)...));
+        return this->encode(channels_t{}, std::forward<Args>(args)...);
     }
 };
 
-template<typename T>
-struct extension_t<family_t::extended_meta, T> : encoder_t<T> {
-    using encoder_t<T>::encoder_t;
+template<typename T = void>
+struct MetaExtension : extension_facade_t<T> {
+    MetaExtension(std::string key) : extension_facade_t<T>{family_t::extended_meta, std::move(key)} {}
     template<typename ... Args>
     auto operator()(Args&& ... args) const {
-        return Event::extended_meta(this->encode(std::forward<Args>(args)...));
+        return this->encode(channels_t{}, std::forward<Args>(args)...);
     }
 };
 
 }
 
-template<typename T = void>
-using VoiceExtension = extension_ns::extension_t<family_t::extended_voice, T>;
-
-template<typename T = void>
-using SystemExtension = extension_ns::extension_t<family_t::extended_system, T>;
-
-template<typename T = void>
-using MetaExtension = extension_ns::extension_t<family_t::extended_meta, T>;
+using extension_ns::VoiceExtension;
+using extension_ns::SystemExtension;
+using extension_ns::MetaExtension;
 
 #endif // CORE_EVENT_H

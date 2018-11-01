@@ -49,7 +49,7 @@ Handler::Result SequenceWriter::handle_message(const Message& message) {
     if (!message.event.is(m_families) || state().none(recording_state))
         return Result::unhandled;
     std::lock_guard<std::mutex> guard(m_storage_mutex);
-    m_storage.push_back({clock_type::now(), message.event, message.track});
+    m_storage.push_back({clock_type::now(), message.event});
     return Result::success;
 }
 

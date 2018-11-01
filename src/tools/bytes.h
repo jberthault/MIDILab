@@ -58,31 +58,33 @@ bool is_msb_cleared(N n) {
 template<typename T>
 struct byte_traits {
 
+    static constexpr auto make_le() noexcept {
+       return T{};
+    }
+
+    template<typename ... Args>
+    static constexpr auto make_le(byte_t byte, Args&& ... args) noexcept {
+        return static_cast<T>(make_le(std::forward<Args>(args)...) << 8 | byte);
+    }
+
     template<typename ByteInputIterator>
-    static T read_little_endian(ByteInputIterator first, ByteInputIterator last) {
+    static auto read_le(ByteInputIterator first, ByteInputIterator last) {
         T value{};
         for ( ; first != last ; ++first)
-            value = (value << 8) | *first;
+            value = (value << 8) | static_cast<byte_t>(*first);
         return value;
     }
 
-    static T read_little_endian(std::istream& stream, size_t size = sizeof(T)) {
+    static auto read_le(std::istream& stream, size_t size = sizeof(T)) {
         T value{};
         for (size_t i=0 ; i < size ; i++)
-            value = (value << 8) | stream.get();
+            value = (value << 8) | static_cast<byte_t>(stream.get());
         return value;
     }
 
-    static void write_little_endian(T value, std::ostream& stream, size_t size = sizeof(T)) {
+    static void write_le(T value, std::ostream& stream, size_t size = sizeof(T)) {
         for (size_t i=0 ; i < size ; i++)
             stream.put(to_byte(value >> 8*(size-i-1)));
-    }
-
-    static void write_big_endian(T value, std::ostream& stream, size_t size = sizeof(T)) {
-        for (size_t i=0 ; i < size ; i++) {
-            stream.put(to_byte(value));
-            value >>= 8;
-        }
     }
 
 };

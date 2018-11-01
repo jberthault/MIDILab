@@ -28,8 +28,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "event.h"    // Event
 #include "tools/containers.h"
 
-using track_t = size_t;
-
 /**
  * ppqn is a midi specific value standing for pulse per quarter note
  * it is the main interface to real timing conversion
@@ -86,9 +84,7 @@ struct StandardMidiFile {
 
 namespace dumping {
 
-using input_buffer_t = range_t<const byte_t*>;
-
-Event read_event(input_buffer_t& buf, bool is_realtime, byte_t* running_status = nullptr);
+Event read_event(byte_cview& buf, bool is_realtime, byte_t* running_status = nullptr);
 
 StandardMidiFile read_file(const std::string& filename); /*!< return an empty file on error */
 size_t write_file(const StandardMidiFile& file, const std::string& filename, bool use_running_status = true); /*!< return 0 on error */
@@ -187,13 +183,11 @@ public:
     struct Item {
         timestamp_t timestamp;
         Event event;
-        track_t track;
     };
 
     struct RealtimeItem {
         Clock::time_type timepoint;
         Event event;
-        track_t track;
     };
 
     inline friend bool operator<(const Item& lhs, const Item& rhs) { return lhs.timestamp < rhs.timestamp; }
@@ -230,7 +224,7 @@ public:
     void clear();
     void push_item(Item item); /*!< invalidate clock */
     void insert_item(Item item); /*!< invalidate clock */
-    void insert_track(const StandardMidiFile::track_type& track_data, track_t track, int64_t offset = 0); /*!< invalidate clock */
+    void insert_track(const StandardMidiFile::track_type& track_data, int64_t offset = 0); /*!< invalidate clock */
 
     // converters
     StandardMidiFile to_file(const blacklist_type& list = blacklist_type(true)) const; /*!< convert given tracks to midi file */

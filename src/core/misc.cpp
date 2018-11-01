@@ -32,13 +32,13 @@ NoteMemory::NoteMemory() {
 void NoteMemory::feed(const Event& event) {
     switch (event.family()) {
     case family_t::note_on:
-        set_on(event.channels(), event.at(1));
+        set_on(event.channels(), extraction_ns::note(event));
         break;
     case family_t::note_off:
-        set_off(event.channels(), event.at(1));
+        set_off(event.channels(), extraction_ns::note(event));
         break;
     case family_t::controller:
-        if (event.at(1) == controller_ns::all_sound_off_controller || event.at(1) == controller_ns::all_notes_off_controller)
+        if ( extraction_ns::controller(event) == controller_ns::all_sound_off_controller ||  extraction_ns::controller(event) == controller_ns::all_notes_off_controller)
             clear(event.channels());
         break;
     default:

@@ -19,9 +19,23 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include <sstream> // std::stringstream
+#include <cstring>
 #include <algorithm>
 #include "event.h"
 #include "tools/trace.h"
+
+byte_cview make_view(const char* string) {
+    return make_view(string, ::strlen(string));
+}
+
+byte_cview make_view(const char* string, size_t size) {
+    const auto* data = reinterpret_cast<const byte_t*>(string);
+    return {data, data + size};
+}
+
+byte_cview make_view(const std::string& string) {
+    return make_view(string.data(), string.size());
+}
 
 //=========
 // Channel
@@ -278,6 +292,54 @@ constexpr family_t meta_family(byte_t meta_type) {
     }
 }
 
+constexpr byte_t family_status(family_t family, byte_t default_status = 0x00) {
+    switch (family) {
+    case family_t::note_off : return 0x80;
+    case family_t::note_on: return 0x90;
+    case family_t::aftertouch: return 0xa0;
+    case family_t::controller: return 0xb0;
+    case family_t::program_change: return 0xc0;
+    case family_t::channel_pressure : return 0xd0;
+    case family_t::pitch_wheel: return 0xe0;
+    case family_t::sysex: return 0xf0;
+    case family_t::mtc_frame: return 0xf1;
+    case family_t::song_position: return 0xf2;
+    case family_t::song_select: return 0xf3;
+    case family_t::xf4: return 0xf4;
+    case family_t::xf5: return 0xf5;
+    case family_t::tune_request: return 0xf6;
+    case family_t::end_of_sysex: return 0xf7;
+    case family_t::clock: return 0xf8;
+    case family_t::tick: return 0xf9;
+    case family_t::start: return 0xfa;
+    case family_t::continue_: return 0xfb;
+    case family_t::stop: return 0xfc;
+    case family_t::xfd: return 0xfd;
+    case family_t::active_sense: return 0xfe;
+    case family_t::reset:
+    case family_t::sequence_number:
+    case family_t::text:
+    case family_t::copyright:
+    case family_t::track_name:
+    case family_t::instrument_name:
+    case family_t::lyrics:
+    case family_t::marker:
+    case family_t::cue_point:
+    case family_t::program_name:
+    case family_t::device_name:
+    case family_t::channel_prefix:
+    case family_t::port:
+    case family_t::end_of_track:
+    case family_t::tempo:
+    case family_t::smpte_offset:
+    case family_t::time_signature:
+    case family_t::key_signature:
+    case family_t::proprietary:
+    case family_t::default_meta: return 0xff;
+    default: return default_status;
+    }
+}
+
 std::ostream& operator<<(std::ostream& stream, family_t family) {
     return stream << family_name(family);
 }
@@ -418,36 +480,38 @@ const std::array<const char*, 0x80> program_names = {
 };
 
 std::ostream& print_controller(std::ostream& stream, const Event& event) {
-    byte_t id = event.at(1);
-    auto it = controller_ns::controller_names().find(id);
+    const auto id = extraction_ns::controller(event);
+    const auto it = controller_ns::controller_names().find(id);
     if (it != controller_ns::controller_names().end())
         stream << it->second;
     else
         stream << "Unknown Controller " << byte_string(id);
-    return stream << " (" << (int)event.at(2) << ')';
+    return stream << " (" << static_cast<int>(extraction_ns::controller_value(event)) << ')';
 }
 
 std::ostream& print_note(std::ostream& stream, const Event& event) {
-    byte_t note = event.at(1);
+    const auto note = extraction_ns::note(event);
     if (event.channels().any(channels_t::drums())) {
         drum_ns::print_drum(stream, note);
     } else {
         stream << Note::from_code(note);
     }
-    return stream << " (" << (int)event.at(2) << ')'; /// add velocity/aftertouch
+    return stream << " (" << static_cast<int>(extraction_ns::velocity(event)) << ')';
 }
 
 std::ostream& print_key_signature(std::ostream& stream, const Event& event) {
-    Event::const_iterator it = event.meta_begin();
-    return stream << (int)(char)*it++ << ((*it == 0) ? " major" : " minor");
+    const auto data = extraction_ns::get_meta_cview(event).min;
+    const int key = static_cast<char>(data[0]); // key byte is signed
+    const bool major = data[1] == 0;
+    return stream << key << (major ? " major" : " minor");
 }
 
 std::ostream& print_time_signature(std::ostream& stream, const Event& event) {
-    Event::const_iterator it = event.meta_begin();
-    int nn = *it++;
-    int dd = 1 << *it++;
-    int cc = *it++;
-    int bb = *it;
+    const auto data = extraction_ns::get_meta_cview(event).min;
+    const int nn = data[0];
+    const int dd = 1 << data[1];
+    const int cc = data[2];
+    const int bb = data[3];
     return stream << nn << '/' << dd << " (" << cc << ", " << bb << ")";
 }
 
@@ -456,14 +520,14 @@ std::ostream& print_mtc_frame(std::ostream& stream, const Event&) {
 }
 
 std::ostream& print_smpte_offset(std::ostream& stream, const Event& event) {
-    Event::const_iterator it = event.meta_begin();
-    byte_t hours_byte = *it++;
-    int fps = (hours_byte & 0b01100000) >> 5;
-    int hours = hours_byte & 0b00011111;
-    int minutes = *it++;
-    int seconds = *it++;
-    int frames = *it++;
-    int subframes = *it;
+    const auto data = extraction_ns::get_meta_cview(event).min;
+    const byte_t hours_byte = data[0];
+    const int fps = (hours_byte & 0b01100000) >> 5;
+    const int hours = hours_byte & 0b00011111;
+    const int minutes = data[1];
+    const int seconds = data[2];
+    const int frames = data[3];
+    const int subframes = data[4];
     switch (fps) {
     case 0b00: stream << "24"; break;
     case 0b01: stream << "25"; break;
@@ -482,13 +546,13 @@ std::ostream& print_event(std::ostream& stream, const Event& event) {
     case family_t::controller:
         return print_controller(stream, event);
     case family_t::program_change:
-        return stream << program_names[event.at(1) & 0x7f] << " (" << (int)event.at(1) << ')';
+        return stream << program_names[extraction_ns::program(event)] << " (" << static_cast<int>(extraction_ns::program(event)) << ')';
     case family_t::channel_pressure:
     case family_t::song_select:
-        return stream << (int)event.at(1);
+        return stream << static_cast<int>(extraction_ns::song(event));
     case family_t::pitch_wheel:
     case family_t::song_position:
-        return stream << event.get_14bits();
+        return stream << extraction_ns::get_14bits(event);
     case family_t::mtc_frame:
         return print_mtc_frame(stream, event);
     case family_t::smpte_offset:
@@ -498,7 +562,7 @@ std::ostream& print_event(std::ostream& stream, const Event& event) {
     case family_t::key_signature:
         return print_key_signature(stream, event);
     case family_t::tempo:
-        return stream << decay_value<int>(10. * event.get_bpm()) / 10. << " bpm";
+        return stream << decay_value<int>(10. * extraction_ns::get_bpm(event)) / 10. << " bpm";
     case family_t::text:
     case family_t::copyright:
     case family_t::track_name:
@@ -507,20 +571,24 @@ std::ostream& print_event(std::ostream& stream, const Event& event) {
     case family_t::marker:
     case family_t::cue_point:
     case family_t::program_name:
-    case family_t::device_name:
-        return stream << event.get_meta_string();
+    case family_t::device_name: {
+        const auto view = extraction_ns::get_meta_cview(event);
+        return stream << std::string{view.min, view.max};
+    }
     case family_t::sequence_number:
     case family_t::channel_prefix:
     case family_t::port:
-        return stream << event.get_meta_int();
+        return stream << extraction_ns::get_meta_int(event);
     case family_t::sysex:
     case family_t::proprietary:
-    case family_t::default_meta:
-        return print_bytes(stream, event.begin(), event.end());
+    case family_t::default_meta: {
+        const auto view = extraction_ns::dynamic_view(event);
+        return print_bytes(stream, view.min, view.max);
+    }
     case family_t::extended_voice:
     case family_t::extended_system:
     case family_t::extended_meta:
-        return stream << event.get_custom_key();
+        return stream << extension_ns::extension_t::extract_key(event);
     default:
         return stream;
     }
@@ -528,105 +596,167 @@ std::ostream& print_event(std::ostream& stream, const Event& event) {
 
 }
 
+class EventPrivate {
+
+public:
+    template<family_t family, typename = std::enable_if_t<families_t::size_1().test(family)>>
+    static auto static_event(channels_t channels) noexcept {
+        Event event{family, default_track, channels};
+        event.m_static_data[0] = family_status(family);
+        return event;
+    }
+
+    template<family_t family, typename = std::enable_if_t<families_t::size_2().test(family)>>
+    static auto static_event(channels_t channels, byte_t b0) noexcept {
+        Event event{family, default_track, channels};
+        event.m_static_data[0] = family_status(family);
+        event.m_static_data[1] = b0;
+        return event;
+    }
+
+    template<family_t family, typename = std::enable_if_t<families_t::size_3().test(family)>>
+    static auto static_event(channels_t channels, byte_t b0, byte_t b1) noexcept {
+        Event event{family, default_track, channels};
+        event.m_static_data[0] = family_status(family);
+        event.m_static_data[1] = b0;
+        event.m_static_data[2] = b1;
+        return event;
+    }
+
+    static auto dynamic_data(const Event& event) {
+        std::unique_ptr<byte_t[]> data;
+        if (const auto* src = event.dynamic_data()) {
+            const auto size = static_cast<size_t>(event.dynamic_size());
+            data = std::make_unique<byte_t[]>(size);
+            std::copy_n(src, size, data.get());
+        }
+        return data;
+    }
+
+    static auto dynamic_event(family_t family, channels_t channels, size_t size) {
+        Event event{family, default_track, channels};
+        if (size >> 24)
+            throw std::length_error{"event data is too large"};
+        event.m_dynamic_data = std::make_unique<byte_t[]>(size);
+        event.m_static_data = {to_byte(size), to_byte(size >> 8), to_byte(size >> 16)};
+        return event;
+    }
+
+    static auto dynamic_event(family_t family, channels_t channels, byte_cview data) {
+        auto event = dynamic_event(family, channels, static_cast<size_t>(span(data)));
+        std::copy(data.min, data.max, event.dynamic_data());
+        return event;
+    }
+
+    static auto dynamic_event(family_t family, channels_t channels, byte_cview data1, byte_cview data2) {
+        auto event = dynamic_event(family, channels, static_cast<size_t>(span(data1) + span(data2)));
+        auto pos = std::copy(data1.min, data1.max, event.dynamic_data());
+        std::copy(data2.min, data2.max, pos);
+        return event;
+    }
+
+};
+
 //=======
 // Event
 //=======
 
 // event builders
 
-Event Event::note_off(channels_t channels, byte_t note, byte_t velocity) {
-    return {family_t::note_off, channels, {0x80, to_data_byte(note), to_data_byte(velocity)}};
+Event Event::note_off(channels_t channels, byte_t note, byte_t velocity) noexcept {
+    return EventPrivate::static_event<family_t::note_off>(channels, to_data_byte(note), to_data_byte(velocity));
 }
 
-Event Event::note_on(channels_t channels, byte_t note, byte_t velocity) {
-    return {family_t::note_on, channels, {0x90, to_data_byte(note), to_data_byte(velocity)}};
+Event Event::note_on(channels_t channels, byte_t note, byte_t velocity) noexcept {
+    return EventPrivate::static_event<family_t::note_on>(channels, to_data_byte(note), to_data_byte(velocity));
 }
 
-Event Event::aftertouch(channels_t channels, byte_t note, byte_t pressure) {
-    return {family_t::aftertouch, channels, {0xa0, to_data_byte(note), to_data_byte(pressure)}};
+Event Event::aftertouch(channels_t channels, byte_t note, byte_t pressure) noexcept {
+    return EventPrivate::static_event<family_t::aftertouch>(channels, to_data_byte(note), to_data_byte(pressure));
 }
 
-Event Event::controller(channels_t channels, byte_t controller) {
-    return {family_t::controller, channels, {0xb0, to_data_byte(controller), controller_ns::default_value(controller)}};
+Event Event::controller(channels_t channels, byte_t controller) noexcept {
+    return EventPrivate::static_event<family_t::controller>(channels, to_data_byte(controller), controller_ns::default_value(controller));
 }
 
-Event Event::controller(channels_t channels, byte_t controller, byte_t value) {
-    return {family_t::controller, channels, {0xb0, to_data_byte(controller), to_data_byte(value)}};
+Event Event::controller(channels_t channels, byte_t controller, byte_t value) noexcept {
+    return EventPrivate::static_event<family_t::controller>(channels, to_data_byte(controller), to_data_byte(value));
 }
 
-Event Event::program_change(channels_t channels, byte_t program) {
-    return {family_t::program_change, channels, {0xc0, to_data_byte(program)}};
+Event Event::program_change(channels_t channels, byte_t program) noexcept {
+    return EventPrivate::static_event<family_t::program_change>(channels, to_data_byte(program));
 }
 
-Event Event::channel_pressure(channels_t channels, byte_t pressure) {
-    return {family_t::channel_pressure, channels, {0xd0, to_data_byte(pressure)}};
+Event Event::channel_pressure(channels_t channels, byte_t pressure) noexcept {
+    return EventPrivate::static_event<family_t::channel_pressure>(channels, to_data_byte(pressure));
 }
 
-Event Event::pitch_wheel(channels_t channels, short_ns::uint14_t pitch) {
-    return {family_t::pitch_wheel, channels, {0xe0, to_data_byte(pitch.fine), to_data_byte(pitch.coarse)}};
+Event Event::pitch_wheel(channels_t channels, short_ns::uint14_t pitch) noexcept {
+    return EventPrivate::static_event<family_t::pitch_wheel>(channels, to_data_byte(pitch.fine), to_data_byte(pitch.coarse));
 }
 
-Event Event::sys_ex(data_type data) {
-    if (data.empty() || data.back() != 0xf7 || std::any_of(data.begin(), --data.end(), is_msb_set<byte_t>))
+Event Event::sys_ex(byte_cview data) {
+    if (!data || *(data.max-1) != 0xf7 || std::any_of(data.min, data.max - 1, is_msb_set<byte_t>))
         return {};
-    data.insert(data.begin(), 0xf0);
-    return {family_t::sysex, {}, std::move(data)};
+    const byte_t prefix[] = {0xf0};
+    return EventPrivate::dynamic_event(family_t::sysex, {}, make_view(prefix), data);
 }
 
 Event Event::master_volume(short_ns::uint14_t volume, byte_t sysex_channel) {
-    return {family_t::sysex, {}, {0xf0, 0x7f, sysex_channel, 0x04, 0x01, to_data_byte(volume.fine), to_data_byte(volume.coarse), 0xf7}};
+    const byte_t data[] = {0xf0, 0x7f, sysex_channel, 0x04, 0x01, to_data_byte(volume.fine), to_data_byte(volume.coarse), 0xf7};
+    return EventPrivate::dynamic_event(family_t::sysex, {}, make_view(data));
 }
 
-Event Event::mtc_frame(byte_t value) {
-    return {family_t::mtc_frame, {}, {0xf1, value}};
+Event Event::mtc_frame(byte_t value) noexcept {
+    return EventPrivate::static_event<family_t::mtc_frame>({}, value);
 }
 
-Event Event::song_position(short_ns::uint14_t position) {
-    return {family_t::song_position, {}, {0xf2, to_data_byte(position.fine), to_data_byte(position.coarse)}};
+Event Event::song_position(short_ns::uint14_t position) noexcept {
+    return EventPrivate::static_event<family_t::song_position>({}, to_data_byte(position.fine), to_data_byte(position.coarse));
 }
 
-Event Event::song_select(byte_t value) {
-    return {family_t::song_select, {}, {0xf3, to_data_byte(value)}};
+Event Event::song_select(byte_t value) noexcept {
+    return EventPrivate::static_event<family_t::song_select>({}, to_data_byte(value));
 }
 
-Event Event::tune_request() {
-    return {family_t::tune_request, {}, {0xf6}};
+Event Event::tune_request() noexcept {
+    return EventPrivate::static_event<family_t::tune_request>({});
 }
 
-Event Event::clock() {
-    return {family_t::clock, {}, {0xf8}};
+Event Event::clock() noexcept {
+    return EventPrivate::static_event<family_t::clock>({});
 }
 
-Event Event::tick() {
-    return {family_t::tick, {}, {0xf9}};
+Event Event::tick() noexcept {
+    return EventPrivate::static_event<family_t::tick>({});
 }
 
-Event Event::start() {
-    return {family_t::start, {}, {0xfa}};
+Event Event::start() noexcept {
+    return EventPrivate::static_event<family_t::start>({});
 }
 
-Event Event::continue_() {
-    return {family_t::continue_, {}, {0xfb}};
+Event Event::continue_() noexcept {
+    return EventPrivate::static_event<family_t::continue_>({});
 }
 
-Event Event::stop() {
-    return {family_t::stop, {}, {0xfc}};
+Event Event::stop() noexcept {
+    return EventPrivate::static_event<family_t::stop>({});
 }
 
-Event Event::active_sense() {
-    return {family_t::active_sense, {}, {0xfe}};
+Event Event::active_sense() noexcept {
+    return EventPrivate::static_event<family_t::active_sense>({});
 }
 
-Event Event::reset() {
-    return {family_t::reset, {}, {0xff}};
+Event Event::reset() noexcept {
+    return EventPrivate::static_event<family_t::reset>({});
 }
 
-Event Event::meta(data_type data) {
-    if (data.empty())
+Event Event::meta(byte_cview data) {
+    const auto family = data ? meta_family(*data.min) : family_t::invalid;
+    if (family == family_t::invalid)
         return {};
-    const auto family = meta_family(data.front());
-    data.insert(data.begin(), 0xff);
-    return {family, {}, std::move(data)};
+    const byte_t prefix[] = {0xff};
+    return EventPrivate::dynamic_event(family, {}, make_view(prefix), data);
 }
 
 Event Event::tempo(double bpm) {
@@ -635,44 +765,63 @@ Event Event::tempo(double bpm) {
         return {};
     }
     const auto tempo = decay_value<uint32_t>(60000000. / bpm);
-    return {family_t::tempo, {}, {0xff, 0x51, 0x03, to_byte(tempo >> 16), to_byte(tempo >> 8), to_byte(tempo)}};
+    const byte_t data[] = {0xff, 0x51, 0x03, to_byte(tempo >> 16), to_byte(tempo >> 8), to_byte(tempo)};
+    return EventPrivate::dynamic_event(family_t::tempo, {}, make_view(data));
 }
 
 Event Event::end_of_track() {
-    return {family_t::end_of_track, {}, {0xff, 0x2f, 0x00}};
-}
-
-Event Event::extended_voice(channels_t channels, data_type data) {
-    return {family_t::extended_voice, channels, std::move(data)};
-}
-
-Event Event::extended_system(data_type data) {
-    return {family_t::extended_system, {}, std::move(data)};
-}
-
-Event Event::extended_meta(data_type data) {
-    return {family_t::extended_meta, {}, std::move(data)};
+    const byte_t data[] = {0xff, 0x2f, 0x00};
+    return EventPrivate::dynamic_event(family_t::end_of_track, {}, make_view(data));
 }
 
 // constructors
 
-Event::Event(family_t family, channels_t channels, data_type data) noexcept :
-    m_family{family}, m_channels{channels}, m_data{std::move(data)} {
+Event::Event(const Event& event) :
+    m_family{event.m_family},
+    m_static_data{event.m_static_data},
+    m_track{event.m_track},
+    m_channels{event.m_channels},
+    m_dynamic_data{EventPrivate::dynamic_data(event)} {
 
+}
+
+Event::Event(family_t family, track_t track, channels_t channels) noexcept :
+    m_family{family}, m_track{track}, m_channels{channels} {
+
+}
+
+Event& Event::operator=(const Event& event) {
+    m_family = event.m_family;
+    m_static_data = event.m_static_data;
+    m_track = event.m_track;
+    m_channels = event.m_channels;
+    m_dynamic_data = EventPrivate::dynamic_data(event);
+    return *this;
+}
+
+// accessors
+
+uint32_t Event::static_size() const noexcept {
+    if (is(families_t::size_3())) return 3;
+    if (is(families_t::size_2())) return 2;
+    if (is(families_t::size_1())) return 1;
+    return 0;
+}
+
+uint32_t Event::dynamic_size() const noexcept {
+    return byte_traits<uint32_t>::make_le(m_static_data[0], m_static_data[1], m_static_data[2]);
 }
 
 // comparison
 
 bool Event::equivalent(const Event& lhs, const Event& rhs) {
-    return lhs.m_family == rhs.m_family && lhs.m_data.size() == rhs.m_data.size() && std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
-}
-
-bool operator==(const Event& lhs, const Event& rhs) {
-    return lhs.m_channels == rhs.m_channels && Event::equivalent(lhs, rhs);
-}
-
-bool operator!=(const Event& lhs, const Event& rhs) {
-    return !(lhs == rhs);
+    if (lhs.m_family != rhs.m_family)
+        return false;
+    if (lhs.m_static_data != rhs.m_static_data)
+        return false;
+    if (const auto* lhs_data = lhs.dynamic_data())
+        return std::equal(lhs_data, lhs_data + lhs.dynamic_size(), rhs.dynamic_data());
+    return true;
 }
 
 // string
@@ -700,103 +849,54 @@ std::ostream& operator<<(std::ostream& os, const Event& event) {
     return os;
 }
 
-// family accessors
+// ==========
+// Extraction
+// ==========
 
-family_t Event::family() const noexcept {
-    return m_family;
-}
+namespace extraction_ns {
 
-Event::operator bool() const noexcept {
-    return m_family != family_t::invalid;
-}
-
-bool Event::is(families_t families) const noexcept {
-    return families.test(m_family);
-}
-
-// channel accessors
-
-channels_t Event::channels() const noexcept {
-    return m_channels;
-}
-
-void Event::set_channels(channels_t channels) {
-    m_channels = channels;
-}
-
-// data accessors
-
-size_t Event::size() const {
-    return m_data.size();
-}
-
-const Event::data_type& Event::data() const {
-    return m_data;
-}
-
-Event::data_type& Event::data() {
-    return m_data;
-}
-
-byte_t Event::at(size_t index, byte_t default_byte) const {
-    return index < size() ? m_data[index] : default_byte;
-}
-
-Event::const_iterator Event::begin() const {
-    return m_data.begin();
-}
-
-Event::const_iterator Event::end() const {
-    return m_data.end();
-}
-
-Event::iterator Event::begin() {
-    return m_data.begin();
-}
-
-Event::iterator Event::end() {
-    return m_data.end();
-}
-
-Event::const_iterator Event::meta_begin() const {
+template<typename RangeT>
+auto meta_start(RangeT range) {
     /// 0xff type <variable> <message_start>
-    const_iterator it = begin() + 2, last = end();
-    while (it != last && is_msb_set(*it++));
-    return it;
+    range.min += 2;
+    while (range && is_msb_set(*range.min++));
+    return range;
 }
 
-// data observers
-
-Note Event::get_note() const {
-    return Note::from_code(at(1));
+byte_cview get_meta_cview(const Event& event) {
+    return meta_start(dynamic_view(event));
 }
 
-uint16_t Event::get_14bits() const {
-    return short_ns::glue({at(2), at(1)});
+byte_view get_meta_view(Event& event) {
+    return meta_start(dynamic_view(event));
 }
 
-double Event::get_bpm() const {
-    return 60000000. / get_meta_int();
+Note get_note(const Event& event) {
+    return Note::from_code(note(event));
 }
 
-std::string Event::get_meta_string() const {
-    return {meta_begin(), end()};
+uint16_t get_14bits(const Event& event) {
+    const auto data = event.static_data();
+    return short_ns::glue({data[2], data[1]});
 }
 
-std::string Event::get_custom_key() const {
-    return {begin(), std::find(begin(), end(), 0x00)};
+double get_bpm(const Event& event) {
+    return 60000000. / get_meta_int(event);
 }
 
-bool Event::has_custom_key(const char* key) const {
-    // check size before to avoid comparing equal if the data is some prefix of the key
-    return size() >= ::strlen(key) && ::strncmp(reinterpret_cast<const char*>(data().data()), key, size()) == 0;
+channels_t use_for_rhythm_part(const Event& event) {
+    const auto* data = event.dynamic_data();
+    if (   event.dynamic_size() > 8
+        && data[1] == 0x41                       // roland manufacturer
+        && data[4] == 0x12                       // sending data
+        && data[5] == 0x40                       //
+        && (data[6] & 0xf0) == 0x10              //
+        && data[7] == 0x15                       // 0x40 0x1X 0x15 <=> address of USE_FOR_RHYTHM_PART
+        && (data[8] == 0x01 || data[8] == 0x02)) // value {0x00: OFF, 0x01: MAP1, 0x02: MAP2}
+        return channels_t::wrap(data[6] & 0x0f);
+    return {};
 }
 
-std::string Event::get_custom_value() const {
-    auto it = std::find(begin(), end(), 0x00);
-    if (it != end())
-        ++it;
-    return {it, end()};
 }
 
 // =========
@@ -805,23 +905,36 @@ std::string Event::get_custom_value() const {
 
 namespace extension_ns {
 
-Event::data_type encode_key(const std::string& key) {
-    return {key.begin(), key.end()};
-}
-
-Event::data_type encode_key_value(const std::string& key, const std::string& value) {
-    Event::data_type data(key.size() + value.size() + 1, 0x00);
-    auto pos = std::copy(key.begin(), key.end(), data.begin());
-    std::copy(value.begin(), value.end(), ++pos);
-    return data;
-}
-
-encoder_base_t::encoder_base_t(std::string key) : key{std::move(key)} {
+extension_t::extension_t(family_t family, std::string key) : family{family}, key{std::move(key)} {
 
 }
 
-bool encoder_base_t::affects(const Event& event) const {
-    return event.has_custom_key(key.data());
+bool extension_t::affects(const Event& event) const {
+    const auto key_view = make_view(key);
+    return event.dynamic_size() >= key.size() && std::equal(key_view.min, key_view.max, event.dynamic_data());
+}
+
+std::string extension_t::extract_key(const Event& event) {
+    const auto* data = event.dynamic_data();
+    return {data, std::find(data, data + event.dynamic_size(), 0x00)};
+}
+
+std::string extension_t::extract_value(const Event& event) const {
+    const auto* data = event.dynamic_data();
+    return {data + key.size() + 1, data + event.dynamic_size()};
+}
+
+Event extension_t::make_event(channels_t channels) const {
+    return EventPrivate::dynamic_event(family, channels, make_view(key));
+}
+
+Event extension_t::make_event(channels_t channels, byte_cview value) const {
+    const auto key_view = make_view(key.c_str(), key.size() + 1); // write null terminator
+    return EventPrivate::dynamic_event(family, channels, key_view, value);
+}
+
+Event extension_t::make_event(channels_t channels, const std::string& value) const {
+    return make_event(channels, make_view(value));
 }
 
 }

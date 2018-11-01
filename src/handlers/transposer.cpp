@@ -44,14 +44,14 @@ Handler::Result Transposer::handle_message(const Message& message) {
             return Result::success;
         }
     } else if (message.event.is(families_t::standard_note())) {
-        clean_corrupted(message.source, message.track);
+        clean_corrupted(message.source, message.event.track());
         if (state().none(bypass_state)) {
             for (const auto& pair : channel_ns::reverse(m_keys, message.event.channels())) {
-                Message copy(message);
-                Event::iterator note_it = ++copy.event.begin(); // second byte contains the note
-                *note_it = to_data_byte(*note_it + pair.first); // shift note
-                copy.event.set_channels(pair.second);
-                feed_forward(copy);
+                auto transposed_message = message;
+                auto& note = extraction_ns::note(transposed_message.event);
+                note = to_data_byte(note + pair.first);
+                transposed_message.event.set_channels(pair.second);
+                feed_forward(transposed_message);
             }
             return Result::success;
         }
@@ -66,8 +66,11 @@ void Transposer::feed_forward(const Message& message) {
 }
 
 void Transposer::clean_corrupted(Handler* source, track_t track) {
-    if (const auto channels = m_corruption.reset())
-        feed_forward({Event::controller(channels, controller_ns::all_notes_off_controller), source, track});
+    if (const auto channels = m_corruption.reset()) {
+        Message message{Event::controller(channels, controller_ns::all_notes_off_controller), source};
+        message.event.set_track(track);
+        return feed_forward(message);
+    }
 }
 
 void Transposer::set_key(channels_t channels, int key) {

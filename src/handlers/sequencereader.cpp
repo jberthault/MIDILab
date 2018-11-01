@@ -190,7 +190,7 @@ bool SequenceReader::start_playing(bool rewind) {
                 const Event& event = it->event;
                 if (event.family() == family_t::tempo)
                     base_time = m_sequence.clock().base_time(event);
-                produce_message(event, it->track);
+                produce_message(event);
             }
             // asleep this thread for a minimal period
             std::this_thread::sleep_for(std::chrono::milliseconds{2});
@@ -223,8 +223,8 @@ Handler::Result SequenceReader::handle_close(State state) {
 
 Handler::Result SequenceReader::handle_message(const Message& message) {
     switch (message.event.family()) {
-    case family_t::song_position: return handle_beat((double)message.event.get_14bits());
-    case family_t::song_select: return handle_sequence(message.event.at(1));
+    case family_t::song_position: return handle_beat((double)extraction_ns::get_14bits(message.event));
+    case family_t::song_select: return handle_sequence(extraction_ns::song(message.event));
     case family_t::start: return handle_start(true);
     case family_t::continue_: return handle_start(false);
     case family_t::stop: return handle_stop(stop_all);

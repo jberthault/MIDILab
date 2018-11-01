@@ -69,7 +69,7 @@ Handler::Result ChannelMapper::handle_message(const Message& message) {
 
     /// clean if another note comes in
     if (message.event.is(families_t::standard_note()))
-        clean_corrupted(message.source, message.track);
+        clean_corrupted(message.source, message.event.track());
 
     if (message.event.is(families_t::voice())) {
         if (const auto channels = remap(message.event.channels())) {
@@ -90,8 +90,11 @@ void ChannelMapper::feed_forward(const Message& message) {
 }
 
 void ChannelMapper::clean_corrupted(Handler* source, track_t track) {
-    if (const auto channels = m_corruption.reset())
-        feed_forward({Event::controller(channels, controller_ns::all_notes_off_controller), source, track});
+    if (const auto channels = m_corruption.reset()) {
+        Message message{Event::controller(channels, controller_ns::all_notes_off_controller), source};
+        message.event.set_track(track);
+        feed_forward(message);
+    }
 }
 
 channels_t ChannelMapper::remap(channels_t channels) const {

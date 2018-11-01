@@ -44,11 +44,6 @@ class Handler;
  * It basically adds meta data such as:
  * @li the absolute time of generation to provide fine resolution (depending on system)
  * @li the source of the event (the handler that first produced the event)
- *
- * @todo delete track and handle track filtering in the SequenceReader
- * or keep it and take profit of this additional parameter to implement
- * guitar strings recognition ?
- *
  */
 
 struct Message final {
@@ -56,13 +51,10 @@ struct Message final {
     using clock_type = Clock::clock_type;
     using time_type = Clock::time_type;
 
-    static const track_t no_track = 0;
-
-    Message(Event event = {}, Handler* source = nullptr, track_t track = no_track) noexcept;
+    Message(Event event = {}, Handler* source = nullptr) noexcept;
 
     Event event; /*!< actual event to be handled */
     Handler* source; /*!< first producer of the event */
-    track_t track; /*!< the track within the source containing the event */
     #ifdef MIDILAB_ENABLE_TIMING
     time_type time_point  {clock_type::now()}; /*!< construction time */
     #endif
@@ -391,7 +383,7 @@ protected:
     // ------------------
 
     void forward_message(const Message& message); /*!< sends message to all listeners matching their filters */
-    void produce_message(Event event, track_t track = Message::no_track); /*!< creates and forwards a new message */
+    void produce_message(Event event); /*!< creates and forwards a new message */
 
     // --------
     // behavior

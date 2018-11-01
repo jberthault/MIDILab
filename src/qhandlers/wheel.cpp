@@ -135,7 +135,7 @@ families_t ControllerWheel::handled_families() const {
 
 Handler::Result ControllerWheel::handle_message(const Message& message) {
     switch (message.event.family()) {
-    case family_t::controller: return handleController(message.event.channels(), message.event.at(1), message.event.at(2));
+    case family_t::controller: return handleController(message.event.channels(), extraction_ns::controller(message.event), extraction_ns::controller_value(message.event));
     case family_t::reset: return handleReset();
     default: return Result::unhandled;
     }
@@ -230,16 +230,16 @@ Handler::Result PitchWheel::handle_message(const Message& message) {
     /// @note data_entry_fine_controller is ignored
     switch (message.event.family()) {
     case family_t::controller:
-        switch (message.event.at(1)) {
-        case controller_ns::registered_parameter_controller.coarse: return handleCoarseRPN(message.event.channels(), message.event.at(2));
-        case controller_ns::registered_parameter_controller.fine: return handleFineRPN(message.event.channels(), message.event.at(2));
+        switch (extraction_ns::controller(message.event)) {
+        case controller_ns::registered_parameter_controller.coarse: return handleCoarseRPN(message.event.channels(), extraction_ns::controller_value(message.event));
+        case controller_ns::registered_parameter_controller.fine: return handleFineRPN(message.event.channels(), extraction_ns::controller_value(message.event));
         case controller_ns::non_registered_parameter_controller.coarse: return handleCoarseRPN(message.event.channels(), 0x7f);
         case controller_ns::non_registered_parameter_controller.fine: return handleFineRPN(message.event.channels(), 0x7f);
-        case controller_ns::data_entry_controller.coarse: return handleCoarseDataEntry(message.event.channels(), message.event.at(2));
+        case controller_ns::data_entry_controller.coarse: return handleCoarseDataEntry(message.event.channels(), extraction_ns::controller_value(message.event));
         case controller_ns::all_controllers_off_controller: return handleAllControllersOff(message.event.channels());
         }
         break;
-    case family_t::pitch_wheel: return handlePitchValue(message.event.channels(), message.event.get_14bits());
+    case family_t::pitch_wheel: return handlePitchValue(message.event.channels(), extraction_ns::get_14bits(message.event));
     case family_t::reset: return handleReset();
     }
     return Result::unhandled;
@@ -403,7 +403,7 @@ families_t ProgramWheel::handled_families() const {
 
 Handler::Result ProgramWheel::handle_message(const Message& message) {
     if (message.event.family() == family_t::program_change) {
-        setProgramChange(message.event.channels(), message.event.at(1));
+        setProgramChange(message.event.channels(), extraction_ns::program(message.event));
         return Result::success;
     }
     return Result::unhandled;

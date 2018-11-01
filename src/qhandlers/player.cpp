@@ -327,9 +327,9 @@ void SequenceView::setSequence(const Sequence& sequence, timestamp_t lower, time
     QMap<track_t, QByteArrayList> trackNames;
     for (const Sequence::Item& item : sequence) {
         if (item.event.is(families_t::voice()))
-            trackChannels[item.track] |= item.event.channels();
+            trackChannels[item.event.track()] |= item.event.channels();
         else if (item.event.family() == family_t::track_name)
-            trackNames[item.track] << QByteArray::fromStdString(item.event.description());
+            trackNames[item.event.track()] << QByteArray::fromStdString(item.event.description());
     }
 
     for (track_t track : sequence.tracks()) {
@@ -423,7 +423,7 @@ void SequenceView::addNextEvents() {
 }
 
 void SequenceView::addEvent(const Sequence::Item& item) {
-    if (auto* trackItem = itemForTrack(item.track))
+    if (auto* trackItem = itemForTrack(item.event.track()))
         updateItemVisibility(new SequenceViewItem{item, trackItem});
 }
 
@@ -1195,10 +1195,10 @@ void TempoView::setDistorsion(double distorsion) {
 }
 
 void TempoView::setTempo(const Event& event) {
-    if (event == mLastTempo)
+    if (Event::equivalent(event, mLastTempo))
         return;
     mLastTempo = event;
-    double bpm = event.family() == family_t::tempo ? event.get_bpm() : 0.;
+    const auto bpm = event.family() == family_t::tempo ? extraction_ns::get_bpm(event) : 0.;
     mTempoSpin->setValue(bpm);
     updateDistorted(distorsion());
 }

@@ -31,49 +31,45 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace dumping {
 
-auto make_buffer(const char* string) {
-    return range_ns::from_span(reinterpret_cast<const byte_t*>(string), ::strlen(string));
-}
-
 // -----
 // read
 // -----
 
-auto read_n(input_buffer_t& buf, ptrdiff_t count) {
+auto read_n(byte_cview& buf, ptrdiff_t count) {
     if (span(buf) < count)
         throw std::logic_error{"not enough bytes available"};
     const auto previous = std::exchange(buf.min, buf.min + count);
-    return input_buffer_t{previous, buf.min};
+    return byte_cview{previous, buf.min};
 }
 
-auto read_at_most_n(input_buffer_t& buf, ptrdiff_t count) {
+auto read_at_most_n(byte_cview& buf, ptrdiff_t count) {
     const auto pos = std::min(buf.min + count, buf.max);
     const auto previous = std::exchange(buf.min, pos);
-    return input_buffer_t{previous, pos};
+    return byte_cview{previous, pos};
 }
 
 template<typename T, ptrdiff_t count = sizeof(T)>
-auto read_le(input_buffer_t& buf) {
+auto read_le(byte_cview& buf) {
     const auto data = read_n(buf, count);
-    return byte_traits<T>::read_little_endian(data.min, data.max);
+    return byte_traits<T>::read_le(data.min, data.max);
 }
 
-auto read_byte(input_buffer_t& buf) {
+auto read_byte(byte_cview& buf) {
     return *read_n(buf, 1).min;
 }
 
-auto read_uint14(input_buffer_t& buf) {
+auto read_uint14(byte_cview& buf) {
     const auto data = read_n(buf, 2).min;
     return short_ns::uint14_t{data[1], data[0]};
 }
 
-void read_prefix(input_buffer_t& buf, const input_buffer_t& prefix) {
+void read_prefix(byte_cview& buf, byte_cview prefix) {
     const auto data = read_n(buf, span(prefix));
     if (!std::equal(data.min, data.max, prefix.min))
         throw std::logic_error{"wrong prefix"};
 }
 
-auto read_status(input_buffer_t& buf, byte_t* running_status = nullptr) {
+auto read_status(byte_cview& buf, byte_t* running_status = nullptr) {
     auto status = read_byte(buf);
     if (is_msb_set(status)) {
         if (running_status != nullptr)
@@ -88,7 +84,7 @@ auto read_status(input_buffer_t& buf, byte_t* running_status = nullptr) {
     return status;
 }
 
-auto read_variable(input_buffer_t& buf) {
+auto read_variable(byte_cview& buf) {
     const auto last = std::min(buf.max, buf.min + 3); // do not go beyond 4 bytes
     const auto pos = std::find_if(buf.min, last, is_msb_cleared<byte_t>);
     uint32_t value = 0;
@@ -97,47 +93,47 @@ auto read_variable(input_buffer_t& buf) {
     return value;
 }
 
-auto read_sysex_size(input_buffer_t& buf, bool is_realtime) {
+auto read_sysex_size(byte_cview& buf, bool is_realtime) {
     if (!is_realtime)
         return static_cast<ptrdiff_t>(read_variable(buf));
     const auto pos = std::find_if(buf.min, buf.max, [](byte_t byte) { return byte == 0xf7; });
     return pos + 1 - buf.min;
 }
 
-auto read_sysex(input_buffer_t& buf, bool is_realtime) {
+auto read_sysex(byte_cview& buf, bool is_realtime) {
     const auto sysex_size = read_sysex_size(buf, is_realtime);
     const auto sysex_buf = read_n(buf, sysex_size);
     return Event::sys_ex({sysex_buf.min, sysex_buf.max});
 }
 
-auto read_meta(input_buffer_t& buf) {
+auto read_meta(byte_cview& buf) {
     const auto meta_type_buf = read_n(buf, 1);
     const auto meta_size = read_variable(buf);
     const auto meta_data_buf = read_n(buf, meta_size);
     return Event::meta({meta_type_buf.min, meta_data_buf.max});
 }
 
-auto read_note_off(input_buffer_t& buf, channels_t channels) {
+auto read_note_off(byte_cview& buf, channels_t channels) {
     const auto data = read_n(buf, 2).min;
     return Event::note_off(channels, data[0], data[1]);
 }
 
-auto read_note_on(input_buffer_t& buf, channels_t channels) {
+auto read_note_on(byte_cview& buf, channels_t channels) {
     const auto data = read_n(buf, 2).min;
     return data[1] == 0 ? Event::note_off(channels, data[0]) : Event::note_on(channels, data[0], data[1]);
 }
 
-auto read_aftertouch(input_buffer_t& buf,channels_t channels) {
+auto read_aftertouch(byte_cview& buf,channels_t channels) {
     const auto data = read_n(buf, 2).min;
     return Event::aftertouch(channels, data[0], data[1]);
 }
 
-auto read_controller(input_buffer_t& buf, channels_t channels) {
+auto read_controller(byte_cview& buf, channels_t channels) {
     const auto data = read_n(buf, 2).min;
     return Event::controller(channels, data[0], data[1]);
 }
 
-Event read_event(input_buffer_t& buf, bool is_realtime, byte_t* running_status) {
+Event read_event(byte_cview& buf, bool is_realtime, byte_t* running_status) {
     const auto status = read_status(buf, running_status);
     // ignoring 0xf4, 0xf5, 0xfd, 0xf7
     switch(status) {
@@ -166,7 +162,7 @@ Event read_event(input_buffer_t& buf, bool is_realtime, byte_t* running_status) 
     }
 }
 
-void read_track_events(input_buffer_t& buf, StandardMidiFile::track_type& track) {
+void read_track_events(byte_cview& buf, track_t track_number, StandardMidiFile::track_type& track) {
     byte_t running_status = 0; // initialize running status
     uint64_t timestamp = 0; // cumulated deltatimes
     bool eot = false; // true if end-of-track event is found
@@ -175,7 +171,7 @@ void read_track_events(input_buffer_t& buf, StandardMidiFile::track_type& track)
         const auto deltatime = read_variable(buf);
         timestamp += deltatime;
         // read event and check its validity
-        if (const auto event = read_event(buf, false, &running_status)) {
+        if (auto event = read_event(buf, false, &running_status)) {
             eot = event.family() == family_t::end_of_track;
             if (deltatime == 0 && !track.empty() && Event::equivalent(track.back().second, event)) {
                 // check if current event can be merged with the last one
@@ -184,7 +180,8 @@ void read_track_events(input_buffer_t& buf, StandardMidiFile::track_type& track)
             } else {
                 // add event in the track, ignores deltatime for EOT when a particular timestamp is reached
                 // it may be an annoying feature/bug of some editor
-                track.emplace_back(eot && timestamp == 0x03ffff ? 0 : deltatime, event);
+                event.set_track(track_number);
+                track.emplace_back(eot && timestamp == 0x03ffff ? 0 : deltatime, std::move(event));
             }
         } else {
             TRACE_WARNING("ignoring illformed event");
@@ -192,7 +189,7 @@ void read_track_events(input_buffer_t& buf, StandardMidiFile::track_type& track)
     }
 }
 
-auto read_file(input_buffer_t& buf) {
+auto read_file(byte_cview& buf) {
     StandardMidiFile file;
     if (read_le<uint32_t>(buf) != 6)
         throw std::logic_error{"unexpected header size"};
@@ -201,10 +198,11 @@ auto read_file(input_buffer_t& buf) {
         throw std::logic_error{"unexpected midi file format"};
     file.tracks.resize(read_le<uint16_t>(buf));
     file.ppqn = read_le<uint16_t>(buf); /// @todo check values of ppqn
+    track_t track_number = 0;
     for (auto& track : file.tracks) {
-        input_buffer_t track_buf;
+        byte_cview track_buf;
         try {
-            read_prefix(buf, make_buffer("MTrk"));
+            read_prefix(buf, make_view("MTrk"));
             const auto size = read_le<uint32_t>(buf);
             track_buf = read_at_most_n(buf, size);
             track.reserve(size / 3); // rough estimation of the number of events
@@ -213,12 +211,13 @@ auto read_file(input_buffer_t& buf) {
             break;
         }
         try {
-            read_track_events(track_buf, track);
+            read_track_events(track_buf, track_number, track);
             if (track_buf)
                 throw std::logic_error{"premature end-of-track"};
         } catch (const std::exception& err) {
             TRACE_ERROR("failed parsing track events: " << err.what());
         }
+        ++track_number;
     }
     return file;
 }
@@ -231,10 +230,10 @@ auto remaining_size(std::istream& is) {
     return length - pos;
 }
 
-auto fill_range(std::istream& is, const range_t<byte_t*>& range) {
+auto fill_range(std::istream& is, byte_view range) {
     if (!is.read(reinterpret_cast<char*>(range.min), span(range)))
         throw std::runtime_error{"can't read data"};
-    return input_buffer_t{range.min, range.max};
+    return byte_cview{range.min, range.max};
 }
 
 StandardMidiFile read_file(const std::string& filename) {
@@ -246,7 +245,7 @@ StandardMidiFile read_file(const std::string& filename) {
         // check header before loading the whole file
         std::array<byte_t, 4> header_storage;
         auto header_buf = fill_range(ifs, range_ns::from_span(header_storage.data(), header_storage.size()));
-        read_prefix(header_buf, make_buffer("MThd"));
+        read_prefix(header_buf, make_view("MThd"));
         // compute the file size and read it
         std::vector<byte_t> file_storage(static_cast<size_t>(remaining_size(ifs)));
         auto file_buf = fill_range(ifs, range_ns::from_span(file_storage.data(), file_storage.size()));
@@ -268,11 +267,11 @@ size_t write_byte(byte_t value, std::ostream& stream) {
 
 template<typename T, size_t count = sizeof(T)>
 size_t write_le(T value, std::ostream& stream) {
-    byte_traits<T>::write_little_endian(value, stream, count);
+    byte_traits<T>::write_le(value, stream, count);
     return count;
 }
 
-size_t write_buf(const input_buffer_t& buf, std::ostream& stream) {
+size_t write_buf(const byte_cview& buf, std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(buf.min), span(buf));
     return static_cast<size_t>(span(buf));
 }
@@ -307,30 +306,25 @@ size_t write_variable(uint32_t value, std::ostream& stream) {
 
 size_t write_raw_event(const Event& event, std::ostream& stream) {
     size_t bytes = 0;
-    // get the number of bytes to write
-    const size_t count = event.size() - 1;
-    // write sysex size
-    if (event.at(0) == 0xf0)
-        bytes += write_variable(static_cast<uint32_t>(count), stream);
-    // write event data (without the status)
-    bytes += write_buf(range_ns::from_span(event.data().data() + 1, count), stream);
+    auto view = extraction_ns::view(event);
+    const auto status = read_byte(view); // consume status byte from view
+    if (status == 0xf0) // write sysex size
+        bytes += write_variable(static_cast<uint32_t>(span(view)), stream);
+    bytes += write_buf(view, stream);
     return bytes;
 }
 
 size_t write_event(uint32_t deltatime, const Event& event, std::ostream& stream, byte_t* running_status) {
-    size_t bytes = 0;
-    byte_t status = event.at(0);
-    // check status
-    if (!is_msb_set(status))
-        throw std::invalid_argument{"wrong status byte"};
     // check event type
     if (!event)
         throw std::invalid_argument{"can't write null event"};
     if (event.is(~families_t::standard() | families_t::standard_system_realtime()))
         throw std::invalid_argument{"can't write custom or realtime events"};
+    size_t bytes = 0;
+    byte_t status = extraction_ns::status(event);
     if (event.is(families_t::standard_voice())) {
         // transform note off to note on
-        if (event.family() == family_t::note_off && event.at(2) == 0)
+        if (event.family() == family_t::note_off && extraction_ns::velocity(event) == 0)
             status = 0x90;
         // check voice event's channel
         if (!event.channels())
@@ -365,7 +359,7 @@ size_t write_track(const StandardMidiFile::track_type& track, std::ostream& stre
         size += write_event(0, Event::end_of_track(), oss, running_status_ptr);
     // prepend a header
     size_t bytes = 0;
-    bytes += write_buf(make_buffer("MTrk"), stream);
+    bytes += write_buf(make_view("MTrk"), stream);
     bytes += write_le(static_cast<uint32_t>(size), stream);
     stream << oss.rdbuf();
     bytes += size;
@@ -375,7 +369,7 @@ size_t write_track(const StandardMidiFile::track_type& track, std::ostream& stre
 size_t write_file(const StandardMidiFile& file, std::ostream& stream, bool use_running_status) {
     /// @todo check format & tracks & ppqn
     size_t bytes = 0;
-    bytes += write_buf(make_buffer("MThd"), stream);
+    bytes += write_buf(make_view("MThd"), stream);
     bytes += write_le(static_cast<uint32_t>(6), stream);
     bytes += write_le(static_cast<uint16_t>(file.format), stream);
     bytes += write_le(static_cast<uint16_t>(file.tracks.size()), stream);
@@ -416,19 +410,18 @@ struct const_track_iterator : public std::iterator<std::forward_iterator_tag, Se
 
     using inner_type = StandardMidiFile::track_type::const_iterator;
 
-    const_track_iterator(const inner_type& it = {}, track_t track = 0, int64_t offset = 0) : m_it(it), m_track(track), m_offset(offset) {}
+    const_track_iterator(const inner_type& it = {}, int64_t offset = 0) : m_it{it}, m_offset{offset} {}
 
-    Sequence::Item operator*() const { return {timestamp_t(m_offset + m_it->first), m_it->second, m_track}; }
+    auto operator*() const { return Sequence::Item{static_cast<timestamp_t>(m_offset + m_it->first), m_it->second}; }
 
-    const_track_iterator& operator++() { m_offset += m_it->first; ++m_it; return *this;  }
-    const_track_iterator operator++(int) { const_track_iterator it(*this); operator++(); return it; }
+    auto& operator++() { m_offset += m_it->first; ++m_it; return *this;  }
+    auto operator++(int) { auto it = *this; operator++(); return it; }
 
     bool operator==(const const_track_iterator& rhs) const { return m_it == rhs.m_it; }
     bool operator!=(const const_track_iterator& rhs) const { return m_it != rhs.m_it; }
 
 private:
     inner_type m_it; /*!< track iterator */
-    track_t m_track; /*!< track identifier */
     int64_t m_offset; /*!< offset is an integral type so that it avoids double approximations */
 
 };
@@ -450,7 +443,7 @@ ppqn_t Clock::ppqn() const {
 Clock::duration_type Clock::base_time(const Event& tempo_event) const {
     assert(tempo_event.family() == family_t::tempo);
     /// @todo check negative values of first byte of ppqn
-    return duration_type{tempo_event.get_meta_int<int64_t>() / (double)m_ppqn};
+    return duration_type{extraction_ns::get_meta_int(tempo_event) / (double)m_ppqn};
 }
 
 Event Clock::last_tempo(timestamp_t timestamp) const {
@@ -492,7 +485,7 @@ void Clock::reset(ppqn_t ppqn) {
 void Clock::push_timestamp(const Event& tempo_event, timestamp_t timestamp) {
     auto& last = m_cache.back();
     assert(timestamp >= last.timestamp);
-    if (tempo_event == last.tempo_event) {
+    if (Event::equivalent(tempo_event, last.tempo_event)) {
         /// ignoring event
     } else if (timestamp == last.timestamp) {
         last.tempo_event = tempo_event;
@@ -531,9 +524,8 @@ double Clock::timestamp2beat(timestamp_t timestamp) const {
 Sequence Sequence::from_file(const StandardMidiFile& data) {
     Sequence sequence;
     const bool enqueue = data.format == StandardMidiFile::sequencing_format;
-    track_t track = 0;
     for (const auto& track_data : data.tracks)
-        sequence.insert_track(track_data, track++, enqueue ? sequence.last_timestamp() : 0);
+        sequence.insert_track(track_data, enqueue ? sequence.last_timestamp() : 0);
     sequence.update_clock(data.ppqn);
     return sequence;
 }
@@ -548,7 +540,7 @@ Sequence Sequence::from_realtime(const realtime_type& data, ppqn_t ppqn) {
             sequence.m_clock.push_duration(item.event, item.timepoint - t0);
     // fill event
     for (const RealtimeItem& item : data)
-        sequence.push_item({sequence.m_clock.time2timestamp(item.timepoint - t0), item.event, item.track});
+        sequence.push_item({sequence.m_clock.time2timestamp(item.timepoint - t0), item.event});
     return sequence;
 }
 
@@ -585,7 +577,7 @@ bool Sequence::empty() const {
 std::set<track_t> Sequence::tracks() const {
     std::set<track_t> results;
     for (const Item& item : m_events)
-        results.insert(item.track);
+        results.insert(item.event.track());
     return results;
 }
 
@@ -599,7 +591,7 @@ timestamp_t Sequence::last_timestamp() const {
 
 timestamp_t Sequence::last_timestamp(track_t track) const {
     for (auto it = m_events.rbegin() ; it != m_events.rend() ; ++it)
-        if (it->track == track)
+        if (it->event.track() == track)
             return it->timestamp;
     return 0.;
 }
@@ -620,9 +612,9 @@ void Sequence::insert_item(Item item) {
     m_events.emplace(it, std::move(item));
 }
 
-void Sequence::insert_track(const StandardMidiFile::track_type& track_data, track_t track, int64_t offset) {
+void Sequence::insert_track(const StandardMidiFile::track_type& track_data, int64_t offset) {
     container_type new_events(m_events.size() + track_data.size());
-    const_track_iterator it(track_data.begin(), track, offset), last(track_data.end());
+    const_track_iterator it{track_data.begin(), offset}, last{track_data.end()};
     std::merge(m_events.begin(), m_events.end(), it, last, new_events.begin());
     std::swap(m_events, new_events);
 }
@@ -645,7 +637,7 @@ StandardMidiFile Sequence::to_file(const blacklist_type& list) const {
     smf.tracks.resize(mapping.size());
     // set file events
     for (const Item& item : m_events) {
-        auto track_it = mapping.find(item.track);
+        auto track_it = mapping.find(item.event.track());
         if (track_it != mapping.end()) {
             size_t track_number = track_it->second;
             double deltatime = item.timestamp - timestamps[track_number];

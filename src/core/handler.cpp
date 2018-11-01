@@ -94,8 +94,8 @@ void display_statistics(std::ostream& os, const Metrics& metrics) {
 // Message
 //=========
 
-Message::Message(Event event, Handler* source, track_t track) noexcept :
-    event{std::move(event)}, source{source}, track{track} {
+Message::Message(Event event, Handler* source) noexcept :
+    event{std::move(event)}, source{source} {
 
 }
 
@@ -158,7 +158,7 @@ struct Match : public Filter::visitor_type<bool> {
     bool visit(const data_type& f) const { return apply_visitor(*this, f); }
 
     bool operator()(const HandlerFilter& f) const { return (message.source == f.handler) ^ f.reversed; }
-    bool operator()(const TrackFilter& f) const { return (message.track == f.track) ^ f.reversed; }
+    bool operator()(const TrackFilter& f) const { return (message.event.track() == f.track) ^ f.reversed; }
     bool operator()(const ChannelFilter& f) const { return f.channels.all(message.event.channels()); }
     bool operator()(const FamilyFilter& f) const { return f.families.test(message.event.family()); }
     bool operator()(const AnyFilter& f) const { return std::any_of(f.filters.begin(), f.filters.end(), [this](const auto& filter) { return visit(filter); }); }
@@ -688,8 +688,8 @@ void Handler::forward_message(const Message& message) {
             listener.handler->send_message(message);
 }
 
-void Handler::produce_message(Event event, track_t track) {
-    forward_message({std::move(event), this, track});
+void Handler::produce_message(Event event) {
+    forward_message({std::move(event), this});
 }
 
 Handler::Result Handler::handle_open(State state) {

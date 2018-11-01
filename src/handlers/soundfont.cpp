@@ -27,19 +27,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace {
 
-// check if event specifies to turn some channels to drum channels
-channels_t use_for_rhythm_part(const Event& event) {
-    if (   event.family() == family_t::sysex             // sysex event
-        && event.at(1) == 0x41                           // roland manufacturer
-        && event.at(4) == 0x12                           // sending data
-        && event.at(5) == 0x40                           //
-        && (event.at(6) & 0xf0) == 0x10                  //
-        && event.at(7) == 0x15                           // 0x40 0x1X 0x15 <=> address of USE_FOR_RHYTHM_PART
-        && (event.at(8) == 0x01 || event.at(8) == 0x02)) // value {0x00: OFF, 0x01: MAP1, 0x02: MAP2}
-        return channels_t::wrap(event.at(6) & 0x0f);
-    return {};
-}
-
 constexpr auto to_result(int rc) {
     return rc == FLUID_FAILED ? Handler::Result::fail : Handler::Result::success;
 }
@@ -171,11 +158,13 @@ struct SoundFontHandler::Impl {
     auto handle_sysex(const Event& event) {
         /// @note master volume does not seem to be handled correctly
         // roland handling
-        if (const auto channels = use_for_rhythm_part(event))
+        if (const auto channels = extraction_ns::use_for_rhythm_part(event))
             return handle_channel_type(channels, CHANNEL_TYPE_DRUM);
         // default handling
-        const auto sys_ex_data = std::vector<char>{event.begin()+1, event.end()-1};
-        return to_result(fluid_synth_sysex(synth, sys_ex_data.data(), static_cast<int>(sys_ex_data.size()), nullptr, nullptr, nullptr, 0));
+        auto view = extraction_ns::dynamic_view(event);
+        ++view.min; // skip status
+        --view.max; // skip end-of-sysex
+        return to_result(fluid_synth_sysex(synth, reinterpret_cast<const char*>(view.min), static_cast<int>(span(view)), nullptr, nullptr, nullptr, 0));
     }
 
     auto handle_gain(double gain) {
@@ -356,12 +345,12 @@ families_t SoundFontHandler::handled_families() const {
 
 SoundFontHandler::Result SoundFontHandler::handle_message(const Message& message) {
     switch (message.event.family()) {
-    case family_t::note_off: return m_pimpl->handle_note_off(message.event.channels(), message.event.at(1));
-    case family_t::note_on: return m_pimpl->handle_note_on(message.event.channels(), message.event.at(1), message.event.at(2));
-    case family_t::program_change: return m_pimpl->handle_program_change(message.event.channels(), message.event.at(1));
-    case family_t::controller: return m_pimpl->handle_controller(message.event.channels(), message.event.at(1), message.event.at(2));
-    case family_t::channel_pressure: return m_pimpl->handle_channel_pressure(message.event.channels(), message.event.at(1));
-    case family_t::pitch_wheel: return m_pimpl->handle_pitch_wheel(message.event.channels(), message.event.get_14bits());
+    case family_t::note_off: return m_pimpl->handle_note_off(message.event.channels(), extraction_ns::note(message.event));
+    case family_t::note_on: return m_pimpl->handle_note_on(message.event.channels(), extraction_ns::note(message.event), extraction_ns::velocity(message.event));
+    case family_t::program_change: return m_pimpl->handle_program_change(message.event.channels(), extraction_ns::program(message.event));
+    case family_t::controller: return m_pimpl->handle_controller(message.event.channels(), extraction_ns::controller(message.event), extraction_ns::controller_value(message.event));
+    case family_t::channel_pressure: return m_pimpl->handle_channel_pressure(message.event.channels(), extraction_ns::channel_pressure(message.event));
+    case family_t::pitch_wheel: return m_pimpl->handle_pitch_wheel(message.event.channels(), extraction_ns::get_14bits(message.event));
     case family_t::reset: return m_pimpl->handle_reset();
     case family_t::sysex: return m_pimpl->handle_sysex(message.event);
     case family_t::extended_system:

@@ -165,7 +165,8 @@ bool GraphicalHandler::canGenerate() const {
 }
 
 void GraphicalHandler::generate(Event event) {
-    produce_message(std::move(event), mTrack);
+    event.set_track(mTrack);
+    produce_message(std::move(event));
 }
 
 //============
@@ -191,16 +192,16 @@ Handler::Result Instrument::handle_close(State state) {
 Handler::Result Instrument::handle_message(const Message& message) {
     switch (message.event.family()) {
     case family_t::note_on:
-        receiveNoteOn(message.event.channels(), message.event.get_note());
+        receiveNoteOn(message.event.channels(), extraction_ns::get_note(message.event));
         return Result::success;
     case family_t::note_off:
-        receiveNoteOff(message.event.channels(), message.event.get_note());
+        receiveNoteOff(message.event.channels(), extraction_ns::get_note(message.event));
         return Result::success;
     case family_t::reset:
         receiveReset();
         return Result::success;
     case family_t::controller:
-        if (message.event.at(1) == controller_ns::all_notes_off_controller) {
+        if (extraction_ns::controller(message.event) == controller_ns::all_notes_off_controller) {
             receiveNotesOff(message.event.channels());
             return Result::success;
         }

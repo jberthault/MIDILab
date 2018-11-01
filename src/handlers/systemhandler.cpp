@@ -30,7 +30,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 class WinSystemHandler : public Handler {
 
 private:
-    using buffer_type = std::pair<MIDIHDR, std::vector<char>>;
+    using buffer_type = std::pair<MIDIHDR, std::vector<byte_t>>;
 
     HMIDIIN m_handle_in;
     HMIDIOUT m_handle_out;
@@ -168,13 +168,15 @@ private:
     }
 
     size_t handle_sysex(const Event& event) {
-        return handle_buffer({event.begin(), event.end()});
+        const auto view = extraction_ns::dynamic_view(event);
+        m_buffers.emplace_back(MIDIHDR{}, std::vector<byte_t>{view.min, view.max});
+        return write_buffer(m_buffers.back());
     }
 
     size_t handle_voice(const Event& event) {
         /// @note can't bufferize in a single midiOutLongMsg due to a lack of support of somes devices
         size_t errors = 0;
-        const auto frame = *reinterpret_cast<const uint32_t*>(&event.data()[0]);
+        const auto frame = event.dynamic_size(); // actually, the static data interpreted as an uint32_t
         for (channel_t channel : event.channels())
             errors += check_out(midiOutShortMsg(m_handle_out, frame | channel));
         return errors;
@@ -193,15 +195,11 @@ private:
         return errors;
     }
 
-    size_t handle_buffer(std::vector<char>&& buffer_data) {
-        m_buffers.emplace_back(MIDIHDR{}, std::move(buffer_data));
-        auto& buf = m_buffers.back();
-
+    size_t write_buffer(buffer_type& buf) {
         ::memset(&buf.first, 0, sizeof(MIDIHDR));
         buf.first.dwBufferLength = static_cast<DWORD>(buf.second.capacity());
         buf.first.dwBytesRecorded = static_cast<DWORD>(buf.second.size());
-        buf.first.lpData = buf.second.data();
-
+        buf.first.lpData = reinterpret_cast<char*>(buf.second.data());
         size_t errors = 0;
         errors += check_out(midiOutPrepareHeader(m_handle_out, &buf.first, sizeof(MIDIHDR)));
         errors += check_out(midiOutLongMsg(m_handle_out, &buf.first, sizeof(MIDIHDR)));
@@ -419,12 +417,13 @@ class LinuxSystemHandler : public Handler {
             return errors;
         }
 
-        size_t handle_voice(const Event& event) {
+        size_t handle_voice(Event event) {
             size_t errors = 0;
-            Event::data_type data = event.data();
+            auto* data = event.static_data();
+            const auto size = event.static_size();
             for (channel_t c : event.channels()) {
                 data[0] = (data[0] & ~0xf) | c;
-                errors += check(snd_rawmidi_write(m_o_handler, data.data(), data.size()));
+                errors += check(snd_rawmidi_write(m_o_handler, data, size));
             }
             return errors;
         }

@@ -47,18 +47,21 @@ Handler::Result TrackFilter::handle_message(const Message& message) {
             return Result::success;
         }
     }
-    clean_corrupted(message.source, message.track);
-    if (m_filter.match(message.track))
+    clean_corrupted(message.source, message.event.track());
+    if (m_filter.match(message.event.track()))
         feed_forward(message);
     return Result::success;
 }
 
 void TrackFilter::feed_forward(const Message& message) {
-    m_corruption[message.track].feed(message.event);
+    m_corruption[message.event.track()].feed(message.event);
     forward_message(message);
 }
 
 void TrackFilter::clean_corrupted(Handler *source, track_t track) {
-    if (const auto channels = m_corruption[track].reset())
-        return feed_forward({Event::controller(channels, controller_ns::all_notes_off_controller), source, track});
+    if (const auto channels = m_corruption[track].reset()) {
+        Message message{Event::controller(channels, controller_ns::all_notes_off_controller), source};
+        message.event.set_track(track);
+        return feed_forward(message);
+    }
 }
