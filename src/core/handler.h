@@ -372,7 +372,7 @@ public:
     // reception features
     // ------------------
 
-    void send_message(const Message& message); /*!< add pending message and notifies the synchronizer */
+    void send_message(Message message); /*!< add pending message and notifies the synchronizer */
     void flush_messages(); /*!< will synchronously pass pending messages to the interceptor */
     Result receive_message(const Message& message) noexcept; /*!< calls handle_* after checking mode and state */
 

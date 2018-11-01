@@ -25,7 +25,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //===============
 
 const VoiceExtension<channels_t> ChannelMapper::remap_ext {"ChannelMapping.remap"};
-const VoiceExtension<> ChannelMapper::unmap_ext {"ChannelMapping.unmap"};
+const VoiceExtension<void> ChannelMapper::unmap_ext {"ChannelMapping.unmap"};
 
 ChannelMapper::ChannelMapper() : Handler{Mode::thru()} {
     for (channel_t c=0 ; c < channels_t::capacity() ; ++c)
@@ -54,7 +54,7 @@ Handler::Result ChannelMapper::handle_message(const Message& message) {
 
     std::lock_guard<std::mutex> guard{m_mutex};
 
-    if (message.event.family() == family_t::extended_voice) {
+    if (message.event.is(family_t::extended_voice)) {
         if (remap_ext.affects(message.event)) {
             channel_ns::store(m_mapping, message.event.channels(), remap_ext.decode(message.event));
             m_corruption.tick();

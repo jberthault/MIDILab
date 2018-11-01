@@ -24,18 +24,18 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // TrackFilter
 //=============
 
-const SystemExtension<> TrackFilter::enable_all_ext {"TrackFilter.enable_all"};
+const SystemExtension<void> TrackFilter::enable_all_ext {"TrackFilter.enable_all"};
 const SystemExtension<track_t> TrackFilter::enable_ext {"TrackFilter.enable"};
 const SystemExtension<track_t> TrackFilter::disable_ext {"TrackFilter.disable"};
 
-TrackFilter::TrackFilter() : Handler(Mode::thru()), m_filter(true) {
+TrackFilter::TrackFilter() : Handler{Mode::thru()} {
 
 }
 
 Handler::Result TrackFilter::handle_message(const Message& message) {
-    if (message.event.family() == family_t::extended_system) {
+    if (message.event.is(family_t::extended_system)) {
         if (disable_ext.affects(message.event)) {
-            auto track = disable_ext.decode(message.event);
+            const auto track = disable_ext.decode(message.event);
             m_corruption[track].tick();
             m_filter.elements.insert(track);
             return Result::success;

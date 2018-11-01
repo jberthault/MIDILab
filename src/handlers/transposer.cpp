@@ -38,7 +38,7 @@ Transposer::Transposer() : Handler{Mode::thru()} {
 }
 
 Handler::Result Transposer::handle_message(const Message& message) {
-    if (message.event.family() == family_t::extended_voice) {
+    if (message.event.is(family_t::extended_voice)) {
         if (transpose_ext.affects(message.event)) {
             set_key(message.event.channels(), transpose_ext.decode(message.event));
             return Result::success;

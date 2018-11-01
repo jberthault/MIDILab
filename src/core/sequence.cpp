@@ -172,7 +172,7 @@ void read_track_events(byte_cview& buf, track_t track_number, StandardMidiFile::
         timestamp += deltatime;
         // read event and check its validity
         if (auto event = read_event(buf, false, &running_status)) {
-            eot = event.family() == family_t::end_of_track;
+            eot = event.is(family_t::end_of_track);
             if (deltatime == 0 && !track.empty() && Event::equivalent(track.back().second, event)) {
                 // check if current event can be merged with the last one
                 // it aims to remove duplicated events while combining voice events on different channels
@@ -324,7 +324,7 @@ size_t write_event(uint32_t deltatime, const Event& event, std::ostream& stream,
     byte_t status = extraction_ns::status(event);
     if (event.is(families_t::standard_voice())) {
         // transform note off to note on
-        if (event.family() == family_t::note_off && extraction_ns::velocity(event) == 0)
+        if (event.is(family_t::note_off) && extraction_ns::velocity(event) == 0)
             status = 0x90;
         // check voice event's channel
         if (!event.channels())
@@ -353,7 +353,7 @@ size_t write_track(const StandardMidiFile::track_type& track, std::ostream& stre
     if (track.empty())
         throw std::invalid_argument{"empty track"};
     // write data
-    for (const StandardMidiFile::value_type& value: track)
+    for (const auto& value : track)
         size += write_event(value.first, value.second, oss, running_status_ptr);
     if (track.back().second.family() != family_t::end_of_track)
         size += write_event(0, Event::end_of_track(), oss, running_status_ptr);
@@ -394,6 +394,8 @@ size_t write_file(const StandardMidiFile& file, const std::string& filename, boo
 
 }
 
+namespace {
+
 /**
  * @brief The const_track_iterator struct
  * iterates and adapt Event to Sequence::Item
@@ -403,8 +405,6 @@ size_t write_file(const StandardMidiFile& file, const std::string& filename, boo
  * * successive ++ at end will throw
  *
  */
-
-namespace {
 
 struct const_track_iterator : public std::iterator<std::forward_iterator_tag, Sequence::Item> {
 
@@ -441,7 +441,7 @@ ppqn_t Clock::ppqn() const {
 }
 
 Clock::duration_type Clock::base_time(const Event& tempo_event) const {
-    assert(tempo_event.family() == family_t::tempo);
+    assert(tempo_event.is(family_t::tempo));
     /// @todo check negative values of first byte of ppqn
     return duration_type{extraction_ns::get_meta_int(tempo_event) / (double)m_ppqn};
 }
@@ -535,12 +535,12 @@ Sequence Sequence::from_realtime(const realtime_type& data, ppqn_t ppqn) {
     const auto t0 = data.empty() ? Clock::time_type{} : data.begin()->timepoint;
     // compute clock
     sequence.m_clock.reset(ppqn);
-    for (const RealtimeItem& item : data)
-        if (item.event.family() == family_t::tempo)
-            sequence.m_clock.push_duration(item.event, item.timepoint - t0);
+    for (const auto& realtime_item : data)
+        if (realtime_item.event.is(family_t::tempo))
+            sequence.m_clock.push_duration(realtime_item.event, realtime_item.timepoint - t0);
     // fill event
-    for (const RealtimeItem& item : data)
-        sequence.push_item({sequence.m_clock.time2timestamp(item.timepoint - t0), item.event});
+    for (const auto& realtime_item : data)
+        sequence.push_item({sequence.m_clock.time2timestamp(realtime_item.timepoint - t0), realtime_item.event});
     return sequence;
 }
 
@@ -552,15 +552,15 @@ const Clock& Sequence::clock() const {
 
 void Sequence::update_clock() {
     m_clock.reset();
-    for (const Item& item : m_events)
-        if (item.event.family() == family_t::tempo)
+    for (const auto& item : m_events)
+        if (item.event.is(family_t::tempo))
             m_clock.push_timestamp(item.event, item.timestamp);
 }
 
 void Sequence::update_clock(ppqn_t ppqn) {
     m_clock.reset(ppqn);
-    for (const Item& item : m_events)
-        if (item.event.family() == family_t::tempo)
+    for (const auto& item : m_events)
+        if (item.event.is(family_t::tempo))
             m_clock.push_timestamp(item.event, item.timestamp);
 }
 

@@ -32,7 +32,7 @@ class ChannelMapper : public Handler {
 
 public:
     static const VoiceExtension<channels_t> remap_ext; /*!< channels given will all map to the whole new channels */
-    static const VoiceExtension<> unmap_ext; /*!< all channels specified won't be mapped */
+    static const VoiceExtension<void> unmap_ext; /*!< all channels specified won't be mapped */
 
     explicit ChannelMapper();
 

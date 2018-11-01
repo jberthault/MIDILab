@@ -402,7 +402,7 @@ families_t ProgramWheel::handled_families() const {
 }
 
 Handler::Result ProgramWheel::handle_message(const Message& message) {
-    if (message.event.family() == family_t::program_change) {
+    if (message.event.is(family_t::program_change)) {
         setProgramChange(message.event.channels(), extraction_ns::program(message.event));
         return Result::success;
     }

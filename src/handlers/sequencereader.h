@@ -38,8 +38,8 @@ public:
 
     using position_type = std::pair<Sequence::const_iterator, timestamp_t>;
 
-    static const SystemExtension<> toggle_ext; /*!< pause handler if playing else start */
-    static const SystemExtension<> pause_ext; /*!< like stop_event but don't generate a reset_event */
+    static const SystemExtension<void> toggle_ext; /*!< pause handler if playing else start */
+    static const SystemExtension<void> pause_ext; /*!< like stop_event but don't generate a reset_event */
     static const SystemExtension<double> distorsion_ext;
 
     explicit SequenceReader();

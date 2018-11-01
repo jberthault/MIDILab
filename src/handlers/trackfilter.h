@@ -42,7 +42,7 @@ class TrackFilter : public Handler {
 public:
     using filter_type = blacklist_t<track_t>;
 
-    static const SystemExtension<> enable_all_ext;
+    static const SystemExtension<void> enable_all_ext;
     static const SystemExtension<track_t> enable_ext;
     static const SystemExtension<track_t> disable_ext;
 
@@ -55,7 +55,7 @@ private:
     void feed_forward(const Message& message); /*!< forward a message after feeding memory */
     void clean_corrupted(Handler* source, track_t track); /*!< forward a message cleaning corrupted channels */
 
-    filter_type m_filter;
+    filter_type m_filter {true};
     std::unordered_map<track_t, Corruption> m_corruption;
 
 };

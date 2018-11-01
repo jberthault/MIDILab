@@ -623,6 +623,7 @@ public:
     // accessors
 
     inline family_t family() const noexcept { return m_family; }
+    inline bool is(family_t family) const noexcept { return m_family == family; }
     inline bool is(families_t families) const noexcept { return families.test(m_family); } /*!< true if family belongs to families */
     inline explicit operator bool() const noexcept { return m_family != family_t::invalid; } /*!< true if event is valid */
 
@@ -724,7 +725,7 @@ T get_meta_int(const Event& event) { /*!< interprets meta data as an integer */
 }
 
 /// check if event specifies to turn some channels to drum channels */
-channels_t use_for_rhythm_part(const Event& event); /*!< precondition: event.family() == family_t::sysex */
+channels_t use_for_rhythm_part(const Event& event); /*!< precondition: event.is(family_t::sysex) */
 
 };
 
@@ -777,7 +778,7 @@ struct extension_facade_t<void> : extension_t {
     auto encode(channels_t channels) const { return make_event(channels); }
 };
 
-template<typename T = void>
+template<typename T>
 struct VoiceExtension : extension_facade_t<T> {
     VoiceExtension(std::string key) : extension_facade_t<T>{family_t::extended_voice, std::move(key)} {}
     template<typename ... Args>
@@ -786,7 +787,7 @@ struct VoiceExtension : extension_facade_t<T> {
     }
 };
 
-template<typename T = void>
+template<typename T>
 struct SystemExtension : extension_facade_t<T> {
     SystemExtension(std::string key) : extension_facade_t<T>{family_t::extended_system, std::move(key)} {}
     template<typename ... Args>
@@ -795,7 +796,7 @@ struct SystemExtension : extension_facade_t<T> {
     }
 };
 
-template<typename T = void>
+template<typename T>
 struct MetaExtension : extension_facade_t<T> {
     MetaExtension(std::string key) : extension_facade_t<T>{family_t::extended_meta, std::move(key)} {}
     template<typename ... Args>

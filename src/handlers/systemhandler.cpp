@@ -62,9 +62,9 @@ protected:
         update_buffers();
         if (message.event.is(families_t::standard_voice()))
             return to_result(handle_voice(message.event));
-        if (message.event.family() == family_t::sysex)
+        if (message.event.is(family_t::sysex))
             return to_result(handle_sysex(message.event));
-        if (message.event.family() == family_t::reset)
+        if (message.event.is(family_t::reset))
             return to_result(handle_reset());
         return Result::unhandled;
     }
@@ -359,7 +359,7 @@ class LinuxSystemHandler : public Handler {
         Result handle_message(const Message& message) override {
             if (message.event.is(families_t::standard_voice()))
                 return to_result(handle_voice(message.event));
-            if (message.event.family() == family_t::reset)
+            if (message.event.is(family_t::reset))
                 return to_result(handle_reset());
             return Result::unhandled;
         }

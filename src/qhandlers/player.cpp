@@ -328,7 +328,7 @@ void SequenceView::setSequence(const Sequence& sequence, timestamp_t lower, time
     for (const Sequence::Item& item : sequence) {
         if (item.event.is(families_t::voice()))
             trackChannels[item.event.track()] |= item.event.channels();
-        else if (item.event.family() == family_t::track_name)
+        else if (item.event.is(family_t::track_name))
             trackNames[item.event.track()] << QByteArray::fromStdString(item.event.description());
     }
 
@@ -1106,7 +1106,7 @@ void Trackbar::setSequence(const Sequence& sequence, timestamp_t lower, timestam
     // reinitialize markers
     cleanMarkers();
     for (const Sequence::Item& item : sequence)
-        if (item.event.family() == family_t::marker)
+        if (item.event.is(family_t::marker))
             addMarker(item.timestamp, QString::fromStdString(item.event.description()), false);
 }
 
@@ -1198,7 +1198,7 @@ void TempoView::setTempo(const Event& event) {
     if (Event::equivalent(event, mLastTempo))
         return;
     mLastTempo = event;
-    const auto bpm = event.family() == family_t::tempo ? extraction_ns::get_bpm(event) : 0.;
+    const auto bpm = event.is(family_t::tempo) ? extraction_ns::get_bpm(event) : 0.;
     mTempoSpin->setValue(bpm);
     updateDistorted(distorsion());
 }
@@ -1465,7 +1465,7 @@ void Player::stepForward() {
     const auto& seq = mHandler.sequence();
     auto first = seq.begin(), last = seq.end();
     for (auto it = std::lower_bound(first, last, pos) ; it != last ; ++it) {
-        if (it->event.family() == family_t::note_on) {
+        if (it->event.is(family_t::note_on)) {
             mNextStep = it->timestamp;
             mIsStepping = true;
             break;

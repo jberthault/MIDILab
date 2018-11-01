@@ -40,8 +40,8 @@ constexpr auto playing_state = Handler::State::from_integral(0x4);
 // SequenceReader
 //================
 
-const SystemExtension<> SequenceReader::toggle_ext {"SequenceReader.toggle"};
-const SystemExtension<> SequenceReader::pause_ext {"SequenceReader.pause"};
+const SystemExtension<void> SequenceReader::toggle_ext {"SequenceReader.toggle"};
+const SystemExtension<void> SequenceReader::pause_ext {"SequenceReader.pause"};
 const SystemExtension<double> SequenceReader::distorsion_ext {"SequenceReader.distorsion"};
 
 SequenceReader::SequenceReader() : Handler{Mode::io()} {
@@ -188,7 +188,7 @@ bool SequenceReader::start_playing(bool rewind) {
             // forward events in the current range
             for ( ; it != last ; ++it) {
                 const Event& event = it->event;
-                if (event.family() == family_t::tempo)
+                if (event.is(family_t::tempo))
                     base_time = m_sequence.clock().base_time(event);
                 produce_message(event);
             }

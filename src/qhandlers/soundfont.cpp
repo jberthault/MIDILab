@@ -58,7 +58,7 @@ auto makeExpSliderFromExtension(const SoundFontBoundedExtension<T>& ext, T pivot
 
 void SoundFontInterceptor::seize_messages(Handler* target, const Messages& messages) {
     const bool fileSeized = std::any_of(messages.begin(), messages.end(), [](const auto& message) {
-        return message.event.family() == family_t::extended_system && SoundFontHandler::ext.file.affects(message.event);
+        return message.event.is(family_t::extended_system) && SoundFontHandler::ext.file.affects(message.event);
     });
     seizeAll(target, messages);
     if (fileSeized)

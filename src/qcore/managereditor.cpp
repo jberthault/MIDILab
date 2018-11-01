@@ -397,7 +397,7 @@ void HandlerListEditor::updateHandler(Handler* handler) {
 }
 
 void HandlerListEditor::onMessageHandled(Handler* handler, const Message& message) {
-    if (message.event.family() == family_t::extended_system && (Handler::open_ext.affects(message.event) || Handler::close_ext.affects(message.event)))
+    if (message.event.is(family_t::extended_system) && (Handler::open_ext.affects(message.event) || Handler::close_ext.affects(message.event)))
         updateHandler(handler);
 }
 

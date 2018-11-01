@@ -160,7 +160,7 @@ struct Match : public Filter::visitor_type<bool> {
     bool operator()(const HandlerFilter& f) const { return (message.source == f.handler) ^ f.reversed; }
     bool operator()(const TrackFilter& f) const { return (message.event.track() == f.track) ^ f.reversed; }
     bool operator()(const ChannelFilter& f) const { return f.channels.all(message.event.channels()); }
-    bool operator()(const FamilyFilter& f) const { return f.families.test(message.event.family()); }
+    bool operator()(const FamilyFilter& f) const { return message.event.is(f.families); }
     bool operator()(const AnyFilter& f) const { return std::any_of(f.filters.begin(), f.filters.end(), [this](const auto& filter) { return visit(filter); }); }
     bool operator()(const AllFilter& f) const { return std::all_of(f.filters.begin(), f.filters.end(), [this](const auto& filter) { return visit(filter); }); }
 
@@ -646,8 +646,8 @@ families_t Handler::forwarded_families() const {
     return produced_families();
 }
 
-void Handler::send_message(const Message& message) {
-    if (!m_pending_messages.produce(message))
+void Handler::send_message(Message message) {
+    if (!m_pending_messages.produce(std::move(message)))
         m_synchronizer->sync_handler(this);
 }
 
@@ -665,7 +665,7 @@ Handler::Result Handler::receive_message(const Message& message) noexcept {
 #ifdef MIDILAB_ENABLE_TIMING
         m_metrics.add_latency(message.time_point);
 #endif
-        if (message.event.family() == family_t::extended_system) {
+        if (message.event.is(family_t::extended_system)) {
             if (open_ext.affects(message.event))
                 return handle_open(open_ext.decode(message.event));
             if (close_ext.affects(message.event))
