@@ -194,9 +194,12 @@ public:
 
 protected:
     Result handle_close(State state) override;
+    Result handle_message(const Message& message) override;
+    families_t handled_families() const override;
 
 private:
-    SimpleSlider* mSlider;
+    RangedSlider<range_t<uint16_t>>* mSlider;
+    bool mGenerateOnChange {true};
 
 };
 

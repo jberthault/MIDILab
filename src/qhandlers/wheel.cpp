@@ -437,18 +437,17 @@ MetaHandler* makeMetaVolumeWheel(QObject* parent) {
     return meta;
 }
 
-VolumeWheel::VolumeWheel() : GraphicalHandler{Mode::in()} {
-    auto* slider = makeHorizontalSlider(data14Range, expand(.5, data14Range), this);
-    slider->setFormatter([](auto value) {
+VolumeWheel::VolumeWheel() : GraphicalHandler{Mode::io()} {
+    mSlider = makeHorizontalSlider(data14Range, expand(.5, data14Range), this);
+    mSlider->setFormatter([](auto value) {
         return QString::number(rescale(data14Range, value, percentRange)) + "%";
     });
-    slider->setDefault();
-    slider->setNotifier([this](auto value) {
-        if (canGenerate())
+    mSlider->setDefault();
+    mSlider->setNotifier([this](auto value) {
+        if (canGenerate() && mGenerateOnChange)
             generate(Event::master_volume(short_ns::cut(value)));
     });
-    mSlider = slider;
-    setLayout(make_vbox(margin_tag{0}, spacing_tag{0}, slider));
+    setLayout(make_vbox(margin_tag{0}, spacing_tag{0}, mSlider));
 }
 
 HandlerView::Parameters VolumeWheel::getParameters() const {
@@ -465,4 +464,22 @@ size_t VolumeWheel::setParameter(const Parameter& parameter) {
 Handler::Result VolumeWheel::handle_close(State state) {
     mSlider->setDefault();
     return GraphicalHandler::handle_close(state);
+}
+
+Handler::Result VolumeWheel::handle_message(const Message& message) {
+    if (message.event.is(family_t::sysex)) {
+        short_ns::uint14_t volume;
+        byte_t sysex_channel;
+        if (extraction_ns::get_master_volume(message.event, volume, sysex_channel)) {
+            mGenerateOnChange = false;
+            mSlider->setValue(short_ns::glue(volume));
+            mGenerateOnChange = true;
+            return Result::success;
+        }
+    }
+    return Result::unhandled;
+}
+
+families_t VolumeWheel::handled_families() const {
+    return families_t::wrap(family_t::sysex);
 }

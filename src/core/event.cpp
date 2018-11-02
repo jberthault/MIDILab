@@ -826,10 +826,6 @@ bool Event::equivalent(const Event& lhs, const Event& rhs) {
 
 // string
 
-const char* Event::name() const {
-    return family_name(m_family);
-}
-
 std::string Event::description() const {
     std::stringstream stream;
     print_event(stream, *this);
@@ -838,7 +834,7 @@ std::string Event::description() const {
 
 std::ostream& operator<<(std::ostream& os, const Event& event) {
     // add name
-    os << event.name();
+    os << event.family();
     // add channels
     if (const auto channels = event.channels())
         os << " [" << channel_ns::channels_string(channels) << "]";
@@ -876,12 +872,26 @@ Note get_note(const Event& event) {
 }
 
 uint16_t get_14bits(const Event& event) {
-    const auto data = event.static_data();
+    const auto* data = event.static_data();
     return short_ns::glue({data[2], data[1]});
 }
 
 double get_bpm(const Event& event) {
     return 60000000. / get_meta_int(event);
+}
+
+bool get_master_volume(const Event& event, short_ns::uint14_t& volume, byte_t& sysex_channel) {
+    // pattern 0xf0 0x7f <channel> 0x04 0x01 <fine> <coarse> 0xf7
+    if (event.dynamic_size() == 8) {
+        const auto* data = event.dynamic_data();
+        if (data[1] == 0x7f && data[3] == 0x04 && data[4] == 0x01) {
+            sysex_channel = data[2];
+            volume.fine = data[5];
+            volume.coarse = data[6];
+            return true;
+        }
+    }
+    return false;
 }
 
 channels_t use_for_rhythm_part(const Event& event) {
@@ -929,8 +939,7 @@ Event extension_t::make_event(channels_t channels) const {
 }
 
 Event extension_t::make_event(channels_t channels, byte_cview value) const {
-    const auto key_view = make_view(key.c_str(), key.size() + 1); // write null terminator
-    return EventPrivate::dynamic_event(family, channels, key_view, value);
+    return EventPrivate::dynamic_event(family, channels, make_view(key.c_str(), key.size() + 1), value); // write null terminator
 }
 
 Event extension_t::make_event(channels_t channels, const std::string& value) const {

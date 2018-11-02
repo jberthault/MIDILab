@@ -647,7 +647,6 @@ public:
 
     // string
 
-    const char* name() const; /*!< get event name based on its family */
     std::string description() const; /*!< get event description based on family & data */
 
     friend std::ostream& operator<<(std::ostream& os, const Event& event);
@@ -723,6 +722,8 @@ T get_meta_int(const Event& event) { /*!< interprets meta data as an integer */
     const auto view = get_meta_cview(event);
     return byte_traits<T>::read_le(view.min, view.max);
 }
+
+bool get_master_volume(const Event& event, short_ns::uint14_t& volume, byte_t& sysex_channel); /*!< precondition: event.is(family_t::sysex) */
 
 /// check if event specifies to turn some channels to drum channels */
 channels_t use_for_rhythm_part(const Event& event); /*!< precondition: event.is(family_t::sysex) */

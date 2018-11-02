@@ -40,7 +40,7 @@ QString handlerName(const Handler* handler) {
 }
 
 QString eventName(const Event& event) {
-    return QString::fromLocal8Bit(event.name());
+    return QString::fromLocal8Bit(family_name(event.family()));
 }
 
 QString metaHandlerName(const MetaHandler* meta) {
