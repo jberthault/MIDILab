@@ -23,6 +23,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QSaveFile>
+#include <QSettings>
 #include <boost/version.hpp>
 #include "mainwindow.h"
 #include "qhandlers/handlers.h"

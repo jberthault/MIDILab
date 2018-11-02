@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <QApplication>
 #include <QSplashScreen>
+#include <QCommandLineParser>
 #include "mainwindow.h"
 #include "qcore/core.h"
 

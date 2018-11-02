@@ -52,8 +52,8 @@ QString serializeByte(byte_t byte) {
 
 bool parseByte(const QString& data, byte_t& byte) {
     bool ok;
-    uint value = data.toUInt(&ok, 0);
-    byte = value & 0xff;
+    const auto value = data.toUInt(&ok, 0);
+    byte = to_byte(value);
     return ok && value < 0x100;
 }
 

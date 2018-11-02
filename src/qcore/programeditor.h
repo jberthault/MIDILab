@@ -21,9 +21,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef QCORE_PROGRAM_EDITOR_H
 #define QCORE_PROGRAM_EDITOR_H
 
+#include <map>
 #include <QStandardItemModel>
 #include <QItemDelegate>
-#include <QtXml>
 #include "qcore/editors.h"
 #include "qcore/manager.h"
 
@@ -34,29 +34,24 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 class Patch {
 
 public:
-    static std::vector<Patch*> parsePatches(const QDomNode& node);
-    static Patch* parsePatch(const QDomNode& node);
-
-    Patch(QString name);
-    virtual ~Patch();
+    explicit Patch() = default;
+    explicit Patch(QString name);
 
     const QString& name() const;
     void setName(QString name);
 
-    const QMap<byte_t, QString>& programs() const;
-    bool hasProgram(byte_t program) const; /*!< recursive approach */
-    QString getProgram(byte_t program, const QString& defaultName) const; /*!< recursive approach */
-    bool insertProgram(byte_t program, const QString& name);
-    bool removeProgram(byte_t program); /*!< recursive approach */
+    const std::map<byte_t, QString>& programs() const;
+    void addProgram(byte_t program, QString name);
 
-    const std::vector<Patch*>& children() const;
-    bool hasChild(Patch* patch) const; /*!< recursive approach */
-    bool insertChild(Patch* patch);
+    const std::vector<Patch>& children() const;
+    void addPatch(Patch patch);
+
+    QString getProgram(byte_t program, const QString& defaultName) const; /*!< recursive approach */
 
 private:
     QString mName;
-    QMap<byte_t, QString> mPrograms;
-    std::vector<Patch*> mChildren;
+    std::map<byte_t, QString> mPrograms;
+    std::vector<Patch> mChildren;
 
 };
 
@@ -69,7 +64,7 @@ class PatchDelegate : public QItemDelegate {
     Q_OBJECT
 
 public:
-    explicit PatchDelegate(QObject* parent);
+    using QItemDelegate::QItemDelegate;
 
     QWidget* createEditor(QWidget* parent, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
     void setEditorData(QWidget* editor, const QModelIndex& index) const override;
@@ -87,19 +82,13 @@ class PatchModel : public QStandardItemModel {
     Q_OBJECT
 
 public:
-    explicit PatchModel(QObject* parent);
-
-    const Patch* patch() const;
-    void setPatch(const Patch* patch);
+    explicit PatchModel(const Patch& patch, QObject *parent);
 
     QModelIndex indexForProgram(byte_t program) const;
     QModelIndex indexForProgram(byte_t program, QStandardItem* item) const;
 
 protected:
-    void addPatch(QStandardItem* root, const Patch* patch);
-
-private:
-    const Patch* mPatch;
+    QStandardItem* makeRow(const Patch& patch);
 
 };
 
@@ -120,11 +109,7 @@ public:
     bool hasProgram(channel_t channel) const;
     byte_t program(channel_t channel) const;
 
-    void setPrograms(const QMap<channel_t, byte_t>& programs);
-    void clearPrograms();
-
-    void setProgram(channel_t channel, byte_t program);
-    void fillProgram(channels_t channels, byte_t program);
+    void setProgram(channels_t channels, byte_t program);
 
 signals:
     void programEdited(channels_t channels, byte_t program) const;
@@ -133,11 +118,7 @@ protected:
     void updateColor(channel_t channel, const QColor& color);
 
 private:
-
-    void setProgramData(channel_t channel, const QString& text, const QString& toolTip, const QVariant& data);
-    void fillProgramData(channels_t channels, const QString& text, const QString& toolTip, const QVariant& data);
-
-    const Patch* mPatch;
+    const Patch* mPatch {nullptr};
 
 };
 
@@ -150,11 +131,10 @@ class ProgramEditor : public QWidget {
     Q_OBJECT
 
     // index of patch / program mapping
-    using HandlerData = std::pair<int, QMap<channel_t, byte_t>>;
+    using HandlerData = std::pair<int, channel_map_t<byte_t>>;
 
 public:
     explicit ProgramEditor(Manager* manager, QWidget* parent);
-    ~ProgramEditor();
 
     Handler* currentHandler();
 
@@ -169,19 +149,19 @@ protected slots:
     void sendProgram(Handler* handler, channels_t channels, byte_t program);
 
     void editProgram(channels_t channels, byte_t program); // 'send' slot
-    void updateSuccess(Handler* handler, Message message); // 'receive' slot
+    void updateSuccess(Handler* handler, const Message& message); // 'receive' slot
 
     void onClick(const QModelIndex& index);
     void onDoubleClick(const QModelIndex& index);
 
 protected:
+    void selectHandler(const HandlerData& handlerData);
     bool matchSelection(channels_t channels) const;
     channels_t extend(channels_t channels) const;
 
 private:
-    std::vector<Patch*> mPatches;
-    QMap<Handler*, HandlerData> mRecords;
-
+    Patch mRootPatch;
+    std::unordered_map<Handler*, HandlerData> mRecords;
     HandlerSelector* mHandlerSelector;
     QComboBox* mPatchesCombo;
     ProgramModel* mProgramModel;

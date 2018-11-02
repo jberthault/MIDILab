@@ -251,7 +251,7 @@ StandardMidiFile read_file(const std::string& filename) {
         auto file_buf = fill_range(ifs, range_ns::from_span(file_storage.data(), file_storage.size()));
         return read_file(file_buf);
     } catch (const std::exception& err) {
-        TRACE_WARNING(filename << ": " << err.what());
+        TRACE_ERROR(filename << ": " << err.what());
         return StandardMidiFile{};
     }
 }
