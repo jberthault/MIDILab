@@ -148,7 +148,7 @@ HandlerView::Parameters GraphicalHandler::getParameters() const {
 }
 
 size_t GraphicalHandler::setParameter(const Parameter& parameter) {
-    UNSERIALIZE("track", serial::parseULong, setTrack, parameter);
+    UNSERIALIZE("track", serial::parseUShort, setTrack, parameter);
     return EditableHandler::setParameter(parameter);
 }
 

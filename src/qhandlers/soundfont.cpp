@@ -80,7 +80,7 @@ double GainEditor::gain() const {
 }
 
 void GainEditor::setGain(double gain) {
-    mSlider->setValue(gain);
+    mSlider->setClampedValue(gain);
 }
 
 // =============
@@ -141,19 +141,19 @@ void ReverbEditor::setActivated(bool value) {
 }
 
 void ReverbEditor::setRoomSize(double value) {
-    mRoomsizeSlider->setValue(value);
+    mRoomsizeSlider->setClampedValue(value);
 }
 
 void ReverbEditor::setDamp(double value) {
-    mDampSlider->setValue(value);
+    mDampSlider->setClampedValue(value);
 }
 
 void ReverbEditor::setLevel(double value) {
-    mLevelSlider->setValue(value);
+    mLevelSlider->setClampedValue(value);
 }
 
 void ReverbEditor::setWidth(double value) {
-    mWidthSlider->setValue(value);
+    mWidthSlider->setClampedValue(value);
 }
 
 //==============
@@ -225,23 +225,24 @@ void ChorusEditor::setActivated(bool value) {
 }
 
 void ChorusEditor::setType(int value) {
-    mTypeBox->setCurrentIndex(value);
+    if (0 <= value && value < mTypeBox->count())
+        mTypeBox->setCurrentIndex(value);
 }
 
 void ChorusEditor::setNr(int value) {
-    mNrSlider->setValue(value);
+    mNrSlider->setClampedValue(value);
 }
 
 void ChorusEditor::setLevel(double value) {
-    mLevelSlider->setValue(value);
+    mLevelSlider->setClampedValue(value);
 }
 
 void ChorusEditor::setSpeed(double value) {
-    mSpeedSlider->setValue(value);
+    mSpeedSlider->setClampedValue(value);
 }
 
 void ChorusEditor::setDepth(double value) {
-    mDepthSlider->setValue(value);
+    mDepthSlider->setClampedValue(value);
 }
 
 //=================

@@ -1159,7 +1159,6 @@ TempoView::TempoView(QWidget* parent) : QWidget(parent) {
     mDistortedTempoSpin = newTempoSpinBox(this);
     mDistortedTempoSpin->setToolTip("Current Tempo");
 
-    /// @todo turn slider label into a rich editor
     mDistorsionSlider = makeHorizontalSlider(distorsionRange, 1., this);
     mDistorsionSlider->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     mDistorsionSlider->setFormatter(stringFromDistorsion);
@@ -1190,8 +1189,7 @@ double TempoView::distorsion() const {
 }
 
 void TempoView::setDistorsion(double distorsion) {
-    if (distorsionRange.min <= distorsion && distorsion <= distorsionRange.max)
-        mDistorsionSlider->setValue(distorsion);
+    mDistorsionSlider->setClampedValue(distorsion);
 }
 
 void TempoView::setTempo(const Event& event) {

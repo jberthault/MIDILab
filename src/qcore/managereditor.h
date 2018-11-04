@@ -139,36 +139,30 @@ class HandlerListEditor : public QTreeWidget {
     Q_OBJECT
 
 public:
-    static const int nameColumn = 0;
-    static const int forwardColumn = 1;
-    static const int receiveColumn = 2;
-
     explicit HandlerListEditor(Manager* manager, QWidget* parent);
 
-public slots:
-    Handler* handlerForItem(QTreeWidgetItem* item);
-
-    QTreeWidgetItem* insertHandler(Handler* handler);
+private slots:
+    void insertHandler(Handler* handler);
     void renameHandler(Handler* handler);
     void removeHandler(Handler* handler);
-    void updateHandler(Handler* handler);
+    void onParametersChange(Handler* handler);
     void onMessageHandled(Handler* handler, const Message& message);
 
-protected slots:
-    void onDoubleClick(QTreeWidgetItem* item, int column);
     void showMenu(const QPoint& point);
+    void onItemChange(QTreeWidgetItem* item, int column);
 
     void destroySelection();
-    void openSelection();
-    void closeSelection();
-    void toggleSelection();
     void editSelection();
     void renameSelection();
+    void sendToSelection(HandlerProxy::Command command, Handler::State state);
 
+private:
+    QMenu* addCommandMenu(const QString& title, HandlerProxy::Command command);
+    void updateParameter(QTreeWidgetItem* parent, const HandlerView::Parameter& parameter);
+    void addParameter(QTreeWidgetItem* parent, const HandlerView::Parameter& parameter);
     std::set<Handler*> selectedHandlers();
 
 private:
-    QMap<Handler*, QTreeWidgetItem*> mItems;
     QMenu* mMenu;
     QAction* mRenameAction;
     Manager* mManager;

@@ -26,14 +26,15 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <signal.h>
 #endif
 
-#include <QEvent>
-#include <QPainter>
-#include <QTextDocument>
-#include <QDropEvent>
-#include <QMouseEvent>
 #include <QApplication>
-#include <QPushButton>
+#include <QEvent>
+#include <QDropEvent>
 #include <QFileDialog>
+#include <QMenu>
+#include <QMouseEvent>
+#include <QPainter>
+#include <QPushButton>
+#include <QTextDocument>
 #include <QToolBar>
 #include "tools/trace.h"
 
@@ -371,6 +372,14 @@ QSize HtmlDelegate::sizeHint(const QStyleOptionViewItem& option, const QModelInd
     return {(int)doc.idealWidth(), (int)doc.size().height()}; // 19 may be enough
 }
 
+//================
+// NoEditDelegate
+//================
+
+QWidget* NoEditDelegate::createEditor(QWidget* /*parent*/, const QStyleOptionViewItem& /*option*/, const QModelIndex& /*index*/) const {
+    return nullptr;
+}
+
 //==================
 // FoldableGroupBox
 //==================
@@ -507,3 +516,16 @@ void SignalNotifier::handleTerm() {
 }
 
 #endif
+
+//====================
+// MenuDefaultTrigger
+// ===================
+
+bool MenuDefaultTrigger::eventFilter(QObject* watched, QEvent* event) {
+    if (event->type() == QEvent::MouseButtonDblClick)
+        if (static_cast<QMouseEvent*>(event)->button() == Qt::LeftButton)
+            if (auto* menu = dynamic_cast<QMenu*>(watched))
+                if(auto* action = menu->defaultAction())
+                    action->trigger();
+    return false;
+}

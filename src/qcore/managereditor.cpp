@@ -310,17 +310,53 @@ void HandlerGraphEditor::updateEdgesVisibility() {
 // HandlerListEditor
 //===================
 
+/// @todo use meta parameters for tooltip, custom editors, visibility (user, advanced, private, ...)
+
 namespace {
 
-void updateIcon(QTreeWidgetItem* item, Handler* handler, int column, Handler::Mode mode, Handler::State state) {
-    QString filename;
-    if (handler->mode().none(mode))
-        filename = ":/data/light-gray.svg";
-    else if (handler->state().any(state))
-        filename = ":/data/light-green.svg";
-    else
-        filename = ":/data/light-red.svg";
-    item->setData(column, Qt::DecorationRole, QIcon{filename});
+constexpr int nameColumn = 0;
+constexpr int keyColumn = 1;
+constexpr int valueColumn = 2;
+
+auto modeIcon(Handler* handler) {
+    const auto mode = handler->mode();
+    const auto state = handler->state() & Handler::State::duplex();
+    if (mode.any(Handler::Mode::thru())) {
+        if (state == Handler::State::duplex())
+            return QIcon{":/data/modes/thru_open.png"};
+        return QIcon{":/data/modes/thru_closed.png"};
+    }
+    const bool forward = mode.any(Handler::Mode::forward());
+    const bool receive = mode.any(Handler::Mode::receive());
+    if (forward && !receive) {
+        return state == Handler::State::forward() ? QIcon{":/data/modes/forward_open.png"} : QIcon{":/data/modes/forward_closed.png"};
+    } else if (!forward && receive) {
+        return state == Handler::State::receive() ? QIcon{":/data/modes/receive_open.png"} : QIcon{":/data/modes/receive_closed.png"};
+    } else if (forward && receive) {
+        if (state == Handler::State::duplex()) return QIcon{":/data/modes/receive_open_forward_open.png"};
+        if (state == Handler::State::forward()) return QIcon{":/data/modes/receive_closed_forward_open.png"};
+        if (state == Handler::State::receive()) return QIcon{":/data/modes/receive_open_forward_closed.png"};
+        return QIcon{":/data/modes/receive_closed_forward_closed.png"};
+    }
+    return QIcon{};
+}
+
+Handler* handlerForItem(QTreeWidgetItem* item) {
+    return item ? item->data(nameColumn, Qt::UserRole).value<Handler*>() : nullptr;
+}
+
+template<typename PredicateT>
+QTreeWidgetItem* findChildIf(QTreeWidgetItem* root, PredicateT&& pred) {
+    for(int row = 0 ; row < root->childCount() ; ++row) {
+        auto* item = root->child(row);
+        if (pred(item))
+            return item;
+    }
+    return nullptr;
+}
+
+QTreeWidgetItem* itemForHandler(QTreeWidgetItem* root, const Handler* handler) {
+    return findChildIf(root, [=](auto* item) { return handlerForItem(item) == handler; });
 }
 
 }
@@ -328,86 +364,78 @@ void updateIcon(QTreeWidgetItem* item, Handler* handler, int column, Handler::Mo
 HandlerListEditor::HandlerListEditor(Manager* manager, QWidget* parent) : QTreeWidget{parent}, mManager{manager} {
 
     setAlternatingRowColors(true);
-
-    QStringList labels;
-    labels << "Name" << "In" << "Out";
-    setHeaderLabels(labels);
-    setColumnCount(labels.size());
+    setColumnCount(3);
     setSelectionMode(QAbstractItemView::ExtendedSelection);
-    setSelectionBehavior(QAbstractItemView::SelectRows);
-    connect(this, &HandlerListEditor::itemDoubleClicked, this, &HandlerListEditor::onDoubleClick);
+    setIconSize({35, 20});
+    setHeaderHidden(true);
+    setEditTriggers(DoubleClicked | EditKeyPressed | AnyKeyPressed);
 
     // header
     auto* headerView = header();
-    headerView->setStretchLastSection(false);
-    headerView->setSectionResizeMode(QHeaderView::ResizeToContents);
-    headerView->setSectionResizeMode(nameColumn, QHeaderView::Stretch);
+    headerView->setDefaultSectionSize(1);
+    headerView->setStretchLastSection(true);
+    headerView->setSectionResizeMode(nameColumn, QHeaderView::Fixed);
+    headerView->setSectionResizeMode(keyColumn, QHeaderView::ResizeToContents);
+
+    auto* noEdit = new NoEditDelegate{this};
+    setItemDelegateForColumn(nameColumn, noEdit);
+    setItemDelegateForColumn(keyColumn, noEdit);
 
     // menu
+    auto* trigger = new MenuDefaultTrigger{this};
     setContextMenuPolicy(Qt::CustomContextMenu);
     mMenu = new QMenu{this};
-    mMenu->addAction("Open", this, SLOT(openSelection()));
-    mMenu->addAction("Close", this, SLOT(closeSelection()));
-    mMenu->addAction("Toggle", this, SLOT(toggleSelection()));
+    addCommandMenu("Open", HandlerProxy::Command::Open)->installEventFilter(trigger);
+    addCommandMenu("Close", HandlerProxy::Command::Close)->installEventFilter(trigger);
+    addCommandMenu("Toggle", HandlerProxy::Command::Toggle)->installEventFilter(trigger);
     mMenu->addSeparator();
     mMenu->addAction(QIcon{":/data/delete.svg"}, "Delete", this, SLOT(destroySelection()));
     mRenameAction = mMenu->addAction(QIcon{":/data/text.svg"}, "Rename", this, SLOT(renameSelection()));
     mMenu->addAction(QIcon{":/data/eye.svg"}, "Edit", this, SLOT(editSelection()));
-    connect(this, &HandlerListEditor::customContextMenuRequested, this, &HandlerListEditor::showMenu);
 
     connect(manager, &Context::handlerInserted, this, &HandlerListEditor::insertHandler);
     connect(manager, &Context::handlerRemoved, this, &HandlerListEditor::removeHandler);
     connect(manager, &Context::handlerRenamed, this, &HandlerListEditor::renameHandler);
+    connect(manager, &Context::handlerParametersChanged, this, &HandlerListEditor::onParametersChange);
     connect(manager->observer(), &Observer::messageHandled, this, &HandlerListEditor::onMessageHandled);
+
+    connect(this, &HandlerListEditor::customContextMenuRequested, this, &HandlerListEditor::showMenu);
+    connect(this, &HandlerListEditor::itemChanged, this, &HandlerListEditor::onItemChange);
 }
 
-Handler* HandlerListEditor::handlerForItem(QTreeWidgetItem* item) {
-    return item ? item->data(nameColumn, Qt::UserRole).value<Handler*>() : nullptr;
-}
-
-QTreeWidgetItem* HandlerListEditor::insertHandler(Handler* handler) {
-    if (mItems.contains(handler))
-        return mItems[handler];
-    auto* item = new QTreeWidgetItem;
+void HandlerListEditor::insertHandler(Handler* handler) {
+    QSignalBlocker sb{this};
+    auto* item = new QTreeWidgetItem{invisibleRootItem()};
+    item->setFirstColumnSpanned(true);
     item->setData(nameColumn, Qt::UserRole, qVariantFromValue(handler));
-    mItems[handler] = item;
-    invisibleRootItem()->addChild(item);
-    item->setFlags(item->flags() & ~Qt::ItemIsEditable);
     item->setText(nameColumn, handlerName(handler));
-    updateHandler(handler);
-    return item;
+    item->setIcon(nameColumn, modeIcon(handler));
+    for (const auto& parameter : getProxy(mManager->handlerProxies(), handler).getParameters())
+        addParameter(item, parameter);
 }
 
 void HandlerListEditor::renameHandler(Handler* handler) {
-    if (auto* item = mItems.value(handler, nullptr))
-        item->setData(nameColumn, Qt::DisplayRole, handlerName(handler));
+    if (auto* item = itemForHandler(invisibleRootItem(), handler))
+        item->setText(nameColumn, handlerName(handler));
 }
 
 void HandlerListEditor::removeHandler(Handler* handler) {
-    auto* item = mItems.take(handler);
-    invisibleRootItem()->removeChild(item);
-    delete item;
+    if (auto* item = itemForHandler(invisibleRootItem(), handler))
+        delete item;
 }
 
-void HandlerListEditor::updateHandler(Handler* handler) {
-    if (auto* item = mItems.value(handler, nullptr)) {
-        updateIcon(item, handler, forwardColumn, Handler::Mode::forward(), Handler::State::forward());
-        updateIcon(item, handler, receiveColumn, Handler::Mode::receive(), Handler::State::receive());
+void HandlerListEditor::onParametersChange(Handler* handler) {
+    if(auto* item = itemForHandler(invisibleRootItem(), handler)) {
+        QSignalBlocker sb{this};
+        for (const auto& parameter : getProxy(mManager->handlerProxies(), handler).getParameters())
+            updateParameter(item, parameter);
     }
 }
 
 void HandlerListEditor::onMessageHandled(Handler* handler, const Message& message) {
     if (message.event.is(family_t::extended_system) && (Handler::open_ext.affects(message.event) || Handler::close_ext.affects(message.event)))
-        updateHandler(handler);
-}
-
-void HandlerListEditor::onDoubleClick(QTreeWidgetItem* item, int column) {
-    auto proxy = getProxy(mManager->handlerProxies(), handlerForItem(item));
-    switch (column) {
-    case nameColumn: proxy.toggleState(); break;
-    case forwardColumn: proxy.toggleState(Handler::State::forward()); break;
-    case receiveColumn: proxy.toggleState(Handler::State::receive()); break;
-    }
+        if (auto* item = itemForHandler(invisibleRootItem(), handler))
+            item->setIcon(nameColumn, modeIcon(handler));
 }
 
 void HandlerListEditor::showMenu(const QPoint& point) {
@@ -424,25 +452,21 @@ void HandlerListEditor::showMenu(const QPoint& point) {
     }
 }
 
+void HandlerListEditor::onItemChange(QTreeWidgetItem* item, int column) {
+    if (column == valueColumn) {
+        if (auto* handler = handlerForItem(item->parent())) {
+            QSignalBlocker sb{this};
+            auto proxy = getProxy(mManager->handlerProxies(), handler);
+            proxy.setParameter({item->text(keyColumn), item->text(valueColumn)}, false);
+            proxy.notifyParameters(); /*!< force update even if it failed */
+        }
+    }
+}
+
 void HandlerListEditor::destroySelection() {
     if (QMessageBox::question(this, {}, "Are you sure you want to destroy these handlers ?") == QMessageBox::Yes)
         for (auto* handler : selectedHandlers())
             mManager->removeHandler(handler);
-}
-
-void HandlerListEditor::openSelection() {
-    for (auto* handler : selectedHandlers())
-        getProxy(mManager->handlerProxies(), handler).setState(true);
-}
-
-void HandlerListEditor::closeSelection() {
-    for (auto* handler : selectedHandlers())
-        getProxy(mManager->handlerProxies(), handler).setState(false);
-}
-
-void HandlerListEditor::toggleSelection() {
-    for (auto* handler : selectedHandlers())
-        getProxy(mManager->handlerProxies(), handler).toggleState();
 }
 
 void HandlerListEditor::editSelection() {
@@ -459,6 +483,37 @@ void HandlerListEditor::renameSelection() {
     } else {
         QMessageBox::warning(this, {}, tr("You should select one handler"));
     }
+}
+
+void HandlerListEditor::sendToSelection(HandlerProxy::Command command, Handler::State state) {
+    for (auto* handler : selectedHandlers())
+        getProxy(mManager->handlerProxies(), handler).sendCommand(command, state);
+}
+
+QMenu* HandlerListEditor::addCommandMenu(const QString& title, HandlerProxy::Command command) {
+    auto* menu = mMenu->addMenu(title);
+    auto* duplex = menu->addAction("All");
+    auto* receive = menu->addAction("Receive");
+    auto* forward = menu->addAction("Forward");
+    menu->setDefaultAction(duplex);
+    connect(duplex, &QAction::triggered, this, [this, command] { sendToSelection(command, Handler::State::duplex()); });
+    connect(receive, &QAction::triggered, this, [this, command] { sendToSelection(command, Handler::State::receive()); });
+    connect(forward, &QAction::triggered, this, [this, command] { sendToSelection(command, Handler::State::forward()); });
+    return menu;
+}
+
+void HandlerListEditor::updateParameter(QTreeWidgetItem* parent, const HandlerView::Parameter& parameter) {
+    if (auto* parameterItem = findChildIf(parent, [&](auto* item) { return item->text(keyColumn) == parameter.name; }))
+        parameterItem->setText(valueColumn, parameter.value);
+    else
+        addParameter(parent, parameter);
+}
+
+void HandlerListEditor::addParameter(QTreeWidgetItem* parent, const HandlerView::Parameter& parameter) {
+    auto* parameterItem = new QTreeWidgetItem{parent};
+    parameterItem->setText(keyColumn, parameter.name);
+    parameterItem->setText(valueColumn, parameter.value);
+    parameterItem->setFlags(parameterItem->flags() | Qt::ItemIsEditable);
 }
 
 std::set<Handler*> HandlerListEditor::selectedHandlers() {

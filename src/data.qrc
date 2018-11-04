@@ -64,5 +64,15 @@
         <file>data/reload.svg</file>
         <file>data/menu.svg</file>
         <file>data/fullscreen-exit.svg</file>
+        <file>data/modes/thru_open.png</file>
+        <file>data/modes/thru_closed.png</file>
+        <file>data/modes/forward_closed.png</file>
+        <file>data/modes/forward_open.png</file>
+        <file>data/modes/receive_closed.png</file>
+        <file>data/modes/receive_closed_forward_closed.png</file>
+        <file>data/modes/receive_closed_forward_open.png</file>
+        <file>data/modes/receive_open.png</file>
+        <file>data/modes/receive_open_forward_closed.png</file>
+        <file>data/modes/receive_open_forward_open.png</file>
     </qresource>
 </RCC>

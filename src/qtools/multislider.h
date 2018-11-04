@@ -350,6 +350,7 @@ public:
 
     qreal ratio() const;
     void setRatio(qreal ratio);
+    void setClampedRatio(qreal ratio);
     void setDefault();
     void setText(const QString& text);
 
@@ -420,6 +421,10 @@ public:
 
     void setValue(value_type value) {
         setRatio(reduce(mRange, value));
+    }
+
+    void setClampedValue(value_type value) {
+        setClampedRatio(reduce(mRange, value));
     }
 
     void onKnobChange(qreal ratio) {

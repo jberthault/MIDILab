@@ -291,11 +291,25 @@ private:
 class HtmlDelegate : public QStyledItemDelegate {
 
 public:
-    using QStyledItemDelegate::QAbstractItemDelegate;
+    using QStyledItemDelegate::QStyledItemDelegate;
 
 protected:
     void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
     QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override;
+
+};
+
+//================
+// NoEditDelegate
+//================
+
+class NoEditDelegate: public QStyledItemDelegate {
+
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+
+protected:
+    QWidget* createEditor(QWidget* parent, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
 
 };
 
@@ -350,6 +364,22 @@ private slots:
 private:
     QSocketNotifier* mSocketInt {nullptr};
     QSocketNotifier* mSocketTerm {nullptr};
+
+};
+
+//====================
+// MenuDefaultTrigger
+// ===================
+
+class MenuDefaultTrigger : public QObject {
+
+    Q_OBJECT
+
+public:
+    using QObject::QObject;
+
+public:
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
 };
 

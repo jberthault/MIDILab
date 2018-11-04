@@ -217,7 +217,7 @@ void MainWindow::about() {
 
 void MainWindow::panic() {
     for (const auto& proxy : mManager->handlerProxies())
-        proxy.setState(false);
+        proxy.sendCommand(HandlerProxy::Command::Close);
 }
 
 void MainWindow::newDisplayer() {

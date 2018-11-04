@@ -202,6 +202,12 @@ public:
     using Parameter = HandlerView::Parameter;
     using Parameters = HandlerView::Parameters;
 
+    enum class Command {
+        Open,
+        Close,
+        Toggle
+    };
+
     Handler* handler() const;
     HandlerView* view() const;
     EditableHandler* editable() const;
@@ -219,12 +225,12 @@ public:
 
     State currentState() const;
     State supportedState() const;
-    void setState(bool open, State state = State::duplex()) const;
-    void toggleState(State state = State::duplex()) const;
+    void sendCommand(Command command, State state = State::duplex()) const;
 
     Parameters getParameters() const;
-    void setParameter(const Parameter& parameter) const;
-    void setParameters(const Parameters& parameters) const;
+    size_t setParameter(const Parameter& parameter, bool notify = true) const;
+    size_t setParameters(const Parameters& parameters, bool notify = true) const;
+    void notifyParameters() const;
 
     Context* context() const;
     void setContext(Context* context) const;
@@ -438,6 +444,7 @@ signals:
     void handlerRenamed(Handler* handler);
     void handlerRemoved(Handler* handler);
     void handlerListenersChanged(Handler* handler);
+    void handlerParametersChanged(Handler* handler);
 
 };
 

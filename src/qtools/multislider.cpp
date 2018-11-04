@@ -704,6 +704,14 @@ void SimpleSlider::setRatio(qreal ratio) {
     emit knobChanged(ratio);
 }
 
+void SimpleSlider::setClampedRatio(qreal ratio) {
+    if (ratio < 0.)
+        ratio = 0.;
+    else if (ratio > 1.)
+        ratio = 1.;
+    setRatio(ratio);
+}
+
 void SimpleSlider::setDefault() {
     setRatio(mDefaultRatio);
 }

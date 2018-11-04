@@ -76,7 +76,9 @@ public:
         if (proxy.handler()) {
             mHandlersReferences[handler.id] = proxy.handler();
             for (const auto& prop : handler.properties)
-                proxy.setParameter({prop.key, prop.value});
+                proxy.setParameter({prop.key, prop.value}, false);
+            if (!handler.properties.empty())
+                proxy.notifyParameters();
         } else {
             TRACE_ERROR("unable to build handler " << handler.type << "(\"" << handler.name << "\")");
         }
@@ -375,7 +377,7 @@ HandlerProxy Manager::loadHandler(MetaHandler* meta, const QString& name, Single
             proxy.handler()->set_synchronizer(&mDefaultSynchronizer);
         proxy.setObserver(mObserver);
         proxy.setContext(this);
-        proxy.setState(true);
+        proxy.sendCommand(HandlerProxy::Command::Open);
         mHandlerProxies.push_back(proxy);
         emit handlerInserted(proxy.handler());
     }

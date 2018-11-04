@@ -233,8 +233,13 @@ Handler::State HandlerProxy::supportedState() const {
     return state;
 }
 
-void HandlerProxy::setState(bool open, State state) const {
+void HandlerProxy::sendCommand(Command command, State state) const {
+    /// @todo remove check already open/close
+    /// @todo toggle duplex correctly
     if (mHandler) {
+        bool open = command == Command::Open;
+        if (command == Command::Toggle)
+            open = !mHandler->state().all(state & supportedState());
         if (mHandler->mode().any(Mode::thru())) {
             // thru mode should process all states at once
             state = State::duplex();
@@ -254,23 +259,31 @@ void HandlerProxy::setState(bool open, State state) const {
     }
 }
 
-void HandlerProxy::toggleState(State state) const {
-    bool isOpen = currentState().all(state & supportedState());
-    setState(!isOpen, state);
-}
-
 HandlerProxy::Parameters HandlerProxy::getParameters() const {
     return mView ? mView->getParameters() : Parameters{};
 }
 
-void HandlerProxy::setParameter(const Parameter& parameter) const {
-    if (!mView || !mView->setParameter(parameter))
+size_t HandlerProxy::setParameter(const Parameter& parameter, bool notify) const {
+    size_t count = mView ? mView->setParameter(parameter) : 0;
+    if (count == 0)
         TRACE_ERROR(name() << ": unable to set parameter " << parameter.name);
+    else if (notify)
+        notifyParameters();
+    return count;
 }
 
-void HandlerProxy::setParameters(const Parameters& parameters) const {
-    for (const auto& parameter : parameters)
-        setParameter(parameter);
+size_t HandlerProxy::setParameters(const Parameters& parameters, bool notify) const {
+    size_t count = 0;
+    for(const auto& parameter : parameters)
+        count += setParameter(parameter, false);
+    if (count != 0 && notify)
+        notifyParameters();
+    return count;
+}
+
+void HandlerProxy::notifyParameters() const {
+    if(auto* context_ = context())
+        emit context_->handlerParametersChanged(mHandler);
 }
 
 Context* HandlerProxy::context() const {
