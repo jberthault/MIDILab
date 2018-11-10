@@ -563,6 +563,16 @@ Listeners::iterator Listeners::end() {
     return m_listeners.end();
 }
 
+namespace  {
+
+template<typename MessageT>
+void listen_message(const Listener& listener, MessageT&& message) {
+    if (listener.filter.match_message(message))
+        listener.handler->send_message(std::forward<MessageT>(message));
+}
+
+}
+
 //=========
 // Handler
 //=========
@@ -684,8 +694,18 @@ Handler::Result Handler::receive_message(const Message& message) noexcept {
 void Handler::forward_message(const Message& message) {
     std::lock_guard<std::mutex> guard{m_listeners_mutex};
     for (const auto& listener : m_listeners)
-        if (listener.filter.match_message(message))
-            listener.handler->send_message(message);
+        listen_message(listener, message);
+}
+
+void Handler::forward_message(Message&& message) {
+    std::lock_guard<std::mutex> guard{m_listeners_mutex};
+    auto it = m_listeners.begin();
+    auto last = m_listeners.end();
+    if (it != last) {
+        for (--last ; it != last ; ++it)
+            listen_message(*it, message);
+        listen_message(*it, std::move(message));
+    }
 }
 
 void Handler::produce_message(Event event) {
@@ -713,4 +733,3 @@ families_t Handler::handled_families() const {
 families_t Handler::produced_families() const {
     return families_t::full();
 }
-

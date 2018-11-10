@@ -50,7 +50,6 @@ protected:
     Result handle_message(const Message& message) override;
 
 private:
-    void feed_forward(const Message& message); /*!< forward a message after feeding memory */
     void clean_corrupted(Handler* source, track_t track); /*!< forward a message cleaning corrupted channels */
     void set_key(channels_t channels, int key); /*!< set the transposition key for the given channels */
 

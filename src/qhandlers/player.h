@@ -133,8 +133,7 @@ public slots:
     Handler* trackFilter();
     void setTrackFilter(Handler* handler);
 
-    const Sequence& sequence() const;
-    void setSequence(const Sequence& sequence, timestamp_t lower, timestamp_t upper);
+    void setSequence(Sequence sequence, timestamp_t lower, timestamp_t upper);
     void cleanSequence();
 
     void setLower(timestamp_t timestamp);
@@ -152,7 +151,7 @@ protected:
 
 private slots:
     void addNextEvents();
-    void addEvent(const Sequence::Item& item);
+    void addEvent(Sequence::Item item);
     void setChannelColor(channel_t channel, const QColor& color);
     void onItemChange(QTreeWidgetItem* item, int column);
     void onItemDoubleClick(QTreeWidgetItem* item, int column);
@@ -176,7 +175,7 @@ private:
     QPushButton* mChannelSelectorButton;
     QTimer* mSequenceUpdater; /*!< timer filling sequence event asynchronously */
     Sequence mSequence;
-    Sequence::const_iterator mSequenceIt; /*!< iterator pointing to the next event to add */
+    Sequence::iterator mSequenceIt; /*!< iterator pointing to the next event to add */
     QTextCodec* mCodec {QTextCodec::codecForLocale()};
     Handler* mTrackFilter {nullptr};
     DistordedClock mDistordedClock;
@@ -475,7 +474,7 @@ public:
     bool isLooping() const; /*!< restart from begining when playlist os over */
 
     bool setNextSequence(int offset); /*!< returns true if a sequence has been set */
-    void setSequence(const NamedSequence& sequence);
+    void setSequence(NamedSequence sequence);
     void setTrackFilter(Handler* handler);
 
     Parameters getParameters() const override;

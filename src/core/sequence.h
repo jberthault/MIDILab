@@ -127,7 +127,7 @@ public:
 
     duration_type base_time(const Event& tempo_event) const; /*! time corresponding to 1 timestamp at the given tempo */
 
-    Event last_tempo(timestamp_t timestamp) const; /*!< returns the last tempo before or upon timestamp */
+    const Event& last_tempo(timestamp_t timestamp) const; /*!< returns the last tempo before or upon timestamp */
 
     const Item& before_timestamp(timestamp_t timestamp) const;
     const Item& before_duration(const duration_type& duration) const;
@@ -203,7 +203,7 @@ public:
     using blacklist_type = blacklist_t<track_t>;
 
     // builders
-    static Sequence from_file(const StandardMidiFile& data);
+    static Sequence from_file(StandardMidiFile data);
     static Sequence from_realtime(const realtime_type& data, ppqn_t ppqn = default_ppqn);
 
     // clock
@@ -224,15 +224,15 @@ public:
     void clear();
     void push_item(Item item); /*!< invalidate clock */
     void insert_item(Item item); /*!< invalidate clock */
-    void insert_track(const StandardMidiFile::track_type& track_data, int64_t offset = 0); /*!< invalidate clock */
 
     // converters
     StandardMidiFile to_file(const blacklist_type& list = blacklist_type(true)) const; /*!< convert given tracks to midi file */
 
     // iterators
+    iterator begin();
+    iterator end();
     const_iterator begin() const;
     const_iterator end() const;
-
     const_reverse_iterator rbegin() const;
     const_reverse_iterator rend() const;
 

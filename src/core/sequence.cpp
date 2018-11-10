@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <algorithm>
 #include <sstream>
 #include <fstream>
+#include <numeric>
 #include "sequence.h"
 #include "tools/trace.h"
 
@@ -396,35 +397,19 @@ size_t write_file(const StandardMidiFile& file, const std::string& filename, boo
 
 namespace {
 
-/**
- * @brief The const_track_iterator struct
- * iterates and adapt Event to Sequence::Item
- * and relative deltatime to absolute timestamp
- *
- * issues:
- * * successive ++ at end will throw
- *
- */
+void copy_track(StandardMidiFile::track_type track, uint64_t& timestamp, Sequence::iterator& it) {
+    for(auto& pair : track) {
+        timestamp += pair.first;
+        it->event = std::move(pair.second);
+        it->timestamp = timestamp;
+        ++it;
+    }
+}
 
-struct const_track_iterator : public std::iterator<std::forward_iterator_tag, Sequence::Item> {
-
-    using inner_type = StandardMidiFile::track_type::const_iterator;
-
-    const_track_iterator(const inner_type& it = {}, int64_t offset = 0) : m_it{it}, m_offset{offset} {}
-
-    auto operator*() const { return Sequence::Item{static_cast<timestamp_t>(m_offset + m_it->first), m_it->second}; }
-
-    auto& operator++() { m_offset += m_it->first; ++m_it; return *this;  }
-    auto operator++(int) { auto it = *this; operator++(); return it; }
-
-    bool operator==(const const_track_iterator& rhs) const { return m_it == rhs.m_it; }
-    bool operator!=(const const_track_iterator& rhs) const { return m_it != rhs.m_it; }
-
-private:
-    inner_type m_it; /*!< track iterator */
-    int64_t m_offset; /*!< offset is an integral type so that it avoids double approximations */
-
-};
+template<typename It>
+auto count_sizes(It first, It last, size_t init = 0) {
+    return std::accumulate(first, last, init, [](size_t partial, const auto& collection) { return partial + collection.size(); });
+}
 
 }
 
@@ -446,7 +431,7 @@ Clock::duration_type Clock::base_time(const Event& tempo_event) const {
     return duration_type{extraction_ns::get_meta_int(tempo_event) / (double)m_ppqn};
 }
 
-Event Clock::last_tempo(timestamp_t timestamp) const {
+const Event& Clock::last_tempo(timestamp_t timestamp) const {
     return before_timestamp(timestamp).tempo_event;
 }
 
@@ -521,11 +506,24 @@ double Clock::timestamp2beat(timestamp_t timestamp) const {
 
 // builders
 
-Sequence Sequence::from_file(const StandardMidiFile& data) {
+Sequence Sequence::from_file(StandardMidiFile data) {
     Sequence sequence;
-    const bool enqueue = data.format == StandardMidiFile::sequencing_format;
-    for (const auto& track_data : data.tracks)
-        sequence.insert_track(track_data, enqueue ? sequence.last_timestamp() : 0);
+    sequence.m_events.resize(count_sizes(data.tracks.begin(), data.tracks.end()));
+    const auto first = sequence.begin();
+    if (data.format == StandardMidiFile::sequencing_format) {
+        auto it = first;
+        uint64_t timestamp = 0;
+        for (auto& track : data.tracks)
+            copy_track(std::move(track), timestamp, it);
+    } else {
+        auto it = first;
+        for (auto& track : data.tracks) {
+            uint64_t timestamp = 0;
+            const auto pos = it;
+            copy_track(std::move(track), timestamp, it);
+            std::inplace_merge(first, pos, it);
+        }
+    }
     sequence.update_clock(data.ppqn);
     return sequence;
 }
@@ -612,13 +610,6 @@ void Sequence::insert_item(Item item) {
     m_events.emplace(it, std::move(item));
 }
 
-void Sequence::insert_track(const StandardMidiFile::track_type& track_data, int64_t offset) {
-    container_type new_events(m_events.size() + track_data.size());
-    const_track_iterator it{track_data.begin(), offset}, last{track_data.end()};
-    std::merge(m_events.begin(), m_events.end(), it, last, new_events.begin());
-    std::swap(m_events, new_events);
-}
-
 // converters
 
 StandardMidiFile Sequence::to_file(const blacklist_type& list) const {
@@ -627,7 +618,7 @@ StandardMidiFile Sequence::to_file(const blacklist_type& list) const {
     // map the tracks to a consecutive track id
     std::unordered_map<track_t, size_t> mapping;
     size_t track_counter = 0;
-    for (track_t track: tracks())
+    for (track_t track : tracks())
         if (list.match(track))
             mapping[track] = track_counter++;
     std::vector<timestamp_t> timestamps(mapping.size(), 0); // (assert sequence starts at 0)
@@ -637,10 +628,10 @@ StandardMidiFile Sequence::to_file(const blacklist_type& list) const {
     smf.tracks.resize(mapping.size());
     // set file events
     for (const Item& item : m_events) {
-        auto track_it = mapping.find(item.event.track());
+        const auto track_it = mapping.find(item.event.track());
         if (track_it != mapping.end()) {
-            size_t track_number = track_it->second;
-            double deltatime = item.timestamp - timestamps[track_number];
+            const size_t track_number = track_it->second;
+            const double deltatime = item.timestamp - timestamps[track_number];
             timestamps[track_number] = item.timestamp;
             smf.tracks[track_number].emplace_back(decay_value<uint32_t>(deltatime), item.event);
         }
@@ -649,6 +640,14 @@ StandardMidiFile Sequence::to_file(const blacklist_type& list) const {
 }
 
 // iterators
+
+Sequence::iterator Sequence::begin() {
+    return m_events.begin();
+}
+
+Sequence::iterator Sequence::end() {
+    return m_events.end();
+}
 
 Sequence::const_iterator Sequence::begin() const {
     return m_events.begin();

@@ -51,25 +51,23 @@ Handler::Result Transposer::handle_message(const Message& message) {
                 auto& note = extraction_ns::note(transposed_message.event);
                 note = to_data_byte(note + pair.first);
                 transposed_message.event.set_channels(pair.second);
-                feed_forward(transposed_message);
+                m_corruption.feed(transposed_message.event);
+                forward_message(std::move(transposed_message));
             }
             return Result::success;
         }
     }
-    feed_forward(message); // to feed controller events
-    return Result::success;
-}
-
-void Transposer::feed_forward(const Message& message) {
     m_corruption.feed(message.event);
     forward_message(message);
+    return Result::success;
 }
 
 void Transposer::clean_corrupted(Handler* source, track_t track) {
     if (const auto channels = m_corruption.reset()) {
+        m_corruption.memory.clear(channels);
         Message message{Event::controller(channels, controller_ns::all_notes_off_controller), source};
         message.event.set_track(track);
-        return feed_forward(message);
+        forward_message(std::move(message));
     }
 }
 

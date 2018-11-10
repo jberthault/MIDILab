@@ -383,6 +383,7 @@ protected:
     // ------------------
 
     void forward_message(const Message& message); /*!< sends message to all listeners matching their filters */
+    void forward_message(Message&& message);
     void produce_message(Event event); /*!< creates and forwards a new message */
 
     // --------

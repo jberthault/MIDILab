@@ -300,11 +300,7 @@ bool SequenceView::eventFilter(QObject* watched, QEvent* event) {
     return QWidget::eventFilter(watched, event);
 }
 
-const Sequence& SequenceView::sequence() const {
-    return mSequence;
-}
-
-void SequenceView::setSequence(const Sequence& sequence, timestamp_t lower, timestamp_t upper) {
+void SequenceView::setSequence(Sequence sequence, timestamp_t lower, timestamp_t upper) {
 
     // prevent signals
     QSignalBlocker guard(this);
@@ -314,8 +310,9 @@ void SequenceView::setSequence(const Sequence& sequence, timestamp_t lower, time
     cleanSequence();
 
     // register sequence
-    mSequence = sequence;
-    mDistordedClock.setClock(sequence.clock());
+    mSequence = std::move(sequence);
+
+    mDistordedClock.setClock(mSequence.clock());
     mLower = lower;
     mUpper = upper;
 
@@ -325,15 +322,15 @@ void SequenceView::setSequence(const Sequence& sequence, timestamp_t lower, time
 
     QMap<track_t, channels_t> trackChannels;
     QMap<track_t, QByteArrayList> trackNames;
-    for (const Sequence::Item& item : sequence) {
+    for (const Sequence::Item& item : mSequence) {
         if (item.event.is(families_t::voice()))
             trackChannels[item.event.track()] |= item.event.channels();
         else if (item.event.is(family_t::track_name))
             trackNames[item.event.track()] << QByteArray::fromStdString(item.event.description());
     }
 
-    for (track_t track : sequence.tracks()) {
-        auto* trackItem = new SequenceViewTrackItem(track, this, mTreeWidget);
+    for (track_t track : mSequence.tracks()) {
+        auto* trackItem = new SequenceViewTrackItem{track, this, mTreeWidget};
         trackItem->setFirstColumnSpanned(true);
         // track text
         const QByteArrayList& names = trackNames.value(track);
@@ -362,13 +359,12 @@ void SequenceView::setSequence(const Sequence& sequence, timestamp_t lower, time
     setUpdatesEnabled(false);
     mSequenceIt = mSequence.begin();
     mSequenceUpdater->start();
-
 }
 
 void SequenceView::cleanSequence() {
     mSequenceUpdater->stop();
     mTreeWidget->clear();
-    mTreeWidget->setHeaderLabels(QStringList() << "Timestamp" << "Channel" << "Type" << "Data");
+    mTreeWidget->setHeaderLabels(QStringList{} << "Timestamp" << "Channel" << "Type" << "Data");
 }
 
 void SequenceView::setLower(timestamp_t timestamp) {
@@ -415,16 +411,16 @@ void SequenceView::onChannelsChanged(channels_t channels) {
 void SequenceView::addNextEvents() {
     const int n = std::min((int)std::distance(mSequenceIt, mSequence.end()), 32);
     for (int i=0 ; i < n ; ++i)
-        addEvent(*mSequenceIt++);
+        addEvent(std::move(*mSequenceIt++));
     if (mSequenceIt == mSequence.end()) {
         mSequenceUpdater->stop();
         setUpdatesEnabled(true);
     }
 }
 
-void SequenceView::addEvent(const Sequence::Item& item) {
+void SequenceView::addEvent(Sequence::Item item) {
     if (auto* trackItem = itemForTrack(item.event.track()))
-        updateItemVisibility(new SequenceViewItem{item, trackItem});
+        updateItemVisibility(new SequenceViewItem{std::move(item), trackItem});
 }
 
 void SequenceView::onItemChange(QTreeWidgetItem* item, int /*column*/) {
@@ -475,7 +471,7 @@ const QFileInfo& FileItem::fileInfo() const {
 
 NamedSequence FileItem::loadSequence() {
     auto file = dumping::read_file(mFileInfo.absoluteFilePath().toLocal8Bit().constData());
-    return {Sequence::from_file(file), text()};
+    return {Sequence::from_file(std::move(file)), text()};
 }
 
 WriterItem::WriterItem(SequenceWriter* handler) : PlaylistItem(), mHandler(handler) {
@@ -604,7 +600,7 @@ bool PlaylistTable::isLoaded() const {
 
 NamedSequence PlaylistTable::loadRow(int row) {
     NamedSequence namedSequence;
-    if (auto playlistItem = dynamic_cast<PlaylistItem*>(item(row, 0))) {
+    if (auto* playlistItem = dynamic_cast<PlaylistItem*>(item(row, 0))) {
         namedSequence = playlistItem->loadSequence();
         if (!namedSequence.sequence.empty()) {
             // change status
@@ -1334,7 +1330,7 @@ bool Player::setNextSequence(int offset) {
     auto namedSequence = mPlaylist->loadRelative(offset, isLooping());
     if (namedSequence.sequence.empty())
         return false;
-    setSequence(namedSequence);
+    setSequence(std::move(namedSequence));
     return true;
 }
 
@@ -1361,12 +1357,12 @@ void Player::refreshPosition() {
     }
 }
 
-void Player::setSequence(const NamedSequence& sequence) {
-    window()->setWindowTitle(sequence.name);
-    mHandler.set_sequence(sequence.sequence);
-    mTempoView->setClock(sequence.sequence.clock());
-    mSequenceView->setSequence(sequence.sequence, mHandler.lower(), mHandler.upper());
-    mTracker->setSequence(sequence.sequence, mHandler.lower(), mHandler.upper());
+void Player::setSequence(NamedSequence sequence) {
+    window()->setWindowTitle(std::move(sequence.name));
+    mHandler.set_sequence(std::move(sequence.sequence));
+    mTempoView->setClock(mHandler.sequence().clock());
+    mSequenceView->setSequence(mHandler.sequence(), mHandler.lower(), mHandler.upper());
+    mTracker->setSequence(mHandler.sequence(), mHandler.lower(), mHandler.upper());
 }
 
 void Player::saveSequence() {
@@ -1387,10 +1383,10 @@ void Player::saveSequence() {
 }
 
 void Player::launch(QTableWidgetItem* item) {
-    const auto namedSequence = mPlaylist->loadRow(item->row());
+    auto namedSequence = mPlaylist->loadRow(item->row());
     if (!namedSequence.sequence.empty()) {
         resetSequence();
-        setSequence(namedSequence);
+        setSequence(std::move(namedSequence));
         playCurrentSequence();
     } else { /// @todo get reason from model
         QMessageBox::critical(this, {}, "Can't read MIDI File");

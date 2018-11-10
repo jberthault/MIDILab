@@ -75,17 +75,17 @@ channels_t NoteMemory::active(byte_t note) const {
 //============
 
 void Corruption::feed(const Event& event) {
-    m_memory.feed(event);
+    memory.feed(event);
 }
 
 void Corruption::tick() {
-    m_corrupted |= m_memory.active();
+    corrupted |= memory.active();
 }
 
 void Corruption::tick(channels_t channels) {
-    m_corrupted |= m_memory.active() & channels;
+    corrupted |= memory.active() & channels;
 }
 
 channels_t Corruption::reset() {
-    return std::exchange(m_corrupted, {});
+    return std::exchange(corrupted, {});
 }

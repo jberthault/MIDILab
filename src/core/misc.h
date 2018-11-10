@@ -66,9 +66,8 @@ public:
     void tick(channels_t channels); /*!< mark active channels as corrupted if they appear in the given mask */
     channels_t reset(); /*!< mark all channels as not-corrupted returning the old corrupted channels */
 
-private:
-    NoteMemory m_memory; /*!< active notes by channel */
-    channels_t m_corrupted;
+    NoteMemory memory; /*!< active notes by channel */
+    channels_t corrupted;
 
 };
 
