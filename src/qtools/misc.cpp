@@ -525,7 +525,7 @@ bool MenuDefaultTrigger::eventFilter(QObject* watched, QEvent* event) {
     if (event->type() == QEvent::MouseButtonDblClick)
         if (static_cast<QMouseEvent*>(event)->button() == Qt::LeftButton)
             if (auto* menu = dynamic_cast<QMenu*>(watched))
-                if(auto* action = menu->defaultAction())
+                if (auto* action = menu->defaultAction())
                     action->trigger();
     return false;
 }

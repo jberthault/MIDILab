@@ -398,7 +398,7 @@ size_t write_file(const StandardMidiFile& file, const std::string& filename, boo
 namespace {
 
 void copy_track(StandardMidiFile::track_type track, uint64_t& timestamp, Sequence::iterator& it) {
-    for(auto& pair : track) {
+    for (auto& pair : track) {
         timestamp += pair.first;
         it->event = std::move(pair.second);
         it->timestamp = timestamp;

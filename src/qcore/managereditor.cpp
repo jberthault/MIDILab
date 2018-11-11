@@ -310,7 +310,7 @@ void HandlerGraphEditor::updateEdgesVisibility() {
 // HandlerListEditor
 //===================
 
-/// @todo use meta parameters for tooltip, custom editors, visibility (user, advanced, private, ...)
+/// @todo use meta parameters for custom editors, visibility (user, advanced, private, ...)
 
 namespace {
 
@@ -347,7 +347,7 @@ Handler* handlerForItem(QTreeWidgetItem* item) {
 
 template<typename PredicateT>
 QTreeWidgetItem* findChildIf(QTreeWidgetItem* root, PredicateT&& pred) {
-    for(int row = 0 ; row < root->childCount() ; ++row) {
+    for (int row = 0 ; row < root->childCount() ; ++row) {
         auto* item = root->child(row);
         if (pred(item))
             return item;
@@ -385,13 +385,17 @@ HandlerListEditor::HandlerListEditor(Manager* manager, QWidget* parent) : QTreeW
     auto* trigger = new MenuDefaultTrigger{this};
     setContextMenuPolicy(Qt::CustomContextMenu);
     mMenu = new QMenu{this};
+    mMenu->setToolTipsVisible(true);
     addCommandMenu("Open", HandlerProxy::Command::Open)->installEventFilter(trigger);
     addCommandMenu("Close", HandlerProxy::Command::Close)->installEventFilter(trigger);
     addCommandMenu("Toggle", HandlerProxy::Command::Toggle)->installEventFilter(trigger);
     mMenu->addSeparator();
     mMenu->addAction(QIcon{":/data/delete.svg"}, "Delete", this, SLOT(destroySelection()));
     mRenameAction = mMenu->addAction(QIcon{":/data/text.svg"}, "Rename", this, SLOT(renameSelection()));
-    mMenu->addAction(QIcon{":/data/eye.svg"}, "Edit", this, SLOT(editSelection()));
+    auto* editAction = mMenu->addAction(QIcon{":/data/eye.svg"}, "Edit", this, SLOT(editSelection()));
+    editAction->setToolTip("Raise the window hosting this handler");
+    auto* resetAction = mMenu->addAction(QIcon{":/data/flash.svg"}, "Reset", this, SLOT(resetSelectionParameters()));
+    resetAction->setToolTip("Reset parameters to their default value");
 
     connect(manager, &Context::handlerInserted, this, &HandlerListEditor::insertHandler);
     connect(manager, &Context::handlerRemoved, this, &HandlerListEditor::removeHandler);
@@ -405,13 +409,15 @@ HandlerListEditor::HandlerListEditor(Manager* manager, QWidget* parent) : QTreeW
 
 void HandlerListEditor::insertHandler(Handler* handler) {
     QSignalBlocker sb{this};
+    auto proxy = getProxy(mManager->handlerProxies(), handler);
     auto* item = new QTreeWidgetItem{invisibleRootItem()};
     item->setFirstColumnSpanned(true);
     item->setData(nameColumn, Qt::UserRole, qVariantFromValue(handler));
     item->setText(nameColumn, handlerName(handler));
     item->setIcon(nameColumn, modeIcon(handler));
-    for (const auto& parameter : getProxy(mManager->handlerProxies(), handler).getParameters())
-        addParameter(item, parameter);
+    item->setToolTip(nameColumn, QString{"%1: %2"}.arg(proxy.metaHandler()->identifier(), proxy.metaHandler()->description()));
+    for (const auto& parameter : proxy.getParameters())
+        addParameter(item, parameter, proxy.metaHandler());
 }
 
 void HandlerListEditor::renameHandler(Handler* handler) {
@@ -425,10 +431,11 @@ void HandlerListEditor::removeHandler(Handler* handler) {
 }
 
 void HandlerListEditor::onParametersChange(Handler* handler) {
-    if(auto* item = itemForHandler(invisibleRootItem(), handler)) {
+    if (auto* item = itemForHandler(invisibleRootItem(), handler)) {
         QSignalBlocker sb{this};
-        for (const auto& parameter : getProxy(mManager->handlerProxies(), handler).getParameters())
-            updateParameter(item, parameter);
+        auto proxy = getProxy(mManager->handlerProxies(), handler);
+        for (const auto& parameter : proxy.getParameters())
+            updateParameter(item, parameter, proxy.metaHandler());
     }
 }
 
@@ -485,6 +492,11 @@ void HandlerListEditor::renameSelection() {
     }
 }
 
+void HandlerListEditor::resetSelectionParameters() {
+    for (auto* handler : selectedHandlers())
+        getProxy(mManager->handlerProxies(), handler).resetParameters();
+}
+
 void HandlerListEditor::sendToSelection(HandlerProxy::Command command, Handler::State state) {
     for (auto* handler : selectedHandlers())
         getProxy(mManager->handlerProxies(), handler).sendCommand(command, state);
@@ -502,18 +514,22 @@ QMenu* HandlerListEditor::addCommandMenu(const QString& title, HandlerProxy::Com
     return menu;
 }
 
-void HandlerListEditor::updateParameter(QTreeWidgetItem* parent, const HandlerView::Parameter& parameter) {
+void HandlerListEditor::updateParameter(QTreeWidgetItem* parent, const HandlerView::Parameter& parameter, MetaHandler* metaHandler) {
     if (auto* parameterItem = findChildIf(parent, [&](auto* item) { return item->text(keyColumn) == parameter.name; }))
         parameterItem->setText(valueColumn, parameter.value);
     else
-        addParameter(parent, parameter);
+        addParameter(parent, parameter, metaHandler);
 }
 
-void HandlerListEditor::addParameter(QTreeWidgetItem* parent, const HandlerView::Parameter& parameter) {
+void HandlerListEditor::addParameter(QTreeWidgetItem* parent, const HandlerView::Parameter& parameter, MetaHandler* metaHandler) {
     auto* parameterItem = new QTreeWidgetItem{parent};
     parameterItem->setText(keyColumn, parameter.name);
     parameterItem->setText(valueColumn, parameter.value);
     parameterItem->setFlags(parameterItem->flags() | Qt::ItemIsEditable);
+    const auto& parameters = metaHandler->parameters();
+    auto metaIt = std::find_if(parameters.begin(), parameters.end(), [&](const auto& metaParameter) { return metaParameter.name == parameter.name; });
+    if (metaIt != parameters.end())
+        parameterItem->setToolTip(keyColumn, QString{"%1\n(default value: \"%2\")"}.arg(metaIt->description, metaIt->defaultValue));
 }
 
 std::set<Handler*> HandlerListEditor::selectedHandlers() {

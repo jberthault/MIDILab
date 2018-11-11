@@ -74,5 +74,6 @@
         <file>data/modes/receive_open.png</file>
         <file>data/modes/receive_open_forward_closed.png</file>
         <file>data/modes/receive_open_forward_open.png</file>
+        <file>data/flash.svg</file>
     </qresource>
 </RCC>

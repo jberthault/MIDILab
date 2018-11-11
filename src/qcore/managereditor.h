@@ -154,12 +154,13 @@ private slots:
     void destroySelection();
     void editSelection();
     void renameSelection();
+    void resetSelectionParameters();
     void sendToSelection(HandlerProxy::Command command, Handler::State state);
 
 private:
     QMenu* addCommandMenu(const QString& title, HandlerProxy::Command command);
-    void updateParameter(QTreeWidgetItem* parent, const HandlerView::Parameter& parameter);
-    void addParameter(QTreeWidgetItem* parent, const HandlerView::Parameter& parameter);
+    void updateParameter(QTreeWidgetItem* parent, const HandlerView::Parameter& parameter, MetaHandler* metaHandler);
+    void addParameter(QTreeWidgetItem* parent, const HandlerView::Parameter& parameter, MetaHandler* metaHandler);
     std::set<Handler*> selectedHandlers();
 
 private:

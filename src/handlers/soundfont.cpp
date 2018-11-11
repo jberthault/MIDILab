@@ -280,7 +280,7 @@ double SoundFontHandler::gain() const {
 
 std::string SoundFontHandler::file() const {
     std::string result;
-    if(auto* sfont = fluid_synth_get_sfont(m_pimpl->synth, 0))
+    if (auto* sfont = fluid_synth_get_sfont(m_pimpl->synth, 0))
         result.assign(fluid_sfont_get_name(sfont));
     return result;
 }

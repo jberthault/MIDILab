@@ -46,9 +46,6 @@ There should be a way to lock these settings, namely controllers and programs.
 With a stable interface, It should be possible to write handlers as **plugins**.
 Allowing developers to extend MidiLab apart from its core development.
 
-Handlers properties are determined in the configuration or at creation.
-We should be able to change any property dynamically.
-
 A first version of the guitar fretboard was introduced in v0.3 but there are still plenty of things to do about it.
 For example, make the engine aware of the strings assigned to notes.
 It could be done using the track number of events.

@@ -218,44 +218,26 @@ void HandlerProxy::setName(const QString& name) const {
         mHandler->set_name(qstring2name(name));
 }
 
-Handler::State HandlerProxy::currentState() const {
-    return mHandler ? mHandler->state() : Handler::State{};
-}
-
-Handler::State HandlerProxy::supportedState() const {
-    Handler::State state;
-    if (mHandler) {
-        if (mHandler->mode().any(Mode::forward()))
-            state |= State::forward();
-        if (mHandler->mode().any(Mode::receive()))
-            state |= State::receive();
-    }
-    return state;
-}
-
 void HandlerProxy::sendCommand(Command command, State state) const {
-    /// @todo remove check already open/close
-    /// @todo toggle duplex correctly
     if (mHandler) {
-        bool open = command == Command::Open;
-        if (command == Command::Toggle)
-            open = !mHandler->state().all(state & supportedState());
-        if (mHandler->mode().any(Mode::thru())) {
-            // thru mode should process all states at once
-            state = State::duplex();
-        } else {
-            // do not process states that are not supported
-            state &= supportedState();
+        // compute supported states
+        Handler::State supportedState;
+        if (mHandler->mode().any(Mode::forward()))
+            supportedState |= State::forward();
+        if (mHandler->mode().any(Mode::receive()))
+            supportedState |= State::receive();
+        // compute state considered active
+        Handler::State activatedState;
+        switch(command) {
+        case Command::Open: activatedState = {}; break;
+        case Command::Close: activatedState = State::duplex(); break;
+        case Command::Toggle: activatedState = mHandler->state(); break;
         }
-        if (!state) {
-            TRACE_WARNING(name() << " no state to change");
-            return;
-        }
-        if (mHandler->state().all(state) == open) {
-            TRACE_WARNING(name() << " handler already " << (open ? "open" : "closed"));
-            return;
-        }
-        mHandler->send_message(open ? Handler::open_ext(state) : Handler::close_ext(state));
+        // send messages
+        if (const auto openingState = state & supportedState & ~activatedState)
+            mHandler->send_message(Handler::open_ext(openingState));
+        if (const auto closingState = state & supportedState & activatedState)
+            mHandler->send_message(Handler::close_ext(closingState));
     }
 }
 
@@ -264,7 +246,7 @@ HandlerProxy::Parameters HandlerProxy::getParameters() const {
 }
 
 size_t HandlerProxy::setParameter(const Parameter& parameter, bool notify) const {
-    size_t count = mView ? mView->setParameter(parameter) : 0;
+    const size_t count = mView ? mView->setParameter(parameter) : 0;
     if (count == 0)
         TRACE_ERROR(name() << ": unable to set parameter " << parameter.name);
     else if (notify)
@@ -274,15 +256,30 @@ size_t HandlerProxy::setParameter(const Parameter& parameter, bool notify) const
 
 size_t HandlerProxy::setParameters(const Parameters& parameters, bool notify) const {
     size_t count = 0;
-    for(const auto& parameter : parameters)
+    for (const auto& parameter : parameters)
         count += setParameter(parameter, false);
     if (count != 0 && notify)
         notifyParameters();
     return count;
 }
 
+size_t HandlerProxy::resetParameter(const QString& name, bool notify) const {
+    const auto& parameters = mMetaHandler->parameters();
+    auto metaIt = std::find_if(parameters.begin(), parameters.end(), [&](const auto& metaParameter) { return metaParameter.name == name; });
+    return metaIt != parameters.end() ? setParameter({name, metaIt->defaultValue}, notify) : 0;
+}
+
+size_t HandlerProxy::resetParameters(bool notify) const {
+    size_t count = 0;
+    for (const auto& parameter : mMetaHandler->parameters())
+        count += setParameter({parameter.name, parameter.defaultValue}, false);
+    if (count != 0 && notify)
+        notifyParameters();
+    return count;
+}
+
 void HandlerProxy::notifyParameters() const {
-    if(auto* context_ = context())
+    if (auto* context_ = context())
         emit context_->handlerParametersChanged(mHandler);
 }
 

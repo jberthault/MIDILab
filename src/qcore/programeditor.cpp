@@ -338,7 +338,7 @@ void ProgramEditor::updatePatch(int patchIndex) {
 
 void ProgramEditor::selectHandler(const HandlerData& handlerData) {
     mProgramModel->setPatch(&mRootPatch.children().at(handlerData.first));
-    for(const auto& pair : channel_ns::reverse(handlerData.second, channels_t::full()))
+    for (const auto& pair : channel_ns::reverse(handlerData.second, channels_t::full()))
         mProgramModel->setProgram(pair.second, pair.first);
 }
 

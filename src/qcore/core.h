@@ -223,13 +223,13 @@ public:
     QString name() const;
     void setName(const QString& name) const;
 
-    State currentState() const;
-    State supportedState() const;
     void sendCommand(Command command, State state = State::duplex()) const;
 
     Parameters getParameters() const;
     size_t setParameter(const Parameter& parameter, bool notify = true) const;
     size_t setParameters(const Parameters& parameters, bool notify = true) const;
+    size_t resetParameter(const QString& name, bool notify = true) const;
+    size_t resetParameters(bool notify = true) const;
     void notifyParameters() const;
 
     Context* context() const;
