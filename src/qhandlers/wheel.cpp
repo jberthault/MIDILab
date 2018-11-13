@@ -90,6 +90,7 @@ void AbstractWheel::onValueMove(channels_t channels, qreal ratio) {
 MetaHandler* makeMetaControllerWheel(QObject* parent) {
     auto* meta = makeMetaWheel(parent);
     meta->setIdentifier("ControllerWheel");
+    meta->setDescription("A collection of sliders used to change control settings such as modulation, volume, ...");
     meta->addParameter("controller", ":controller", "controller id(s) reacting over the GUI", "0x00");
     meta->setFactory(new OpenProxyFactory<ControllerWheel>);
     return meta;
@@ -206,6 +207,7 @@ Handler::Result ControllerWheel::handleReset() {
 MetaHandler* makeMetaPitchWheel(QObject* parent) {
     auto* meta = makeMetaWheel(parent);
     meta->setIdentifier("PitchWheel");
+    meta->setDescription("A collection of sliders used to tweak the pitch in addition to the pitch sensitivity");
     meta->setFactory(new OpenProxyFactory<PitchWheel>);
     return meta;
 }
@@ -386,6 +388,7 @@ Handler::Result PitchWheel::handleReset() {
 MetaHandler* makeMetaProgramWheel(QObject* parent) {
     auto* meta = makeMetaWheel(parent);
     meta->setIdentifier("ProgramWheel");
+    meta->setDescription("A collection of sliders used to change quickly the selected programs");
     meta->setFactory(new OpenProxyFactory<ProgramWheel>);
     return meta;
 }
@@ -433,6 +436,7 @@ void ProgramWheel::updateText(channels_t channels) {
 MetaHandler* makeMetaVolumeWheel(QObject* parent) {
     auto* meta = makeMetaWheel(parent);
     meta->setIdentifier("VolumeWheel");
+    meta->setDescription("A simple slider using sysex messages to control the master volume");
     meta->setFactory(new OpenProxyFactory<VolumeWheel>);
     return meta;
 }

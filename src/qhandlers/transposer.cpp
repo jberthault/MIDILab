@@ -33,6 +33,7 @@ constexpr range_t<int> transpositionRange = {-12, 12};
 MetaHandler* makeMetaTransposer(QObject* parent) {
     auto* meta = new MetaHandler{parent};
     meta->setIdentifier("Transposer");
+    meta->setDescription("A collection of sliders used to change the height of incoming notes");
     meta->setFactory(new OpenProxyFactory<TransposerEditor>);
     return meta;
 }

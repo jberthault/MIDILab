@@ -24,6 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 MetaHandler* makeMetaTrackFilter(QObject* parent) {
     auto* meta = new MetaHandler{parent};
     meta->setIdentifier("TrackFilter");
+    meta->setDescription("Filters events that do no belong to certain tracks");
     meta->setFactory(new OpenProxyFactory<TrackFilter>);
     return meta;
 }

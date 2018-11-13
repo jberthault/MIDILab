@@ -24,7 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 MetaHandler* makeMetaForwarder(QObject* parent) {
     auto* meta = new MetaHandler{parent};
     meta->setIdentifier("Forwarder");
-    meta->setDescription("Connection Tool");
+    meta->setDescription("Basic handler repeating all incoming messages");
     meta->setFactory(new OpenProxyFactory<ForwardHandler>);
     return meta;
 }

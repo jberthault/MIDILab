@@ -39,6 +39,7 @@ static const QSize labelSize {16, 16};
 MetaHandler* makeMetaChannelMapper(QObject* parent) {
     auto* meta = new MetaHandler{parent};
     meta->setIdentifier("ChannelMapper");
+    meta->setDescription("Captures event and change their channels");
     meta->setFactory(new OpenProxyFactory<ChannelMapperEditor>);
     return meta;
 }

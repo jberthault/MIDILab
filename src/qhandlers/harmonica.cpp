@@ -35,7 +35,7 @@ static constexpr auto defaultChannels = channels_t::wrap(0);
 MetaHandler* makeMetaHarmonica(QObject* parent) {
     auto* meta = makeMetaInstrument(parent);
     meta->setIdentifier("Harmonica");
-    meta->setDescription("diatonic harmonica");
+    meta->setDescription("Interactive layout bases on a diatonic harmonica");
     meta->addParameter("tonality", ":note", "tonality of the harmonica with the octave, the harmonica is tuned with the richter system", "C3");
     meta->setFactory(new OpenProxyFactory<Harmonica>);
     return meta;

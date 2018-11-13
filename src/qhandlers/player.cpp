@@ -1208,6 +1208,7 @@ void TempoView::updateDistorted(double distorsion) {
 MetaHandler* makeMetaPlayer(QObject* parent) {
     auto* meta = new MetaHandler{parent};
     meta->setIdentifier("Player");
+    meta->setDescription("Generates events from MIDI files");
     meta->setFactory(new OpenProxyFactory<Player>);
     return meta;
 }

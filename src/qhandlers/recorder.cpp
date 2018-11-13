@@ -29,6 +29,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 MetaHandler* makeMetaRecorder(QObject* parent) {
     auto* meta = new MetaHandler{parent};
     meta->setIdentifier("Recorder");
+    meta->setDescription("Creates sequences from incoming events that can be saved or played");
     meta->setFactory(new OpenProxyFactory<RecorderEditor>);
     return meta;
 }

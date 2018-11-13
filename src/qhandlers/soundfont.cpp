@@ -252,6 +252,7 @@ void ChorusEditor::setDepth(double value) {
 MetaHandler* makeMetaSoundFont(QObject* parent) {
     auto* meta = new MetaHandler{parent};
     meta->setIdentifier("SoundFont");
+    meta->setDescription("Synthesizer providing an audio output based on SoundFont files");
     meta->setFactory(new OpenProxyFactory<SoundFontEditor>);
     return meta;
 }

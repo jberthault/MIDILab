@@ -48,6 +48,7 @@ private:
 MetaHandler* makeMetaSystem(QObject* parent) {
     auto* meta = new MetaHandler{parent};
     meta->setIdentifier("System");
+    meta->setDescription("Represents all connected devices");
     meta->setFactory(new SystemProxyFactory);
     return meta;
 }

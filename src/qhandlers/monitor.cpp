@@ -28,8 +28,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace {
 
-QString specialText(const QString& text) {
-    return QString("<span style=\"background-color : black;color : white\">%1</span>").arg(text);
+auto specialText(const QString& text) {
+    return QString{"<span style=\"background-color : black;color : white\">%1</span>"}.arg(text);
 }
 
 }
@@ -41,6 +41,7 @@ QString specialText(const QString& text) {
 MetaHandler* makeMetaMonitor(QObject* parent) {
     auto* meta = new MetaHandler{parent};
     meta->setIdentifier("Monitor");
+    meta->setDescription("Basic handler displaying all incoming events");
     meta->setFactory(new OpenProxyFactory<Monitor>);
     return meta;
 }
