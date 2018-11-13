@@ -665,66 +665,6 @@ Handler* HandlerSelector::handlerForIndex(int index) {
     return nullptr;
 }
 
-//=====================
-// HandlerConfigurator
-//=====================
-
-HandlerConfigurator::HandlerConfigurator(MetaHandler* meta, QWidget* parent) : QWidget(parent) {
-    setWindowTitle("Hander Configurator");
-
-    QString identifier = metaHandlerName(meta);
-
-    QLabel* label = new QLabel(QString("<b>%1</b>").arg(identifier), this);
-    label->setAlignment(Qt::AlignHCenter);
-    label->setToolTip(meta->description());
-
-    mEditorsLayout = new QFormLayout;
-
-    mNameEditor = addLine("name", "handler's name", identifier);
-    for (const auto& param : meta->parameters())
-        addField(param);
-
-    setLayout(make_vbox(label, mEditorsLayout));
-}
-
-QString HandlerConfigurator::name() const {
-    auto result = mNameEditor->text();
-    if (result.isEmpty())
-        return mNameEditor->placeholderText();
-    return result;
-}
-
-HandlerView::Parameters HandlerConfigurator::parameters() const {
-    HandlerView::Parameters result;
-    QMapIterator<QString, QLineEdit*> it(mEditors);
-    while (it.hasNext()) {
-        it.next();
-        auto text = it.value()->text();
-        if (!text.isEmpty())
-            result.push_back(HandlerView::Parameter{it.key(), text});
-    }
-    return result;
-}
-
-void HandlerConfigurator::setFixedName(const QString& name) {
-    mNameEditor->setText(name);
-    mNameEditor->setReadOnly(true);
-}
-
-QLineEdit* HandlerConfigurator::addField(const MetaHandler::MetaParameter& param) {
-    auto editor = addLine(param.name, param.description, param.defaultValue);
-    mEditors.insert(param.name, editor);
-    return editor;
-}
-
-QLineEdit* HandlerConfigurator::addLine(const QString& label, const QString& tooltip, const QString& placeHolder) {
-    auto editor = new QLineEdit(this);
-    editor->setPlaceholderText(placeHolder);
-    editor->setToolTip(tooltip);
-    mEditorsLayout->addRow(label, editor);
-    return editor;
-}
-
 //==============
 // FilterEditor
 //==============

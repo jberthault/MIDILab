@@ -11,10 +11,10 @@ This application provides a GUI that lets you:
 - edit files (*well not now, but I'm on it*)
 - customize interface &amp; behavior via xml configurations
 
-The development started out as a toy project few years ago.
-And now that I use it more often than other widespread MIDI players, I want to share it as an open-source project.
-
-So I hope you will enjoy and experiment the wonderful world of MIDI !
+The development started out as a toy project a few years ago.
+Nonetheless, it is already functional as a MIDI player.
+Awesome features will eventually make their way into an upcoming release ... I guess.
+So you should probably check it out if you are a MIDI maniac ;)
 
 ## Disclaimer
 
@@ -25,8 +25,8 @@ This if the reason why I need feeback to improve the app.
 So let me know if you experience a bug or any incomprehensible behavior.
 
 Please also keep in mind that I develop MIDILab on my spare time.
-Fixing flaws is a really time-consuming task.
-Don't expect too much too quickly.
+I clearly do not have enough time to do everything I would.
+But if you really want a specific feature, please let me know.
 
 ## INSTALL
 
@@ -79,7 +79,7 @@ MIDILab works with configuration files. It starts with the last configuration us
 The first time you launch it, and as long as you do not save any configuration file, it will start with a default configuration.
 
 This configuration consists in three windows named:
-- MIDILab: The main Windows containing controls, a trackbar, a tempo slider, a playlist and a transposer
+- MIDILab: The main window containing controls, a trackbar, a tempo slider, a playlist and a transposer
 - Keyboard: Two components representing a pitch wheel and a piano keyboard, both being interactive
 - SoundFont Properties: A window containing settings of the audio output, being based on SoundFonts
 
@@ -89,8 +89,9 @@ A configuration is actually a list of *handlers* and a *connection graph*, that 
 
 To get a visual description of the configuration, go to the menu "Handlers > Handlers".
 
-There is a first tab "List" containing all *handlers* and their status (open or closed).
-This is where you can edit or delete those *handlers* by right-clicking on their name.
+There is a first tab "List" containing all *handlers*, their status (open or closed) and parameters.
+You can edit or delete those *handlers* by right-clicking on their name.
+You can also change any parameter in real time.
 To add a new *handler*, you need to go to the third tab "Catalog" and double-click on a *handler type*.
 
 The second tab, "Graph", contains all *handlers* and their *connections*.
@@ -106,7 +107,7 @@ You should download one and load it by clicking on the file icon in the SoundFon
 If it works, you can use this configuration as a MIDI player. To play a MIDI file, you must first populate the playlist.
 This can be done in two ways :
 - By dropping files in the playlist area directly from a file explorer
-- By right-clicking in the playlist area, there will be an option "Browse Files"
+- By right-clicking in the playlist area, and select the option "Browse Files"
 
 ## Architecture
 

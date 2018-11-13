@@ -312,39 +312,6 @@ private:
 
 };
 
-//=====================
-// HandlerConfigurator
-//=====================
-
-/**
- * @todo ...
- * * add validator based on expected types
- * * use this class to reconfigure an existing handler
- *
- */
-
-class HandlerConfigurator : public QWidget {
-
-    Q_OBJECT
-
-public:
-    explicit HandlerConfigurator(MetaHandler* meta, QWidget* parent);
-
-    QString name() const;
-    HandlerView::Parameters parameters() const;
-
-    void setFixedName(const QString& name);
-
-private:
-    QLineEdit* addField(const MetaHandler::MetaParameter& param);
-    QLineEdit* addLine(const QString& label, const QString& tooltip, const QString& placeHolder);
-
-    QFormLayout* mEditorsLayout;
-    QLineEdit* mNameEditor;
-    QMap<QString, QLineEdit*> mEditors;
-
-};
-
 //==============
 // FilterEditor
 //==============

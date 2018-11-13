@@ -359,6 +359,13 @@ QTreeWidgetItem* itemForHandler(QTreeWidgetItem* root, const Handler* handler) {
     return findChildIf(root, [=](auto* item) { return handlerForItem(item) == handler; });
 }
 
+auto metaDescription(const MetaHandler* metaHandler) {
+    const auto description = metaHandler->description();
+    if (description.isEmpty())
+        return metaHandler->identifier();
+    return QString{"%1: %2"}.arg(metaHandler->identifier(), description);
+}
+
 }
 
 HandlerListEditor::HandlerListEditor(Manager* manager, QWidget* parent) : QTreeWidget{parent}, mManager{manager} {
@@ -415,7 +422,7 @@ void HandlerListEditor::insertHandler(Handler* handler) {
     item->setData(nameColumn, Qt::UserRole, qVariantFromValue(handler));
     item->setText(nameColumn, handlerName(handler));
     item->setIcon(nameColumn, modeIcon(handler));
-    item->setToolTip(nameColumn, QString{"%1: %2"}.arg(proxy.metaHandler()->identifier(), proxy.metaHandler()->description()));
+    item->setToolTip(nameColumn, metaDescription(proxy.metaHandler()));
     for (const auto& parameter : proxy.getParameters())
         addParameter(item, parameter, proxy.metaHandler());
 }
@@ -484,11 +491,12 @@ void HandlerListEditor::editSelection() {
 void HandlerListEditor::renameSelection() {
     const auto handlers = selectedHandlers();
     if (handlers.size() == 1) {
-        const auto name = QInputDialog::getText(this, "Text Selection", "Please set the handler's name");
-        if (!name.isEmpty())
-            mManager->renameHandler(*handlers.begin(), name);
+        auto handler = *handlers.begin();
+        const auto name = QInputDialog::getText(this, {}, "Please set the handler's name", QLineEdit::Normal, handlerName(handler));
+        if (!name.isNull())
+            mManager->renameHandler(handler, name);
     } else {
-        QMessageBox::warning(this, {}, tr("You should select one handler"));
+        QMessageBox::warning(this, {}, "You should select one handler");
     }
 }
 
@@ -587,7 +595,7 @@ void HandlerCatalogEditor::onDoubleClick(QTreeWidgetItem* item, int column) {
         fixedName = item->text(column);
         for (const auto& proxy : mManager->handlerProxies()) {
             if (proxy.metaHandler() == metaHandler && proxy.name() == fixedName) {
-                QMessageBox::warning(this, {}, tr("This handler already exists"));
+                QMessageBox::warning(this, {}, "This handler already exists");
                 return;
             }
         }
@@ -610,15 +618,14 @@ void HandlerCatalogEditor::refreshMeta(QTreeWidgetItem* item, const QStringList&
 }
 
 void HandlerCatalogEditor::createHandler(MetaHandler* metaHandler, const QString& fixedName) {
-    auto* configurator = new HandlerConfigurator{metaHandler, this};
-    if (!fixedName.isNull())
-        configurator->setFixedName(fixedName);
-    DialogContainer ask{configurator, this};
-    if (ask.exec() != QDialog::Accepted)
-        return;
-    auto proxy = mManager->loadHandler(metaHandler, configurator->name(), nullptr);
-    proxy.setParameters(configurator->parameters());
-    proxy.show();
+    if (!fixedName.isNull()) {
+        if (QMessageBox::question(this, {}, "Do you want to instantiate this handler ?") == QMessageBox::Yes)
+            mManager->loadHandler(metaHandler, fixedName, nullptr).show();
+    } else {
+        const auto name = QInputDialog::getText(this, {}, "Please set the handler's name", QLineEdit::Normal, metaHandler->identifier());
+        if (!name.isNull())
+            mManager->loadHandler(metaHandler, name, nullptr).show();
+    }
 }
 
 MetaHandler* HandlerCatalogEditor::metaHandlerForItem(QTreeWidgetItem* item) {
