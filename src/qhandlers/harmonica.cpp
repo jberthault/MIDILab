@@ -35,7 +35,7 @@ static constexpr auto defaultChannels = channels_t::wrap(0);
 MetaHandler* makeMetaHarmonica(QObject* parent) {
     auto* meta = makeMetaInstrument(parent);
     meta->setIdentifier("Harmonica");
-    meta->setDescription("Interactive layout bases on a diatonic harmonica");
+    meta->setDescription("Interactive layout based on a diatonic harmonica");
     meta->addParameter("tonality", ":note", "tonality of the harmonica with the octave, the harmonica is tuned with the richter system", "C3");
     meta->setFactory(new OpenProxyFactory<Harmonica>);
     return meta;
@@ -55,13 +55,13 @@ const QMap<Harmonica::Index, int> Harmonica::defaultTuning = {
     {{-2, 9}, 36 - 2}, {{-1, 9}, 36 - 1}, {{0, 9}, 36}, {{1, 9}, 33},
 };
 
-Harmonica::Harmonica() : Instrument(Mode::io()) {
+Harmonica::Harmonica() : Instrument{Mode::io()} {
 
-    mGroup = new QButtonGroup(this);
+    mGroup = new QButtonGroup{this};
     connect(mGroup, SIGNAL(buttonPressed(QAbstractButton*)), SLOT(onPress(QAbstractButton*)));
     connect(mGroup, SIGNAL(buttonReleased(QAbstractButton*)), SLOT(onRelease(QAbstractButton*)));
 
-    QGridLayout* layout = new QGridLayout;
+    auto* layout = new QGridLayout;
     setLayout(layout);
     layout->setMargin(0);
     layout->setSpacing(0);
@@ -71,8 +71,8 @@ Harmonica::Harmonica() : Instrument(Mode::io()) {
     mOffset.first = 2;
     mOffset.second = 1;
 
-    addElement(new QLabel("+ Blow", this), getTrueRow(0), 0);
-    addElement(new QLabel("- Aspirate", this), getTrueRow(1), 0);
+    addElement(new QLabel{"+ Blow", this}, getTrueRow(0), 0);
+    addElement(new QLabel{"- Aspirate", this}, getTrueRow(1), 0);
 
     build(-2, 9);
     for (int i=7 ; i < 10 ; i++)
@@ -104,19 +104,19 @@ size_t Harmonica::setParameter(const Parameter& parameter) {
 }
 
 void Harmonica::onPress(QAbstractButton* button) {
-    Note note = buttonNote(button);
+    const auto note = buttonNote(button);
     if (note && canGenerate())
         generateNoteOn(defaultChannels, note);
 }
 
 void Harmonica::onRelease(QAbstractButton* button) {
-    Note note = buttonNote(button);
+    const auto note = buttonNote(button);
     if (note && canGenerate())
         generateNoteOff(defaultChannels, note);
 }
 
 void Harmonica::addElement(QWidget* widget, int true_row, int true_col) {
-    QGridLayout* grid = static_cast<QGridLayout*>(layout());
+    auto* grid = static_cast<QGridLayout*>(layout());
     grid->addWidget(widget, true_row, true_col);
 }
 
@@ -132,7 +132,7 @@ int Harmonica::getTrueCol(int col) const {
 }
 
 void Harmonica::build(int row, int col) {
-    QAbstractButton* button = new QToolButton(this);
+    auto* button = new QToolButton{this};
     mGroup->addButton(button);
     button->setFixedSize(30, 30);
     mButtons[Index{row, col}] = button;
@@ -151,14 +151,14 @@ void Harmonica::setTonality(const Note& note) {
     mTonality = note;
     mForwardNotes.clear();
     mButtonsNotes.clear();
-    QMapIterator<Index, int> it(mTuning);
+    QMapIterator<Index, int> it{mTuning};
     while (it.hasNext()) {
         it.next();
-        QAbstractButton* button = mButtons[it.key()];
-        int offset = it.value();
+        auto* button = mButtons[it.key()];
+        const int offset = it.value();
         /// @todo change based on the scale
-        int code = mTonality.code() + offset;
-        Note note = Note::from_code(code);
+        const int code = mTonality.code() + offset;
+        const auto note = Note::from_code(code);
         // register note <-> button (assuming button is not assigned)
         mForwardNotes.emplace(code, button);
         mButtonsNotes[button] = note;
@@ -168,7 +168,7 @@ void Harmonica::setTonality(const Note& note) {
 }
 
 void Harmonica::receiveNotesOff(channels_t /*channels*/) {
-    QMapIterator<Index, QAbstractButton*> it(mButtons);
+    QMapIterator<Index, QAbstractButton*> it{mButtons};
     while (it.hasNext()) {
         it.next();
         it.value()->setDown(false);
@@ -178,7 +178,7 @@ void Harmonica::receiveNotesOff(channels_t /*channels*/) {
 void Harmonica::receiveNoteOn(channels_t /*channels*/, const Note& note) {
     auto it = mForwardNotes.equal_range(note.code());
     for ( ; it.first != it.second ; ++it.first) {
-        QAbstractButton* button = it.first->second;
+        auto* button = it.first->second;
         if (!button->isDown()) {
             button->setDown(true);
             break;
@@ -189,7 +189,7 @@ void Harmonica::receiveNoteOn(channels_t /*channels*/, const Note& note) {
 void Harmonica::receiveNoteOff(channels_t /*channels*/, const Note& note) {
     auto it = mForwardNotes.equal_range(note.code());
     for ( ; it.first != it.second ; ++it.first) {
-        QAbstractButton* button = it.first->second;
+        auto* button = it.first->second;
         button->setDown(false);
     }
 }
