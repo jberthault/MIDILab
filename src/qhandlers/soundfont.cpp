@@ -253,6 +253,21 @@ MetaHandler* makeMetaSoundFont(QObject* parent) {
     auto* meta = new MetaHandler{parent};
     meta->setIdentifier("SoundFont");
     meta->setDescription("Synthesizer providing an audio output based on SoundFont files");
+    meta->addParameter({"file", {}, {}, MetaHandler::MetaParameter::Visibility::hidden});
+    meta->addParameter({"gain", {}, serial::serializeNumber(SoundFontHandler::ext.gain.default_value), MetaHandler::MetaParameter::Visibility::basic});
+    meta->addParameter({"reverb.active", {}, serial::serializeBool(SoundFontHandler::ext.reverb.activated.default_value), MetaHandler::MetaParameter::Visibility::basic});
+    meta->addParameter({"reverb.folded", {}, "false", MetaHandler::MetaParameter::Visibility::hidden});
+    meta->addParameter({"reverb.roomsize", {}, serial::serializeNumber(SoundFontHandler::ext.reverb.roomsize.default_value), MetaHandler::MetaParameter::Visibility::advanced});
+    meta->addParameter({"reverb.damp", {}, serial::serializeNumber(SoundFontHandler::ext.reverb.damp.default_value), MetaHandler::MetaParameter::Visibility::advanced});
+    meta->addParameter({"reverb.level", {}, serial::serializeNumber(SoundFontHandler::ext.reverb.level.default_value), MetaHandler::MetaParameter::Visibility::advanced});
+    meta->addParameter({"reverb.width", {}, serial::serializeNumber(SoundFontHandler::ext.reverb.width.default_value), MetaHandler::MetaParameter::Visibility::advanced});
+    meta->addParameter({"chorus.active", {}, serial::serializeBool(SoundFontHandler::ext.chorus.activated.default_value), MetaHandler::MetaParameter::Visibility::basic});
+    meta->addParameter({"chorus.folded", {}, "false", MetaHandler::MetaParameter::Visibility::hidden});
+    meta->addParameter({"chorus.type", {}, serial::serializeNumber(SoundFontHandler::ext.chorus.type.default_value), MetaHandler::MetaParameter::Visibility::advanced});
+    meta->addParameter({"chorus.nr", {}, serial::serializeNumber(SoundFontHandler::ext.chorus.nr.default_value), MetaHandler::MetaParameter::Visibility::advanced});
+    meta->addParameter({"chorus.level", {}, serial::serializeNumber(SoundFontHandler::ext.chorus.level.default_value), MetaHandler::MetaParameter::Visibility::advanced});
+    meta->addParameter({"chorus.speed", {}, serial::serializeNumber(SoundFontHandler::ext.chorus.speed.default_value), MetaHandler::MetaParameter::Visibility::advanced});
+    meta->addParameter({"chorus.depth", {}, serial::serializeNumber(SoundFontHandler::ext.chorus.depth.default_value), MetaHandler::MetaParameter::Visibility::advanced});
     meta->setFactory(new OpenProxyFactory<SoundFontEditor>);
     return meta;
 }

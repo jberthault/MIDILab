@@ -190,7 +190,7 @@ MetaHandler* makeMetaPiano(QObject* parent) {
     auto* meta = makeMetaInstrument(parent);
     meta->setIdentifier("Piano");
     meta->setDescription("Interactive Piano Keyboard");
-    meta->addParameter("range", ":NoteRange", "closed range \"<first_note>:<last_note>\" of notes composing the keyboard", "A0:C8");
+    meta->addParameter({"range", "closed range \"<first_note>:<last_note>\" of notes composing the keyboard", "A0:C8", MetaHandler::MetaParameter::Visibility::basic});
     meta->setFactory(new OpenProxyFactory<Piano>);
     return meta;
 }

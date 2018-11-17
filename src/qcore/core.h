@@ -326,10 +326,13 @@ class MetaHandler final : public QObject {
 public:
 
     struct MetaParameter {
+
+        enum class Visibility { basic, advanced, hidden };
+
         QString name; /*!< identifier of this parameter */
-        QString type; /*!< the serializable type identifier encapsulating this parameter */
         QString description; /*!< description of whatever is represented by this parameter */
         QString defaultValue; /*!< value considered if not specified, empty means N/A */
+        Visibility visibility; /*!< control acessibility of the parameter */
     };
 
     using MetaParameters = std::vector<MetaParameter>;
@@ -344,8 +347,7 @@ public:
     void setIdentifier(const QString& identifier);
     void setDescription(const QString& description);
     void addParameters(const MetaParameters& parameters);
-    void addParameter(const MetaParameter& parameter);
-    void addParameter(const QString& name, const QString& type, const QString& description, const QString& defaultValue);
+    void addParameter(MetaParameter parameter);
     void setFactory(HandlerProxyFactory* factory);
 
     HandlerProxy instantiate(const QString& name);

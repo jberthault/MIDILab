@@ -58,8 +58,8 @@ MetaHandler* makeMetaGuitar(QObject* parent) {
     auto* meta = makeMetaInstrument(parent);
     meta->setIdentifier("Guitar");
     meta->setDescription("Interactive Guitar Fretboard");
-    meta->addParameter("tuning", ":Notes", "list of notes separated by ';' from lower string to higher string", serial::serializeNotes(defaultTuning));
-    meta->addParameter("capo", ":ULong", "capo position, no capo if 0", "0");
+    meta->addParameter({"tuning", "list of notes separated by ';' from lower string to higher string", serial::serializeNotes(defaultTuning), MetaHandler::MetaParameter::Visibility::basic});
+    meta->addParameter({"capo", "capo position, no capo if 0", "0", MetaHandler::MetaParameter::Visibility::basic});
     meta->setFactory(new OpenProxyFactory<Guitar>);
     return meta;
 }

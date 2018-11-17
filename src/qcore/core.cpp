@@ -266,13 +266,14 @@ size_t HandlerProxy::setParameters(const Parameters& parameters, bool notify) co
 size_t HandlerProxy::resetParameter(const QString& name, bool notify) const {
     const auto& parameters = mMetaHandler->parameters();
     auto metaIt = std::find_if(parameters.begin(), parameters.end(), [&](const auto& metaParameter) { return metaParameter.name == name; });
-    return metaIt != parameters.end() ? setParameter({name, metaIt->defaultValue}, notify) : 0;
+    return metaIt != parameters.end() && !metaIt->defaultValue.isNull() ? setParameter({name, metaIt->defaultValue}, notify) : 0;
 }
 
 size_t HandlerProxy::resetParameters(bool notify) const {
     size_t count = 0;
     for (const auto& parameter : mMetaHandler->parameters())
-        count += setParameter({parameter.name, parameter.defaultValue}, false);
+        if (!parameter.defaultValue.isNull())
+            count += setParameter({parameter.name, parameter.defaultValue}, false);
     if (count != 0 && notify)
         notifyParameters();
     return count;
@@ -340,12 +341,8 @@ void MetaHandler::addParameters(const MetaParameters& parameters) {
     mParameters.insert(mParameters.end(), parameters.begin(), parameters.end());
 }
 
-void MetaHandler::addParameter(const MetaParameter& parameter) {
-    mParameters.push_back(parameter);
-}
-
-void MetaHandler::addParameter(const QString& name, const QString& type, const QString& description, const QString& defaultValue) {
-    addParameter({name, type, description, defaultValue});
+void MetaHandler::addParameter(MetaParameter parameter) {
+    mParameters.push_back(std::move(parameter));
 }
 
 void MetaHandler::setFactory(HandlerProxyFactory* factory) {

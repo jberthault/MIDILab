@@ -36,7 +36,7 @@ MetaHandler* makeMetaHarmonica(QObject* parent) {
     auto* meta = makeMetaInstrument(parent);
     meta->setIdentifier("Harmonica");
     meta->setDescription("Interactive layout based on a diatonic harmonica");
-    meta->addParameter("tonality", ":note", "tonality of the harmonica with the octave, the harmonica is tuned with the richter system", "C3");
+    meta->addParameter({"tonality", "tonality of the harmonica with the octave, the harmonica is tuned with the richter system", "C3", MetaHandler::MetaParameter::Visibility::basic});
     meta->setFactory(new OpenProxyFactory<Harmonica>);
     return meta;
 }

@@ -1209,6 +1209,7 @@ MetaHandler* makeMetaPlayer(QObject* parent) {
     auto* meta = new MetaHandler{parent};
     meta->setIdentifier("Player");
     meta->setDescription("Generates events from MIDI files");
+    meta->addParameter({"distorsion", "speedup factor applied to files played", "1", MetaHandler::MetaParameter::Visibility::basic});
     meta->setFactory(new OpenProxyFactory<Player>);
     return meta;
 }

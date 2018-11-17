@@ -137,7 +137,7 @@ bool parseOrientation(const QString& data, Qt::Orientation& orientation) {
 
 MetaHandler* makeMetaGraphicalHandler(QObject* parent) {
     auto* meta = new MetaHandler{parent};
-    meta->addParameter("track", ":uint", "message's track of generated events", "0");
+    meta->addParameter({"track", "message's track of generated events", "0", MetaHandler::MetaParameter::Visibility::advanced});
     return meta;
 }
 
@@ -175,7 +175,7 @@ void GraphicalHandler::generate(Event event) {
 
 MetaHandler* makeMetaInstrument(QObject* parent) {
     auto* meta = makeMetaGraphicalHandler(parent);
-    meta->addParameter("velocity", ":byte", "velocity of note event generated while pressing keys in range [0, 0x80[, values out of range are coerced", "0x7f");
+    meta->addParameter({"velocity", "velocity of note event generated while pressing keys in range [0, 0x80[, values out of range are coerced", "0x7f", MetaHandler::MetaParameter::Visibility::basic});
     return meta;
 }
 

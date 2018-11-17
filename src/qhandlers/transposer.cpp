@@ -34,6 +34,7 @@ MetaHandler* makeMetaTransposer(QObject* parent) {
     auto* meta = new MetaHandler{parent};
     meta->setIdentifier("Transposer");
     meta->setDescription("A collection of sliders used to change the height of incoming notes");
+    meta->addParameter({"orientation", "orientation of the slider", "Horizontal", MetaHandler::MetaParameter::Visibility::basic});
     meta->setFactory(new OpenProxyFactory<TransposerEditor>);
     return meta;
 }

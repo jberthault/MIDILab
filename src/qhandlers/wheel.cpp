@@ -42,7 +42,7 @@ constexpr uint16_t pitchBendRangeRPN = 0x0000;
 
 MetaHandler* makeMetaWheel(QObject* parent) {
     auto* meta = makeMetaGraphicalHandler(parent);
-    meta->addParameter("orientation", ":orientation", "orientation of the slider", "Horizontal");
+    meta->addParameter({"orientation", "orientation of the slider", "Horizontal", MetaHandler::MetaParameter::Visibility::basic});
     return meta;
 }
 
@@ -91,7 +91,7 @@ MetaHandler* makeMetaControllerWheel(QObject* parent) {
     auto* meta = makeMetaWheel(parent);
     meta->setIdentifier("ControllerWheel");
     meta->setDescription("A collection of sliders used to change control settings such as modulation, volume, ...");
-    meta->addParameter("controller", ":controller", "controller id(s) reacting over the GUI", "0x00");
+    meta->addParameter({"controller", "controller id(s) reacting over the GUI", "0x00", MetaHandler::MetaParameter::Visibility::basic});
     meta->setFactory(new OpenProxyFactory<ControllerWheel>);
     return meta;
 }

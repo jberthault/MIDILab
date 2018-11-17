@@ -366,6 +366,13 @@ auto metaDescription(const MetaHandler* metaHandler) {
     return QString{"%1: %2"}.arg(metaHandler->identifier(), description);
 }
 
+auto metaParameterDescription(const MetaHandler::MetaParameter& metaParameter) {
+    const auto description = metaParameter.description.isEmpty() ? "No description available" : metaParameter.description;
+    if (metaParameter.defaultValue.isNull())
+        return description;
+    return QString{"%1\n(default value: \"%2\")"}.arg(description, metaParameter.defaultValue);
+}
+
 }
 
 HandlerListEditor::HandlerListEditor(Manager* manager, QWidget* parent) : QTreeWidget{parent}, mManager{manager} {
@@ -530,14 +537,15 @@ void HandlerListEditor::updateParameter(QTreeWidgetItem* parent, const HandlerVi
 }
 
 void HandlerListEditor::addParameter(QTreeWidgetItem* parent, const HandlerView::Parameter& parameter, MetaHandler* metaHandler) {
+    const auto& parameters = metaHandler->parameters();
+    auto metaIt = std::find_if(parameters.begin(), parameters.end(), [&](const auto& metaParameter) { return metaParameter.name == parameter.name; });
+    if (metaIt == parameters.end() || metaIt->visibility == MetaHandler::MetaParameter::Visibility::hidden)
+        return;
     auto* parameterItem = new QTreeWidgetItem{parent};
     parameterItem->setText(keyColumn, parameter.name);
     parameterItem->setText(valueColumn, parameter.value);
     parameterItem->setFlags(parameterItem->flags() | Qt::ItemIsEditable);
-    const auto& parameters = metaHandler->parameters();
-    auto metaIt = std::find_if(parameters.begin(), parameters.end(), [&](const auto& metaParameter) { return metaParameter.name == parameter.name; });
-    if (metaIt != parameters.end())
-        parameterItem->setToolTip(keyColumn, QString{"%1\n(default value: \"%2\")"}.arg(metaIt->description, metaIt->defaultValue));
+    parameterItem->setToolTip(keyColumn, metaParameterDescription(*metaIt));
 }
 
 std::set<Handler*> HandlerListEditor::selectedHandlers() {
