@@ -145,6 +145,14 @@ void Knob::setBrush(const QBrush& brush) {
     update();
 }
 
+bool Knob::isMovable() const {
+    return flags() & ItemIsMovable;
+}
+
+void Knob::setMovable(bool movable) {
+    setFlag(ItemIsMovable, movable);
+}
+
 void Knob::transpose() {
     prepareGeometryChange();
     std::swap(mXScale.value, mYScale.value);
@@ -160,7 +168,7 @@ void Knob::moveToFit() {
 }
 
 void Knob::scroll(int delta) {
-    if (flags() & ItemIsMovable) {
+    if (isMovable()) {
         const auto increment = static_cast<int>(std::copysign(1, delta));
         const qreal xWanted = mXScale.cardinality < 2 || !mXScale.range ? x() + increment : mXScale.upscale(mXScale.joint(mXScale.nearest() + increment));
         const qreal yWanted = mYScale.cardinality < 2 || !mYScale.range ? y() - increment : mYScale.upscale(mYScale.joint(mYScale.nearest() + increment));
@@ -523,7 +531,7 @@ void KnobView::mouseDoubleClickEvent(QMouseEvent* event) {
 void KnobView::wheelEvent(QWheelEvent* event) {
     /// @note do not forward event to the scene
     auto* knob = dynamic_cast<Knob*>(itemAt(event->pos()));
-    if (!knob || !bool(knob->flags() & Knob::ItemIsMovable))
+    if (!knob || !knob->isMovable())
         knob = mLastKnobScrolled;
     if (knob)
         knob->scroll(event->delta());
@@ -616,7 +624,7 @@ void MultiSlider::insertKnob(ParticleKnob* particleKnob, TextKnob* textKnob, qre
     textMainScale.value = .5;
     textOffScale.clamp(ratio);
     textOffScale.margins = {margin, margin};
-    textKnob->setFlag(TextKnob::ItemIsMovable, false);
+    textKnob->setMovable(false);
     textKnob->setRotation(isHorizontal ? 0 : -90);
 
     mParticleSlider->insertKnob(particleKnob);
@@ -677,6 +685,10 @@ SimpleSlider::SimpleSlider(Qt::Orientation orientation, QWidget* parent) : Multi
     connect(mText, &TextKnob::knobDoubleClicked, this, &SimpleSlider::onKnobClick);
     insertKnob(mParticle, mText, 2., .5);
     updateDimensions();
+}
+
+ParticleKnob* SimpleSlider::particle() {
+    return mParticle;
 }
 
 size_t SimpleSlider::cardinality() const {

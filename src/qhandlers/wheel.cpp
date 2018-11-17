@@ -69,8 +69,17 @@ size_t AbstractWheel::setParameter(const Parameter& parameter) {
     return GraphicalHandler::setParameter(parameter);
 }
 
+Handler::Result AbstractWheel::handle_open(State state) {
+    if (state.any(Handler::State::forward()))
+        mSlider->setMovable(true);
+    return GraphicalHandler::handle_open(state);
+}
+
 Handler::Result AbstractWheel::handle_close(State state) {
-    mSlider->setDefault(channels_t::full());
+    if (state.any(Handler::State::receive()))
+        mSlider->setDefault(channels_t::full());
+    if (state.any(Handler::State::forward()))
+        mSlider->setMovable(false);
     return GraphicalHandler::handle_close(state);
 }
 
@@ -143,7 +152,8 @@ Handler::Result ControllerWheel::handle_message(const Message& message) {
 }
 
 Handler::Result ControllerWheel::handle_close(State state) {
-    resetAll();
+    if (state.any(Handler::State::receive()))
+        resetAll();
     return AbstractWheel::handle_close(state);
 }
 
@@ -248,7 +258,8 @@ Handler::Result PitchWheel::handle_message(const Message& message) {
 }
 
 Handler::Result PitchWheel::handle_close(State state) {
-    resetAll();
+    if (state.any(Handler::State::receive()))
+        resetAll();
     return AbstractWheel::handle_close(state);
 }
 
@@ -465,8 +476,17 @@ size_t VolumeWheel::setParameter(const Parameter& parameter) {
     return GraphicalHandler::setParameter(parameter);
 }
 
+Handler::Result VolumeWheel::handle_open(State state) {
+    if (state.any(Handler::State::forward()))
+        mSlider->particle()->setMovable(true);
+    return GraphicalHandler::handle_open(state);
+}
+
 Handler::Result VolumeWheel::handle_close(State state) {
-    mSlider->setDefault();
+    if (state.any(Handler::State::receive()))
+        mSlider->setDefault();
+    if (state.any(Handler::State::forward()))
+        mSlider->particle()->setMovable(false);
     return GraphicalHandler::handle_close(state);
 }
 

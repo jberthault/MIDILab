@@ -203,6 +203,9 @@ public:
     bool isExpanded() const;
     void setExpanded(bool expanded);
 
+    bool isMovable() const;
+    void setMovable(bool movable);
+
     qreal ratio() const;
     qreal ratio(channel_t channel) const;
     void setRatio(channels_t channels, qreal ratio);
@@ -235,7 +238,6 @@ signals:
     void knobReleased(channels_t channels);
 
 private:
-    ChannelEditor* mChannelEditor;
     qreal mDefaultRatio;
     channels_t mSelection;
     channel_map_t<ChannelKnob*> mKnobs;

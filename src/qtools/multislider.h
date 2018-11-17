@@ -82,6 +82,9 @@ public:
     const QBrush& brush() const;
     void setBrush(const QBrush& brush);
 
+    bool isMovable() const;
+    void setMovable(bool movable);
+
     void transpose();
     void moveToFit();
     void scroll(int delta);
@@ -341,6 +344,8 @@ class SimpleSlider : public MultiSlider {
 
 public:
     explicit SimpleSlider(Qt::Orientation orientation, QWidget* parent);
+
+    ParticleKnob* particle();
 
     size_t cardinality() const;
     void setCardinality(size_t cardinality);

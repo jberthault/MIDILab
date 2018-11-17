@@ -46,6 +46,7 @@ protected:
     void updateContext(Context* context) override;
 
 private slots:
+    void onMessageHandled(Handler* handler, const Message& message);
     void onMove(channels_t channels, qreal ratio);
     void updateText(channels_t channels);
 

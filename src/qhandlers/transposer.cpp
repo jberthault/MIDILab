@@ -58,6 +58,21 @@ TransposerEditor::TransposerEditor() : HandlerEditor{} {
 
 void TransposerEditor::updateContext(Context* context) {
     mSlider->setChannelEditor(context->channelEditor());
+    connect(static_cast<Observer*>(mHandler.interceptor()), &Observer::messageHandled, this, &TransposerEditor::onMessageHandled);
+}
+
+void TransposerEditor::onMessageHandled(Handler* handler, const Message& message) {
+    if (handler == &mHandler && message.event.is(family_t::extended_system)) {
+        if (Handler::open_ext.affects(message.event)) {
+            const auto state = Handler::open_ext.decode(message.event);
+            if (state.any(Handler::State::forward()))
+                mSlider->setMovable(true);
+        } else if (Handler::close_ext.affects(message.event)) {
+            const auto state = Handler::close_ext.decode(message.event);
+            if (state.any(Handler::State::forward()))
+                mSlider->setMovable(false);
+        }
+    }
 }
 
 HandlerView::Parameters TransposerEditor::getParameters() const {

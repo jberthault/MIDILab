@@ -802,7 +802,7 @@ int PlaylistTable::rowAt(const QPoint& pos) const {
 //==========
 
 MarkerKnob::MarkerKnob(QBoxLayout::Direction direction) : ArrowKnob(direction) {
-    setFlag(MarkerKnob::ItemIsMovable, false);
+    setMovable(false);
     connect(this, &ArrowKnob::knobDoubleClicked, this, &MarkerKnob::onClick);
 }
 

@@ -42,6 +42,7 @@ public:
     size_t setParameter(const Parameter& parameter) override;
 
 protected:
+    Result handle_open(State state) override;
     Result handle_close(State state) override;
     void updateContext(Context* context) override;
 
@@ -193,6 +194,7 @@ public:
     size_t setParameter(const Parameter& parameter) override;
 
 protected:
+    Result handle_open(State state) override;
     Result handle_close(State state) override;
     Result handle_message(const Message& message) override;
     families_t handled_families() const override;

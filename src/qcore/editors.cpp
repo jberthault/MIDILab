@@ -306,7 +306,7 @@ void ChannelLabelKnob::onPress(Qt::MouseButton button) {
 //================
 
 ChannelsSlider::ChannelsSlider(Qt::Orientation orientation, QWidget* parent) :
-    MultiSlider(orientation, parent), mChannelEditor(nullptr), mDefaultRatio(0.) {
+    MultiSlider(orientation, parent), mDefaultRatio(0.) {
 
     connect(particleSlider(), &KnobView::viewDoubleClicked, this, &ChannelsSlider::onViewClick);
 
@@ -347,7 +347,6 @@ ChannelsSlider::ChannelsSlider(Qt::Orientation orientation, QWidget* parent) :
 }
 
 void ChannelsSlider::setChannelEditor(ChannelEditor* editor) {
-    mChannelEditor = editor;
     if (editor) {
         connect(editor, &ChannelEditor::colorChanged, this, &ChannelsSlider::updateColor);
         for (channel_t c=0 ; c < channels_t::capacity() ; c++)
@@ -392,6 +391,16 @@ void ChannelsSlider::setExpanded(bool expanded) {
     mGroupKnob->setVisible(!expanded);
     mGroupLabel->setVisible(!expanded);
     updateDimensions();
+}
+
+bool ChannelsSlider::isMovable() const {
+    return mGroupKnob->isMovable();
+}
+
+void ChannelsSlider::setMovable(bool movable) {
+    for (channel_t c=0 ; c < channels_t::capacity() ; ++c)
+        mKnobs[c]->setMovable(movable);
+    mGroupKnob->setMovable(movable);
 }
 
 qreal ChannelsSlider::ratio() const {
