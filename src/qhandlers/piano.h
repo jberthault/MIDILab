@@ -38,10 +38,6 @@ class PianoKey : public QWidget {
     Q_OBJECT
 
 public:
-    static constexpr double whiteRatio = 7.; /*!< ratio of the height of a white key by its width */
-    static constexpr double blackWidthRatio = .7; /*!< ratio of the black width by the white width */
-    static constexpr double blackHeightRatio = .6; /*!< ratio of the black height by the white height */
-
     explicit PianoKey(const Note& note, Piano* parent);
 
     void setChannels(channels_t channels);
@@ -71,7 +67,7 @@ class PianoLayout : public QLayout {
     using BlackItem = std::pair<QLayoutItem*, unsigned>;
 
 public:
-    explicit PianoLayout(QWidget* parent);
+    using QLayout::QLayout;
     ~PianoLayout();
 
     void addKey(PianoKey* key);
@@ -90,8 +86,8 @@ public:
 private:
     QList<BlackItem> mBlack;
     QList<QLayoutItem*> mWhite;
-    bool mFirstBlack;
-    bool mLastBlack;
+    bool mFirstBlack {false};
+    bool mLastBlack {false};
 
 };
 

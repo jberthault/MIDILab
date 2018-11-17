@@ -26,9 +26,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // PianoKey
 //==========
 
-PianoKey::PianoKey(const Note& note, Piano* parent) :
-    QWidget(parent), mNote(note), mChannels(), mParent(parent) {
-
+PianoKey::PianoKey(const Note& note, Piano* parent) : QWidget{parent}, mNote{note}, mParent{parent} {
     setToolTip(QString::fromStdString(note.string()));
 }
 
@@ -56,15 +54,16 @@ bool PianoKey::isBlack() const {
 }
 
 void PianoKey::paintEvent(QPaintEvent*) {
-    QPainter painter(this);
-    painter.setPen(QColor("#444")); // border color
-    painter.setRenderHint(QPainter::Antialiasing); // rendering
+    static const QColor borderColor{"#444"};
+    QPainter painter{this};
+    painter.setPen(borderColor);
+    painter.setRenderHint(QPainter::Antialiasing);
     // coloration
-    ChannelEditor* editor = mParent->channelEditor();
+    auto* editor = mParent->channelEditor();
     if (mChannels && editor)
         painter.setBrush(editor->brush(mChannels));
     else
-        painter.setBrush(QBrush(isBlack() ? Qt::black : Qt::white));
+        painter.setBrush(QBrush{isBlack() ? Qt::black : Qt::white});
     // border radius
     painter.drawRoundedRect(rect(), 50, 5, Qt::RelativeSize);
 }
@@ -75,18 +74,18 @@ void PianoKey::paintEvent(QPaintEvent*) {
 
 namespace {
 
+constexpr double whiteRatio = 7.; /*!< ratio of the height of a white key by its width */
+constexpr double blackWidthRatio = .7; /*!< ratio of the black width by the white width */
+constexpr double blackHeightRatio = .6; /*!< ratio of the black height by the white height */
+
 constexpr int whiteHeightForWidth(double width) {
-    return decay_value<int>(PianoKey::whiteRatio * width);
+    return decay_value<int>(whiteRatio * width);
 }
-
-}
-
-PianoLayout::PianoLayout(QWidget* parent) : QLayout(parent), mFirstBlack(false), mLastBlack(false) {
 
 }
 
 PianoLayout::~PianoLayout() {
-    while (QLayoutItem* item = takeAt(0))
+    while (auto* item = takeAt(0))
         delete item;
 }
 
@@ -94,17 +93,17 @@ void PianoLayout::addKey(PianoKey* key) {
     mLastBlack = key->isBlack();
     if (mLastBlack) {
         key->raise();
-        mBlack.push_back({new QWidgetItem(key), mWhite.size()});
+        mBlack.push_back({new QWidgetItem{key}, mWhite.size()});
         if (mWhite.empty())
             mFirstBlack = true;
     } else {
         key->lower();
-        mWhite.push_back(new QWidgetItem(key));
+        mWhite.push_back(new QWidgetItem{key});
     }
 }
 
 void PianoLayout::addItem(QLayoutItem*) {
-    TRACE_DEBUG("Can't add item for this layout");
+    TRACE_ERROR("Can't add item for this layout");
 }
 
 Qt::Orientations PianoLayout::expandingDirections() const {
@@ -138,33 +137,33 @@ int PianoLayout::count() const {
 void PianoLayout::setGeometry(const QRect& rect) {
     QLayout::setGeometry(rect);
 
-    double blackBounds = 0;
+    double blackBounds = 0.;
     if (mFirstBlack)
         blackBounds += .5;
     if (mLastBlack)
         blackBounds += .5;
 
-    double count = mWhite.size() + blackBounds;
+    const double count = mWhite.size() + blackBounds;
     if (count <= 0.5)
         return;
 
     // compute size
-    int whiteWidth = (int)(rect.width() / count);
-    int whiteHeight = qMin(rect.height(), whiteHeightForWidth(whiteWidth));
-    int blackWidth = decay_value<int>(PianoKey::blackWidthRatio * whiteWidth);
-    int blackHeight = decay_value<int>(PianoKey::blackHeightRatio * whiteHeight);
+    const int whiteWidth = (int)(rect.width() / count);
+    const int whiteHeight = qMin(rect.height(), whiteHeightForWidth(whiteWidth));
+    const int blackWidth = decay_value<int>(blackWidthRatio * whiteWidth);
+    const int blackHeight = decay_value<int>(blackHeightRatio * whiteHeight);
     // compute offset
-    double totalWidth = mWhite.size() * whiteWidth + blackBounds;
-    QPoint whiteOffset = rect.topLeft() + QPoint((rect.width() - (int)totalWidth)/2, (rect.height() - whiteHeight)/2);
+    const double totalWidth = mWhite.size() * whiteWidth + blackBounds;
+    const auto whiteOffset = rect.topLeft() + QPoint{(rect.width() - (int)totalWidth)/2, (rect.height() - whiteHeight)/2};
     // update white keys position
-    QRect whiteRect(whiteOffset, QSize(whiteWidth, whiteHeight));
-    for (QLayoutItem* item : mWhite) {
+    QRect whiteRect{whiteOffset, QSize{whiteWidth, whiteHeight}};
+    for (auto* item : mWhite) {
         item->setGeometry(whiteRect);
         whiteRect.moveLeft(whiteRect.left() + whiteWidth);
     }
     // update black keys position
-    QRect blackRect(whiteOffset, QSize(blackWidth, blackHeight));
-    for (const BlackItem& pair : mBlack) {
+    QRect blackRect{whiteOffset, QSize{blackWidth, blackHeight}};
+    for (const auto& pair : mBlack) {
         blackRect.moveLeft(whiteOffset.x() + whiteWidth * pair.second - blackWidth / 2);
         pair.first->setGeometry(blackRect);
     }
@@ -224,8 +223,8 @@ void Piano::setRange(const range_t<Note>& range) {
 }
 
 void Piano::clearKeys() {
-    for (PianoKey* key : mKeys)
-        if (key != nullptr)
+    for (auto* key : mKeys)
+        if (key)
             key->deleteLater();
     mKeys.fill(nullptr);
     mActiveKey = nullptr;
@@ -235,7 +234,7 @@ void Piano::clearKeys() {
 void Piano::buildKeys() {
     auto* pianoLayout = new PianoLayout{nullptr};
     pianoLayout->setMargin(0);
-    for (int code = mRange.min.code() ; code <= mRange.max.code() ; code++) {
+    for (int code = mRange.min.code() ; code <= mRange.max.code() ; ++code) {
         auto* key = new PianoKey{Note::from_code(code), this};
         mKeys[code] = key;
         pianoLayout->addKey(key);
@@ -244,8 +243,8 @@ void Piano::buildKeys() {
 }
 
 void Piano::receiveNotesOff(channels_t channels) {
-    for (PianoKey* key : mKeys)
-        if (key != nullptr)
+    for (auto* key : mKeys)
+        if (key)
             key->deactivate(channels);
 }
 
@@ -261,9 +260,8 @@ void Piano::receiveNoteOff(channels_t channels, const Note& note) {
 
 bool Piano::event(QEvent* event) {
     if (event->type() == QEvent::ToolTip) {
-        auto helpEvent = static_cast<QHelpEvent*>(event);
-        auto key = qobject_cast<PianoKey*>(childAt(helpEvent->pos()));
-        if (key) {
+        auto* helpEvent = static_cast<QHelpEvent*>(event);
+        if (auto* key = qobject_cast<PianoKey*>(childAt(helpEvent->pos()))) {
             QToolTip::showText(helpEvent->globalPos(), key->toolTip());
         } else {
             QToolTip::hideText();
@@ -289,7 +287,7 @@ void Piano::mouseDoubleClickEvent(QMouseEvent* event) {
 
 void Piano::mousePressEvent(QMouseEvent* event) {
     if (canGenerate()) {
-        auto key = qobject_cast<PianoKey*>(childAt(event->pos()));
+        auto* key = qobject_cast<PianoKey*>(childAt(event->pos()));
         generateKeyOn(key, event->button());
         mActiveKey = key;
     }
@@ -302,7 +300,7 @@ void Piano::mouseReleaseEvent(QMouseEvent* event) {
 
 void Piano::mouseMoveEvent(QMouseEvent* event) {
     if (canGenerate()) {
-        auto key = qobject_cast<PianoKey*>(childAt(event->pos()));
+        auto* key = qobject_cast<PianoKey*>(childAt(event->pos()));
         if (mActiveKey != key) {
             generateKeyOff(mActiveKey, event->buttons());
             generateKeyOn(key, event->buttons());
@@ -313,7 +311,7 @@ void Piano::mouseMoveEvent(QMouseEvent* event) {
 
 void Piano::generateKeyOn(PianoKey* key, Qt::MouseButtons buttons) {
     if (key) {
-        if (auto channels = channelsFromButtons(buttons)) {
+        if (const auto channels = channelsFromButtons(buttons)) {
             generateNoteOn(channels, key->note());
             key->activate(channels);
         }
@@ -322,7 +320,7 @@ void Piano::generateKeyOn(PianoKey* key, Qt::MouseButtons buttons) {
 
 void Piano::generateKeyOff(PianoKey* key, Qt::MouseButtons buttons) {
     if (key) {
-        if (auto channels = channelsFromButtons(buttons)) {
+        if (const auto channels = channelsFromButtons(buttons)) {
             generateNoteOff(channels, key->note());
             key->deactivate(channels);
         }
