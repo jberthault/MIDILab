@@ -220,17 +220,8 @@ SequenceView::SequenceView(QWidget *parent) : QWidget{parent} {
     connect(codecSelector, SIGNAL(currentIndexChanged(QString)), this, SLOT(setCodecByName(QString)));
     setCodecByName(codecSelector->currentText());
 
-    auto* collapseButton = new QToolButton{this};
-    collapseButton->setToolTip("Collapse");
-    collapseButton->setAutoRaise(true);
-    collapseButton->setIcon(QIcon(":/data/collapse-up.svg"));
-    connect(collapseButton, &QToolButton::clicked, mTreeWidget, &QTreeWidget::collapseAll);
-
-    auto* expandButton = new QToolButton{this};
-    expandButton->setToolTip("Expand");
-    expandButton->setAutoRaise(true);
-    expandButton->setIcon(QIcon(":/data/expand-down.svg"));
-    connect(expandButton, &QToolButton::clicked, mTreeWidget, &QTreeWidget::expandAll);
+    auto* expandButton = new ExpandButton{mTreeWidget};
+    auto* collapseButton = new CollapseButton{mTreeWidget};
 
     setLayout(make_vbox(margin_tag{0}, mTreeWidget, make_hbox(stretch_tag{}, mChannelSelectorButton, mFamilySelectorButton, codecSelector, expandButton, collapseButton)));
 }
@@ -347,7 +338,7 @@ void SequenceView::setSequence(Sequence sequence, timestamp_t lower, timestamp_t
         if (mTrackFilter)
             trackItem->setCheckState(0, Qt::Checked);
         // background name
-        channels_t channels = trackChannels[track];
+        const channels_t channels = trackChannels[track];
         trackItem->setData(0, Qt::UserRole, channels.to_integral());
         setItemBackground(trackItem, channels);
     }
@@ -427,8 +418,8 @@ void SequenceView::onItemChange(QTreeWidgetItem* item, int /*column*/) {
     // called when root checkbox is clicked
     auto* trackItem = dynamic_cast<SequenceViewTrackItem*>(item);
     if (trackItem && mTrackFilter) {
-        track_t track = trackItem->track();
-        bool checked = item->checkState(0) == Qt::Checked;
+        const auto track = trackItem->track();
+        const bool checked = item->checkState(0) == Qt::Checked;
         mTrackFilter->send_message(checked ? TrackFilter::enable_ext(track) : TrackFilter::disable_ext(track));
     }
 }
@@ -449,7 +440,7 @@ void SequenceView::onChannelFilterClick() {
 
 void SequenceView::setChannelColor(channel_t channel, const QColor& /*color*/) {
     for (auto* trackItem : trackItems()) {
-        auto channels = channels_t::from_integral(trackItem->data(0, Qt::UserRole).toUInt());
+        const auto channels = channels_t::from_integral(trackItem->data(0, Qt::UserRole).toUInt());
         if (channels.test(channel))
             setItemBackground(trackItem, channels);
     }

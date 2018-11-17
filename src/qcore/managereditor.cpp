@@ -375,25 +375,26 @@ auto metaParameterDescription(const MetaHandler::MetaParameter& metaParameter) {
 
 }
 
-HandlerListEditor::HandlerListEditor(Manager* manager, QWidget* parent) : QTreeWidget{parent}, mManager{manager} {
+HandlerListEditor::HandlerListEditor(Manager* manager, QWidget* parent) : QWidget{parent}, mManager{manager} {
 
-    setAlternatingRowColors(true);
-    setColumnCount(3);
-    setSelectionMode(QAbstractItemView::ExtendedSelection);
-    setIconSize({35, 20});
-    setHeaderHidden(true);
-    setEditTriggers(DoubleClicked | EditKeyPressed | AnyKeyPressed);
+    mTree = new QTreeWidget{this};
+    mTree->setAlternatingRowColors(true);
+    mTree->setColumnCount(3);
+    mTree->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    mTree->setIconSize({35, 20});
+    mTree->setHeaderHidden(true);
+    mTree->setEditTriggers(QTreeWidget::DoubleClicked | QTreeWidget::EditKeyPressed | QTreeWidget::AnyKeyPressed);
 
     // header
-    auto* headerView = header();
+    auto* headerView = mTree->header();
     headerView->setDefaultSectionSize(1);
     headerView->setStretchLastSection(true);
     headerView->setSectionResizeMode(nameColumn, QHeaderView::Fixed);
     headerView->setSectionResizeMode(keyColumn, QHeaderView::ResizeToContents);
 
     auto* noEdit = new NoEditDelegate{this};
-    setItemDelegateForColumn(nameColumn, noEdit);
-    setItemDelegateForColumn(keyColumn, noEdit);
+    mTree->setItemDelegateForColumn(nameColumn, noEdit);
+    mTree->setItemDelegateForColumn(keyColumn, noEdit);
 
     // menu
     auto* trigger = new MenuDefaultTrigger{this};
@@ -418,13 +419,18 @@ HandlerListEditor::HandlerListEditor(Manager* manager, QWidget* parent) : QTreeW
     connect(manager->observer(), &Observer::messageHandled, this, &HandlerListEditor::onMessageHandled);
 
     connect(this, &HandlerListEditor::customContextMenuRequested, this, &HandlerListEditor::showMenu);
-    connect(this, &HandlerListEditor::itemChanged, this, &HandlerListEditor::onItemChange);
+    connect(mTree, &QTreeWidget::itemChanged, this, &HandlerListEditor::onItemChange);
+
+    auto* expandButton = new ExpandButton{mTree};
+    auto* collapseButton = new CollapseButton{mTree};
+
+    setLayout(make_vbox(margin_tag{0}, mTree, make_hbox(stretch_tag{}, expandButton, collapseButton)));
 }
 
 void HandlerListEditor::insertHandler(Handler* handler) {
-    QSignalBlocker sb{this};
+    QSignalBlocker sb{mTree};
     auto proxy = getProxy(mManager->handlerProxies(), handler);
-    auto* item = new QTreeWidgetItem{invisibleRootItem()};
+    auto* item = new QTreeWidgetItem{mTree->invisibleRootItem()};
     item->setFirstColumnSpanned(true);
     item->setData(nameColumn, Qt::UserRole, qVariantFromValue(handler));
     item->setText(nameColumn, handlerName(handler));
@@ -435,18 +441,18 @@ void HandlerListEditor::insertHandler(Handler* handler) {
 }
 
 void HandlerListEditor::renameHandler(Handler* handler) {
-    if (auto* item = itemForHandler(invisibleRootItem(), handler))
+    if (auto* item = itemForHandler(mTree->invisibleRootItem(), handler))
         item->setText(nameColumn, handlerName(handler));
 }
 
 void HandlerListEditor::removeHandler(Handler* handler) {
-    if (auto* item = itemForHandler(invisibleRootItem(), handler))
+    if (auto* item = itemForHandler(mTree->invisibleRootItem(), handler))
         delete item;
 }
 
 void HandlerListEditor::onParametersChange(Handler* handler) {
-    if (auto* item = itemForHandler(invisibleRootItem(), handler)) {
-        QSignalBlocker sb{this};
+    if (auto* item = itemForHandler(mTree->invisibleRootItem(), handler)) {
+        QSignalBlocker sb{mTree};
         auto proxy = getProxy(mManager->handlerProxies(), handler);
         for (const auto& parameter : proxy.getParameters())
             updateParameter(item, parameter, proxy.metaHandler());
@@ -455,7 +461,7 @@ void HandlerListEditor::onParametersChange(Handler* handler) {
 
 void HandlerListEditor::onMessageHandled(Handler* handler, const Message& message) {
     if (message.event.is(family_t::extended_system) && (Handler::open_ext.affects(message.event) || Handler::close_ext.affects(message.event)))
-        if (auto* item = itemForHandler(invisibleRootItem(), handler))
+        if (auto* item = itemForHandler(mTree->invisibleRootItem(), handler))
             item->setIcon(nameColumn, modeIcon(handler));
 }
 
@@ -476,7 +482,7 @@ void HandlerListEditor::showMenu(const QPoint& point) {
 void HandlerListEditor::onItemChange(QTreeWidgetItem* item, int column) {
     if (column == valueColumn) {
         if (auto* handler = handlerForItem(item->parent())) {
-            QSignalBlocker sb{this};
+            QSignalBlocker sb{mTree};
             auto proxy = getProxy(mManager->handlerProxies(), handler);
             proxy.setParameter({item->text(keyColumn), item->text(valueColumn)}, false);
             proxy.notifyParameters(); /*!< force update even if it failed */
@@ -550,7 +556,7 @@ void HandlerListEditor::addParameter(QTreeWidgetItem* parent, const HandlerView:
 
 std::set<Handler*> HandlerListEditor::selectedHandlers() {
     std::set<Handler*> result;
-    for (auto* item : selectedItems())
+    for (auto* item : mTree->selectedItems())
         if (auto* handler = handlerForItem(item))
             result.insert(handler);
     return result;

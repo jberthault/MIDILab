@@ -38,6 +38,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QCheckBox>
 #include <QDialog>
 #include <QAction>
+#include <QToolButton>
 #include <chrono>
 #include <set>
 
@@ -253,6 +254,32 @@ private:
     bool mAcceptNodes;
     QTreeView* mTree;
     mutable QModelIndex mTreeIndex;
+
+};
+
+//================
+// CollapseButton
+//================
+
+class CollapseButton : public QToolButton {
+
+    Q_OBJECT
+
+public:
+    explicit CollapseButton(QTreeView* treeView);
+
+};
+
+//==============
+// ExpandButton
+//==============
+
+class ExpandButton : public QToolButton {
+
+    Q_OBJECT
+
+public:
+    explicit ExpandButton(QTreeView* treeView);
 
 };
 

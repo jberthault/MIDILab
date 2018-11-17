@@ -309,6 +309,28 @@ QModelIndex TreeBox::findLastChild(const QModelIndex& origin, const QModelIndex&
     return findLastChild(origin.child(rows-1, 0), origin);
 }
 
+//================
+// CollapseButton
+//================
+
+CollapseButton::CollapseButton(QTreeView* treeView) : QToolButton{treeView} {
+    setToolTip("Collapse");
+    setAutoRaise(true);
+    setIcon(QIcon{":/data/collapse-up.svg"});
+    connect(this, &QToolButton::clicked, treeView, &QTreeView::collapseAll);
+};
+
+//==============
+// ExpandButton
+//==============
+
+ExpandButton::ExpandButton(QTreeView* treeView) : QToolButton{treeView} {
+    setToolTip("Expand");
+    setAutoRaise(true);
+    setIcon(QIcon{":/data/expand-down.svg"});
+    connect(this, &QToolButton::clicked, treeView, &QTreeView::expandAll);
+}
+
 //==================
 // MultiStateAction
 //==================

@@ -134,7 +134,7 @@ private:
 // HandlerListEditor
 //===================
 
-class HandlerListEditor : public QTreeWidget {
+class HandlerListEditor : public QWidget {
 
     Q_OBJECT
 
@@ -164,6 +164,7 @@ private:
     std::set<Handler*> selectedHandlers();
 
 private:
+    QTreeWidget* mTree;
     QMenu* mMenu;
     QAction* mRenameAction;
     Manager* mManager;
