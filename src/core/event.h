@@ -39,6 +39,7 @@ using byte_view = range_t<byte_t*>;
 byte_cview make_view(const char* string);
 byte_cview make_view(const char* string, size_t size);
 byte_cview make_view(const std::string& string);
+byte_cview make_view(std::string&&) = delete;
 
 template<size_t N>
 byte_cview make_view(const byte_t (& array)[N]) {
