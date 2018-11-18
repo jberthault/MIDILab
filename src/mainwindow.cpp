@@ -154,7 +154,7 @@ void MainWindow::readConfig(const QString& fileName, bool raise, bool select, bo
         QFile file{fileName};
         config = Configuration::read(&file);
     } catch (const QString& error) {
-        QMessageBox::critical(this, {}, QString{"Failed reading configuration file\n%1\n\n%2"}.arg(fileName, error));
+        QMessageBox::critical(this, {}, QString{"Failed reading configuration\n%1\n\n%2"}.arg(fileName, error));
         return;
     }
     // clear previous configuration
@@ -172,12 +172,19 @@ void MainWindow::readConfig(const QString& fileName, bool raise, bool select, bo
 }
 
 void MainWindow::writeConfig(const QString& fileName) {
+    bool saved = false;
     const auto config = mManager->getConfiguration();
-    QSaveFile saveFile(fileName);
-    saveFile.open(QSaveFile::WriteOnly);
-    Configuration::write(&saveFile, config);
-    if (saveFile.commit())
+    QSaveFile saveFile{fileName};
+    if (saveFile.open(QSaveFile::WriteOnly)) {
+        Configuration::write(&saveFile, config);
+        saved = saveFile.commit();
+    }
+    if (saved) {
         raiseConfig(fileName);
+        QMessageBox::information(this, {}, QString{"Configuration saved"});
+    } else {
+        QMessageBox::critical(this, {}, QString{"Failed writing configuration"});
+    }
 }
 
 void MainWindow::raiseConfig(const QString& fileName) {
