@@ -327,7 +327,7 @@ void SequenceView::setSequence(Sequence sequence, timestamp_t lower, timestamp_t
         const QByteArrayList& names = trackNames.value(track);
         QFont trackFont = trackItem->font(0);
         if (names.isEmpty()) {
-            trackItem->setText(0, QString("Track #%1").arg(track+1));
+            trackItem->setText(0, QString{"Track #%1"}.arg(track+1));
             trackFont.setItalic(true);
         } else {
             trackItem->setRawText(names.join(" / "), mCodec);

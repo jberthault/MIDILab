@@ -37,7 +37,7 @@ namespace {
 
 void checkNodeName(const QDomElement& element, const QString& name) {
     if (element.nodeName() != name)
-        throw QString("expected element named '%1'").arg(name);
+        throw QString{"expected element named '%1'"}.arg(name);
 }
 
 template<typename F>
@@ -58,7 +58,7 @@ auto parseAtMostOne(const QDomElement& element, const QString& tagName, F parser
     using result_type = decltype(parser(element));
     auto nodes = element.elementsByTagName(tagName);
     if (nodes.size() > 1)
-        throw QString("too many tags named '%1'").arg(tagName);
+        throw QString{"too many tags named '%1'"}.arg(tagName);
     if (nodes.size() == 1)
         return parser(nodes.at(0).toElement());
     return result_type{};
@@ -67,7 +67,7 @@ auto parseAtMostOne(const QDomElement& element, const QString& tagName, F parser
 auto parseAttribute(const QDomElement& element, const QString& attributeName) {
     auto value = element.attribute(attributeName);
     if (value.isEmpty())
-        throw QString("attribute '%1' of tag '%2' is mandatory").arg(attributeName, element.nodeName());
+        throw QString{"attribute '%1' of tag '%2' is mandatory"}.arg(attributeName, element.nodeName());
     return value;
 }
 
@@ -80,7 +80,7 @@ Configuration::Property parseProperty(const QDomElement& element) {
     auto key = parseAttribute(element, "type");
     auto node = element.firstChild();
     if (!node.isNull() && node.nodeType() != QDomNode::TextNode)
-        throw QString("no data provided for property %1").arg(key);
+        throw QString{"no data provided for property %1"}.arg(key);
     return {key, node.nodeValue()};
 }
 
@@ -181,12 +181,12 @@ QPoint parsePos(const QString& value) {
             return {x, y};
     }
     // if match fails or conversion fails, it's an error
-    throw QString("wrong pos provided, must be <x>,<y>");
+    throw QString{"wrong pos provided, must be <x>,<y>"};
 }
 
 void writePos(QXmlStreamWriter& stream, const QPoint& pos) {
     if (!pos.isNull())
-        stream.writeAttribute("pos", QString("%1,%2").arg(pos.x()).arg(pos.y()));
+        stream.writeAttribute("pos", QString{"%1,%2"}.arg(pos.x()).arg(pos.y()));
 }
 
 QSize parseSize(const QString& value) {
@@ -206,12 +206,12 @@ QSize parseSize(const QString& value) {
             return {width, height};
     }
     // if match fails or conversion fails, it's an error
-    throw QString("wrong size provided, must be <width>x<height>");
+    throw QString{"wrong size provided, must be <width>x<height>"};
 }
 
 void writeSize(QXmlStreamWriter& stream, const QSize& size) {
     if (size.isValid())
-        stream.writeAttribute("size", QString("%1x%2").arg(size.width()).arg(size.height()));
+        stream.writeAttribute("size", QString{"%1x%2"}.arg(size.width()).arg(size.height()));
 }
 
 bool parseVisible(const QString& value) {
@@ -219,7 +219,7 @@ bool parseVisible(const QString& value) {
         return true;
     if (value == "false")
         return false;
-    throw QString("wrong visibility provided, must be 'true' or 'false'");
+    throw QString{"wrong visibility provided, must be 'true' or 'false'"};
 }
 
 void writeVisible(QXmlStreamWriter& stream, bool visible) {
@@ -231,7 +231,7 @@ Qt::Orientation parseLayout(const QString& value) {
         return Qt::Horizontal;
     if (value == "v")
         return Qt::Vertical;
-    throw QString("layout should be 'h' or 'v'");
+    throw QString{"layout should be 'h' or 'v'"};
 }
 
 void writeLayout(QXmlStreamWriter& stream, Qt::Orientation layout) {
@@ -261,7 +261,7 @@ Configuration::Widget parseWidget(const QDomElement& element) {
         return {true, parseFrame(element), {}};
     if (nodeName == "view")
         return {false, {}, parseView(element)};
-    throw QString("unknown tag %1").arg(nodeName);
+    throw QString{"unknown tag %1"}.arg(nodeName);
 }
 
 void writeWidget(QXmlStreamWriter& stream, const Configuration::Widget& widget) {
@@ -317,11 +317,11 @@ QColor parseColor(const QDomElement& element) {
     checkNodeName(element, "color");
     QDomNode node = element.firstChild();
     if (node.nodeType() != QDomNode::TextNode)
-        throw QString("no data provided for color");
+        throw QString{"no data provided for color"};
     QString colorString = node.nodeValue();
     QColor color(colorString);
     if (!color.isValid())
-        throw QString("unknown color %1").arg(colorString);
+        throw QString{"unknown color %1"}.arg(colorString);
     return color;
 }
 
@@ -334,7 +334,7 @@ void writeColor(QXmlStreamWriter& stream, const QColor& color) {
 auto parseColors(const QDomElement& element) {
     auto colors = parseMultiple(element, parseColor);
     if (colors.size() != 16)
-        throw QString("wrong number of colors provided, 16 expected, got %1").arg(colors.size());
+        throw QString{"wrong number of colors provided, 16 expected, got %1"}.arg(colors.size());
     return colors;
 }
 
@@ -379,7 +379,7 @@ Configuration parseDocument(QXmlInputSource& stream) {
     int errorLine, errorColumn;
     QDomDocument document; //("Config DOM");
     if (!document.setContent(&stream, false, &errorMsg, &errorLine, &errorColumn))
-        throw QString("%1 (line %2, column %3)").arg(errorMsg).arg(errorLine).arg(errorColumn);
+        throw QString{"%1 (line %2, column %3)"}.arg(errorMsg).arg(errorLine).arg(errorColumn);
     return parseConfiguration(document.documentElement());
 }
 

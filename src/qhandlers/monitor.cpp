@@ -83,7 +83,7 @@ Handler::Result Monitor::handle_message(const Message& message) {
         name += QString{"[%1] "}.arg(QString::fromStdString(channel_ns::channels_string(channels)));
     name = name.leftJustified(20, '.');
     name += "&nbsp;";
-    name = QString("<span style=\"font-weight:bold;\">%1</span>").arg(name);
+    name = QString{"<span style=\"font-weight:bold;\">%1</span>"}.arg(name);
 
     auto description = QString::fromStdString(message.event.description());
     /// @todo replace all other non printable characters by a hex code (use a dedicated algorithm)

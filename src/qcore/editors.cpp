@@ -45,7 +45,7 @@ void ColorPicker::selectColor() {
 void ColorPicker::setColor(const QColor& color) {
     if (color.isValid()) {
         mColor = color;
-        setStyleSheet(QString("ColorPicker {background : %1}").arg(color.name()));
+        setStyleSheet(QString{"ColorPicker {background : %1}"}.arg(color.name()));
         emit colorChanged(mChannel, mColor);
     }
 }
@@ -159,12 +159,12 @@ QString ChannelsSelector::channelsToString(channels_t channels) {
     QString result;
     if (channels.size() > 10) {
         result += "*";
-        QStringList stringList = channelsToStringList(~channels);
+        const auto stringList = channelsToStringList(~channels);
         if (!stringList.isEmpty())
             result += " \\ {" + stringList.join(", ") + "}";
     } else {
-        QStringList stringList = channelsToStringList(channels);
-        QString inner = stringList.empty() ? QString("\u00d8") : stringList.join(", "); // "\u2205"
+        const auto stringList = channelsToStringList(channels);
+        const auto inner = stringList.empty() ? QString{"\u00d8"} : stringList.join(", "); // "\u2205"
         result += "{" + inner + "}";
     }
     return result;

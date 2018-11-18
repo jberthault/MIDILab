@@ -418,7 +418,7 @@ namespace {
 
 void initializePathRetriever(PathRetriever* pathRetriever, const QString& caption, const QString& filters) {
     pathRetriever->setCaption(caption);
-    pathRetriever->setFilter(QString("%1 (%2);;All Files (*)").arg(caption, filters));
+    pathRetriever->setFilter(QString{"%1 (%2);;All Files (*)"}.arg(caption, filters));
 }
 
 }

@@ -181,9 +181,9 @@ void MainWindow::writeConfig(const QString& fileName) {
     }
     if (saved) {
         raiseConfig(fileName);
-        QMessageBox::information(this, {}, QString{"Configuration saved"});
+        QMessageBox::information(this, {}, "Configuration saved");
     } else {
-        QMessageBox::critical(this, {}, QString{"Failed writing configuration"});
+        QMessageBox::critical(this, {}, "Failed writing configuration");
     }
 }
 

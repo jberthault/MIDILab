@@ -152,7 +152,7 @@ public:
         for (auto& info : mCache) {
             info.proxy = *it;
             info.parsingData.type = info.proxy.metaHandler()->identifier();
-            info.parsingData.id = QString("#%1").arg(id++);
+            info.parsingData.id = QString{"#%1"}.arg(id++);
             info.parsingData.name = info.proxy.name();
             for (const auto& parameter : info.proxy.getParameters())
                 info.parsingData.properties.push_back(Configuration::Property{parameter.name, parameter.value});
