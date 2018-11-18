@@ -35,6 +35,8 @@ MetaHandler* makeMetaTransposer(QObject* parent) {
     meta->setIdentifier("Transposer");
     meta->setDescription("A collection of sliders used to change the height of incoming notes");
     meta->addParameter({"orientation", "orientation of the slider", "Horizontal", MetaHandler::MetaParameter::Visibility::basic});
+    meta->addParameter({"expanded", "display one knob per channel", "false", MetaHandler::MetaParameter::Visibility::basic});
+    meta->addParameter({"selection", "bitmask of selected channels", serial::serializeChannels(channels_t::melodic()), MetaHandler::MetaParameter::Visibility::advanced});
     meta->setFactory(new OpenProxyFactory<TransposerEditor>);
     return meta;
 }
@@ -78,11 +80,15 @@ void TransposerEditor::onMessageHandled(Handler* handler, const Message& message
 HandlerView::Parameters TransposerEditor::getParameters() const {
     auto result = HandlerEditor::getParameters();
     SERIALIZE("orientation", serial::serializeOrientation, mSlider->orientation(), result);
+    SERIALIZE("expanded", serial::serializeBool, mSlider->isExpanded(), result);
+    SERIALIZE("selection", serial::serializeChannels, mSlider->selection(), result);
     return result;
 }
 
 size_t TransposerEditor::setParameter(const Parameter& parameter) {
     UNSERIALIZE("orientation", serial::parseOrientation, mSlider->setOrientation, parameter);
+    UNSERIALIZE("expanded", serial::parseBool, mSlider->setExpanded, parameter);
+    UNSERIALIZE("selection", serial::parseChannels, mSlider->setSelection, parameter);
     return HandlerEditor::setParameter(parameter);
 }
 

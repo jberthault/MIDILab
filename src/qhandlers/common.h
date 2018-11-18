@@ -66,6 +66,9 @@ bool parseNotes(const QString& data, std::vector<Note>& notes);
 
 // other types
 
+QString serializeChannels(channels_t channels);
+bool parseChannels(const QString& data, channels_t& channels);
+
 QString serializeOrientation(Qt::Orientation orientation);
 bool parseOrientation(const QString& data, Qt::Orientation& orientation);
 

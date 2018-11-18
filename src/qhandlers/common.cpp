@@ -57,22 +57,28 @@ bool parseByte(const QString& data, byte_t& byte) {
     return ok && value < 0x100;
 }
 
-#define PARSE_NUMBER(method, data, value) do { \
-        bool ok;                               \
-        value = data.method(&ok);              \
-        return ok;                             \
+#define PARSE_INTEGRAL(method, data, value) do { \
+        bool ok;                                 \
+        value = data.method(&ok, 0);             \
+        return ok;                               \
     } while (false)
 
-bool parseShort(const QString& data, short& value) { PARSE_NUMBER(toShort, data, value); }
-bool parseUShort(const QString& data, ushort& value) { PARSE_NUMBER(toUShort, data, value); }
-bool parseInt(const QString& data, int& value) { PARSE_NUMBER(toInt, data, value); }
-bool parseUInt(const QString& data, uint& value) { PARSE_NUMBER(toUInt, data, value); }
-bool parseLong(const QString& data, long& value) { PARSE_NUMBER(toLong, data, value); }
-bool parseULong(const QString& data, ulong& value) { PARSE_NUMBER(toULong, data, value); }
-bool parseLongLong(const QString& data, qlonglong& value) { PARSE_NUMBER(toLongLong, data, value); }
-bool parseULongLong(const QString& data, qulonglong& value) { PARSE_NUMBER(toULongLong, data, value); }
-bool parseFloat(const QString& data, float& value) { PARSE_NUMBER(toFloat, data, value); }
-bool parseDouble(const QString& data, double& value) { PARSE_NUMBER(toDouble, data, value); }
+#define PARSE_FLOATING(method, data, value) do { \
+    bool ok;                                     \
+    value = data.method(&ok);                    \
+    return ok;                                   \
+} while (false)
+
+bool parseShort(const QString& data, short& value) { PARSE_INTEGRAL(toShort, data, value); }
+bool parseUShort(const QString& data, ushort& value) { PARSE_INTEGRAL(toUShort, data, value); }
+bool parseInt(const QString& data, int& value) { PARSE_INTEGRAL(toInt, data, value); }
+bool parseUInt(const QString& data, uint& value) { PARSE_INTEGRAL(toUInt, data, value); }
+bool parseLong(const QString& data, long& value) { PARSE_INTEGRAL(toLong, data, value); }
+bool parseULong(const QString& data, ulong& value) { PARSE_INTEGRAL(toULong, data, value); }
+bool parseLongLong(const QString& data, qlonglong& value) { PARSE_INTEGRAL(toLongLong, data, value); }
+bool parseULongLong(const QString& data, qulonglong& value) { PARSE_INTEGRAL(toULongLong, data, value); }
+bool parseFloat(const QString& data, float& value) { PARSE_FLOATING(toFloat, data, value); }
+bool parseDouble(const QString& data, double& value) { PARSE_FLOATING(toDouble, data, value); }
 
 // note types
 
@@ -118,6 +124,19 @@ bool parseNotes(const QString& data, std::vector<Note>& notes) {
 }
 
 // other types
+
+QString serializeChannels(channels_t channels) {
+    return QString{"0x%1"}.arg(channels.to_integral(), 4, 16, QChar{'0'});
+}
+
+bool parseChannels(const QString& data, channels_t& channels) {
+    ushort value;
+    if (parseUShort(data, value)) {
+        channels = channels_t::from_integral(value);
+        return true;
+    }
+    return false;
+}
 
 QString serializeOrientation(Qt::Orientation orientation) {
     return QMetaEnum::fromType<Qt::Orientation>().valueToKey(orientation);

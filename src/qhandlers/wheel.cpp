@@ -43,6 +43,8 @@ constexpr uint16_t pitchBendRangeRPN = 0x0000;
 MetaHandler* makeMetaWheel(QObject* parent) {
     auto* meta = makeMetaGraphicalHandler(parent);
     meta->addParameter({"orientation", "orientation of the slider", "Horizontal", MetaHandler::MetaParameter::Visibility::basic});
+    meta->addParameter({"expanded", "display one knob per channel", "true", MetaHandler::MetaParameter::Visibility::basic});
+    meta->addParameter({"selection", "bitmask of selected channels", serial::serializeChannels({}), MetaHandler::MetaParameter::Visibility::advanced});
     return meta;
 }
 
@@ -61,11 +63,15 @@ ChannelsSlider* AbstractWheel::slider() {
 HandlerView::Parameters AbstractWheel::getParameters() const {
     auto result = GraphicalHandler::getParameters();
     SERIALIZE("orientation", serial::serializeOrientation, mSlider->orientation(), result);
+    SERIALIZE("expanded", serial::serializeBool, mSlider->isExpanded(), result);
+    SERIALIZE("selection", serial::serializeChannels, mSlider->selection(), result);
     return result;
 }
 
 size_t AbstractWheel::setParameter(const Parameter& parameter) {
     UNSERIALIZE("orientation", serial::parseOrientation, mSlider->setOrientation, parameter);
+    UNSERIALIZE("expanded", serial::parseBool, mSlider->setExpanded, parameter);
+    UNSERIALIZE("selection", serial::parseChannels, mSlider->setSelection, parameter);
     return GraphicalHandler::setParameter(parameter);
 }
 
@@ -445,9 +451,10 @@ void ProgramWheel::updateText(channels_t channels) {
 //=============
 
 MetaHandler* makeMetaVolumeWheel(QObject* parent) {
-    auto* meta = makeMetaWheel(parent);
+    auto* meta = makeMetaGraphicalHandler(parent);
     meta->setIdentifier("VolumeWheel");
     meta->setDescription("A simple slider using sysex messages to control the master volume");
+    meta->addParameter({"orientation", "orientation of the slider", "Horizontal", MetaHandler::MetaParameter::Visibility::basic});
     meta->setFactory(new OpenProxyFactory<VolumeWheel>);
     return meta;
 }
