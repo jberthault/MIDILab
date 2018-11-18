@@ -150,6 +150,7 @@ private slots:
 
     void showMenu(const QPoint& point);
     void onItemChange(QTreeWidgetItem* item, int column);
+    void onVisibilityChange(int index);
 
     void destroySelection();
     void editSelection();
@@ -165,6 +166,7 @@ private:
 
 private:
     QTreeWidget* mTree;
+    QComboBox* mVisibilityBox;
     QMenu* mMenu;
     QAction* mRenameAction;
     Manager* mManager;

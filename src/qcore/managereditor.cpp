@@ -421,10 +421,16 @@ HandlerListEditor::HandlerListEditor(Manager* manager, QWidget* parent) : QWidge
     connect(this, &HandlerListEditor::customContextMenuRequested, this, &HandlerListEditor::showMenu);
     connect(mTree, &QTreeWidget::itemChanged, this, &HandlerListEditor::onItemChange);
 
+    mVisibilityBox = new QComboBox{this};
+    mVisibilityBox->setToolTip("Control visibility of parameters");
+    mVisibilityBox->addItem("basic");
+    mVisibilityBox->addItem("advanced");
+    connect(mVisibilityBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &HandlerListEditor::onVisibilityChange);
+
     auto* expandButton = new ExpandButton{mTree};
     auto* collapseButton = new CollapseButton{mTree};
 
-    setLayout(make_vbox(margin_tag{0}, mTree, make_hbox(stretch_tag{}, expandButton, collapseButton)));
+    setLayout(make_vbox(margin_tag{0}, mTree, make_hbox(stretch_tag{}, mVisibilityBox, expandButton, collapseButton)));
 }
 
 void HandlerListEditor::insertHandler(Handler* handler) {
@@ -490,6 +496,17 @@ void HandlerListEditor::onItemChange(QTreeWidgetItem* item, int column) {
     }
 }
 
+void HandlerListEditor::onVisibilityChange(int index) {
+    for (int i = 0 ; i < mTree->invisibleRootItem()->childCount() ; ++i) {
+        auto* handlerItem = mTree->invisibleRootItem()->child(i);
+        for (int j = 0 ; j < handlerItem->childCount() ; ++j) {
+            auto* parameterItem = handlerItem->child(j);
+            const auto level = parameterItem->data(keyColumn, Qt::UserRole).toInt();
+            parameterItem->setHidden(index < level);
+        }
+    }
+}
+
 void HandlerListEditor::destroySelection() {
     if (QMessageBox::question(this, {}, "Are you sure you want to destroy these handlers ?") == QMessageBox::Yes)
         for (auto* handler : selectedHandlers())
@@ -545,13 +562,16 @@ void HandlerListEditor::updateParameter(QTreeWidgetItem* parent, const HandlerVi
 void HandlerListEditor::addParameter(QTreeWidgetItem* parent, const HandlerView::Parameter& parameter, MetaHandler* metaHandler) {
     const auto& parameters = metaHandler->parameters();
     auto metaIt = std::find_if(parameters.begin(), parameters.end(), [&](const auto& metaParameter) { return metaParameter.name == parameter.name; });
-    if (metaIt == parameters.end() || metaIt->visibility == MetaHandler::MetaParameter::Visibility::hidden)
+    if (metaIt == parameters.end())
         return;
+    const auto level = static_cast<int>(metaIt->visibility);
     auto* parameterItem = new QTreeWidgetItem{parent};
     parameterItem->setText(keyColumn, parameter.name);
     parameterItem->setText(valueColumn, parameter.value);
     parameterItem->setFlags(parameterItem->flags() | Qt::ItemIsEditable);
     parameterItem->setToolTip(keyColumn, metaParameterDescription(*metaIt));
+    parameterItem->setData(keyColumn, Qt::UserRole, level);
+    parameterItem->setHidden(mVisibilityBox->currentIndex() < level);
 }
 
 std::set<Handler*> HandlerListEditor::selectedHandlers() {
