@@ -125,14 +125,32 @@ bool parseNotes(const QString& data, std::vector<Note>& notes) {
 
 // other types
 
+template<typename T>
+QString serializeHex(T value) {
+    return QString{"0x%1"}.arg(value, 2*sizeof(T), 16, QChar{'0'});
+}
+
 QString serializeChannels(channels_t channels) {
-    return QString{"0x%1"}.arg(channels.to_integral(), 4, 16, QChar{'0'});
+    return serializeHex(channels.to_integral());
 }
 
 bool parseChannels(const QString& data, channels_t& channels) {
     ushort value;
     if (parseUShort(data, value)) {
         channels = channels_t::from_integral(value);
+        return true;
+    }
+    return false;
+}
+
+QString serializeFamilies(families_t families) {
+    return serializeHex(families.to_integral());
+}
+
+bool parseFamilies(const QString& data, families_t& families) {
+    qulonglong value;
+    if (parseULongLong(data, value)) {
+        families = families_t::from_integral(value);
         return true;
     }
     return false;

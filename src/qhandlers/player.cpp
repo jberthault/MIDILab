@@ -230,6 +230,14 @@ DistordedClock& SequenceView::distordedClock() {
     return mDistordedClock;
 }
 
+FamilySelector* SequenceView::familySelector() {
+    return mFamilySelector;
+}
+
+ChannelsSelector* SequenceView::channelsSelector() {
+    return mChannelsSelector;
+}
+
 ChannelEditor* SequenceView::channelEditor() {
     return mChannelEditor;
 }
@@ -1201,11 +1209,13 @@ MetaHandler* makeMetaPlayer(QObject* parent) {
     meta->setIdentifier("Player");
     meta->setDescription("Generates events from MIDI files");
     meta->addParameter({"distorsion", "speedup factor applied to files played", "1", MetaHandler::MetaParameter::Visibility::basic});
+    meta->addParameter({"view.families", "bitmask of families displayed", serial::serializeFamilies(families_t::standard()), MetaHandler::MetaParameter::Visibility::advanced});
+    meta->addParameter({"view.channels", "bitmask of channels displayed", serial::serializeChannels(channels_t::full()), MetaHandler::MetaParameter::Visibility::advanced});
     meta->setFactory(new OpenProxyFactory<Player>);
     return meta;
 }
 
-Player::Player() : HandlerEditor(), mIsPlaying(false), mIsStepping(false) {
+Player::Player() : HandlerEditor{} {
 
     mPlaylist = new PlaylistTable{this};
     connect(mPlaylist, &PlaylistTable::itemActivated, this, &Player::launch);
@@ -1265,6 +1275,8 @@ HandlerView::Parameters Player::getParameters() const {
     if (!paths.empty())
         result.push_back(Parameter{"playlist", paths.join(';')});
     SERIALIZE("distorsion", serial::serializeNumber, mTempoView->distorsion(), result);
+    SERIALIZE("view.families", serial::serializeFamilies, mSequenceView->familySelector()->families(), result);
+    SERIALIZE("view.channels", serial::serializeChannels, mSequenceView->channelsSelector()->channels(), result);
     return result;
 }
 
@@ -1275,6 +1287,8 @@ size_t Player::setParameter(const Parameter& parameter) {
         return 1;
     }
     UNSERIALIZE("distorsion", serial::parseDouble, mTempoView->setDistorsion, parameter);
+    UNSERIALIZE("view.families", serial::parseFamilies, mSequenceView->familySelector()->setFamilies, parameter);
+    UNSERIALIZE("view.channels", serial::parseChannels, mSequenceView->channelsSelector()->setChannels, parameter);
     return HandlerEditor::setParameter(parameter);
 }
 

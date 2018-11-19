@@ -124,8 +124,9 @@ class SequenceView : public QWidget {
 public:
     explicit SequenceView(QWidget* parent);
 
-public slots:
     DistordedClock& distordedClock();
+    FamilySelector* familySelector();
+    ChannelsSelector* channelsSelector();
 
     ChannelEditor* channelEditor();
     void setChannelEditor(ChannelEditor* channelEditor);
@@ -139,12 +140,14 @@ public slots:
     void setLower(timestamp_t timestamp);
     void setUpper(timestamp_t timestamp);
 
-    QTextCodec* codec();
-    void setCodec(QTextCodec* codec); /*!< codec used to decode event description (model does not take ownership) */
-    void setCodecByName(const QString& name);
-
     std::vector<SequenceViewTrackItem*> trackItems() const;
     SequenceViewTrackItem* itemForTrack(track_t track) const;
+
+    QTextCodec* codec();
+
+public slots:
+    void setCodec(QTextCodec* codec); /*!< codec used to decode event description (model does not take ownership) */
+    void setCodecByName(const QString& name);
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
@@ -517,11 +520,11 @@ private:
     PlaylistTable* mPlaylist;
 
     QTimer* mRefreshTimer;
-    bool mIsPlaying;
+    bool mIsPlaying {false};
 
     SequenceReader mHandler;
 
-    bool mIsStepping;
+    bool mIsStepping {false};
     timestamp_t mNextStep;
 
     MultiStateAction* mModeAction;

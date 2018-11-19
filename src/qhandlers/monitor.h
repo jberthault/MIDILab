@@ -39,6 +39,9 @@ public:
 
     void setFamilies(families_t families);
 
+    Parameters getParameters() const override;
+    size_t setParameter(const Parameter& parameter) override;
+
 protected:
     Result handle_message(const Message& message) override;
 

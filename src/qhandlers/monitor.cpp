@@ -32,6 +32,8 @@ auto specialText(const QString& text) {
     return QString{"<span style=\"background-color : black;color : white\">%1</span>"}.arg(text);
 }
 
+constexpr auto defaultFamilies = families_t::standard() & ~families_t::wrap(family_t::active_sense);
+
 }
 
 //=========
@@ -42,6 +44,7 @@ MetaHandler* makeMetaMonitor(QObject* parent) {
     auto* meta = new MetaHandler{parent};
     meta->setIdentifier("Monitor");
     meta->setDescription("Basic handler displaying all incoming events");
+    meta->addParameter({"families", "bitmask of selected families", serial::serializeFamilies(defaultFamilies), MetaHandler::MetaParameter::Visibility::advanced});
     meta->setFactory(new OpenProxyFactory<Monitor>);
     return meta;
 }
@@ -49,7 +52,7 @@ MetaHandler* makeMetaMonitor(QObject* parent) {
 Monitor::Monitor() : EditableHandler{Mode::out()} {
 
     mFamilySelector = new FamilySelector{this};
-    mFamilySelector->setFamilies(~families_t::wrap(family_t::active_sense));
+    mFamilySelector->setFamilies(defaultFamilies);
     mFamilySelector->setWindowFlags(Qt::Dialog);
     mFamilySelector->setVisible(false);
 
@@ -69,6 +72,17 @@ Monitor::Monitor() : EditableHandler{Mode::out()} {
 
 void Monitor::setFamilies(families_t families) {
     mFamilySelector->setFamilies(families);
+}
+
+HandlerView::Parameters Monitor::getParameters() const {
+    auto result = EditableHandler::getParameters();
+    SERIALIZE("families", serial::serializeFamilies, mFamilySelector->families(), result);
+    return result;
+}
+
+size_t Monitor::setParameter(const Parameter& parameter) {
+    UNSERIALIZE("families", serial::parseFamilies, mFamilySelector->setFamilies, parameter);
+    return EditableHandler::setParameter(parameter);
 }
 
 Handler::Result Monitor::handle_message(const Message& message) {
