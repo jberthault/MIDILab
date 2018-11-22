@@ -23,6 +23,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QSettings>
 #include "qcore/core.h"
 
+range_t<ChildItemIterator> makeChildRange(QTreeWidgetItem* root) {
+    return {{root, 0}, {root, root->childCount()}};
+}
+
 //=================
 // Name Conversion
 //=================

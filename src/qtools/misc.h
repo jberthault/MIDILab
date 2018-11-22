@@ -39,6 +39,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QDialog>
 #include <QAction>
 #include <QToolButton>
+#include <QTreeWidgetItem>
 #include <chrono>
 #include <set>
 
@@ -60,6 +61,26 @@ auto number2string(T number, Args&& ... args) {
 
 QAction* makeAction(const QIcon& icon, const QString& text, QWidget* parent);
 QAction* makeSeparator(QWidget* parent);
+
+
+//===================
+// ChildItemIterator
+//===================
+
+struct ChildItemIterator : public std::iterator<std::forward_iterator_tag, QTreeWidgetItem*> {
+
+    inline ChildItemIterator(QTreeWidgetItem* root = nullptr, int index = 0) : root{root}, index{index} {}
+
+    inline bool operator==(const ChildItemIterator& rhs) const { return index == rhs.index; }
+    inline bool operator!=(const ChildItemIterator& rhs) const { return index != rhs.index; }
+    inline auto* operator*() const { return root->child(index); }
+    inline auto& operator++() { ++index; return *this; }
+    inline auto operator++(int) { auto it{*this} ; ++index; return it; }
+
+    QTreeWidgetItem* root;
+    int index;
+
+};
 
 //==============
 // Layout Utils

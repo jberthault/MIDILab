@@ -347,11 +347,9 @@ Handler* handlerForItem(QTreeWidgetItem* item) {
 
 template<typename PredicateT>
 QTreeWidgetItem* findChildIf(QTreeWidgetItem* root, PredicateT&& pred) {
-    for (int row = 0 ; row < root->childCount() ; ++row) {
-        auto* item = root->child(row);
+    for (auto* item : makeChildRange(root))
         if (pred(item))
             return item;
-    }
     return nullptr;
 }
 
@@ -497,10 +495,8 @@ void HandlerListEditor::onItemChange(QTreeWidgetItem* item, int column) {
 }
 
 void HandlerListEditor::onVisibilityChange(int index) {
-    for (int i = 0 ; i < mTree->invisibleRootItem()->childCount() ; ++i) {
-        auto* handlerItem = mTree->invisibleRootItem()->child(i);
-        for (int j = 0 ; j < handlerItem->childCount() ; ++j) {
-            auto* parameterItem = handlerItem->child(j);
+    for (auto* handlerItem : makeChildRange(mTree->invisibleRootItem())) {
+        for (auto* parameterItem : makeChildRange(handlerItem)) {
             const auto level = parameterItem->data(keyColumn, Qt::UserRole).toInt();
             parameterItem->setHidden(index < level);
         }
@@ -595,12 +591,11 @@ HandlerCatalogEditor::HandlerCatalogEditor(Manager* manager, QWidget* parent) : 
     connect(this, &HandlerCatalogEditor::customContextMenuRequested, this, &HandlerCatalogEditor::showMenu);
     connect(this, &HandlerCatalogEditor::itemDoubleClicked, this, &HandlerCatalogEditor::onDoubleClick);
     for (auto* metaHandler : manager->metaHandlerPool()->metaHandlers()) {
-        auto* item = new QTreeWidgetItem;
+        auto* item = new QTreeWidgetItem{invisibleRootItem()};
         item->setText(0, metaHandlerName(metaHandler));
         item->setToolTip(0, metaHandler->description());
         item->setData(0, Qt::UserRole, qVariantFromValue(metaHandler));
         item->setFlags(item->flags() & ~Qt::ItemIsEditable);
-        invisibleRootItem()->addChild(item);
         if (auto* factory = dynamic_cast<ClosedProxyFactory*>(metaHandler->factory()))
             refreshMeta(item, factory->instantiables());
     }
@@ -643,10 +638,9 @@ void HandlerCatalogEditor::refreshMeta(QTreeWidgetItem* item, const QStringList&
     qDeleteAll(previousChildren);
     // make new children
     for (const auto& name : instantiables) {
-        auto* child = new QTreeWidgetItem;
+        auto* child = new QTreeWidgetItem{item};
         child->setText(0, name);
         child->setFlags(item->flags() & ~Qt::ItemIsEditable);
-        item->addChild(child);
     }
     item->setExpanded(true);
 }

@@ -553,8 +553,8 @@ void FamilySelector::updateFamilies() {
 
 void FamilySelector::updateChildren(QTreeWidgetItem* item, Qt::CheckState checkState) {
     setItemState(item, checkState);
-    for (int row=0 ; row < item->childCount() ; row++)
-        updateChildren(item->child(row), checkState);
+    for (auto* child : makeChildRange(item))
+        updateChildren(child, checkState);
     updateAncestors(item);
 }
 
@@ -563,8 +563,8 @@ void FamilySelector::updateAncestors(QTreeWidgetItem* item) {
     if (!parent)
         return;
     bool allChecked = true, anyChecked = false;
-    for (int row=0 ; row < parent->childCount() ; row++) {
-        Qt::CheckState subState = parent->child(row)->checkState(0);
+    for (auto* child : makeChildRange(parent)) {
+        const Qt::CheckState subState = child->checkState(0);
         allChecked = allChecked && subState == Qt::Checked;
         anyChecked = anyChecked || subState != Qt::Unchecked;
     }
@@ -578,7 +578,7 @@ void FamilySelector::updateAncestors(QTreeWidgetItem* item) {
 QTreeWidgetItem* FamilySelector::makeNode(QTreeWidgetItem* root, families_t families, const QString& name) {
     QStringList texts;
     texts << name;
-    auto* child = new QTreeWidgetItem(root, texts);
+    auto* child = new QTreeWidgetItem{root, texts};
     child->setData(0, Qt::UserRole, static_cast<qulonglong>(families.to_integral()));
     return child;
 }
@@ -605,22 +605,22 @@ families_t FamilySelector::childFamilies(QTreeWidgetItem* item) const {
         return families_t::from_integral(item->data(0, Qt::UserRole).toULongLong());
     families_t result;
     if (item->checkState(0) == Qt::PartiallyChecked)
-        for (int row = 0 ; row < item->childCount() ; row++)
-            result |= childFamilies(item->child(row));
+        for (auto* child : makeChildRange(item))
+            result |= childFamilies(child);
     return result;
 }
 
 void FamilySelector::setChildFamilies(QTreeWidgetItem* item, families_t families) {
-    auto item_families = families_t::from_integral(item->data(0, Qt::UserRole).toULongLong());
-    auto intersection = item_families & families;
+    const auto item_families = families_t::from_integral(item->data(0, Qt::UserRole).toULongLong());
+    const auto intersection = item_families & families;
     Qt::CheckState checkState = Qt::Unchecked;
     if (intersection == item_families)
         checkState = Qt::Checked;
     else if (intersection)
         checkState = Qt::PartiallyChecked;
     setItemState(item, checkState);
-    for (int row = 0 ; row < item->childCount() ; row++)
-        setChildFamilies(item->child(row), families);
+    for (auto* child : makeChildRange(item))
+        setChildFamilies(child, families);
 }
 
 //=================

@@ -268,10 +268,10 @@ void SequenceView::setCodec(QTextCodec* codec) {
     // prevent itemChanged, we want it to be emitted for checkstate only :(
     QSignalBlocker guard(mTreeWidget);
     Q_UNUSED(guard);
-    for (auto* trackItem : trackItems()) {
-        trackItem->setCodec(codec);
-        for (int i=0 ; i < trackItem->childCount() ; i++)
-            static_cast<SequenceViewItem*>(trackItem->child(i))->setCodec(mCodec);
+    for (auto* trackItem : makeChildRange(mTreeWidget->invisibleRootItem())) {
+        static_cast<SequenceViewTrackItem*>(trackItem)->setCodec(codec);
+        for (auto* item : makeChildRange(trackItem))
+            static_cast<SequenceViewItem*>(item)->setCodec(mCodec);
     }
 }
 
@@ -279,17 +279,12 @@ void SequenceView::setCodecByName(const QString& name) {
     setCodec(QTextCodec::codecForName(name.toLocal8Bit()));
 }
 
-std::vector<SequenceViewTrackItem*> SequenceView::trackItems() const {
-    std::vector<SequenceViewTrackItem*> result(mTreeWidget->topLevelItemCount());
-    for (int i=0 ; i < result.size() ; ++i)
-        result[i] = static_cast<SequenceViewTrackItem*>(mTreeWidget->topLevelItem(i));
-    return result;
-}
-
 SequenceViewTrackItem* SequenceView::itemForTrack(track_t track) const {
-    for (auto* trackItem : trackItems())
+    for (auto* item : makeChildRange(mTreeWidget->invisibleRootItem())) {
+        auto* trackItem = static_cast<SequenceViewTrackItem*>(item);
         if (trackItem->track() == track)
             return trackItem;
+    }
     return nullptr;
 }
 
@@ -382,9 +377,9 @@ void SequenceView::setItemBackground(QTreeWidgetItem* item, channels_t channels)
 }
 
 void SequenceView::updateItemsVisibility() {
-    for (auto* trackItem : trackItems())
-        for (int i=0 ; i < trackItem->childCount() ; i++)
-            updateItemVisibility(static_cast<SequenceViewItem*>(trackItem->child(i)));
+    for (auto* trackItem : makeChildRange(mTreeWidget->invisibleRootItem()))
+        for (auto* item : makeChildRange(trackItem))
+            updateItemVisibility(static_cast<SequenceViewItem*>(item));
 }
 
 void SequenceView::updateItemVisibility(SequenceViewItem* item) {
@@ -447,7 +442,7 @@ void SequenceView::onChannelFilterClick() {
 }
 
 void SequenceView::setChannelColor(channel_t channel, const QColor& /*color*/) {
-    for (auto* trackItem : trackItems()) {
+    for (auto* trackItem : makeChildRange(mTreeWidget->invisibleRootItem())) {
         const auto channels = channels_t::from_integral(trackItem->data(0, Qt::UserRole).toUInt());
         if (channels.test(channel))
             setItemBackground(trackItem, channels);

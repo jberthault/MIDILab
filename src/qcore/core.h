@@ -35,6 +35,8 @@ Q_DECLARE_METATYPE(Handler*)
 /*!< enable QString support for std::stream */
 using namespace qoperators;
 
+range_t<ChildItemIterator> makeChildRange(QTreeWidgetItem* root);
+
 //=================
 // Name Conversion
 //=================

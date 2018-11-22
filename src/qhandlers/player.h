@@ -140,7 +140,6 @@ public:
     void setLower(timestamp_t timestamp);
     void setUpper(timestamp_t timestamp);
 
-    std::vector<SequenceViewTrackItem*> trackItems() const;
     SequenceViewTrackItem* itemForTrack(track_t track) const;
 
     QTextCodec* codec();
