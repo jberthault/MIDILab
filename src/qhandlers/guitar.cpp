@@ -32,7 +32,7 @@ constexpr std::array<double, fretCount> fretPositions = {0., 0.0748347, 0.145468
 
 constexpr std::array<double, fretCount> fretCenters = {0, 0.0374174, 0.110151, 0.178804, 0.243602, 0.304763, 0.362492, 0.416982, 0.468413, 0.516957, 0.562777, 0.606024, 0.646845, 0.685376, 0.721742, 0.756069, 0.788468, 0.819049, 0.847913, 0.875158, 0.900873, 0.925145, 0.948055, 0.969679, 0.99009};
 
-size_t nearestFretCenter(double ratio) {
+auto nearestFretCenter(double ratio) {
     auto it = std::min_element(fretCenters.begin(), fretCenters.end(), [=](double lhs, double rhs) {
         return (lhs-ratio)*(lhs-ratio) < (rhs-ratio)*(rhs-ratio);
     });
@@ -45,6 +45,21 @@ constexpr double stringPosition(size_t i, size_t n) {
 
 constexpr double singleMarkPositions[] = {fretCenters[3], fretCenters[5], fretCenters[7], fretCenters[9], fretCenters[15], fretCenters[17], fretCenters[19], fretCenters[21]};
 constexpr double doubleMarkPositions[] = {fretCenters[12], fretCenters[24]};
+
+constexpr double capoRadius = 4.;
+constexpr int capoWidth = 13;
+constexpr int markMaxRadius = 15;
+constexpr int channelMaxRadius = 15;
+
+constexpr auto horizontalRange(const QRect& rect) {
+    return range_t<int>{rect.left() + 15, rect.right() - 5};
+}
+
+constexpr auto verticalRange(const QRect& rect) {
+    return range_t<int>{rect.bottom(), rect.top()};
+}
+
+constexpr Guitar::Location defaultLocation = {-1, 0};
 
 const Guitar::Tuning defaultTuning = {note_ns::E(2), note_ns::A(2), note_ns::D(3), note_ns::G(3), note_ns::B(3), note_ns::E(4)};
 
@@ -64,7 +79,7 @@ MetaHandler* makeMetaGuitar(QObject* parent) {
     return meta;
 }
 
-Guitar::Guitar() : Instrument(Mode::io()), mTuning(defaultTuning), mCapo(0), mState(defaultTuning.size()), mActiveLocation(-1, 0), mBackground(":/data/wood.jpg") {
+Guitar::Guitar() : Instrument{Mode::io()}, mTuning{defaultTuning}, mState{defaultTuning.size()}, mActiveLocation{defaultLocation} {
     clearNotes();
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
 }
@@ -90,7 +105,7 @@ void Guitar::setTuning(const Tuning& tuning) {
     if (!tuning.empty()) {
         mTuning = tuning;
         mState.resize(mTuning.size());
-        mActiveLocation = {-1, 0};
+        mActiveLocation = defaultLocation;
         clearNotes();
         update();
     }
@@ -103,7 +118,7 @@ size_t Guitar::capo() const {
 void Guitar::setCapo(size_t capo) {
     if (capo < fretCount) {
         mCapo = capo;
-        mActiveLocation = {-1, 0};
+        mActiveLocation = defaultLocation;
         clearNotes();
         update();
     }
@@ -126,8 +141,8 @@ void Guitar::receiveNoteOn(channels_t channels, const Note& note) {
     std::vector<Candidate> candidates;
     candidates.reserve(mTuning.size());
 
-    for (int i=0 ; i < (int)mTuning.size() ; ++i) {
-        auto loc = fromNote(i, note);
+    for (size_t i=0 ; i < mTuning.size() ; ++i) {
+        const auto loc = fromNote(i, note);
         if (isValid(loc))
             candidates.push_back({channel_ns::contains(mState[i], channels), loc});
     }
@@ -139,8 +154,8 @@ void Guitar::receiveNoteOn(channels_t channels, const Note& note) {
 }
 
 void Guitar::receiveNoteOff(channels_t channels, const Note& note) {
-    for (int i=0 ; i < (int)mTuning.size() ; ++i) {
-        auto loc = fromNote(i, note);
+    for (size_t i=0 ; i < mTuning.size() ; ++i) {
+        const auto loc = fromNote(i, note);
         if (isValid(loc))
             deactivate(loc, channels);
     }
@@ -148,8 +163,8 @@ void Guitar::receiveNoteOff(channels_t channels, const Note& note) {
 
 bool Guitar::event(QEvent* event) {
     if (event->type() == QEvent::ToolTip) {
-        auto helpEvent = static_cast<QHelpEvent*>(event);
-        auto loc = locationAt(helpEvent->pos());
+        auto* helpEvent = static_cast<QHelpEvent*>(event);
+        const auto loc = locationAt(helpEvent->pos());
         if (isValid(loc)) {
             QToolTip::showText(helpEvent->globalPos(), QString::fromStdString(toNote(loc).string()));
         } else {
@@ -176,9 +191,8 @@ void Guitar::mouseDoubleClickEvent(QMouseEvent* event) {
 
 void Guitar::mousePressEvent(QMouseEvent* event) {
     if (canGenerate()) {
-        auto loc = locationAt(event->pos());
-        generateFretOn(loc, event->button());
-        mActiveLocation = loc;
+        mActiveLocation = locationAt(event->pos());
+        generateFretOn(mActiveLocation, event->button());
     }
 }
 
@@ -189,7 +203,7 @@ void Guitar::mouseReleaseEvent(QMouseEvent* event) {
 
 void Guitar::mouseMoveEvent(QMouseEvent* event) {
     if (canGenerate()) {
-        auto loc = locationAt(event->pos());
+        const auto loc = locationAt(event->pos());
         if (mActiveLocation != loc) {
             generateFretOff(mActiveLocation, event->buttons());
             generateFretOn(loc, event->buttons());
@@ -199,37 +213,37 @@ void Guitar::mouseMoveEvent(QMouseEvent* event) {
 }
 
 void Guitar::paintEvent(QPaintEvent*) {
+    static const QPixmap fretboardBackground {":/data/wood.jpg"};
+    static const QPen fretPen {QColor{"#444444"}, 3.};
+    static const QPen stringPen {QColor{"#86865d"}, 2.};
 
     const auto stringsCount = mTuning.size();
     const auto r = rect();
-    const int h = r.height();
-    const int markRadius = h / 18;
-    const int channelRadius = h / (2*stringsCount);
-    static const double capoRadius = 4.;
-    static const double capoWidth = 12.;
-    const int ycenter = r.center().y();
-
-    const range_t<int> xrange = {r.left() + 10, r.right() - 5};
-    const range_t<int> yrange = {r.bottom(), r.top()};
+    const auto h = r.height();
+    const auto markRadius = std::min(h / 18, markMaxRadius);
+    const auto channelRadius = std::min(h / static_cast<int>(2*stringsCount), channelMaxRadius);
+    const auto ycenter = r.center().y();
+    const auto xrange = horizontalRange(r);
+    const auto yrange = verticalRange(r);
 
     //----------
     // Fretboard
     //----------
 
-    QPainter painter(this);
+    QPainter painter{this};
     painter.setRenderHint(QPainter::Antialiasing);
 
     // draw background
-    painter.drawPixmap(r, mBackground);
+    painter.drawPixmap(r, fretboardBackground);
     // draw frets
-    painter.setPen(QPen(QColor("#444444"), 3.));
+    painter.setPen(fretPen);
     for (const auto pos : fretPositions) {
         const auto x = expand(pos, xrange);
         painter.drawLine(x, yrange.min, x, yrange.max);
     }
     // draw marks
     painter.setPen(Qt::NoPen);
-    painter.setBrush(QBrush(Qt::black));
+    painter.setBrush(QBrush{Qt::black});
     for (const auto mark : singleMarkPositions) {
         const auto x = expand(mark, xrange);
         painter.drawEllipse({x, ycenter}, markRadius, markRadius);
@@ -240,7 +254,7 @@ void Guitar::paintEvent(QPaintEvent*) {
         painter.drawEllipse({x, r.bottom() - h/4}, markRadius, markRadius);
     }
     // draw strings
-    painter.setPen(QPen(QColor("#86865d"), 2.));
+    painter.setPen(stringPen);
     for (size_t n = 0 ; n < stringsCount ; n++) {
         const auto y = expand(stringPosition(n, stringsCount), yrange);
         painter.drawLine(xrange.min, y, r.right(), y);
@@ -249,9 +263,7 @@ void Guitar::paintEvent(QPaintEvent*) {
     if (mCapo > 0) {
         painter.setPen(Qt::NoPen);
         const auto x = expand(fretCenters[mCapo], xrange);
-        QRectF capoRect({}, QSizeF(capoWidth, h));
-        capoRect.moveCenter({(qreal)x, (qreal)ycenter});
-        painter.drawRoundedRect(capoRect, capoRadius, capoRadius);
+        painter.drawRoundedRect(QRect{{x - capoWidth/2, 0}, QSize{capoWidth, h}}, capoRadius, capoRadius);
     }
 
     //------
@@ -259,9 +271,9 @@ void Guitar::paintEvent(QPaintEvent*) {
     //------
 
     if (channelEditor()) {
-        painter.setPen(QColor(Qt::black));
+        painter.setPen(QColor{Qt::black});
         for (size_t n = 0 ; n < stringsCount ; n++) {
-            const int y = expand(stringPosition(n, stringsCount), yrange);
+            const auto y = expand(stringPosition(n, stringsCount), yrange);
             size_t fret = 0;
             for (channels_t cs : mState[n]) {
                 if (cs) {
@@ -281,7 +293,7 @@ void Guitar::clearNotes() {
 }
 
 void Guitar::generateFretOn(const Location& loc, Qt::MouseButtons buttons) {
-    auto channels = channelsFromButtons(buttons);
+    const auto channels = channelsFromButtons(buttons);
     if (isValid(loc) && channels) {
         generateNoteOn(channels, toNote(loc));
         activate(loc, channels);
@@ -289,7 +301,7 @@ void Guitar::generateFretOn(const Location& loc, Qt::MouseButtons buttons) {
 }
 
 void Guitar::generateFretOff(const Location& loc, Qt::MouseButtons buttons) {
-    auto channels = channelsFromButtons(buttons);
+    const auto channels = channelsFromButtons(buttons);
     if (isValid(loc) && channels) {
         generateNoteOff(channels, toNote(loc));
         deactivate(loc, channels);
@@ -314,17 +326,15 @@ Note Guitar::toNote(const Location& loc) const {
     return Note::from_code(mTuning[loc.first].code() + loc.second);
 }
 
-Guitar::Location Guitar::fromNote(int string, const Note& note) const {
-    return {string, note.code() - mTuning[string].code()};
+Guitar::Location Guitar::fromNote(size_t string, const Note& note) const {
+    return {static_cast<int>(string), note.code() - mTuning[string].code()};
 }
 
 Guitar::Location Guitar::locationAt(const QPoint& point) const {
-    auto r = rect();
-    const range_t<int> xrange = {r.left() + 10, r.right() - 5};
-    const range_t<int> yrange = {r.bottom(), r.top()};
-    const range_t<double> stringRange = {0., (double)mTuning.size()};
+    const auto r = rect();
+    const range_t<double> stringRange = {0., static_cast<double>(mTuning.size())};
     int fret = -1;
     if (r.left() <= point.x() && point.x() <= r.right())
-        fret = nearestFretCenter(reduce(xrange, point.x()));
-    return {static_cast<int>(rescale(yrange, point.y(), stringRange)), fret};
+        fret = static_cast<int>(nearestFretCenter(reduce(horizontalRange(r), point.x())));
+    return {static_cast<int>(rescale(verticalRange(r), point.y(), stringRange)), fret};
 }

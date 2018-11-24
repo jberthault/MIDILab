@@ -82,15 +82,14 @@ private:
 
     bool isValid(const Location& loc) const;
     Note toNote(const Location& loc) const;
-    Location fromNote(int string, const Note& note) const;
+    Location fromNote(size_t string, const Note& note) const;
     Location locationAt(const QPoint& point) const;
 
 private:
     Tuning mTuning;
-    size_t mCapo;
+    size_t mCapo {0};
     State mState;
     Location mActiveLocation;
-    QPixmap mBackground;
 
 };
 
