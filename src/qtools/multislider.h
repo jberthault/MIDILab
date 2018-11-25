@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef QTOOLS_MULTISLIDER_H
 #define QTOOLS_MULTISLIDER_H
 
+#include <functional>
 #include <QGraphicsItem>
 #include <QGraphicsView>
 #include <QBoxLayout>

@@ -188,7 +188,7 @@ ChorusEditor::ChorusEditor(QWidget* parent) : FoldableGroupBox{"Chorus", parent}
     setWidget(subWidget);
 
     connect(this, &ChorusEditor::toggled, this, &ChorusEditor::activatedChanged);
-    connect(mTypeBox, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int value) { emit typeChanged(value); });
+    connect(mTypeBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, [this](int value) { emit typeChanged(value); });
     mNrSlider->setNotifier([this](int value) { emit nrChanged(value); });
     mLevelSlider->setNotifier([this](double value) { emit levelChanged(value); });
     mSpeedSlider->setNotifier([this](double value) { emit speedChanged(value); });

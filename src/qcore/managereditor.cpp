@@ -423,7 +423,7 @@ HandlerListEditor::HandlerListEditor(Manager* manager, QWidget* parent) : QWidge
     mVisibilityBox->setToolTip("Control visibility of parameters");
     mVisibilityBox->addItem("basic");
     mVisibilityBox->addItem("advanced");
-    connect(mVisibilityBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &HandlerListEditor::onVisibilityChange);
+    connect(mVisibilityBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, &HandlerListEditor::onVisibilityChange);
 
     auto* expandButton = new ExpandButton{mTree};
     auto* collapseButton = new CollapseButton{mTree};

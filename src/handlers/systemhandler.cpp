@@ -333,15 +333,12 @@ class LinuxSystemHandler : public Handler {
     public:
 
         LinuxSystemHandler(Mode mode, std::string hardware_name) :
-            Handler(mode), m_hardware_name(std::move(hardware_name)) {
+            Handler{mode}, m_hardware_name{std::move(hardware_name)} {
 
         }
 
         ~LinuxSystemHandler() {
-            if (is_receive_enabled()) {
-                handle_reset();
-                close_system(State::duplex());
-            }
+            close_system(State::duplex());
         }
 
     protected:
@@ -351,8 +348,6 @@ class LinuxSystemHandler : public Handler {
         }
 
         Result handle_close(State state) override {
-            if (is_receive_enabled())
-                handle_reset();
             return to_result(close_system(state));
         }
 
@@ -383,20 +378,21 @@ class LinuxSystemHandler : public Handler {
 
         size_t open_system(State s) {
             size_t errors = 0;
-            bool in_opening = mode().any(Mode::in()) && s.any(State::forward()) && state().none(State::forward());
-            bool out_opening = mode().any(Mode::out()) && s.any(State::receive()) && state().none(State::receive());
-            if (in_opening || out_opening) {
-                snd_rawmidi_t** in = in_opening ? &m_i_handler : nullptr;
-                snd_rawmidi_t** out = out_opening ? &m_o_handler : nullptr;
-                errors += check(snd_rawmidi_open(in, out, m_hardware_name.c_str(), 0));
-            } else {
-                TRACE_WARNING("Can't open " << name() << ": nothing to open");
-                ++errors;
+            // open input handler
+            if (mode().any(Mode::in()) && s.any(State::forward()) && state().none(State::forward())) {
+                const auto in_errors = check(snd_rawmidi_open(&m_i_handler, nullptr, m_hardware_name.c_str(), 0));
+                if (!in_errors) {
+                    activate_state(State::forward());
+                    m_i_reader = std::thread{[this]{ i_callback(); }};
+                }
+                errors += in_errors;
             }
-            if (!errors) {
-                if (in_opening)
-                    m_i_reader = std::thread([this](){i_callback();});
-                activate_state(s);
+            // open output handler
+            if (mode().any(Mode::out()) && s.any(State::receive()) && state().none(State::receive())) {
+                const auto out_errors = check(snd_rawmidi_open(nullptr, &m_o_handler, m_hardware_name.c_str(), 0));
+                if (!out_errors)
+                    activate_state(State::receive());
+                errors += out_errors;
             }
             return errors;
         }
@@ -411,6 +407,7 @@ class LinuxSystemHandler : public Handler {
             }
             // close output handler
             if (mode().any(Mode::out()) && s.any(State::receive()) && state().any(State::receive())) {
+                errors += handle_reset();
                 deactivate_state(State::receive());
                 errors += check(snd_rawmidi_close(m_o_handler));
             }
@@ -429,44 +426,35 @@ class LinuxSystemHandler : public Handler {
         }
 
         void i_callback() {
-
             /// @todo integrate running status (with a dummy one on exceptions)
-
-            snd_rawmidi_nonblock(m_i_handler, 1);
             static const size_t max_miss = 15;
-
             size_t missed = 0;
             byte_t readed;
             std::vector<byte_t> storage;
-
+            snd_rawmidi_nonblock(m_i_handler, 1);
             while (state().any(State::forward())) {
-                int err = snd_rawmidi_read(m_i_handler, &readed, 1);
+                const int err = snd_rawmidi_read(m_i_handler, &readed, 1);
                 if (err < 0 && (err != -EBUSY) && (err != -EAGAIN)) {
                     TRACE_WARNING("Can't read data from " << name() << ": " << snd_strerror(err));
                     break;
                 } else if (err >= 0) {
                     storage.push_back(readed);
                     try {
-                        auto buf = range_ns::from_span<const byte*>(storage.data(), storage.size());
+                        auto buf = range_ns::from_span<const byte_t*>(storage.data(), storage.size());
                         if (auto event = dumping::read_event(buf, true))
                             produce_message(std::move(event));
                         missed = 0;
                         storage.clear();
-                    } catch (const std::exception& /*err*/) {
-                        missed++;
-                        if (missed > max_miss) {
+                    } catch (const std::exception&) {
+                        if (++missed == max_miss) {
                             TRACE_WARNING("Too many missed");
-                            // change by closing set_status(open_forward_status, false);
-                            //break;
+                            missed = 0;
+                            storage.clear();
                         }
                     }
                 }
                 std::this_thread::yield();
             }
-        }
-
-        bool is_receive_enabled() const {
-            return state().any(State::receive()) && mode().any(Mode::receive());
         }
 
         size_t handle_reset() {

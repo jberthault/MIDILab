@@ -264,7 +264,7 @@ ProgramEditor::ProgramEditor(Manager* manager, QWidget* parent) : QWidget{parent
     mPatchesCombo = new QComboBox{this};
     for (const auto& patch : mRootPatch.children())
         mPatchesCombo->addItem(patch.name());
-    connect(mPatchesCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, &ProgramEditor::updatePatch);
+    connect(mPatchesCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, &ProgramEditor::updatePatch);
 
     // HANDLERS COMBO
     mHandlerSelector = new HandlerSelector{this};

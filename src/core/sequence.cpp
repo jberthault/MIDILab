@@ -36,20 +36,20 @@ namespace dumping {
 // read
 // -----
 
-auto read_n(byte_cview& buf, ptrdiff_t count) {
+auto read_n(byte_cview& buf, std::ptrdiff_t count) {
     if (span(buf) < count)
         throw std::logic_error{"not enough bytes available"};
     const auto previous = std::exchange(buf.min, buf.min + count);
     return byte_cview{previous, buf.min};
 }
 
-auto read_at_most_n(byte_cview& buf, ptrdiff_t count) {
+auto read_at_most_n(byte_cview& buf, std::ptrdiff_t count) {
     const auto pos = std::min(buf.min + count, buf.max);
     const auto previous = std::exchange(buf.min, pos);
     return byte_cview{previous, pos};
 }
 
-template<typename T, ptrdiff_t count = sizeof(T)>
+template<typename T, std::ptrdiff_t count = sizeof(T)>
 auto read_le(byte_cview& buf) {
     const auto data = read_n(buf, count);
     return byte_traits<T>::read_le(data.min, data.max);
@@ -96,7 +96,7 @@ auto read_variable(byte_cview& buf) {
 
 auto read_sysex_size(byte_cview& buf, bool is_realtime) {
     if (!is_realtime)
-        return static_cast<ptrdiff_t>(read_variable(buf));
+        return static_cast<std::ptrdiff_t>(read_variable(buf));
     const auto pos = std::find_if(buf.min, buf.max, [](byte_t byte) { return byte == 0xf7; });
     return pos + 1 - buf.min;
 }
