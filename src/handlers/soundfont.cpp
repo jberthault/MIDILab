@@ -31,43 +31,238 @@ constexpr auto to_result(int rc) {
     return rc == FLUID_FAILED ? Handler::Result::fail : Handler::Result::success;
 }
 
-void settings_get_range(fluid_settings_t* settings, const char* name, range_t<double>& range) {
-    fluid_settings_getnum_range(settings, name, &range.min, &range.max);
-}
+// ----------------------
+// generic settings range
+// ----------------------
 
-void settings_get_range(fluid_settings_t* settings, const char* name, range_t<int>& range) {
-    fluid_settings_getint_range(settings, name, &range.min, &range.max);
-}
-
-void settings_get_default(fluid_settings_t* settings, const char* name, double& value) {
-    fluid_settings_getnum_default(settings, name, &value);
-}
-
-void settings_get_default(fluid_settings_t* settings, const char* name, int& value) {
-    fluid_settings_getint_default(settings, name, &value);
-}
-
-void settings_get_default(fluid_settings_t* settings, const char* name, bool& value) {
-    int int_value;
-    fluid_settings_getint_default(settings, name, &int_value);
-    value = static_cast<bool>(int_value);
-}
+void get_settings_range_impl(fluid_settings_t* settings, const char* name, range_t<double>& range) { fluid_settings_getnum_range(settings, name, &range.min, &range.max); }
+void get_settings_range_impl(fluid_settings_t* settings, const char* name, range_t<int>& range) { fluid_settings_getint_range(settings, name, &range.min, &range.max); }
 
 template<typename T>
-auto settings_default(fluid_settings_t* settings, const char* name) {
-    T value;
-    settings_get_default(settings, name, value);
-    return value;
-}
-
-template<typename T>
-auto settings_range(fluid_settings_t* settings, const char* name) {
+auto get_settings_range(fluid_settings_t* settings, const char* name) {
     range_t<T> value;
-    settings_get_range(settings, name, value);
+    get_settings_range_impl(settings, name, value);
     return value;
 }
 
+#if FLUIDSYNTH_VERSION_MAJOR < 2
+
+// -----
+// sfont
+// -----
+
+auto get_sfont_name(fluid_sfont_t* sfont) { return sfont->get_name(sfont); }
+
+// ----------------
+// settings default
+// ----------------
+
+template<typename T> auto get_settings_default(fluid_settings_t* settings, const char* name);
+template<> auto get_settings_default<double>(fluid_settings_t* settings, const char* name) { return fluid_settings_getnum_default(settings, name); }
+template<> auto get_settings_default<int>(fluid_settings_t* settings, const char* name) { return fluid_settings_getint_default(settings, name); }
+template<> auto get_settings_default<bool>(fluid_settings_t* settings, const char* name) { return static_cast<bool>(get_settings_default<int>(settings, name)); }
+
+constexpr auto get_default_reverb_roomsize(fluid_settings_t*) { return FLUID_REVERB_DEFAULT_ROOMSIZE; }
+constexpr auto get_default_reverb_damp(fluid_settings_t*) { return FLUID_REVERB_DEFAULT_DAMP; }
+constexpr auto get_default_reverb_width(fluid_settings_t*) { return FLUID_REVERB_DEFAULT_WIDTH; }
+constexpr auto get_default_reverb_level(fluid_settings_t*) { return FLUID_REVERB_DEFAULT_LEVEL; }
+
+constexpr auto get_default_chorus_nr(fluid_settings_t*) { return FLUID_CHORUS_DEFAULT_N; }
+constexpr auto get_default_chorus_level(fluid_settings_t*) { return FLUID_CHORUS_DEFAULT_LEVEL; }
+constexpr auto get_default_chorus_speed(fluid_settings_t*) { return FLUID_CHORUS_DEFAULT_SPEED; }
+constexpr auto get_default_chorus_depth(fluid_settings_t*) { return FLUID_CHORUS_DEFAULT_DEPTH; }
+constexpr auto get_default_chorus_type(fluid_settings_t*) { return FLUID_CHORUS_DEFAULT_TYPE; }
+
+// --------------
+// settings range
+// --------------
+
+constexpr auto get_range_reverb_roomsize(fluid_settings_t*) { return range_t<double>{0., 1.}; }
+constexpr auto get_range_reverb_damp(fluid_settings_t*) { return range_t<double>{0., 1.}; }
+constexpr auto get_range_reverb_level(fluid_settings_t*) { return range_t<double>{0., 1.}; }
+constexpr auto get_range_reverb_width(fluid_settings_t*) { return range_t<double>{0., 100.}; }
+
+constexpr auto get_range_chorus_nr(fluid_settings_t*) { return range_t<int>{0, 99}; }
+constexpr auto get_range_chorus_level(fluid_settings_t*) { return range_t<double>{0., 10.}; }
+constexpr auto get_range_chorus_speed(fluid_settings_t*) { return range_t<double>{0.29, 5.}; }
+constexpr auto get_range_chorus_depth(fluid_settings_t*) { return range_t<double>{0., 21.}; }
+
+// ---------
+// accessors
+// ---------
+
+auto get_chorus_speed(fluid_synth_t* synth) { return fluid_synth_get_chorus_speed_Hz(synth); }
+auto get_chorus_depth(fluid_synth_t* synth) { return fluid_synth_get_chorus_depth_ms(synth); }
+
+auto set_reverb_roomsize(fluid_synth_t* synth, double value) {
+    fluid_synth_set_reverb(synth,
+        value,
+        fluid_synth_get_reverb_damp(synth),
+        fluid_synth_get_reverb_width(synth),
+        fluid_synth_get_reverb_level(synth)
+    );
+    return FLUID_OK;
 }
+
+auto set_reverb_damp(fluid_synth_t* synth, double value) {
+    fluid_synth_set_reverb(synth,
+        fluid_synth_get_reverb_roomsize(synth),
+        value,
+        fluid_synth_get_reverb_width(synth),
+        fluid_synth_get_reverb_level(synth)
+    );
+    return FLUID_OK;
+}
+
+auto set_reverb_level(fluid_synth_t* synth, double value) {
+    fluid_synth_set_reverb(synth,
+        fluid_synth_get_reverb_roomsize(synth),
+        fluid_synth_get_reverb_damp(synth),
+        fluid_synth_get_reverb_width(synth),
+        value
+    );
+    return FLUID_OK;
+}
+
+auto set_reverb_width(fluid_synth_t* synth, double value) {
+    fluid_synth_set_reverb(synth,
+        fluid_synth_get_reverb_roomsize(synth),
+        fluid_synth_get_reverb_damp(synth),
+        value,
+        fluid_synth_get_reverb_level(synth)
+    );
+    return FLUID_OK;
+}
+
+auto set_chorus_type(fluid_synth_t* synth, int value) {
+    fluid_synth_set_chorus(synth,
+        fluid_synth_get_chorus_nr(synth),
+        fluid_synth_get_chorus_level(synth),
+        get_chorus_speed(synth),
+        get_chorus_depth(synth),
+        value
+    );
+    return FLUID_OK;
+}
+
+auto set_chorus_nr(fluid_synth_t* synth, int value) {
+    fluid_synth_set_chorus(synth,
+        value,
+        fluid_synth_get_chorus_level(synth),
+        get_chorus_speed(synth),
+        get_chorus_depth(synth),
+        fluid_synth_get_chorus_type(synth)
+    );
+    return FLUID_OK;
+}
+
+auto set_chorus_level(fluid_synth_t* synth, double value) {
+    fluid_synth_set_chorus(synth,
+        fluid_synth_get_chorus_nr(synth),
+        value,
+        get_chorus_speed(synth),
+        get_chorus_depth(synth),
+        fluid_synth_get_chorus_type(synth)
+    );
+    return FLUID_OK;
+}
+
+auto set_chorus_speed(fluid_synth_t* synth, double value) {
+    fluid_synth_set_chorus(synth,
+        fluid_synth_get_chorus_nr(synth),
+        fluid_synth_get_chorus_level(synth),
+        value,
+        get_chorus_depth(synth),
+        fluid_synth_get_chorus_type(synth)
+    );
+    return FLUID_OK;
+}
+
+auto set_chorus_depth(fluid_synth_t* synth, double value) {
+    fluid_synth_set_chorus(synth,
+        fluid_synth_get_chorus_nr(synth),
+        fluid_synth_get_chorus_level(synth),
+        get_chorus_speed(synth),
+        value,
+        fluid_synth_get_chorus_type(synth)
+    );
+    return FLUID_OK;
+}
+
+#else
+
+// -----
+// sfont
+// -----
+
+auto get_sfont_name(fluid_sfont_t* sfont) { return fluid_sfont_get_name(sfont); }
+
+// ------------------------
+// generic settings default
+// ------------------------
+
+template<typename T> auto get_settings_default(fluid_settings_t* settings, const char* name);
+
+template<> auto get_settings_default<double>(fluid_settings_t* settings, const char* name) {
+    double value;
+    fluid_settings_getnum_default(settings, name, &value);
+    return value;
+}
+
+template<> auto get_settings_default<int>(fluid_settings_t* settings, const char* name) {
+    int value;
+    fluid_settings_getint_default(settings, name, &value);
+    return value;
+}
+
+template<> auto get_settings_default<bool>(fluid_settings_t* settings, const char* name) {
+    return static_cast<bool>(get_settings_default<int>(settings, name));
+}
+
+auto get_default_reverb_roomsize(fluid_settings_t* settings) { return get_settings_default<double>(settings, "synth.reverb.room-size"); }
+auto get_default_reverb_damp(fluid_settings_t* settings) { return get_settings_default<double>(settings, "synth.reverb.damp"); }
+auto get_default_reverb_width(fluid_settings_t* settings) { return get_settings_default<double>(settings, "synth.reverb.width"); }
+auto get_default_reverb_level(fluid_settings_t* settings) { return get_settings_default<double>(settings, "synth.reverb.level"); }
+
+auto get_default_chorus_nr(fluid_settings_t* settings) { return get_settings_default<int>(settings, "synth.chorus.nr"); }
+auto get_default_chorus_level(fluid_settings_t* settings) { return get_settings_default<double>(settings, "synth.chorus.level"); }
+auto get_default_chorus_speed(fluid_settings_t* settings) { return get_settings_default<double>(settings, "synth.chorus.speed"); }
+auto get_default_chorus_depth(fluid_settings_t* settings) { return get_settings_default<double>(settings, "synth.chorus.depth"); }
+auto get_default_chorus_type(fluid_settings_t*) { return FLUID_CHORUS_MOD_SINE; }
+
+// --------------
+// settings range
+// --------------
+
+auto get_range_reverb_roomsize(fluid_settings_t* settings) { return get_settings_range<double>(settings, "synth.reverb.room-size"); }
+auto get_range_reverb_damp(fluid_settings_t* settings) { return get_settings_range<double>(settings, "synth.reverb.damp"); }
+auto get_range_reverb_level(fluid_settings_t* settings) { return get_settings_range<double>(settings, "synth.reverb.level"); }
+auto get_range_reverb_width(fluid_settings_t* settings) { return get_settings_range<double>(settings, "synth.reverb.width"); }
+
+auto get_range_chorus_nr(fluid_settings_t* settings) { return  get_settings_range<int>(settings, "synth.chorus.nr"); }
+auto get_range_chorus_level(fluid_settings_t* settings) { return get_settings_range<double>(settings, "synth.chorus.level"); }
+auto get_range_chorus_speed(fluid_settings_t* settings) { return get_settings_range<double>(settings, "synth.chorus.speed"); }
+auto get_range_chorus_depth(fluid_settings_t* settings) { return get_settings_range<double>(settings, "synth.chorus.depth"); }
+
+// ---------
+// accessors
+// ---------
+
+auto get_chorus_speed(fluid_synth_t* synth) { return fluid_synth_get_chorus_speed(synth); }
+auto get_chorus_depth(fluid_synth_t* synth) { return fluid_synth_get_chorus_depth(synth); }
+
+auto set_reverb_roomsize(fluid_synth_t* synth, double value) { return fluid_synth_set_reverb_roomsize(synth, value); }
+auto set_reverb_damp(fluid_synth_t* synth, double value) { return fluid_synth_set_reverb_damp(synth, value); }
+auto set_reverb_level(fluid_synth_t* synth, double value) { return fluid_synth_set_reverb_level(synth, value); }
+auto set_reverb_width(fluid_synth_t* synth, double value) { return fluid_synth_set_reverb_width(synth, value); }
+
+auto set_chorus_type(fluid_synth_t* synth, int value) { return fluid_synth_set_chorus_type(synth, value); }
+auto set_chorus_nr(fluid_synth_t* synth, int value) { return fluid_synth_set_chorus_nr(synth, value); }
+auto set_chorus_level(fluid_synth_t* synth, double value) { return fluid_synth_set_chorus_level(synth, value); }
+auto set_chorus_speed(fluid_synth_t* synth, double value) { return fluid_synth_set_chorus_speed(synth, value); }
+auto set_chorus_depth(fluid_synth_t* synth, double value) { return fluid_synth_set_chorus_depth(synth, value); }
+
+#endif
 
 struct FluidSettings {
 
@@ -80,6 +275,8 @@ struct FluidSettings {
     fluid_settings_t* m_settings {new_fluid_settings()};
 
 };
+
+}
 
 //======
 // Impl
@@ -178,52 +375,27 @@ struct SoundFontHandler::Impl {
     }
 
     auto handle_reverb_activated(bool value) {
-        has_reverb = value;
+        reverb_activated = value;
         fluid_synth_set_reverb_on(synth, static_cast<int>(value));
         return Result::success;
     }
 
-    auto handle_reverb_roomsize(double value) {
-        return to_result(fluid_synth_set_reverb_roomsize(synth, value));
-    }
-
-    auto handle_reverb_damp(double value) {
-        return to_result(fluid_synth_set_reverb_damp(synth, value));
-    }
-
-    auto handle_reverb_level(double value) {
-        return to_result(fluid_synth_set_reverb_level(synth, value));
-    }
-
-    auto handle_reverb_width(double value) {
-        return to_result(fluid_synth_set_reverb_width(synth, value));
-    }
+    auto handle_reverb_roomsize(double value) { return to_result(set_reverb_roomsize(synth, value)); }
+    auto handle_reverb_damp(double value) { return to_result(set_reverb_damp(synth, value)); }
+    auto handle_reverb_level(double value) { return to_result(set_reverb_level(synth, value)); }
+    auto handle_reverb_width(double value) { return to_result(set_reverb_width(synth, value)); }
 
     auto handle_chorus_activated(bool value) {
-        has_chorus = value;
+        chorus_activated = value;
         fluid_synth_set_chorus_on(synth, static_cast<int>(value));
         return Result::success;
     }
 
-    auto handle_chorus_type(int value) {
-        return to_result(fluid_synth_set_chorus_type(synth, value));
-    }
-
-    auto handle_chorus_nr(int value) {
-        return to_result(fluid_synth_set_chorus_nr(synth, value));
-    }
-
-    auto handle_chorus_level(double value) {
-        return to_result(fluid_synth_set_chorus_level(synth, value));
-    }
-
-    auto handle_chorus_speed(double value) {
-        return to_result(fluid_synth_set_chorus_speed(synth, value));
-    }
-
-    auto handle_chorus_depth(double value) {
-        return to_result(fluid_synth_set_chorus_depth(synth, value));
-    }
+    auto handle_chorus_type(int value) { return to_result(set_chorus_type(synth, value));  }
+    auto handle_chorus_nr(int value) { return to_result(set_chorus_nr(synth, value)); }
+    auto handle_chorus_level(double value) { return to_result(set_chorus_level(synth, value)); }
+    auto handle_chorus_speed(double value) { return to_result(set_chorus_speed(synth, value)); }
+    auto handle_chorus_depth(double value) { return to_result(set_chorus_depth(synth, value)); }
 
     void handle_close() {
         fluid_synth_system_reset(synth);
@@ -234,8 +406,8 @@ struct SoundFontHandler::Impl {
     fluid_synth_t* synth;
     fluid_audio_driver_t* adriver;
     channels_t drums {channels_t::drums()};
-    bool has_reverb {SoundFontHandler::ext.reverb.activated.default_value};
-    bool has_chorus {SoundFontHandler::ext.chorus.activated.default_value};
+    bool reverb_activated {SoundFontHandler::ext.reverb.activated.default_value};
+    bool chorus_activated {SoundFontHandler::ext.chorus.activated.default_value};
 
 };
 
@@ -246,22 +418,22 @@ struct SoundFontHandler::Impl {
 const SoundFontExtensions SoundFontHandler::ext = [] {
     FluidSettings settings;
     return SoundFontExtensions {
-        {"SoundFont.gain", settings_default<double>(settings, "synth.gain"), settings_range<double>(settings, "synth.gain")},
+        {"SoundFont.gain", get_settings_default<double>(settings, "synth.gain"), get_settings_range<double>(settings, "synth.gain")},
         {"SoundFont.file"},
         {
-            {"SoundFont.reverb_activated", settings_default<bool>(settings, "synth.reverb.active")},
-            {"SoundFont.reverb_roomsize", settings_default<double>(settings, "synth.reverb.room-size"), settings_range<double>(settings, "synth.reverb.room-size")},
-            {"SoundFont.reverb_damp", settings_default<double>(settings, "synth.reverb.damp"), settings_range<double>(settings, "synth.reverb.damp")},
-            {"SoundFont.reverb_level", settings_default<double>(settings, "synth.reverb.level"), settings_range<double>(settings, "synth.reverb.level")},
-            {"SoundFont.reverb_width", settings_default<double>(settings, "synth.reverb.width"), settings_range<double>(settings, "synth.reverb.width")}
+            {"SoundFont.reverb_activated", get_settings_default<bool>(settings, "synth.reverb.active")},
+            {"SoundFont.reverb_roomsize", get_default_reverb_roomsize(settings), get_range_reverb_roomsize(settings)},
+            {"SoundFont.reverb_damp", get_default_reverb_damp(settings), get_range_reverb_damp(settings)},
+            {"SoundFont.reverb_level", get_default_reverb_level(settings), get_range_reverb_level(settings)},
+            {"SoundFont.reverb_width", get_default_reverb_width(settings), get_range_reverb_width(settings)}
         },
         {
-            {"SoundFont.chorus_activated", settings_default<bool>(settings, "synth.chorus.active")},
-            {"SoundFont.chorus_type", FLUID_CHORUS_MOD_SINE},
-            {"SoundFont.chorus_nr", settings_default<int>(settings, "synth.chorus.nr"), settings_range<int>(settings, "synth.chorus.nr")},
-            {"SoundFont.chorus_level", settings_default<double>(settings, "synth.chorus.level"), settings_range<double>(settings, "synth.chorus.level")},
-            {"SoundFont.chorus_speed", settings_default<double>(settings, "synth.chorus.speed"), settings_range<double>(settings, "synth.chorus.speed")},
-            {"SoundFont.chorus_depth", settings_default<double>(settings, "synth.chorus.depth"), settings_range<double>(settings, "synth.chorus.depth")}
+            {"SoundFont.chorus_activated", get_settings_default<bool>(settings, "synth.chorus.active")},
+            {"SoundFont.chorus_type", get_default_chorus_type(settings)},
+            {"SoundFont.chorus_nr", get_default_chorus_nr(settings), get_range_chorus_nr(settings)},
+            {"SoundFont.chorus_level", get_default_chorus_level(settings), get_range_chorus_level(settings)},
+            {"SoundFont.chorus_speed", get_default_chorus_speed(settings), get_range_chorus_speed(settings)},
+            {"SoundFont.chorus_depth", get_default_chorus_depth(settings), get_range_chorus_depth(settings)}
         }
     };
 }();
@@ -281,12 +453,12 @@ double SoundFontHandler::gain() const {
 std::string SoundFontHandler::file() const {
     std::string result;
     if (auto* sfont = fluid_synth_get_sfont(m_pimpl->synth, 0))
-        result.assign(fluid_sfont_get_name(sfont));
+        result.assign(get_sfont_name(sfont));
     return result;
 }
 
 bool SoundFontHandler::reverb_activated() const {
-    return m_pimpl->has_reverb;
+    return m_pimpl->reverb_activated;
 }
 
 double SoundFontHandler::reverb_roomsize() const {
@@ -306,7 +478,7 @@ double SoundFontHandler::reverb_width() const {
 }
 
 bool SoundFontHandler::chorus_activated() const {
-    return m_pimpl->has_chorus;
+    return m_pimpl->chorus_activated;
 }
 
 int SoundFontHandler::chorus_type() const {
@@ -322,11 +494,11 @@ double SoundFontHandler::chorus_level() const {
 }
 
 double SoundFontHandler::chorus_speed() const {
-    return fluid_synth_get_chorus_speed(m_pimpl->synth);
+    return get_chorus_speed(m_pimpl->synth);
 }
 
 double SoundFontHandler::chorus_depth() const {
-    return fluid_synth_get_chorus_depth(m_pimpl->synth);
+    return get_chorus_depth(m_pimpl->synth);
 }
 
 families_t SoundFontHandler::handled_families() const {
