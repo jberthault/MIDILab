@@ -260,20 +260,22 @@ ProgramEditor::ProgramEditor(Manager* manager, QWidget* parent) : QWidget{parent
         TRACE_ERROR("programs.xml is illformed");
     }
 
-    // PATCHES COMBO
+    // patches combo
     mPatchesCombo = new QComboBox{this};
     for (const auto& patch : mRootPatch.children())
         mPatchesCombo->addItem(patch.name());
     connect(mPatchesCombo, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, &ProgramEditor::updatePatch);
 
-    // HANDLERS COMBO
+    // handlers combo
     mHandlerSelector = new HandlerSelector{this};
     connect(manager, &Context::handlerRenamed, mHandlerSelector, &HandlerSelector::renameHandler);
     connect(mHandlerSelector, &HandlerSelector::handlerChanged, this, &ProgramEditor::showHandler);
 
-    // CHANNELS
+    // model
     mProgramModel = new ProgramModel{manager->channelEditor(), this};
     connect(mProgramModel, &ProgramModel::programEdited, this, &ProgramEditor::editProgram);
+
+    // table
     auto* table = new QTableView{this};
     table->setModel(mProgramModel);
     table->setAlternatingRowColors(true);
@@ -284,15 +286,17 @@ ProgramEditor::ProgramEditor(Manager* manager, QWidget* parent) : QWidget{parent
     table->horizontalHeader()->setStretchLastSection(true);
     table->horizontalHeader()->setVisible(false);
     table->setItemDelegateForColumn(1, new PatchDelegate{this});
+    table->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     table->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    table->setMinimumHeight(20 * channels_t::capacity() + 2); // force the table to show every row, crappy ...
+    table->setMinimumHeight(table->rowHeight(0) * channels_t::capacity() + 2); // force the table to show every row, crappy ...
     table->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     connect(table, &QTableView::clicked, this, &ProgramEditor::onClick);
     connect(table, &QTableView::doubleClicked, this, &ProgramEditor::onDoubleClick);
 
-    // LAYOUT
+    // layout
     setLayout(make_vbox(make_hbox(mHandlerSelector, mPatchesCombo), table));
 
+    // manager signals
     connect(manager, &Context::handlerInserted, this, &ProgramEditor::insertHandler);
     connect(manager, &Context::handlerRemoved, this, &ProgramEditor::removeHandler);
     connect(manager->observer(), &Observer::messageHandled, this, &ProgramEditor::updateSuccess);

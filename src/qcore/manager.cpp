@@ -38,13 +38,13 @@ public:
 
     void addConfiguration(const Configuration& configuration) {
         // set colors
-        for (channel_t c=0 ; c < std::min(channels_t::capacity(), (size_t)configuration.colors.size()) ; ++c)
+        for (channel_t c=0 ; c < std::min(channels_t::capacity(), configuration.colors.size()) ; ++c)
             mManager->channelEditor()->setColor(c, configuration.colors.at(c));
         // add frames
         auto* mainDisplayer = mManager->mainDisplayer();
         if (!configuration.frames.empty())
             setFrame(mainDisplayer, configuration.frames[0], true);
-        for (int i=1 ; i < configuration.frames.size() ; i++)
+        for (size_t i=1 ; i < configuration.frames.size() ; i++)
             addFrame(mainDisplayer, configuration.frames[i], true);
         // add handlers
         for (const auto& handler : configuration.handlers)

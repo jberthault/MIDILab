@@ -274,7 +274,7 @@ struct RemoveUsage : public Filter::visitor_type<boost::optional<Filter::data_ty
             if (boost::logic::indeterminate(match))
                 ++it;
             else if (match == is_any) // true | ... (or) false & ...
-                return {always(match)};
+                return {always(is_any)};
             else // true & ... (or) false | ...
                 it = f.filters.erase(it);
         }

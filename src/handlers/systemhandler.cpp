@@ -24,7 +24,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <windows.h>
 #include <mmsystem.h>
-#include <map>
+#include <vector>
+#include <list>
 #include <set>
 
 class WinSystemHandler : public Handler {

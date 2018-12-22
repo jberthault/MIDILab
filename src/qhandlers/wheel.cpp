@@ -26,7 +26,7 @@ namespace {
 constexpr range_t<byte_t> semitonesRange = {0, 24};
 constexpr range_t<byte_t> data7Range = {0, 0x7f};
 constexpr range_t<uint16_t> data14Range = {0, 0x3fff};
-constexpr range_t<int> panRange = {-50, 50};
+constexpr range_t<int> panRange = {-64, 63};
 constexpr range_t<int> percentRange {0, 100};
 
 constexpr byte_t defaultSemitones = 2;

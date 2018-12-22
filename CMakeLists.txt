@@ -45,6 +45,10 @@ add_executable(${PROJECT_NAME} ${SRC_FILES} ${QRC_FILES} ${TXT_FILES})
 # target configuration
 # --------------------
 
+if (CMAKE_COMPILER_IS_GNUCXX)
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wno-switch)
+endif()
+
 foreach(LEVEL IN ITEMS DEBUG INFO WARNING ERROR TIMING)
     if (ENABLE_LOG_${LEVEL})
         message(STATUS "${LEVEL} messages enabled")
