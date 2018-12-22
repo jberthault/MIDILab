@@ -399,21 +399,25 @@ HandlerListEditor::HandlerListEditor(Manager* manager, QWidget* parent) : QWidge
     setContextMenuPolicy(Qt::CustomContextMenu);
     mMenu = new QMenu{this};
     mMenu->setToolTipsVisible(true);
-    addCommandMenu("Open", HandlerProxy::Command::Open)->installEventFilter(trigger);
-    addCommandMenu("Close", HandlerProxy::Command::Close)->installEventFilter(trigger);
-    addCommandMenu("Toggle", HandlerProxy::Command::Toggle)->installEventFilter(trigger);
-    mMenu->addSeparator();
-    mMenu->addAction(QIcon{":/data/delete.svg"}, "Delete", this, SLOT(destroySelection()));
-    mRenameAction = mMenu->addAction(QIcon{":/data/text.svg"}, "Rename", this, SLOT(renameSelection()));
     auto* editAction = mMenu->addAction(QIcon{":/data/eye.svg"}, "Edit", this, SLOT(editSelection()));
     editAction->setToolTip("Raise the window hosting this handler");
+    mRenameAction = mMenu->addAction(QIcon{":/data/text.svg"}, "Rename", this, SLOT(renameSelection()));
+    mMenu->addSeparator();
+    addCommandMenu(QIcon{":/data/light-green.svg"}, "Open", HandlerProxy::Command::Open)->installEventFilter(trigger);
+    addCommandMenu(QIcon{":/data/light-red.svg"}, "Close", HandlerProxy::Command::Close)->installEventFilter(trigger);
+    addCommandMenu(QIcon{":/data/light-yellow.svg"}, "Toggle", HandlerProxy::Command::Toggle)->installEventFilter(trigger);
+    mMenu->addSeparator();
+    auto* refreshAction = mMenu->addAction(QIcon{":/data/reload.svg"}, "Refresh", this, SLOT(refreshSelectionParameters()));
+    refreshAction->setToolTip("Refresh the displayed parameters to their current value");
     auto* resetAction = mMenu->addAction(QIcon{":/data/flash.svg"}, "Reset", this, SLOT(resetSelectionParameters()));
     resetAction->setToolTip("Reset parameters to their default value");
+    mMenu->addSeparator();
+    mMenu->addAction(QIcon{":/data/delete.svg"}, "Delete", this, SLOT(destroySelection()));
 
     connect(manager, &Context::handlerInserted, this, &HandlerListEditor::insertHandler);
     connect(manager, &Context::handlerRemoved, this, &HandlerListEditor::removeHandler);
     connect(manager, &Context::handlerRenamed, this, &HandlerListEditor::renameHandler);
-    connect(manager, &Context::handlerParametersChanged, this, &HandlerListEditor::onParametersChange);
+    connect(manager, &Context::handlerParametersChanged, this, &HandlerListEditor::refreshHandler);
     connect(manager->observer(), &Observer::messageHandled, this, &HandlerListEditor::onMessageHandled);
 
     connect(this, &HandlerListEditor::customContextMenuRequested, this, &HandlerListEditor::showMenu);
@@ -454,7 +458,7 @@ void HandlerListEditor::removeHandler(Handler* handler) {
         delete item;
 }
 
-void HandlerListEditor::onParametersChange(Handler* handler) {
+void HandlerListEditor::refreshHandler(Handler* handler) {
     if (auto* item = itemForHandler(mTree->invisibleRootItem(), handler)) {
         QSignalBlocker sb{mTree};
         auto proxy = getProxy(mManager->handlerProxies(), handler);
@@ -531,13 +535,18 @@ void HandlerListEditor::resetSelectionParameters() {
         getProxy(mManager->handlerProxies(), handler).resetParameters();
 }
 
+void HandlerListEditor::refreshSelectionParameters() {
+    for (auto* handler : selectedHandlers())
+        refreshHandler(handler);
+}
+
 void HandlerListEditor::sendToSelection(HandlerProxy::Command command, Handler::State state) {
     for (auto* handler : selectedHandlers())
         getProxy(mManager->handlerProxies(), handler).sendCommand(command, state);
 }
 
-QMenu* HandlerListEditor::addCommandMenu(const QString& title, HandlerProxy::Command command) {
-    auto* menu = mMenu->addMenu(title);
+QMenu* HandlerListEditor::addCommandMenu(const QIcon& icon, const QString& title, HandlerProxy::Command command) {
+    auto* menu = mMenu->addMenu(icon, title);
     auto* duplex = menu->addAction("All");
     auto* receive = menu->addAction("Receive");
     auto* forward = menu->addAction("Forward");
