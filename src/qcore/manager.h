@@ -83,9 +83,11 @@ public:
     const HandlerProxies& handlerProxies() const override;
     PathRetrieverPool* pathRetrieverPool() override;
     QToolBar* quickToolBar() override;
+    QSystemTrayIcon* systemTrayIcon() override;
 
     void setChannelEditor(ChannelEditor* editor);
     void setQuickToolBar(QToolBar* toolbar);
+    void setSystemTrayIcon(QSystemTrayIcon* tray);
 
     // configuration
 
@@ -120,7 +122,7 @@ private:
     Deleter* mDeleter;
     Observer* mObserver;
     SignalNotifier* mSignalNotifier;
-
+    QSystemTrayIcon* mSystemTrayIcon {nullptr};
     ChannelEditor* mChannelEditor {nullptr};
     QToolBar* mQuickToolbar {nullptr};
 };

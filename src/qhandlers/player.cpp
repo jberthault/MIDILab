@@ -52,10 +52,10 @@ auto findCodecs() {
 // DistordedClock
 //===============
 
-const QString DistordedClock::timeFormat("mm:ss.zzz");
+const QString DistordedClock::timeFormat{"mm:ss.zzz"};
 
 DistordedClock::DistordedClock(Clock clock, double distorsion) :
-    mClock(std::move(clock)), mDistorsion(distorsion) {
+    mClock{std::move(clock)}, mDistorsion{distorsion} {
 
 }
 
@@ -88,16 +88,16 @@ QTime DistordedClock::toTime(timestamp_t timestamp) const {
 }
 
 timestamp_t DistordedClock::toTimestamp(const QTime& t0, const QTime& t1) const {
-    return mClock.time2timestamp(Clock::duration_type((double)t0.msecsTo(t1) * 1.e3 * mDistorsion));
+    return mClock.time2timestamp(Clock::duration_type{(double)t0.msecsTo(t1) * 1.e3 * mDistorsion});
 }
 
 timestamp_t DistordedClock::toTimestamp(const QTime& time) const {
-    return toTimestamp(QTime(0, 0), time);
+    return toTimestamp(QTime{0, 0}, time);
 }
 
 QTime DistordedClock::durationCast(const Clock::duration_type& time) const {
     /// @note no std::duration_cast to avoid rounding errors
-    return mDistorsion != 0. ? QTime(0, 0).addMSecs(decay_value<int>(time.count() * 1.e-3 / mDistorsion)) : QTime();
+    return mDistorsion != 0. ? QTime{0, 0}.addMSecs(decay_value<int>(time.count() * 1.e-3 / mDistorsion)) : QTime{};
 }
 
 //==============
@@ -105,7 +105,7 @@ QTime DistordedClock::durationCast(const Clock::duration_type& time) const {
 //==============
 
 SequenceViewTrackItem::SequenceViewTrackItem(track_t track, SequenceView* view, QTreeWidget* parent) :
-    QTreeWidgetItem(parent), mTrack(track), mView(view) {
+    QTreeWidgetItem{parent}, mTrack{track}, mView{view} {
 
 }
 
@@ -128,7 +128,7 @@ void SequenceViewTrackItem::setCodec(QTextCodec* codec) {
 }
 
 SequenceViewItem::SequenceViewItem(Sequence::Item item, SequenceViewTrackItem *parent) :
-    QTreeWidgetItem(parent), mItem(std::move(item)) {
+    QTreeWidgetItem{parent}, mItem{std::move(item)} {
 
     // timestamp
     setText(0, QString::number(decay_value<long>(mItem.timestamp)));
@@ -167,9 +167,9 @@ void SequenceViewItem::setCodec(QTextCodec* codec) {
 }
 
 void SequenceViewItem::updateVisibiliy(families_t families, channels_t channels, timestamp_t lower, timestamp_t upper) {
-    bool familiesVisible = mItem.event.is(families);
-    bool channelsVisible = !mItem.event.is(families_t::voice()) || mItem.event.channels().any(channels);
-    bool boundsVisible = lower <= mItem.timestamp && mItem.timestamp <= upper;
+    const bool familiesVisible = mItem.event.is(families);
+    const bool channelsVisible = !mItem.event.is(families_t::voice()) || mItem.event.channels().any(channels);
+    const bool boundsVisible = lower <= mItem.timestamp && mItem.timestamp <= upper;
     setHidden(!(familiesVisible && channelsVisible && boundsVisible));
 }
 
@@ -266,7 +266,7 @@ void SequenceView::setCodec(QTextCodec* codec) {
     Q_ASSERT(codec);
     mCodec = codec;
     // prevent itemChanged, we want it to be emitted for checkstate only :(
-    QSignalBlocker guard(mTreeWidget);
+    QSignalBlocker guard{mTreeWidget};
     Q_UNUSED(guard);
     for (auto* trackItem : makeChildRange(mTreeWidget->invisibleRootItem())) {
         static_cast<SequenceViewTrackItem*>(trackItem)->setCodec(codec);
@@ -453,7 +453,7 @@ void SequenceView::setChannelColor(channel_t channel, const QColor& /*color*/) {
 // PlaylistTable
 //===============
 
-FileItem::FileItem(const QFileInfo& fileInfo) : PlaylistItem(), mFileInfo(fileInfo) {
+FileItem::FileItem(const QFileInfo& fileInfo) : PlaylistItem{}, mFileInfo{fileInfo} {
     mFileInfo = fileInfo;
     setText(mFileInfo.completeBaseName());
     setToolTip(mFileInfo.absoluteFilePath());
@@ -468,11 +468,11 @@ NamedSequence FileItem::loadSequence() {
     return {Sequence::from_file(std::move(file)), text()};
 }
 
-WriterItem::WriterItem(SequenceWriter* handler) : PlaylistItem(), mHandler(handler) {
+WriterItem::WriterItem(SequenceWriter* handler) : PlaylistItem{}, mHandler{handler} {
     Q_ASSERT(handler);
     setText(handlerName(mHandler));
     setToolTip("Recorder Handler");
-    QFont f = font();
+    auto f = font();
     f.setItalic(true);
     setFont(f);
 }
@@ -485,9 +485,9 @@ NamedSequence WriterItem::loadSequence() {
     return {mHandler->load_sequence(), {}};
 }
 
-PlaylistTable::PlaylistTable(QWidget* parent) : QTableWidget(0, 2, parent), mContext(nullptr), mCurrentItem(nullptr) {
+PlaylistTable::PlaylistTable(QWidget* parent) : QTableWidget{0, 2, parent} {
 
-    setHorizontalHeaderLabels(QStringList() << "Filename" << "Duration");
+    setHorizontalHeaderLabels(QStringList{} << "Filename" << "Duration");
 
     setEditTriggers(NoEditTriggers);
     setAlternatingRowColors(true);
@@ -554,20 +554,20 @@ size_t PlaylistTable::addPaths(QList<QUrl> urls) {
 }
 
 size_t PlaylistTable::addPath(const QString& path) {
-    static const QStringList suffixes = QStringList() << "mid" << "midi" << "kar";
+    static const auto suffixes = QStringList{} << "mid" << "midi" << "kar";
     size_t count = 0;
-    QFileInfo info(path);
+    const QFileInfo info{path};
     if (!info.exists()) {
         TRACE_WARNING("can't find file " << path);
     } else if (info.isDir()) {
-        for (const QFileInfo& child : QDir(path).entryInfoList(QDir::Files)) {
+        for (const QFileInfo& child : QDir{path}.entryInfoList(QDir::Files)) {
             if (suffixes.contains(child.suffix())) {
-                insertItem(new FileItem(child));
+                insertItem(new FileItem{child});
                 ++count;
             }
         }
     } else {
-        insertItem(new FileItem(info));
+        insertItem(new FileItem{info});
         ++count;
     }
     return count;
@@ -580,10 +580,10 @@ size_t PlaylistTable::addPath(const QUrl& url) {
 void PlaylistTable::setCurrentStatus(SequenceStatus status) {
     if (mCurrentItem) {
         switch (status) {
-        case NO_STATUS : mCurrentItem->setIcon(QIcon()); break;
-        case PLAYING : mCurrentItem->setIcon(QIcon(":/data/media-play.svg")); break;
-        case PAUSED : mCurrentItem->setIcon(QIcon(":/data/media-pause.svg")); break;
-        case STOPPED : mCurrentItem->setIcon(QIcon(":/data/media-stop.svg")); break;
+        case NO_STATUS : mCurrentItem->setIcon(QIcon{}); break;
+        case PLAYING : mCurrentItem->setIcon(QIcon{":/data/media-play.svg"}); break;
+        case PAUSED : mCurrentItem->setIcon(QIcon{":/data/media-pause.svg"}); break;
+        case STOPPED : mCurrentItem->setIcon(QIcon{":/data/media-stop.svg"}); break;
         }
     }
 }
@@ -601,7 +601,7 @@ NamedSequence PlaylistTable::loadRow(int row) {
             setCurrentStatus(NO_STATUS);
             mCurrentItem = playlistItem;
             // set duration
-            item(row, 1)->setText(DistordedClock(namedSequence.sequence.clock()).toString(namedSequence.sequence.last_timestamp()));
+            item(row, 1)->setText(DistordedClock{namedSequence.sequence.clock()}.toString(namedSequence.sequence.last_timestamp()));
             // ensure line is visible
             scrollToItem(playlistItem);
         } else {
@@ -704,7 +704,7 @@ void PlaylistTable::removeAllRows() {
 
 void PlaylistTable::renameHandler(Handler* handler) {
     for (int row=0 ; row < rowCount() ; row++) {
-        WriterItem* writerItem = dynamic_cast<WriterItem*>(item(row, 0));
+        auto* writerItem = dynamic_cast<WriterItem*>(item(row, 0));
         if (writerItem && writerItem->handler() == handler)
             writerItem->setText(handlerName(handler));
     }
@@ -712,7 +712,7 @@ void PlaylistTable::renameHandler(Handler* handler) {
 
 void PlaylistTable::removeHandler(Handler* handler) {
     for (int row=0 ; row < rowCount() ; ) {
-        WriterItem* writerItem = dynamic_cast<WriterItem*>(item(row, 0));
+        auto* writerItem = dynamic_cast<WriterItem*>(item(row, 0));
         if (writerItem && writerItem->handler() == handler)
             removeRow(row);
         else
@@ -780,14 +780,14 @@ void PlaylistTable::removeRows(std::vector<int> rows) {
 }
 
 int PlaylistTable::rowAt(const QPoint& pos) const {
-    QModelIndex index = indexAt(pos);
+    const auto index = indexAt(pos);
     // append item if it is dropped in the viewport
     if (!index.isValid())
         return rowCount();
-    QRect itemRect = visualRect(index);
-    QPoint relPos = pos - itemRect.topLeft();
+    const auto itemRect = visualRect(index);
+    const auto relPos = pos - itemRect.topLeft();
     // formula to get vertical position (match the drop indicator)
-    bool isBefore = relPos.y() < (itemRect.height()-1)/2;
+    const bool isBefore = relPos.y() < (itemRect.height()-1)/2;
     return isBefore ? index.row() : index.row() + 1;
 }
 
@@ -795,7 +795,7 @@ int PlaylistTable::rowAt(const QPoint& pos) const {
 // Trackbar
 //==========
 
-MarkerKnob::MarkerKnob(QBoxLayout::Direction direction) : ArrowKnob(direction) {
+MarkerKnob::MarkerKnob(QBoxLayout::Direction direction) : ArrowKnob{direction} {
     setMovable(false);
     connect(this, &ArrowKnob::knobDoubleClicked, this, &MarkerKnob::onClick);
 }
@@ -816,9 +816,7 @@ void MarkerKnob::onClick(Qt::MouseButton button) {
     }
 }
 
-TrackedKnob::TrackedKnob(QWidget* parent) :
-    QTimeEdit(parent), mKnob(nullptr), mTimestamp(0.), mMaxTimestamp(1.), mDistordedClock(), mIsTracking(false), mIsReversed(false) {
-
+TrackedKnob::TrackedKnob(QWidget* parent) : QTimeEdit{parent} {
     connect(this, &TrackedKnob::timeChanged, this, &TrackedKnob::onTimeChange);
 }
 
@@ -925,12 +923,12 @@ void TrackedKnob::onTimeChange(const QTime& time) {
 }
 
 void TrackedKnob::updateTime() {
-    QSignalBlocker guard(this);
+    QSignalBlocker guard{this};
     setTime(toTime(mTimestamp));
 }
 
 void TrackedKnob::updateMaximumTime() {
-    QSignalBlocker guard(this);
+    QSignalBlocker guard{this};
     setMaximumTime(mDistordedClock.toTime(mMaxTimestamp));
 }
 
@@ -995,13 +993,13 @@ Trackbar::Trackbar(QWidget* parent) : QWidget{parent} {
 
     auto* buttonMenu = new QMenu{this};
 
-    auto* reverseAction = buttonMenu->addAction("Reverse Time");
+    auto* reverseAction = buttonMenu->addAction(QIcon{":/data/transfer.svg"}, "Reverse Time");
     reverseAction->setCheckable(true);
     connect(reverseAction, &QAction::toggled, mPositionEdit, &TrackedKnob::setReversed);
 
     auto* button = new QToolButton{this};
     button->setAutoRaise(true);
-    button->setIcon(QIcon(":/data/menu.svg"));
+    button->setIcon(QIcon{":/data/menu.svg"});
     button->setPopupMode(QToolButton::InstantPopup);
     button->setMenu(buttonMenu);
 
@@ -1014,11 +1012,11 @@ const QBrush& Trackbar::knobColor() const {
 
 void Trackbar::setKnobColor(const QBrush& brush) {
     mPositionKnob->setBrush(brush);
-    for (MarkerKnob* knob : mMarkerKnobs)
+    for (auto* knob : mMarkerKnobs)
         knob->setBrush(brush);
-    for (MarkerKnob* knob : mCustomMarkerKnobs)
+    for (auto* knob : mCustomMarkerKnobs)
         knob->setBrush(brush);
-    QPen pen = mLowerKnob->pen();
+    auto pen = mLowerKnob->pen();
     pen.setBrush(brush);
     mLowerKnob->setPen(pen);
     mUpperKnob->setPen(pen);
@@ -1029,7 +1027,7 @@ int Trackbar::knobWidth() const {
 }
 
 void Trackbar::setKnobWidth(int width) {
-    QPen pen = mLowerKnob->pen();
+    auto pen = mLowerKnob->pen();
     pen.setWidth(width);
     mLowerKnob->setPen(pen);
     mUpperKnob->setPen(pen);
@@ -1052,7 +1050,7 @@ void Trackbar::updateTimestamp(timestamp_t timestamp) {
 }
 
 MarkerKnob* Trackbar::addMarker(timestamp_t timestamp, const QString& tooltip, bool isCustom) {
-    auto knob = addMarker(isCustom);
+    auto* knob = addMarker(isCustom);
     knob->setTimestamp(timestamp);
     knob->xScale().value = timestamp / mLastEdit->timestamp();
     knob->setToolTip(tooltip);
@@ -1070,7 +1068,7 @@ MarkerKnob* Trackbar::addMarker(bool isCustom) {
         }
     }
     // no handle is available, make it on the fly
-    MarkerKnob* knob = new MarkerKnob(isCustom ? QBoxLayout::BottomToTop : QBoxLayout::TopToBottom);
+    auto* knob = new MarkerKnob{isCustom ? QBoxLayout::BottomToTop : QBoxLayout::TopToBottom};
     connect(knob, &MarkerKnob::leftClicked, mPositionEdit, &TrackedKnob::setTimestamp);
     if (isCustom) {
         // connection is queued to let the item process its events before being hidden
@@ -1112,9 +1110,9 @@ void Trackbar::addCustomMarker(timestamp_t timestamp) {
 }
 
 void Trackbar::cleanMarkers() {
-    for (auto knob : mMarkerKnobs)
+    for (auto* knob : mMarkerKnobs)
         knob->setVisible(false);
-    for (auto knob : mCustomMarkerKnobs)
+    for (auto* knob : mCustomMarkerKnobs)
         knob->setVisible(false);
 }
 
@@ -1141,7 +1139,7 @@ auto* newTempoSpinBox(QWidget* parent) {
 
 }
 
-TempoView::TempoView(QWidget* parent) : QWidget(parent) {
+TempoView::TempoView(QWidget* parent) : QWidget{parent} {
 
     mTempoSpin = newTempoSpinBox(this);
     mTempoSpin->setToolTip("Base Tempo");
@@ -1300,6 +1298,7 @@ void Player::updateContext(Context* context) {
 void Player::changePosition(timestamp_t timestamp) {
     // event comes from trackbar
     mHandler.set_position(timestamp);
+    mTempoView->clearTempo();
 }
 
 void Player::changeLower(timestamp_t timestamp) {
@@ -1347,12 +1346,9 @@ void Player::refreshPosition() {
     if (mHandler.is_completed()) {
         playNextSequence();
     } else if (!mHandler.is_playing()) { // stopped by an event
-        if (mIsPlaying) {
-            mIsPlaying = false;
-            mIsStepping = false;
-            mRefreshTimer->stop();
-            mTempoView->clearTempo();
-        }
+        mIsStepping = false;
+        mRefreshTimer->stop();
+        mTempoView->clearTempo();
         mPlaylist->setCurrentStatus(STOPPED);
     } else if (mIsStepping && mHandler.position() >= mNextStep) {
         pauseSequence();
@@ -1360,7 +1356,7 @@ void Player::refreshPosition() {
 }
 
 void Player::setSequence(NamedSequence sequence) {
-    window()->setWindowTitle(std::move(sequence.name));
+    context()->systemTrayIcon()->showMessage(handlerName(&mHandler), sequence.name, QIcon{":/data/media-play.svg"}, 2000);
     mHandler.set_sequence(std::move(sequence.sequence));
     mTempoView->setClock(mHandler.sequence().clock());
     mSequenceView->setSequence(mHandler.sequence(), mHandler.lower(), mHandler.upper());
@@ -1405,42 +1401,32 @@ void Player::onPositionSelected(timestamp_t timestamp, Qt::MouseButton button) {
 }
 
 void Player::playSequence() {
-    if (!mIsPlaying)
+    if (!mHandler.is_playing())
         if (mPlaylist->isLoaded() || setNextSequence(1))
             playCurrentSequence();
 }
 
 void Player::playCurrentSequence(bool resetStepping) {
-    if (!mIsPlaying) {
+    if (mHandler.start_playing(false)) {
         if (resetStepping)
             mIsStepping = false;
-        if (mHandler.start_playing(false)) {
-            mIsPlaying = true;
-            mRefreshTimer->start();
-            mPlaylist->setCurrentStatus(PLAYING);
-        }
+        mRefreshTimer->start();
+        mPlaylist->setCurrentStatus(PLAYING);
     }
 }
 
 void Player::pauseSequence() {
-    if (mIsPlaying) {
-        mIsPlaying = false;
+    if (mHandler.stop_playing(Event::controller(channels_t::full(), controller_ns::all_sound_off_controller), false, false)) {
         mIsStepping = false;
-        mHandler.stop_playing(Event::controller(channels_t::full(), controller_ns::all_sound_off_controller), false, false);
         mRefreshTimer->stop();
-        mTempoView->clearTempo();
         mPlaylist->setCurrentStatus(PAUSED);
     }
 }
 
 void Player::resetSequence() {
     mHandler.stop_playing(Event::reset(), true, true);
-    if (mIsPlaying) {
-        mIsPlaying = false;
-        mIsStepping = false;
-        mRefreshTimer->stop();
-        mTempoView->clearTempo();
-    }
+    mIsStepping = false;
+    mRefreshTimer->stop();
     mPlaylist->setCurrentStatus(STOPPED);
     updatePosition();
 }

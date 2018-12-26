@@ -284,8 +284,8 @@ private:
     int rowAt(const QPoint& pos) const;
 
 private:
-    Context* mContext;
-    PlaylistItem* mCurrentItem;
+    Context* mContext {nullptr};
+    PlaylistItem* mCurrentItem {nullptr};
     std::default_random_engine mRandomEngine;
 
 };
@@ -356,12 +356,12 @@ signals:
     void leftClicked(timestamp_t timestamp);
 
 private:
-    Knob* mKnob;
-    timestamp_t mTimestamp;
-    timestamp_t mMaxTimestamp;
+    Knob* mKnob {nullptr};
+    timestamp_t mTimestamp {0.};
+    timestamp_t mMaxTimestamp {1.};
     DistordedClock mDistordedClock;
-    bool mIsTracking;
-    bool mIsReversed;
+    bool mIsTracking {false};
+    bool mIsReversed {false};
 
 };
 
@@ -517,17 +517,14 @@ private:
     TempoView* mTempoView;
     SequenceView* mSequenceView;
     PlaylistTable* mPlaylist;
-
     QTimer* mRefreshTimer;
-    bool mIsPlaying {false};
+    MultiStateAction* mModeAction;
+    MultiStateAction* mLoopAction;
 
     SequenceReader mHandler;
 
     bool mIsStepping {false};
     timestamp_t mNextStep;
-
-    MultiStateAction* mModeAction;
-    MultiStateAction* mLoopAction;
 
 };
 

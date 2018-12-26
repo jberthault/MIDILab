@@ -90,6 +90,15 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow{parent} {
     auto* channelEditor = new ChannelEditor{this};
     mManager->setChannelEditor(channelEditor);
 
+    auto* systemTrayIcon = new QSystemTrayIcon{qApp->windowIcon(), this};
+    auto* systemTrayMenu = new QMenu{this};
+    systemTrayMenu->addAction(QIcon{":/data/hide.svg"}, "Minimize", this, SLOT(minimizeAll()));
+    systemTrayMenu->addAction(QIcon{":/data/eye.svg"}, "Restore", this, SLOT(restoreAll()));
+    systemTrayMenu->addAction(QIcon{":/data/power-standby.svg"}, "Exit", this, SLOT(close()));
+    systemTrayIcon->setContextMenu(systemTrayMenu);
+    systemTrayIcon->show();
+    mManager->setSystemTrayIcon(systemTrayIcon);
+
     mManagerEditor = new ManagerEditor{mManager, this};
     mProgramEditor = new ProgramEditor{mManager, this};
 
@@ -315,6 +324,18 @@ void MainWindow::onConfigSelection(QAction* action) {
 void MainWindow::onLockStateChange(int state) {
     if (auto* displayer = dynamic_cast<MultiDisplayer*>(centralWidget()))
         displayer->setLocked(state == 0);
+}
+
+void MainWindow::minimizeAll() {
+    for (auto* displayer : MultiDisplayer::topLevelDisplayers())
+        displayer->showMinimized();
+    showMinimized();
+}
+
+void MainWindow::restoreAll() {
+    for (auto* displayer : MultiDisplayer::topLevelDisplayers())
+        displayer->showNormal();
+    showNormal();
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {

@@ -25,6 +25,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <QFormLayout>
 #include <QDir>
 #include <QToolBar>
+#include <QSystemTrayIcon>
 #include "core/handler.h"
 #include "qtools/misc.h"
 
@@ -442,6 +443,7 @@ public:
     virtual const HandlerProxies& handlerProxies() const = 0;
     virtual PathRetrieverPool* pathRetrieverPool() = 0;
     virtual QToolBar* quickToolBar() = 0;
+    virtual QSystemTrayIcon* systemTrayIcon() = 0;
 
 signals:
     void handlerInserted(Handler* handler);

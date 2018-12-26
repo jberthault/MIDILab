@@ -325,12 +325,20 @@ QToolBar* Manager::quickToolBar() {
     return mQuickToolbar;
 }
 
+QSystemTrayIcon* Manager::systemTrayIcon() {
+    return mSystemTrayIcon;
+}
+
 void Manager::setChannelEditor(ChannelEditor* editor) {
     mChannelEditor = editor;
 }
 
 void Manager::setQuickToolBar(QToolBar* toolbar) {
     mQuickToolbar = toolbar;
+}
+
+void Manager::setSystemTrayIcon(QSystemTrayIcon* tray) {
+    mSystemTrayIcon = tray;
 }
 
 Configuration Manager::getConfiguration() {

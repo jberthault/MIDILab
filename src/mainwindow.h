@@ -110,6 +110,8 @@ private:
 private slots:
     void onConfigSelection(QAction* action);
     void onLockStateChange(int state);
+    void minimizeAll();
+    void restoreAll();
 
 protected:
     void closeEvent(QCloseEvent* event) override;
