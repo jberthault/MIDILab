@@ -35,11 +35,11 @@ QString serializeBool(bool value) {
 }
 
 bool parseBool(const QString& data, bool& value) {
-    if (data == "true") {
+    if (QString::compare(data, "true", Qt::CaseInsensitive) == 0 || data == "1") {
         value = true;
         return true;
     }
-    if (data == "false") {
+    if (QString::compare(data, "false", Qt::CaseInsensitive) == 0 || data == "0") {
         value = false;
         return true;
     }
@@ -161,9 +161,12 @@ QString serializeOrientation(Qt::Orientation orientation) {
 }
 
 bool parseOrientation(const QString& data, Qt::Orientation& orientation) {
-    bool ok;
-    orientation = static_cast<Qt::Orientation>(QMetaEnum::fromType<Qt::Orientation>().keyToValue(data.toLocal8Bit().constData(), &ok));
-    return ok;
+    const auto isHorizontal = serializeOrientation(Qt::Horizontal).startsWith(data, Qt::CaseInsensitive);
+    const auto isVertical = serializeOrientation(Qt::Vertical).startsWith(data, Qt::CaseInsensitive);
+    if (isHorizontal == isVertical)
+        return false;
+    orientation = isHorizontal ? Qt::Horizontal : Qt::Vertical;
+    return true;
 }
 
 }
