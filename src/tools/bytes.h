@@ -152,11 +152,7 @@ struct range_t {
 template <typename T>
 struct range_t<T, typename std::enable_if_t<!std::is_same<typename std::iterator_traits<T>::value_type, void>::value>> {
 
-    using iterator_category = typename std::iterator_traits<T>::iterator_category;
-    using value_type = typename std::iterator_traits<T>::value_type;
-    using difference_type = typename std::iterator_traits<T>::difference_type;
-    using pointer = typename std::iterator_traits<T>::pointer;
-    using reference = typename std::iterator_traits<T>::reference;
+    using value_type = T;
 
     constexpr explicit operator bool() const {
         return !(min == max);
@@ -210,6 +206,15 @@ constexpr auto rescale(const IRangeT& irange, IValueT value, const ORangeT& oran
 template<typename T>
 constexpr auto span(const range_t<T>& range) {
     return range.max - range.min;
+}
+
+template<typename T>
+constexpr auto clamp(const range_t<T>& range, T value) {
+    if (range.max < value)
+        return range.max;
+    if (value < range.min)
+        return range.min;
+    return value;
 }
 
 template<typename T>

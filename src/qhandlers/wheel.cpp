@@ -314,7 +314,7 @@ void PitchWheel::onTypeChange(int index) {
         for (channel_t c=0 ; c < channels_t::capacity() ; c++)
             ratios[c] = reduce(semitonesRange, mPitchRanges[c]);
     } else {
-        cardinality = span(data14Range) + 1;
+        cardinality = 0; // continuous range
         defaultRatio = .5;
         for (channel_t c=0 ; c < channels_t::capacity() ; c++)
             ratios[c] = reduce(data14Range, mPitchValues[c]);

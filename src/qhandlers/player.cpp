@@ -824,7 +824,7 @@ void TrackedKnob::setKnob(Knob* knob) {
     mKnob = knob;
     mKnob->setToolTip(toolTip());
     mKnob->xScale().margins = {8., 8.};
-    mKnob->yScale().clamp(.5);
+    mKnob->yScale().pin(.5);
     connect(mKnob, &Knob::knobMoved, this, &TrackedKnob::onMove);
     connect(mKnob, &Knob::knobPressed, this, &TrackedKnob::onPress);
     connect(mKnob, &Knob::knobReleased, this, &TrackedKnob::onRelease);

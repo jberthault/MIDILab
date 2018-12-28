@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "misc.h"
 
 #include <cmath>
+#include <QApplication>
 #include <QResizeEvent>
 #include <QScrollBar>
 #include <QGraphicsSceneMouseEvent>
@@ -49,7 +50,7 @@ const auto minimalRect = sizeBoundingRect({12., 12.});
 //=======
 
 range_t<Scale::discrete_type> Scale::ticks() const {
-    return {0, (discrete_type)cardinality - 1};
+    return {0, static_cast<discrete_type>(cardinality) - 1};
 }
 
 Scale::discrete_type Scale::nearest() const {
@@ -83,18 +84,7 @@ Scale::internal_type Scale::downscale(external_type v) const {
     return reduce(adjusted(), v);
 }
 
-void Scale::update(external_type& v) {
-    value = downscale(v);
-    if (value > range.max) {
-        value = range.max;
-        v = upscale(range.max);
-    } else if (value < range.min) {
-        value = range.min;
-        v = upscale(range.min);
-    }
-}
-
-void Scale::clamp(internal_type v) {
+void Scale::pin(internal_type v) {
     range = {v, v};
     value = v;
 }
@@ -108,6 +98,10 @@ Knob::Knob() : QGraphicsObject{} {
     setFlag(ItemIsFocusable);
     setFlag(ItemSendsGeometryChanges);
     setCacheMode(DeviceCoordinateCache);
+}
+
+QPointF Knob::expectedPos() const {
+    return {mXScale.upscale(), mYScale.upscale()};
 }
 
 const Scale& Knob::xScale() const {
@@ -163,7 +157,7 @@ void Knob::transpose() {
 
 void Knob::moveToFit() {
     mUpdatePosition = false;
-    setPos(mXScale.upscale(), mYScale.upscale());
+    setPos(expectedPos());
     mUpdatePosition = true;
 }
 
@@ -185,24 +179,42 @@ void Knob::setVisibleRect(const QRectF& rect) {
 
 QVariant Knob::itemChange(GraphicsItemChange change, const QVariant& value) {
     if (change == ItemPositionChange && mUpdatePosition) {
-        auto newValue = value.toPointF();
-        const auto xvalue = mXScale.value;
-        const auto yvalue = mYScale.value;
-        mXScale.update(newValue.rx());
-        mYScale.update(newValue.ry());
-        if (mXScale.value != xvalue || mYScale.value != yvalue)
+        // get requested position
+        auto request = value.toPointF();
+        // get previous position
+        const auto previousPos = expectedPos();
+        // if the shift modifier is pressed, change request
+        if (static_cast<bool>(qApp->keyboardModifiers() & Qt::ShiftModifier) && !mPreviousRequest.isNull()) {
+            // get request direction
+            const auto offset = QPointF{std::copysign(.1, request.x() - mPreviousRequest.x()),
+                                        std::copysign(.1, request.y() - mPreviousRequest.y())};
+            // update previous request
+            mPreviousRequest = request;
+            // change request
+            request = previousPos + offset;
+        }
+        // alter position from request
+        mXScale.value = clamp(mXScale.range, mXScale.downscale(request.x()));
+        mYScale.value = clamp(mYScale.range, mYScale.downscale(request.y()));
+        // get corresponding point
+        const auto newPos = expectedPos();
+        // signal any alteration of position
+        if (previousPos != newPos)
             emit knobMoved(mXScale.value, mYScale.value);
-        return newValue;
+        // coerce the computed position
+        return newPos;
     }
     return QGraphicsItem::itemChange(change, value);
 }
 
 void Knob::mousePressEvent(QGraphicsSceneMouseEvent* event) {
+    mPreviousRequest = event->pos();
     emit knobPressed(event->button());
     QGraphicsObject::mousePressEvent(event);
 }
 
 void Knob::mouseReleaseEvent(QGraphicsSceneMouseEvent* event) {
+    mPreviousRequest = {};
     emit knobReleased(event->button());
     QGraphicsObject::mouseReleaseEvent(event);
 }
@@ -216,6 +228,12 @@ void Knob::wheelEvent(QGraphicsSceneWheelEvent* event) {
     scroll(event->delta());
     QGraphicsObject::wheelEvent(event);
 }
+
+void Knob::hoverEnterEvent(QGraphicsSceneHoverEvent* event) {
+    emit knobEntered();
+    QGraphicsObject::hoverEnterEvent(event);
+}
+
 
 //==============
 // ParticleKnob
@@ -510,6 +528,11 @@ void KnobView::setTextColor(const QBrush& brush) {
     }
 }
 
+void KnobView::setScrolledKnob(Knob* knob) {
+    if (!knob || knob->isMovable())
+        mLastKnobScrolled = knob;
+}
+
 void KnobView::resizeEvent(QResizeEvent* event) {
     QGraphicsView::resizeEvent(event);
     const auto rect = visibleRect();
@@ -598,8 +621,10 @@ void MultiSlider::setTextWidth(int textWidth) {
 void MultiSlider::insertKnob(ParticleKnob* particleKnob, TextKnob* textKnob, qreal margin, qreal ratio) {
 
     auto* gutterKnob = new GutterKnob{.5 * particleKnob->radius()};
+    gutterKnob->setAcceptHoverEvents(true);
     gutterKnob->setVisible(particleKnob->isVisible());
-    connect(particleKnob, &ParticleKnob::visibleChanged, gutterKnob, [=] { gutterKnob->setVisible(particleKnob->isVisible()); });
+    connect(particleKnob, &Knob::visibleChanged, gutterKnob, [=] { gutterKnob->setVisible(particleKnob->isVisible()); });
+    connect(gutterKnob, &Knob::knobEntered, mParticleSlider, [=] { mParticleSlider->setScrolledKnob(particleKnob); });
 
     const bool isHorizontal = mOrientation == Qt::Horizontal;
     margin += particleKnob->radius();
@@ -612,17 +637,17 @@ void MultiSlider::insertKnob(ParticleKnob* particleKnob, TextKnob* textKnob, qre
     auto& gutterOffScale = isHorizontal ? gutterKnob->yScale() : gutterKnob->xScale();
 
     particleMainScale.margins = {margin, margin};
-    particleOffScale.clamp(ratio);
+    particleOffScale.pin(ratio);
     particleOffScale.margins = {margin, margin};
     particleKnob->yScale().reversed = !isHorizontal;
 
     gutterMainScale.margins = {margin, margin};
     gutterMainScale.value = .5;
     gutterOffScale.margins = {margin, margin};
-    gutterOffScale.clamp(ratio);
+    gutterOffScale.pin(ratio);
 
     textMainScale.value = .5;
-    textOffScale.clamp(ratio);
+    textOffScale.pin(ratio);
     textOffScale.margins = {margin, margin};
     textKnob->setMovable(false);
     textKnob->setRotation(isHorizontal ? 0 : -90);
@@ -717,11 +742,7 @@ void SimpleSlider::setRatio(qreal ratio) {
 }
 
 void SimpleSlider::setClampedRatio(qreal ratio) {
-    if (ratio < 0.)
-        ratio = 0.;
-    else if (ratio > 1.)
-        ratio = 1.;
-    setRatio(ratio);
+    setRatio(range_ns::clamp({0., 1.}, ratio));
 }
 
 void SimpleSlider::setDefault() {

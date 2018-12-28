@@ -47,8 +47,7 @@ struct Scale {
     external_type upscale(internal_type v) const; /*!< rescale value from internal to external range */
     internal_type downscale(external_type v) const; /*!< rescale value from external to internal range */
 
-    void update(external_type& v); /*!< update internal value and coerce external value to bounds */
-    void clamp(internal_type v); /*!< set internal range fixed on the given value */
+    void pin(internal_type v); /*!< set internal range fixed on the given value */
 
     internal_type value {0.}; /*!< current value (should be within the range) */
     range_t<internal_type> range {0., 1.}; /*!< range in which value may evolve */
@@ -70,6 +69,8 @@ class Knob : public QGraphicsObject {
 
 public:
     explicit Knob();
+
+    QPointF expectedPos() const;
 
     const Scale& xScale() const;
     Scale& xScale();
@@ -96,6 +97,7 @@ signals:
     void knobPressed(Qt::MouseButton button);
     void knobReleased(Qt::MouseButton button);
     void knobDoubleClicked(Qt::MouseButton button);
+    void knobEntered();
 
 protected:
     QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
@@ -103,6 +105,8 @@ protected:
     void mouseReleaseEvent(QGraphicsSceneMouseEvent* event) override;
     void mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event) override;
     void wheelEvent(QGraphicsSceneWheelEvent* event) override;
+    void hoverEnterEvent(QGraphicsSceneHoverEvent* event) override;
+
 
 private:
     Scale mXScale;
@@ -110,6 +114,7 @@ private:
     QPen mPen {Qt::NoPen};
     QBrush mBrush {Qt::NoBrush};
     bool mUpdatePosition {true};
+    QPointF mPreviousRequest;
 
 };
 
@@ -276,6 +281,8 @@ public:
 
     const QBrush& textColor() const;
     void setTextColor(const QBrush& brush);
+
+    void setScrolledKnob(Knob* knob);
 
 signals:
     void viewDoubleClicked(Qt::MouseButton button);
