@@ -87,7 +87,6 @@ public:
     explicit MainWindow(QWidget* parent);
 
 public slots:
-    QStringList getConfigs() const;
     void unloadConfig();
     void loadConfig();
     void saveConfig();
@@ -104,10 +103,9 @@ public slots:
     void unimplemented();
     void addFiles(const QStringList& files); /*!< add files to an existing playlist */
 
-private:
-    void setupMenu();
-
 private slots:
+    void setupSystemTray(bool visible);
+    void setSystemTrayVisible(bool visible);
     void onConfigSelection(QAction* action);
     void onLockStateChange(int state);
     void minimizeAll();
@@ -118,7 +116,6 @@ protected:
 
 private:
     Manager* mManager;
-    ProgramEditor* mProgramEditor;
     ManagerEditor* mManagerEditor;
     QMenu* mConfigMenu;
 

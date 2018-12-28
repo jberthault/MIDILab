@@ -30,6 +30,25 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "qhandlers/handlers.h"
 #include "qtools/displayer.h"
 
+namespace {
+
+auto getSystemTrayIconPreferredVisibility() {
+    QSettings settings;
+    return settings.value("withTrayIcon", true).toBool();
+}
+
+void setSystemTrayIconPreferredVisibility(bool visibility) {
+    QSettings settings;
+    settings.setValue("withTrayIcon", visibility);
+}
+
+auto getConfigs() {
+    QSettings settings;
+    return settings.value("config").toStringList();
+}
+
+}
+
 // ============
 // AboutWindow
 // ============
@@ -84,31 +103,83 @@ AboutWindow::AboutWindow(QWidget* parent) :
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow{parent} {
 
+    // configure manager
+
     mManager = new Manager{this};
     mManager->metaHandlerPool()->addFactory(new StandardFactory{this});
 
     auto* channelEditor = new ChannelEditor{this};
     mManager->setChannelEditor(channelEditor);
 
-    auto* systemTrayIcon = new QSystemTrayIcon{qApp->windowIcon(), this};
-    auto* systemTrayMenu = new QMenu{this};
-    systemTrayMenu->addAction(QIcon{":/data/hide.svg"}, "Minimize", this, SLOT(minimizeAll()));
-    systemTrayMenu->addAction(QIcon{":/data/eye.svg"}, "Restore", this, SLOT(restoreAll()));
-    systemTrayMenu->addAction(QIcon{":/data/power-standby.svg"}, "Exit", this, SLOT(close()));
-    systemTrayIcon->setContextMenu(systemTrayMenu);
-    systemTrayIcon->show();
-    mManager->setSystemTrayIcon(systemTrayIcon);
+    // configure windows
 
     mManagerEditor = new ManagerEditor{mManager, this};
-    mProgramEditor = new ProgramEditor{mManager, this};
+    auto* programEditor = new ProgramEditor{mManager, this};
 
     setCentralWidget(new MultiDisplayer{Qt::Horizontal, this});
-    setupMenu();
-}
 
-QStringList MainWindow::getConfigs() const {
-    QSettings settings;
-    return settings.value("config").toStringList();
+    // configure toolbars
+
+    auto* menuToolBar = addToolBar("Menu actions");
+    auto* handlerToolBar = addToolBar("Handler actions");
+    mManager->setQuickToolBar(handlerToolBar);
+
+    // configure menu
+
+    auto* menu = new QMenuBar{this};
+    auto* fileMenu = menu->addMenu("File");
+    auto* handlersMenu = menu->addMenu("Handlers");
+    auto* interfaceMenu = menu->addMenu("Interface");
+    auto* helpMenu = menu->addMenu("Help");
+    setMenuBar(menu);
+
+    // configure file menu
+
+    fileMenu->addAction(QIcon{":/data/rain.svg"}, "Unload configuration", this, SLOT(unloadConfig()));
+    fileMenu->addAction(QIcon{":/data/cloud-download.svg"}, "Load configuration", this, SLOT(loadConfig()));
+    fileMenu->addAction(QIcon{":/data/cloud-upload.svg"}, "Save configuration", this, SLOT(saveConfig()));
+    mConfigMenu = fileMenu->addMenu(QIcon{":/data/cloud.svg"}, "Recent configurations");
+    mConfigMenu->setToolTipsVisible(true);
+    connect(mConfigMenu, &QMenu::triggered, this, &MainWindow::onConfigSelection);
+    updateMenu(getConfigs()); // add recent config / midi files loaded
+    fileMenu->addSeparator();
+    fileMenu->addAction(QIcon{":/data/power-standby.svg"}, "Exit", this, SLOT(close()));
+
+    // configure handler menu
+
+    handlersMenu->addAction(mManagerEditor->windowIcon(), "Handlers", mManagerEditor, SLOT(show()));
+    handlersMenu->addAction(programEditor->windowIcon(), "Programs", programEditor, SLOT(show()));
+    handlersMenu->addSeparator();
+    auto* panicAction = handlersMenu->addAction(QIcon{":/data/target.svg"}, "Panic", this, SLOT(panic()));
+    menuToolBar->addAction(panicAction);
+
+    // configure interface menu
+
+    interfaceMenu->addAction(mManager->channelEditor()->windowIcon(), mManager->channelEditor()->windowTitle(), mManager->channelEditor(), SLOT(show()));
+    // interfaceMenu->addAction(QIcon{":/data/cog.svg"}, "Settings", this, SLOT(unimplemented()));
+
+    auto* lockAction = new MultiStateAction{this};
+    lockAction->addState(QIcon{":/data/lock-locked.svg"}, "Unlock layout"); // default is locked
+    lockAction->addState(QIcon{":/data/lock-unlocked.svg"}, "Lock layout");
+    connect(lockAction, &MultiStateAction::stateChanged, this, &MainWindow::onLockStateChange);
+    interfaceMenu->addAction(lockAction);
+    menuToolBar->addAction(lockAction);
+
+    interfaceMenu->addAction(QIcon{":/data/plus.svg"}, "Add container", this, SLOT(newDisplayer()));
+
+    const bool isSystemTrayVisible = getSystemTrayIconPreferredVisibility();
+    setupSystemTray(isSystemTrayVisible);
+    auto* systemTrayAction = interfaceMenu->addAction("Show system tray");
+    systemTrayAction->setCheckable(true);
+    systemTrayAction->setChecked(isSystemTrayVisible);
+    connect(systemTrayAction, &QAction::toggled, this, &MainWindow::setSystemTrayVisible);
+
+    // configure help menu
+
+    helpMenu->addAction(QIcon{":/data/question-mark.svg"}, "Help", this, SLOT(unimplemented()));
+    helpMenu->addSeparator();
+    helpMenu->addAction(QIcon{":/data/info.svg"}, "About", this, SLOT(about()));
+
 }
 
 void MainWindow::unloadConfig() {
@@ -256,55 +327,25 @@ void MainWindow::addFiles(const QStringList& files) {
     }
 }
 
-void MainWindow::setupMenu() {
+void MainWindow::setupSystemTray(bool visible) {
+    if (!visible)
+        return;
+    auto* systemTrayIcon = new QSystemTrayIcon{qApp->windowIcon(), this};
+    auto* systemTrayMenu = new QMenu{this};
+    systemTrayMenu->addAction(QIcon{":/data/hide.svg"}, "Minimize", this, SLOT(minimizeAll()));
+    systemTrayMenu->addAction(QIcon{":/data/eye.svg"}, "Restore", this, SLOT(restoreAll()));
+    systemTrayMenu->addAction(QIcon{":/data/power-standby.svg"}, "Exit", this, SLOT(close()));
+    systemTrayIcon->setContextMenu(systemTrayMenu);
+    systemTrayIcon->show();
+    mManager->setSystemTrayIcon(systemTrayIcon);
+}
 
-    auto* menuToolBar = addToolBar("Menu actions");
-    auto* handlerToolBar = addToolBar("Handler actions");
-    mManager->setQuickToolBar(handlerToolBar);
-
-    auto* menu = new QMenuBar{this};
-    setMenuBar(menu);
-
-    // extends menu
-    auto* fileMenu = menu->addMenu("File");
-    fileMenu->addAction(QIcon{":/data/rain.svg"}, "Unload configuration", this, SLOT(unloadConfig()));
-    fileMenu->addAction(QIcon{":/data/cloud-download.svg"}, "Load configuration", this, SLOT(loadConfig()));
-    fileMenu->addAction(QIcon{":/data/cloud-upload.svg"}, "Save configuration", this, SLOT(saveConfig()));
-    mConfigMenu = fileMenu->addMenu(QIcon{":/data/cloud.svg"}, "Recent configurations");
-    mConfigMenu->setToolTipsVisible(true);
-    connect(mConfigMenu, &QMenu::triggered, this, &MainWindow::onConfigSelection);
-    updateMenu(getConfigs());
-
-    // add recent config / midi files loaded
-    fileMenu->addSeparator();
-    fileMenu->addAction(QIcon{":/data/power-standby.svg"}, "Exit", this, SLOT(close()));
-
-    auto* handlersMenu = menu->addMenu("Handlers");
-    handlersMenu->addAction(mManagerEditor->windowIcon(), "Handlers", mManagerEditor, SLOT(show()));
-    handlersMenu->addAction(mProgramEditor->windowIcon(), "Programs", mProgramEditor, SLOT(show()));
-    handlersMenu->addSeparator();
-    auto* panicAction = handlersMenu->addAction(QIcon{":/data/target.svg"}, "Panic", this, SLOT(panic()));
-    menuToolBar->addAction(panicAction);
-
-    auto* interfaceMenu = menu->addMenu("Interface");
-    interfaceMenu->addAction(mManager->channelEditor()->windowIcon(), mManager->channelEditor()->windowTitle(), mManager->channelEditor(), SLOT(show()));
-    // interfaceMenu->addAction(QIcon{":/data/cog.svg"}, "Settings", this, SLOT(unimplemented()));
-
-    auto* lockAction = new MultiStateAction{this};
-    lockAction->addState(QIcon{":/data/lock-locked.svg"}, "Unlock layout"); // default is locked
-    lockAction->addState(QIcon{":/data/lock-unlocked.svg"}, "Lock layout");
-    connect(lockAction, &MultiStateAction::stateChanged, this, &MainWindow::onLockStateChange);
-    interfaceMenu->addAction(lockAction);
-    menuToolBar->addAction(lockAction);
-
-    interfaceMenu->addAction(QIcon{":/data/plus.svg"}, "Add container", this, SLOT(newDisplayer()));
-
-    auto* helpMenu = menu->addMenu("Help");
-    helpMenu->addAction(QIcon{":/data/question-mark.svg"}, "Help", this, SLOT(unimplemented()));
-    // helpMenu->addAction("What's new ?", this, SLOT(unimplemented()));
-    helpMenu->addSeparator();
-    helpMenu->addAction(QIcon{":/data/info.svg"}, "About", this, SLOT(about()));
-
+void MainWindow::setSystemTrayVisible(bool visible) {
+    if (auto* systemTrayIcon = mManager->systemTrayIcon())
+        systemTrayIcon->setVisible(visible);
+    else
+        setupSystemTray(visible);
+    setSystemTrayIconPreferredVisibility(visible);
 }
 
 void MainWindow::onConfigSelection(QAction* action) {

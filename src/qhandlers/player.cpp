@@ -1356,7 +1356,8 @@ void Player::refreshPosition() {
 }
 
 void Player::setSequence(NamedSequence sequence) {
-    context()->systemTrayIcon()->showMessage(handlerName(&mHandler), sequence.name, QIcon{":/data/media-play.svg"}, 2000);
+    if(auto* systemTrayIcon = context()->systemTrayIcon())
+        systemTrayIcon->showMessage(handlerName(&mHandler), sequence.name, QIcon{":/data/media-play.svg"}, 2000);
     mHandler.set_sequence(std::move(sequence.sequence));
     mTempoView->setClock(mHandler.sequence().clock());
     mSequenceView->setSequence(mHandler.sequence(), mHandler.lower(), mHandler.upper());
