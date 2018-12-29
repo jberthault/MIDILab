@@ -259,6 +259,7 @@ public:
     explicit KnobView(QWidget* parent);
 
     QRectF visibleRect() const;
+    void updateVisibleRect();
 
     template<typename T = Knob>
     auto knobs() const {
@@ -310,6 +311,13 @@ class MultiSlider : public QWidget {
     Q_OBJECT
 
 public:
+
+    struct Unit {
+        ParticleKnob* particle {nullptr};
+        TextKnob* text {nullptr};
+        GutterKnob* gutter {nullptr};
+    };
+
     explicit MultiSlider(Qt::Orientation orientation, QWidget* parent);
 
     KnobView* particleSlider() const;
@@ -321,10 +329,15 @@ public:
     int textWidth() const;
     void setTextWidth(int textWidth);
 
-    Scale& knobScale(Knob* knob) const;
+    Scale& knobMainScale(Knob* knob) const;
+    Scale& knobOffScale(Knob* knob) const;
+
     qreal knobRatio(Knob* knob) const;
     void setKnobRatio(Knob* knob, qreal ratio) const;
-    void insertKnob(ParticleKnob* particleKnob, TextKnob* textKnob, qreal margin, qreal ratio);
+
+    Unit insertUnit(Unit unit, qreal margin = 2., qreal ratio = .5);
+    void setUnitMargin(Unit unit, qreal margin);
+    void setUnitRatio(Unit unit, qreal ratio);
 
 signals:
     void orientationChanged(Qt::Orientation orientation);
@@ -377,8 +390,7 @@ signals:
 
 private:
     qreal mDefaultRatio {0.};
-    ParticleKnob* mParticle;
-    TextKnob* mText;
+    Unit mUnit;
 
 };
 

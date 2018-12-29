@@ -82,7 +82,7 @@ signals:
 
 private:
     channel_map_t<ColorPicker*> mPickers;
-    QMap<Qt::MouseButton, channels_t> mMouse;
+    std::unordered_map<Qt::MouseButton, channels_t> mMouse;
 
 };
 
@@ -198,6 +198,9 @@ public:
     channels_t selection() const;
     void setSelection(channels_t channels);
 
+    channels_t visibleChannels() const;
+    void setVisibleChannels(channels_t channels);
+
     void setCardinality(size_t cardinality);
 
     bool isExpanded() const;
@@ -238,12 +241,11 @@ signals:
     void knobReleased(channels_t channels);
 
 private:
-    qreal mDefaultRatio;
+    qreal mDefaultRatio {0.};
     channels_t mSelection;
-    channel_map_t<ChannelKnob*> mKnobs;
-    channel_map_t<ChannelLabelKnob*> mLabels;
-    ChannelKnob* mGroupKnob;
-    ChannelLabelKnob* mGroupLabel;
+    channels_t mVisibleChannels {channels_t::full()};
+    channel_map_t<Unit> mUnits;
+    Unit mGroupUnit;
 
 };
 

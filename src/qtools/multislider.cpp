@@ -292,6 +292,7 @@ GutterKnob::GutterKnob(qreal radius) : Knob{}, mRadius{radius} {
     setFlag(ItemIsFocusable, false);
     setFlag(ItemSendsGeometryChanges, false);
     setFlag(ItemStacksBehindParent);
+    setAcceptHoverEvents(true);
 }
 
 qreal GutterKnob::radius() const {
@@ -443,6 +444,7 @@ void ArrowKnob::paint(QPainter* painter, const QStyleOptionGraphicsItem*, QWidge
 
 TextKnob::TextKnob() : Knob{} {
     setPen({Qt::black});
+    setMovable(false);
 }
 
 const QString& TextKnob::text() const {
@@ -490,6 +492,12 @@ QRectF KnobView::visibleRect() const {
     return mapToScene(viewport()->geometry()).boundingRect();
 }
 
+void KnobView::updateVisibleRect() {
+    const auto rect = visibleRect();
+    for (auto* knob : knobs())
+        knob->setVisibleRect(rect);
+}
+
 void KnobView::insertKnob(Knob* knob) {
     scene()->addItem(knob);
     knob->setVisibleRect(visibleRect());
@@ -535,9 +543,7 @@ void KnobView::setScrolledKnob(Knob* knob) {
 
 void KnobView::resizeEvent(QResizeEvent* event) {
     QGraphicsView::resizeEvent(event);
-    const auto rect = visibleRect();
-    for (auto* knob : knobs())
-        knob->setVisibleRect(rect);
+    updateVisibleRect();
 }
 
 void KnobView::leaveEvent(QEvent* event) {
@@ -618,56 +624,69 @@ void MultiSlider::setTextWidth(int textWidth) {
     emit textWidthChanged(textWidth);
 }
 
-void MultiSlider::insertKnob(ParticleKnob* particleKnob, TextKnob* textKnob, qreal margin, qreal ratio) {
+MultiSlider::Unit MultiSlider::insertUnit(Unit unit, qreal margin, qreal ratio) {
 
-    auto* gutterKnob = new GutterKnob{.5 * particleKnob->radius()};
-    gutterKnob->setAcceptHoverEvents(true);
-    gutterKnob->setVisible(particleKnob->isVisible());
-    connect(particleKnob, &Knob::visibleChanged, gutterKnob, [=] { gutterKnob->setVisible(particleKnob->isVisible()); });
-    connect(gutterKnob, &Knob::knobEntered, mParticleSlider, [=] { mParticleSlider->setScrolledKnob(particleKnob); });
+    if (!unit.particle)
+        unit.particle = new ParticleKnob{6.};
+    if (!unit.text)
+        unit.text = new TextKnob;
+    if (!unit.gutter)
+        unit.gutter = new GutterKnob{.5 * unit.particle->radius()};
+
+    connect(unit.gutter, &Knob::knobEntered, mParticleSlider, [=] { mParticleSlider->setScrolledKnob(unit.particle); });
+
+    connect(unit.particle, &Knob::visibleChanged, unit.gutter, [=] { unit.gutter->setVisible(unit.particle->isVisible()); });
+    connect(unit.particle, &Knob::visibleChanged, unit.text, [=] { unit.text->setVisible(unit.particle->isVisible()); });
+    unit.gutter->setVisible(unit.particle->isVisible());
+    unit.text->setVisible(unit.particle->isVisible());
+
+    knobMainScale(unit.text).value = .5;
+    knobMainScale(unit.gutter).value = .5;
 
     const bool isHorizontal = mOrientation == Qt::Horizontal;
-    margin += particleKnob->radius();
+    unit.particle->yScale().reversed = !isHorizontal;
+    unit.text->setRotation(isHorizontal ? 0 : -90);
 
-    auto& particleMainScale = isHorizontal ? particleKnob->xScale() : particleKnob->yScale();
-    auto& particleOffScale = isHorizontal ? particleKnob->yScale() : particleKnob->xScale();
-    auto& textMainScale = isHorizontal ? textKnob->xScale() : textKnob->yScale();
-    auto& textOffScale = isHorizontal ? textKnob->yScale() : textKnob->xScale();
-    auto& gutterMainScale = isHorizontal ? gutterKnob->xScale() : gutterKnob->yScale();
-    auto& gutterOffScale = isHorizontal ? gutterKnob->yScale() : gutterKnob->xScale();
+    setUnitMargin(unit, margin);
+    setUnitRatio(unit, ratio);
 
-    particleMainScale.margins = {margin, margin};
-    particleOffScale.pin(ratio);
-    particleOffScale.margins = {margin, margin};
-    particleKnob->yScale().reversed = !isHorizontal;
+    mParticleSlider->insertKnob(unit.particle);
+    mTextSlider->insertKnob(unit.text);
+    mParticleSlider->insertKnob(unit.gutter);
 
-    gutterMainScale.margins = {margin, margin};
-    gutterMainScale.value = .5;
-    gutterOffScale.margins = {margin, margin};
-    gutterOffScale.pin(ratio);
-
-    textMainScale.value = .5;
-    textOffScale.pin(ratio);
-    textOffScale.margins = {margin, margin};
-    textKnob->setMovable(false);
-    textKnob->setRotation(isHorizontal ? 0 : -90);
-
-    mParticleSlider->insertKnob(particleKnob);
-    mTextSlider->insertKnob(textKnob);
-    mParticleSlider->insertKnob(gutterKnob);
+    return unit;
 
 }
 
-Scale& MultiSlider::knobScale(Knob* knob) const {
+void MultiSlider::setUnitMargin(Unit unit, qreal margin) {
+    margin += unit.particle->radius();
+    unit.particle->xScale().margins = {margin, margin};
+    unit.particle->yScale().margins = {margin, margin};
+    unit.gutter->xScale().margins = {margin, margin};
+    unit.gutter->yScale().margins = {margin, margin};
+    knobOffScale(unit.text).margins = {margin, margin};
+}
+
+void MultiSlider::setUnitRatio(Unit unit, qreal ratio) {
+    knobOffScale(unit.particle).pin(ratio);
+    knobOffScale(unit.text).pin(ratio);
+    knobOffScale(unit.gutter).pin(ratio);
+}
+
+Scale& MultiSlider::knobMainScale(Knob* knob) const {
     return mOrientation == Qt::Horizontal ? knob->xScale() : knob->yScale();
 }
 
+Scale& MultiSlider::knobOffScale(Knob* knob) const {
+    return mOrientation == Qt::Horizontal ? knob->yScale() : knob->xScale();
+}
+
 qreal MultiSlider::knobRatio(Knob* knob) const {
-    return knobScale(knob).value;
+    return knobMainScale(knob).value;
 }
 
 void MultiSlider::setKnobRatio(Knob* knob, qreal ratio) const {
-    knobScale(knob).value = ratio;
+    knobMainScale(knob).value = ratio;
     knob->moveToFit();
 }
 
@@ -696,6 +715,9 @@ void MultiSlider::updateDimensions() {
         setDimensions(mParticleSlider, {size, size}, {0, QWIDGETSIZE_MAX});
         setDimensions(mTextSlider, {size, size}, {mTextWidth, mTextWidth});
     }
+    // force update of knobs even if no resizeEvent is thrown
+    mParticleSlider->updateVisibleRect();
+    mTextSlider->updateVisibleRect();
 }
 
 //==============
@@ -703,25 +725,23 @@ void MultiSlider::updateDimensions() {
 //==============
 
 SimpleSlider::SimpleSlider(Qt::Orientation orientation, QWidget* parent) : MultiSlider{orientation, parent} {
-    mParticle = new ParticleKnob{6.};
-    mText = new TextKnob;
-    connect(mParticle, &ParticleKnob::knobDoubleClicked, this, &SimpleSlider::onKnobClick);
-    connect(mParticle, &ParticleKnob::knobMoved, this, &SimpleSlider::onKnobMove);
-    connect(mText, &TextKnob::knobDoubleClicked, this, &SimpleSlider::onKnobClick);
-    insertKnob(mParticle, mText, 2., .5);
+    mUnit = insertUnit({});
+    connect(mUnit.particle, &ParticleKnob::knobDoubleClicked, this, &SimpleSlider::onKnobClick);
+    connect(mUnit.particle, &ParticleKnob::knobMoved, this, &SimpleSlider::onKnobMove);
+    connect(mUnit.text, &TextKnob::knobDoubleClicked, this, &SimpleSlider::onKnobClick);
     updateDimensions();
 }
 
 ParticleKnob* SimpleSlider::particle() {
-    return mParticle;
+    return mUnit.particle;
 }
 
 size_t SimpleSlider::cardinality() const {
-    return knobScale(mParticle).cardinality;
+    return knobMainScale(mUnit.particle).cardinality;
 }
 
 void SimpleSlider::setCardinality(size_t cardinality) {
-    knobScale(mParticle).cardinality = cardinality;
+    knobMainScale(mUnit.particle).cardinality = cardinality;
 }
 
 qreal SimpleSlider::defaultRatio() const {
@@ -733,11 +753,11 @@ void SimpleSlider::setDefaultRatio(qreal ratio) {
 }
 
 qreal SimpleSlider::ratio() const {
-    return knobRatio(mParticle);
+    return knobRatio(mUnit.particle);
 }
 
 void SimpleSlider::setRatio(qreal ratio) {
-    setKnobRatio(mParticle, ratio);
+    setKnobRatio(mUnit.particle, ratio);
     emit knobChanged(ratio);
 }
 
@@ -750,12 +770,12 @@ void SimpleSlider::setDefault() {
 }
 
 void SimpleSlider::setText(const QString& text) {
-    mText->setText(text);
+    mUnit.text->setText(text);
 }
 
 void SimpleSlider::onKnobClick(Qt::MouseButton button) {
     if (button == Qt::LeftButton) {
-        setKnobRatio(mParticle, mDefaultRatio);
+        setKnobRatio(mUnit.particle, mDefaultRatio);
         emit knobMoved(mDefaultRatio);
     }
 }

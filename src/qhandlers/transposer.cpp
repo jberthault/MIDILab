@@ -37,6 +37,7 @@ MetaHandler* makeMetaTransposer(QObject* parent) {
     meta->addParameter({"orientation", "orientation of the slider", "Horizontal", MetaHandler::MetaParameter::Visibility::basic});
     meta->addParameter({"expanded", "display one knob per channel", "false", MetaHandler::MetaParameter::Visibility::basic});
     meta->addParameter({"selection", "bitmask of selected channels", serial::serializeChannels(channels_t::melodic()), MetaHandler::MetaParameter::Visibility::advanced});
+    meta->addParameter({"visibility", "bitmask of visible channels", serial::serializeChannels(channels_t::full()), MetaHandler::MetaParameter::Visibility::basic});
     meta->setFactory(new OpenProxyFactory<TransposerEditor>);
     return meta;
 }
@@ -82,6 +83,7 @@ HandlerView::Parameters TransposerEditor::getParameters() const {
     SERIALIZE("orientation", serial::serializeOrientation, mSlider->orientation(), result);
     SERIALIZE("expanded", serial::serializeBool, mSlider->isExpanded(), result);
     SERIALIZE("selection", serial::serializeChannels, mSlider->selection(), result);
+    SERIALIZE("visibility", serial::serializeChannels, mSlider->visibleChannels(), result);
     return result;
 }
 
@@ -89,6 +91,7 @@ size_t TransposerEditor::setParameter(const Parameter& parameter) {
     UNSERIALIZE("orientation", serial::parseOrientation, mSlider->setOrientation, parameter);
     UNSERIALIZE("expanded", serial::parseBool, mSlider->setExpanded, parameter);
     UNSERIALIZE("selection", serial::parseChannels, mSlider->setSelection, parameter);
+    UNSERIALIZE("visibility", serial::parseChannels, mSlider->setVisibleChannels, parameter);
     return HandlerEditor::setParameter(parameter);
 }
 
