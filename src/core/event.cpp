@@ -769,6 +769,11 @@ Event Event::tempo(double bpm) {
     return EventPrivate::dynamic_event(family_t::tempo, {}, make_view(data));
 }
 
+Event Event::time_signature(byte_t nn, byte_t dd, byte_t cc, byte_t bb) {
+    const byte_t data[] = {0xff, 0x58, 0x04, to_data_byte(nn), to_data_byte(dd), to_data_byte(cc), to_data_byte(bb)};
+    return EventPrivate::dynamic_event(family_t::time_signature, {}, make_view(data));
+}
+
 Event Event::end_of_track() {
     const byte_t data[] = {0xff, 0x2f, 0x00};
     return EventPrivate::dynamic_event(family_t::end_of_track, {}, make_view(data));

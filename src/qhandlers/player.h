@@ -98,7 +98,7 @@ private:
 class SequenceViewItem : public QTreeWidgetItem {
 
 public:
-    explicit SequenceViewItem(Sequence::Item item, SequenceViewTrackItem* parent);
+    explicit SequenceViewItem(TimedEvent item, SequenceViewTrackItem* parent);
 
     SequenceView* view() const;
 
@@ -112,7 +112,7 @@ public:
     QVariant data(int column, int role) const override;
 
 private:
-    Sequence::Item mItem;
+    TimedEvent mItem;
     QByteArray mRawText;
 
 };
@@ -153,7 +153,7 @@ protected:
 
 private slots:
     void addNextEvents();
-    void addEvent(Sequence::Item item);
+    void addEvent(TimedEvent item);
     void setChannelColor(channel_t channel, const QColor& color);
     void onItemChange(QTreeWidgetItem* item, int column);
     void onItemDoubleClick(QTreeWidgetItem* item, int column);

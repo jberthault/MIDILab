@@ -609,6 +609,7 @@ public:
     static Event reset() noexcept;
     static Event meta(byte_cview data); /*!< data should contain meta type, meta size and the rest if data, but not the status */
     static Event tempo(double bpm);
+    static Event time_signature(byte_t nn, byte_t dd, byte_t cc, byte_t bb);
     static Event end_of_track();
 
     // structors

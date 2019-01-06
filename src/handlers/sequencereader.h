@@ -49,8 +49,8 @@ public:
     void set_sequence(Sequence sequence); /*!< set sequence to play */
 
     const std::map<byte_t, Sequence>& sequences() const; /*!< all loaded sequences */
-    void load_sequence(byte_t id, const Sequence& sequence); /*!< set sequence available, for song_select events */
-    bool select_sequence(byte_t id); /*!< set the current sequence by its id, return False if the id is unknown */
+    void load_sequence(byte_t id, Sequence sequence); /*!< set sequence available, for song_select events */
+    bool select_sequence(byte_t id); /*!< set the current sequence by its id, return false if the id is unknown */
 
     double distorsion() const;
     Result set_distorsion(double distorsion); /*!< returns fail for negative input */
@@ -89,8 +89,7 @@ private:
     Sequence m_sequence; /*!< current sequence */
 
     position_type m_position; /*!< current position */
-    position_type m_first_position; /*!< position of the first event to be played */
-    position_type m_last_position; /*!< position of the last event to be played (not included) */
+    range_t<position_type> m_limits; /*!< range of reachable positions (max excluded) */
     double m_distorsion {1.}; /*!< distorsion factor: slower (<1) faster (>1) freezed (0) (default 1) */
     std::thread m_worker; /*!< thread forwarding status when started */
     mutable std::mutex m_mutex;  /*!< mutex protecting positions & distorsion */

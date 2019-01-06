@@ -27,10 +27,10 @@ const auto stop_sounds = Event::controller(channels_t::full(), controller_ns::al
 const auto stop_notes = Event::controller(channels_t::full(), controller_ns::all_notes_off_controller);
 const auto stop_all = Event::reset();
 
-SequenceReader::position_type make_lower(const Sequence& sequence) { return {sequence.begin(), sequence.first_timestamp()}; }
-SequenceReader::position_type make_lower(const Sequence& sequence, timestamp_t timestamp) { return {std::lower_bound(sequence.begin(), sequence.end(), timestamp), timestamp}; }
-SequenceReader::position_type make_upper(const Sequence& sequence, timestamp_t timestamp) { return {std::upper_bound(sequence.begin(), sequence.end(), timestamp), timestamp}; }
-SequenceReader::position_type make_upper(const Sequence& sequence) { return {sequence.end(), sequence.last_timestamp()}; }
+auto make_lower(const Sequence& sequence) { return SequenceReader::position_type{sequence.begin(), sequence.first_timestamp()}; }
+auto make_lower(const Sequence& sequence, timestamp_t timestamp) { return SequenceReader::position_type{std::lower_bound(sequence.begin(), sequence.end(), timestamp), timestamp}; }
+auto make_upper(const Sequence& sequence, timestamp_t timestamp) { return SequenceReader::position_type{std::upper_bound(sequence.begin(), sequence.end(), timestamp), timestamp}; }
+auto make_upper(const Sequence& sequence) { return SequenceReader::position_type{sequence.end(), sequence.last_timestamp()}; }
 
 constexpr auto playing_state = Handler::State::from_integral(0x4);
 
@@ -45,8 +45,8 @@ const SystemExtension<void> SequenceReader::pause_ext {"SequenceReader.pause"};
 const SystemExtension<double> SequenceReader::distorsion_ext {"SequenceReader.distorsion"};
 
 SequenceReader::SequenceReader() : Handler{Mode::io()} {
-    m_position = m_first_position = make_lower(m_sequence);
-    m_last_position = make_upper(m_sequence);
+    m_position = m_limits.min = make_lower(m_sequence);
+    m_limits.max = make_upper(m_sequence);
 }
 
 SequenceReader::~SequenceReader() {
@@ -59,18 +59,18 @@ const Sequence& SequenceReader::sequence() const {
 
 void SequenceReader::set_sequence(Sequence sequence) {
     stop_playing(stop_all, false, false);
-    std::lock_guard<std::mutex> guard(m_mutex);
+    std::lock_guard<std::mutex> guard{m_mutex};
     m_sequence = std::move(sequence);
-    m_position = m_first_position = make_lower(m_sequence);
-    m_last_position = make_upper(m_sequence);
+    m_position = m_limits.min = make_lower(m_sequence);
+    m_limits.max = make_upper(m_sequence);
 }
 
 const std::map<byte_t, Sequence>& SequenceReader::sequences() const {
     return m_sequences;
 }
 
-void SequenceReader::load_sequence(byte_t id, const Sequence& sequence) {
-    m_sequences[id] = sequence;
+void SequenceReader::load_sequence(byte_t id, Sequence sequence) {
+    m_sequences[id] = std::move(sequence);
 }
 
 bool SequenceReader::select_sequence(byte_t id) {
@@ -82,14 +82,14 @@ bool SequenceReader::select_sequence(byte_t id) {
 }
 
 double SequenceReader::distorsion() const {
-    std::lock_guard<std::mutex> guard(m_mutex);
+    std::lock_guard<std::mutex> guard{m_mutex};
     return m_distorsion;
 }
 
 Handler::Result SequenceReader::set_distorsion(double distorsion) {
     if (distorsion < 0)
         return Result::fail;
-    std::lock_guard<std::mutex> guard(m_mutex);
+    std::lock_guard<std::mutex> guard{m_mutex};
     m_distorsion = distorsion;
     return Result::success;
 }
@@ -99,12 +99,12 @@ bool SequenceReader::is_playing() const {
 }
 
 bool SequenceReader::is_completed() const {
-    std::lock_guard<std::mutex> guard(m_mutex);
-    return  m_position.first >= m_last_position.first;
+    std::lock_guard<std::mutex> guard{m_mutex};
+    return m_position.first >= m_limits.max.first;
 }
 
 timestamp_t SequenceReader::position() const {
-    std::lock_guard<std::mutex> guard(m_mutex);
+    std::lock_guard<std::mutex> guard{m_mutex};
     return m_position.second;
 }
 
@@ -113,31 +113,31 @@ void SequenceReader::set_position(timestamp_t timestamp) {
 }
 
 timestamp_t SequenceReader::lower() const {
-    std::lock_guard<std::mutex> guard(m_mutex);
-    return m_first_position.second;
+    std::lock_guard<std::mutex> guard{m_mutex};
+    return m_limits.min.second;
 }
 
 void SequenceReader::set_lower(timestamp_t timestamp) {
     bool needs_jump = false; // if begin has been set after the current position
     {
-    std::lock_guard<std::mutex> guard(m_mutex);
-    m_first_position = make_lower(m_sequence, timestamp);
-    needs_jump = m_position.first < m_first_position.first;
+    std::lock_guard<std::mutex> guard{m_mutex};
+    m_limits.min = make_lower(m_sequence, timestamp);
+    needs_jump = m_position.first < m_limits.min.first;
     }
     if (needs_jump)
-        jump_position(m_first_position);
+        jump_position(m_limits.min);
 }
 
 timestamp_t SequenceReader::upper() const {
-    std::lock_guard<std::mutex> guard(m_mutex);
-    return m_last_position.second;
+    std::lock_guard<std::mutex> guard{m_mutex};
+    return m_limits.max.second;
 }
 
 void SequenceReader::set_upper(timestamp_t timestamp) {
-    std::lock_guard<std::mutex> guard(m_mutex);
-    m_last_position = make_upper(m_sequence, timestamp);
-    if (m_position.first > m_last_position.first)
-        m_position = m_last_position;
+    std::lock_guard<std::mutex> guard{m_mutex};
+    m_limits.max = make_upper(m_sequence, timestamp);
+    if (m_position.first > m_limits.max.first)
+        m_position = m_limits.max;
 }
 
 void SequenceReader::jump_position(position_type position) {
@@ -159,8 +159,8 @@ bool SequenceReader::start_playing(bool rewind) {
     if (state().none(State::forward()))
         return false;
     // reset position
-    if (rewind || m_position.first < m_first_position.first)
-        m_position = m_first_position;
+    if (rewind || m_position.first < m_limits.min.first)
+        m_position = m_limits.min;
     // check upper bound
     if (is_completed())
         return false;
@@ -169,28 +169,25 @@ bool SequenceReader::start_playing(bool rewind) {
     m_worker = std::thread{ [this] {
         activate_state(playing_state);
         duration_type base_time = m_sequence.clock().base_time(m_sequence.clock().last_tempo(position())); // current base time for 1 deltatime
-        time_type t1, t0 = clock_type::now();
-        Sequence::const_iterator it, last;
+        range_t<time_type> time_loop = {{}, clock_type::now()};
+        range_t<Sequence::const_iterator> it_loop;
         while (is_playing()) {
-            // compute time elapsed since last loop
-            t1 = clock_type::now();
-            duration_type elapsed = t1 - t0;
-            t0 = t1;
+            // update time loop
+            time_loop.min = std::exchange(time_loop.max, clock_type::now());
             { // lock position resources
-                std::lock_guard<std::mutex> guard(m_mutex);
-                m_position.second += m_distorsion * elapsed / base_time; // add deltatime to the current position
-                it = m_position.first; // memorize starting position
-                m_position.first = std::lower_bound(it, m_last_position.first, m_position.second); // get next position
-                last = m_position.first; // memorize next position
-                if (m_position.first == m_last_position.first) // stop when last event is reached
+                std::lock_guard<std::mutex> guard{m_mutex};
+                m_position.second += m_distorsion * span(time_loop) / base_time; // add deltatime to the current position
+                it_loop.min = m_position.first; // memorize starting position
+                m_position.first = std::lower_bound(m_position.first, m_limits.max.first, m_position.second); // get next position
+                it_loop.max = m_position.first; // memorize next position
+                if (m_position.first == m_limits.max.first) // stop when last event is reached
                     deactivate_state(playing_state);
             }
             // forward events in the current range
-            for ( ; it != last ; ++it) {
-                const Event& event = it->event;
-                if (event.is(family_t::tempo))
-                    base_time = m_sequence.clock().base_time(event);
-                produce_message(event);
+            for (const auto& item : it_loop) {
+                if (item.event.is(family_t::tempo))
+                    base_time = m_sequence.clock().base_time(item.event);
+                produce_message(item.event);
             }
             // asleep this thread for a minimal period
             std::this_thread::sleep_for(std::chrono::milliseconds{2});
@@ -205,7 +202,7 @@ bool SequenceReader::stop_playing(const Event& final_event, bool always_send, bo
     if (started)
         m_worker.join();
     if (rewind)
-        m_position = m_first_position;
+        m_position = m_limits.min;
     if (started || always_send)
         produce_message(final_event);
     return started;
@@ -223,7 +220,7 @@ Handler::Result SequenceReader::handle_close(State state) {
 
 Handler::Result SequenceReader::handle_message(const Message& message) {
     switch (message.event.family()) {
-    case family_t::song_position: return handle_beat((double)extraction_ns::get_14bits(message.event));
+    case family_t::song_position: return handle_beat(static_cast<double>(extraction_ns::get_14bits(message.event)));
     case family_t::song_select: return handle_sequence(extraction_ns::song(message.event));
     case family_t::start: return handle_start(true);
     case family_t::continue_: return handle_start(false);
@@ -232,6 +229,8 @@ Handler::Result SequenceReader::handle_message(const Message& message) {
         if (pause_ext.affects(message.event)) return handle_stop(stop_sounds);
         if (distorsion_ext.affects(message.event)) return set_distorsion(distorsion_ext.decode(message.event));
         if (toggle_ext.affects(message.event)) return is_playing() ? handle_stop(stop_sounds) : handle_start(false);
+        break;
+    default:
         break;
     }
     return Result::unhandled;
@@ -245,7 +244,7 @@ Handler::Result SequenceReader::handle_beat(double beat) {
 Handler::Result SequenceReader::handle_sequence(byte_t id) {
     if (select_sequence(id))
         return Result::success;
-    TRACE_WARNING("no song loaded for id: " << (int)id);
+    TRACE_WARNING("no song loaded for id: " << static_cast<int>(id));
     return Result::fail;
 }
 

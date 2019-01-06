@@ -411,6 +411,36 @@ auto count_sizes(It first, It last, size_t init = 0) {
     return std::accumulate(first, last, init, [](size_t partial, const auto& collection) { return partial + collection.size(); });
 }
 
+template<typename IteratorT, typename ... Args>
+auto relaxed_upper_bound(IteratorT first, IteratorT last, Args&& ... args) {
+    // returns an iterator to the last element in [first, last) which value compares less than or equal to key
+    auto it = std::upper_bound(first, last, std::forward<Args>(args)...);
+    if (it != first)
+        --it;
+    return it;
+}
+
+auto before_timestamp(const std::vector<Clock::TempoItem>& items, timestamp_t timestamp) {
+    return relaxed_upper_bound(items.begin(), items.end(), timestamp, [](timestamp_t t, const Clock::TempoItem& item) { return t < item.timestamp; });
+}
+
+template<typename DurationT>
+auto before_duration(const std::vector<Clock::TempoItem>& items, const DurationT& duration) {
+    return relaxed_upper_bound(items.begin(), items.end(), duration, [](const DurationT& d, const Clock::TempoItem& item) { return d < item.duration; });
+}
+
+template<typename ItemT>
+bool merge_event(ItemT& item, const Event& event, timestamp_t timestamp) {
+    assert(timestamp >= item.timestamp);
+    if (Event::equivalent(event, item.event))
+        return true;
+    if (timestamp == item.timestamp) {
+        item.event = event;
+        return true;
+    }
+    return false;
+}
+
 }
 
 //=======
@@ -428,68 +458,49 @@ ppqn_t Clock::ppqn() const {
 Clock::duration_type Clock::base_time(const Event& tempo_event) const {
     assert(tempo_event.is(family_t::tempo));
     /// @todo check negative values of first byte of ppqn
-    return duration_type{extraction_ns::get_meta_int(tempo_event) / (double)m_ppqn};
+    return duration_type{extraction_ns::get_meta_int(tempo_event) / static_cast<double>(m_ppqn)};
 }
 
 const Event& Clock::last_tempo(timestamp_t timestamp) const {
-    return before_timestamp(timestamp).tempo_event;
+    return before_timestamp(m_tempo, timestamp)->event;
 }
 
-const Clock::Item& Clock::before_timestamp(timestamp_t timestamp) const {
-    auto it = std::upper_bound(m_cache.begin(), m_cache.end(), timestamp, [](timestamp_t t, const Item& item) { return t < item.timestamp; });
-    if (it != m_cache.begin()) /// @note very likely (only true for negative timestamp)
-        --it;
-    return *it;
-}
-
-const Clock::Item& Clock::before_duration(const duration_type& duration) const {
-    auto it = std::upper_bound(m_cache.begin(), m_cache.end(), duration, [](const duration_type& d, const Item& item) { return d < item.duration; });
-    if (it != m_cache.begin()) /// @note very likely (only true for negative duration)
-        --it;
-    return *it;
-}
-
-Clock::duration_type Clock::get_duration(const Item& item, timestamp_t timestamp) const {
-    return item.duration + base_time(item.tempo_event) * (timestamp - item.timestamp);
-}
-
-timestamp_t Clock::get_timestamp(const Item& item, const duration_type& duration) const {
-    return item.timestamp + timestamp_t((duration - item.duration) / base_time(item.tempo_event));
+const Event& Clock::last_time_signature(timestamp_t timestamp) const {
+    return relaxed_upper_bound(m_time_signature.begin(), m_time_signature.end(), timestamp)->event;
 }
 
 void Clock::reset() {
-    m_cache.clear();
-    m_cache.push_back(Item{Event::tempo(120.), 0, duration_type::zero()});
+    m_tempo.resize(1, {0., Clock::duration_type::zero(), Event::tempo(120.)});
+    m_time_signature.resize(1, {0., Event::time_signature(4, 2, 24, 8)});
 }
 
-void Clock::reset(ppqn_t ppqn) {
-    m_ppqn = ppqn;
-    reset();
-}
-
-void Clock::push_timestamp(const Event& tempo_event, timestamp_t timestamp) {
-    auto& last = m_cache.back();
-    assert(timestamp >= last.timestamp);
-    if (Event::equivalent(tempo_event, last.tempo_event)) {
-        /// ignoring event
-    } else if (timestamp == last.timestamp) {
-        last.tempo_event = tempo_event;
-    } else {
-        m_cache.push_back(Item{tempo_event, timestamp, get_duration(last, timestamp)});
+void Clock::push_timestamp(const Event& event, timestamp_t timestamp) {
+    if (event.is(family_t::tempo)) {
+        auto& last = m_tempo.back();
+        if (!merge_event(last, event, timestamp))
+            m_tempo.push_back({timestamp, get_duration(last, timestamp), event});
+    } else if (event.is(family_t::time_signature)) {
+        if (!merge_event(m_time_signature.back(), event, timestamp))
+            m_time_signature.emplace_back(timestamp, event);
     }
 }
 
-void Clock::push_duration(const Event& tempo_event, const duration_type& duration) {
-    assert(duration > m_cache.back().duration);
-    m_cache.push_back(Item{tempo_event, get_timestamp(m_cache.back(), duration), duration});
+void Clock::push_duration(const Event& event, const duration_type& duration) {
+    if (event.is(family_t::tempo)) {
+        assert(duration > m_tempo.back().duration);
+        m_tempo.push_back({get_timestamp(m_tempo.back(), duration), duration, event});
+    } else if (event.is(family_t::time_signature)) {
+        assert(duration > m_time_signature.back().duration);
+        m_time_signature.emplace_back(get_timestamp(m_tempo.back(), duration), event);
+    }
 }
 
 Clock::duration_type Clock::timestamp2time(timestamp_t timestamp) const {
-    return get_duration(before_timestamp(timestamp), timestamp);
+    return get_duration(*before_timestamp(m_tempo, timestamp), timestamp);
 }
 
 timestamp_t Clock::time2timestamp(const duration_type& time) const {
-    return get_timestamp(before_duration(time), time);
+    return get_timestamp(*before_duration(m_tempo, time), time);
 }
 
 timestamp_t Clock::beat2timestamp(double beat) const {
@@ -500,6 +511,14 @@ double Clock::timestamp2beat(timestamp_t timestamp) const {
     return 4. * timestamp / m_ppqn;
 }
 
+Clock::duration_type Clock::get_duration(const TempoItem& item, timestamp_t timestamp) const {
+    return item.duration + base_time(item.event) * (timestamp - item.timestamp);
+}
+
+timestamp_t Clock::get_timestamp(const TempoItem& item, const duration_type& duration) const {
+    return item.timestamp + static_cast<timestamp_t>((duration - item.duration) / base_time(item.event));
+}
+
 //==========
 // Sequence
 //==========
@@ -507,7 +526,7 @@ double Clock::timestamp2beat(timestamp_t timestamp) const {
 // builders
 
 Sequence Sequence::from_file(StandardMidiFile data) {
-    Sequence sequence;
+    Sequence sequence{data.ppqn};
     sequence.m_events.resize(count_sizes(data.tracks.begin(), data.tracks.end()));
     const auto first = sequence.begin();
     if (data.format == StandardMidiFile::sequencing_format) {
@@ -524,22 +543,25 @@ Sequence Sequence::from_file(StandardMidiFile data) {
             std::inplace_merge(first, pos, it);
         }
     }
-    sequence.update_clock(data.ppqn);
+    for (const auto& item : sequence.m_events)
+        sequence.m_clock.push_timestamp(item.event, item.timestamp);
     return sequence;
 }
 
 Sequence Sequence::from_realtime(const realtime_type& data, ppqn_t ppqn) {
-    Sequence sequence;
+    Sequence sequence{ppqn};
     const auto t0 = data.empty() ? Clock::time_type{} : data.begin()->timepoint;
     // compute clock
-    sequence.m_clock.reset(ppqn);
     for (const auto& realtime_item : data)
-        if (realtime_item.event.is(family_t::tempo))
-            sequence.m_clock.push_duration(realtime_item.event, realtime_item.timepoint - t0);
+        sequence.m_clock.push_duration(realtime_item.event, realtime_item.timepoint - t0);
     // fill event
     for (const auto& realtime_item : data)
-        sequence.push_item({sequence.m_clock.time2timestamp(realtime_item.timepoint - t0), realtime_item.event});
+        sequence.m_events.emplace_back(sequence.m_clock.time2timestamp(realtime_item.timepoint - t0), realtime_item.event);
     return sequence;
+}
+
+Sequence::Sequence(ppqn_t ppqn) : m_clock{ppqn} {
+
 }
 
 // clock
@@ -551,15 +573,7 @@ const Clock& Sequence::clock() const {
 void Sequence::update_clock() {
     m_clock.reset();
     for (const auto& item : m_events)
-        if (item.event.is(family_t::tempo))
-            m_clock.push_timestamp(item.event, item.timestamp);
-}
-
-void Sequence::update_clock(ppqn_t ppqn) {
-    m_clock.reset(ppqn);
-    for (const auto& item : m_events)
-        if (item.event.is(family_t::tempo))
-            m_clock.push_timestamp(item.event, item.timestamp);
+        m_clock.push_timestamp(item.event, item.timestamp);
 }
 
 // observers
@@ -574,7 +588,7 @@ bool Sequence::empty() const {
 
 std::set<track_t> Sequence::tracks() const {
     std::set<track_t> results;
-    for (const Item& item : m_events)
+    for (const auto& item : m_events)
         results.insert(item.event.track());
     return results;
 }
@@ -601,11 +615,11 @@ void Sequence::clear() {
     m_clock.reset();
 }
 
-void Sequence::push_item(Item item) {
+void Sequence::push_item(TimedEvent item) {
     m_events.push_back(std::move(item));
 }
 
-void Sequence::insert_item(Item item) {
+void Sequence::insert_item(TimedEvent item) {
     auto it = std::upper_bound(m_events.begin(), m_events.end(), item.timestamp);
     m_events.emplace(it, std::move(item));
 }
@@ -618,7 +632,7 @@ StandardMidiFile Sequence::to_file(const blacklist_type& list) const {
     // map the tracks to a consecutive track id
     std::unordered_map<track_t, size_t> mapping;
     size_t track_counter = 0;
-    for (track_t track : tracks())
+    for (const auto track : tracks())
         if (list.match(track))
             mapping[track] = track_counter++;
     std::vector<timestamp_t> timestamps(mapping.size(), 0); // (assert sequence starts at 0)
@@ -627,11 +641,11 @@ StandardMidiFile Sequence::to_file(const blacklist_type& list) const {
     smf.ppqn = m_clock.ppqn();
     smf.tracks.resize(mapping.size());
     // set file events
-    for (const Item& item : m_events) {
+    for (const auto& item : m_events) {
         const auto track_it = mapping.find(item.event.track());
         if (track_it != mapping.end()) {
-            const size_t track_number = track_it->second;
-            const double deltatime = item.timestamp - timestamps[track_number];
+            const auto track_number = track_it->second;
+            const auto deltatime = item.timestamp - timestamps[track_number];
             timestamps[track_number] = item.timestamp;
             smf.tracks[track_number].emplace_back(decay_value<uint32_t>(deltatime), item.event);
         }

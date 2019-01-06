@@ -91,6 +91,27 @@ size_t write_file(const StandardMidiFile& file, const std::string& filename, boo
 
 }
 
+//============
+// TimedEvent
+//============
+
+struct TimedEvent {
+
+    TimedEvent() noexcept = default;
+
+    template<typename EventT>
+    TimedEvent(timestamp_t timestamp, EventT&& event) : timestamp{timestamp}, event{std::forward<EventT>(event)} {}
+
+    inline friend bool operator<(const TimedEvent& lhs, const TimedEvent& rhs) { return lhs.timestamp < rhs.timestamp; }
+    inline friend bool operator<(timestamp_t lhs, const TimedEvent& rhs) { return lhs < rhs.timestamp; }
+    inline friend bool operator<(const TimedEvent& lhs, timestamp_t rhs) { return lhs.timestamp < rhs; }
+
+    timestamp_t timestamp;
+    Event event;
+
+};
+
+
 //=======
 // Clock
 //=======
@@ -100,7 +121,6 @@ size_t write_file(const StandardMidiFile& file, const std::string& filename, boo
  * The clock is the main object responsible for dealing with time.
  * It is able to convert timestamp from/to real durations
  *
- * @todo INCLUDE SMTPE & TIME SIGNATURE FOR CONVERSIONS !
  */
 
 class Clock {
@@ -115,10 +135,10 @@ public:
 
     static_assert(clock_type::is_steady, "System does not provide a steady clock");
 
-    struct Item {
-        Event tempo_event;
+    struct TempoItem {
         timestamp_t timestamp;
         duration_type duration;
+        Event event;
     };
 
     Clock(ppqn_t ppqn = default_ppqn);
@@ -128,22 +148,16 @@ public:
     duration_type base_time(const Event& tempo_event) const; /*! time corresponding to 1 timestamp at the given tempo */
 
     const Event& last_tempo(timestamp_t timestamp) const; /*!< returns the last tempo before or upon timestamp */
-
-    const Item& before_timestamp(timestamp_t timestamp) const;
-    const Item& before_duration(const duration_type& duration) const;
-
-    duration_type get_duration(const Item& item, timestamp_t timestamp) const;
-    timestamp_t get_timestamp(const Item& item, const duration_type& duration) const;
+    const Event& last_time_signature(timestamp_t timestamp) const; /*!< returns the last time signature before or upon timestamp */
 
     // --------------
     // cache mutators
     // --------------
 
     void reset();
-    void reset(ppqn_t ppqn);
 
-    void push_timestamp(const Event& tempo_event, timestamp_t timestamp);
-    void push_duration(const Event& tempo_event, const duration_type& duration);
+    void push_timestamp(const Event& event, timestamp_t timestamp);
+    void push_duration(const Event& event, const duration_type& duration);
 
     // ----------------
     // time conversions
@@ -155,8 +169,13 @@ public:
     double timestamp2beat(timestamp_t timestamp) const;
 
 private:
+    duration_type get_duration(const TempoItem& item, timestamp_t timestamp) const;
+    timestamp_t get_timestamp(const TempoItem& item, const duration_type& duration) const;
+
+private:
     ppqn_t m_ppqn; /*!< number of pulses per quarter note */
-    std::vector<Item> m_cache;
+    std::vector<TempoItem> m_tempo;
+    std::vector<TimedEvent> m_time_signature;
 
 };
 
@@ -180,23 +199,14 @@ class Sequence {
 
 public:
 
-    struct Item {
-        timestamp_t timestamp;
-        Event event;
-    };
-
     struct RealtimeItem {
         Clock::time_type timepoint;
         Event event;
     };
 
-    inline friend bool operator<(const Item& lhs, const Item& rhs) { return lhs.timestamp < rhs.timestamp; }
-    inline friend bool operator<(timestamp_t lhs, const Item& rhs) { return lhs < rhs.timestamp; }
-    inline friend bool operator<(const Item& lhs, timestamp_t rhs) { return lhs.timestamp < rhs; }
-
     using realtime_type = std::vector<RealtimeItem>;
-    using container_type = std::vector<Item>;
-    using value_type = typename container_type::value_type; // Item
+    using container_type = std::vector<TimedEvent>;
+    using value_type = typename container_type::value_type;
     using iterator = typename container_type::iterator;
     using const_iterator = typename container_type::const_iterator;
     using const_reverse_iterator = typename container_type::const_reverse_iterator;
@@ -206,10 +216,11 @@ public:
     static Sequence from_file(StandardMidiFile data);
     static Sequence from_realtime(const realtime_type& data, ppqn_t ppqn = default_ppqn);
 
+    explicit Sequence(ppqn_t ppqn = default_ppqn);
+
     // clock
     const Clock& clock() const;
     void update_clock();
-    void update_clock(ppqn_t ppqn);
 
     // observers
     const container_type& events() const; /*!< event accessor read only */
@@ -222,11 +233,11 @@ public:
 
     // mutators
     void clear();
-    void push_item(Item item); /*!< invalidate clock */
-    void insert_item(Item item); /*!< invalidate clock */
+    void push_item(TimedEvent item); /*!< invalidate clock */
+    void insert_item(TimedEvent item); /*!< invalidate clock */
 
     // converters
-    StandardMidiFile to_file(const blacklist_type& list = blacklist_type(true)) const; /*!< convert given tracks to midi file */
+    StandardMidiFile to_file(const blacklist_type& list = blacklist_type{true}) const; /*!< convert given tracks to midi file */
 
     // iterators
     iterator begin();
@@ -237,7 +248,7 @@ public:
     const_reverse_iterator rend() const;
 
 private:
-    std::vector<Item> m_events; /*!< event container */
+    std::vector<TimedEvent> m_events; /*!< event container */
     Clock m_clock;
 
 };

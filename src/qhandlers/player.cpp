@@ -127,7 +127,7 @@ void SequenceViewTrackItem::setCodec(QTextCodec* codec) {
         setText(0, codec->toUnicode(mRawText));
 }
 
-SequenceViewItem::SequenceViewItem(Sequence::Item item, SequenceViewTrackItem *parent) :
+SequenceViewItem::SequenceViewItem(TimedEvent item, SequenceViewTrackItem *parent) :
     QTreeWidgetItem{parent}, mItem{std::move(item)} {
 
     // timestamp
@@ -316,7 +316,7 @@ void SequenceView::setSequence(Sequence sequence, timestamp_t lower, timestamp_t
 
     QMap<track_t, channels_t> trackChannels;
     QMap<track_t, QByteArrayList> trackNames;
-    for (const Sequence::Item& item : mSequence) {
+    for (const auto& item : mSequence) {
         if (item.event.is(families_t::voice()))
             trackChannels[item.event.track()] |= item.event.channels();
         else if (item.event.is(family_t::track_name))
@@ -412,7 +412,7 @@ void SequenceView::addNextEvents() {
     }
 }
 
-void SequenceView::addEvent(Sequence::Item item) {
+void SequenceView::addEvent(TimedEvent item) {
     if (auto* trackItem = itemForTrack(item.event.track()))
         updateItemVisibility(new SequenceViewItem{std::move(item), trackItem});
 }
@@ -1093,7 +1093,7 @@ void Trackbar::setSequence(const Sequence& sequence, timestamp_t lower, timestam
     mLastEdit->initialize(sequence.clock(), lastTimestamp, lastTimestamp);
     // reinitialize markers
     cleanMarkers();
-    for (const Sequence::Item& item : sequence)
+    for (const auto& item : sequence)
         if (item.event.is(family_t::marker))
             addMarker(item.timestamp, QString::fromStdString(item.event.description()), false);
 }
