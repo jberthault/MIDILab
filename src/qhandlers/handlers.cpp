@@ -32,6 +32,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "qhandlers/trackfilter.h"
 #include "qhandlers/guitar.h"
 #include "qhandlers/system.h"
+#include "qhandlers/tickhandler.h"
 
 //=================
 // StandardFactory
@@ -60,6 +61,7 @@ StandardFactory::StandardFactory(QObject* parent) : QObject{parent}, MetaHandler
         makeMetaMonitor(this),
         // basic handlers
         makeMetaForwarder(this),
+        makeMetaTickHandler(this),
         makeMetaChannelMapper(this),
         makeMetaTrackFilter(this)
     };

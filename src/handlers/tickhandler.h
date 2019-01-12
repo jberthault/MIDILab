@@ -18,17 +18,32 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#include "forwarder.h"
+#ifndef HANDLERS_TICK_HANDLER_H
+#define HANDLERS_TICK_HANDLER_H
 
-//================
-// ForwardHandler
-//================
+#include "core/handler.h"
 
-ForwardHandler::ForwardHandler() : Handler{Mode::thru()} {
+//=============
+// TickHandler
+//=============
 
-}
+class TickHandler : public Handler {
 
-Handler::Result ForwardHandler::handle_message(const Message& message) {
-    forward_message(message);
-    return Result::success;
-}
+public:
+    explicit TickHandler();
+    ~TickHandler();
+
+protected:
+    Result handle_open(State state) override;
+    Result handle_close(State state) override;
+    families_t produced_families() const override;
+
+private:
+    void start();
+    void stop();
+
+    std::thread m_worker;
+
+};
+
+#endif // HANDLERS_TICK_HANDLER_H

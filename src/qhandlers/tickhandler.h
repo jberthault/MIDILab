@@ -18,17 +18,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#include "forwarder.h"
+#ifndef QHANDLERS_TICK_HANDLER_H
+#define QHANDLERS_TICK_HANDLER_H
 
-//================
-// ForwardHandler
-//================
+#include "qcore/core.h"
 
-ForwardHandler::ForwardHandler() : Handler{Mode::thru()} {
+MetaHandler* makeMetaTickHandler(QObject* parent);
 
-}
-
-Handler::Result ForwardHandler::handle_message(const Message& message) {
-    forward_message(message);
-    return Result::success;
-}
+#endif // QHANDLERS_TICK_HANDLER_H

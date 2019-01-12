@@ -18,17 +18,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-#include "forwarder.h"
+#include "handlers/tickhandler.h"
+#include "qhandlers/tickhandler.h"
 
-//================
-// ForwardHandler
-//================
-
-ForwardHandler::ForwardHandler() : Handler{Mode::thru()} {
-
-}
-
-Handler::Result ForwardHandler::handle_message(const Message& message) {
-    forward_message(message);
-    return Result::success;
+MetaHandler* makeMetaTickHandler(QObject* parent) {
+    auto* meta = new MetaHandler{parent};
+    meta->setIdentifier("Tick");
+    meta->setDescription("Produce a tick message every 10 milliseconds");
+    meta->setFactory(new OpenProxyFactory<TickHandler>);
+    return meta;
 }
