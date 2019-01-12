@@ -205,8 +205,7 @@ bool GraphicalHandler::canGenerate() const {
 }
 
 void GraphicalHandler::generate(Event event) {
-    event.set_track(mTrack);
-    produce_message(std::move(event));
+    produce_message(std::move(event).with_track(mTrack));
 }
 
 //============

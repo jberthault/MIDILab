@@ -65,9 +65,7 @@ Handler::Result Transposer::handle_message(const Message& message) {
 void Transposer::clean_corrupted(Handler* source, track_t track) {
     if (const auto channels = m_corruption.reset()) {
         m_corruption.memory.clear(channels);
-        Message message{Event::controller(channels, controller_ns::all_notes_off_controller), source};
-        message.event.set_track(track);
-        forward_message(std::move(message));
+        forward_message({Event::controller(channels, controller_ns::all_notes_off_controller).with_track(track), source});
     }
 }
 

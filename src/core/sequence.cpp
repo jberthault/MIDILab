@@ -441,11 +441,6 @@ bool merge_event(ItemT& item, const Event& event, timestamp_t timestamp) {
     return false;
 }
 
-auto with_track(Event event, track_t track) {
-    event.set_track(track);
-    return event;
-}
-
 }
 
 //=======
@@ -680,8 +675,8 @@ TimedEvents Sequence::make_metronome(byte_t velocity) const {
     const auto range = track_range();
     const auto track = range.max <= std::numeric_limits<track_t>::max() ? static_cast<track_t>(range.max) : default_track;
     // Prepare metronome events
-    const auto click = with_track(Event::note_on(channels_t::drums(), drum_ns::metronome_click_drum, velocity), track);
-    const auto bell = with_track(Event::note_on(channels_t::drums(), drum_ns::metronome_bell_drum, velocity), track);
+    const auto click = Event::note_on(channels_t::drums(), drum_ns::metronome_click_drum, velocity).with_track(track);
+    const auto bell = Event::note_on(channels_t::drums(), drum_ns::metronome_bell_drum, velocity).with_track(track);
     // There will be around 1 event per quarter note (24 MIDI clocks)
     result.reserve(decay_value<size_t>(last_timestamp() / m_clock.ppqn()));
     // Iterate over all time signature events

@@ -90,11 +90,8 @@ void ChannelMapper::feed_forward(const Message& message) {
 }
 
 void ChannelMapper::clean_corrupted(Handler* source, track_t track) {
-    if (const auto channels = m_corruption.reset()) {
-        Message message{Event::controller(channels, controller_ns::all_notes_off_controller), source};
-        message.event.set_track(track);
-        feed_forward(message);
-    }
+    if (const auto channels = m_corruption.reset())
+        feed_forward({Event::controller(channels, controller_ns::all_notes_off_controller).with_track(track), source});
 }
 
 channels_t ChannelMapper::remap(channels_t channels) const {

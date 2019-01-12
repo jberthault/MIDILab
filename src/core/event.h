@@ -635,6 +635,7 @@ public:
 
     inline track_t track() const noexcept { return m_track; }
     inline void set_track(track_t track) noexcept { m_track = track; }
+    inline Event&& with_track(track_t track) && noexcept { m_track = track; return std::move(*this); }
 
     inline channels_t channels() const noexcept { return m_channels; }
     inline void set_channels(channels_t channels) noexcept { m_channels = channels; }
