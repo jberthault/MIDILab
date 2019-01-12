@@ -112,9 +112,9 @@ void SequenceReader::set_position(timestamp_t timestamp) {
     jump_position(make_lower(m_sequence, timestamp));
 }
 
-timestamp_t SequenceReader::lower() const {
+range_t<timestamp_t> SequenceReader::limits() const {
     std::lock_guard<std::mutex> guard{m_mutex};
-    return m_limits.min.second;
+    return {m_limits.min.second, m_limits.max.second};
 }
 
 void SequenceReader::set_lower(timestamp_t timestamp) {
@@ -126,11 +126,6 @@ void SequenceReader::set_lower(timestamp_t timestamp) {
     }
     if (needs_jump)
         jump_position(m_limits.min);
-}
-
-timestamp_t SequenceReader::upper() const {
-    std::lock_guard<std::mutex> guard{m_mutex};
-    return m_limits.max.second;
 }
 
 void SequenceReader::set_upper(timestamp_t timestamp) {
@@ -168,9 +163,9 @@ bool SequenceReader::start_playing(bool rewind) {
     // starts worker thread
     m_worker = std::thread{ [this] {
         activate_state(playing_state);
-        duration_type base_time = m_sequence.clock().base_time(m_sequence.clock().last_tempo(position())); // current base time for 1 deltatime
+        duration_type base_time = m_sequence.clock().last_base_time(position()); // current base time for 1 deltatime
         range_t<time_type> time_loop = {{}, clock_type::now()};
-        range_t<Sequence::const_iterator> it_loop;
+        range_t<TimedEvents::const_iterator> it_loop;
         while (is_playing()) {
             // update time loop
             time_loop.min = std::exchange(time_loop.max, clock_type::now());

@@ -137,7 +137,7 @@ auto read_controller(byte_cview& buf, channels_t channels) {
 Event read_event(byte_cview& buf, bool is_realtime, byte_t* running_status) {
     const auto status = read_status(buf, running_status);
     // ignoring 0xf4, 0xf5, 0xfd, 0xf7
-    switch(status) {
+    switch (status) {
     case 0xf0: return read_sysex(buf, is_realtime);
     case 0xf1: return Event::mtc_frame(read_byte(buf));
     case 0xf2: return Event::song_position(read_uint14(buf));
@@ -397,7 +397,7 @@ size_t write_file(const StandardMidiFile& file, const std::string& filename, boo
 
 namespace {
 
-void copy_track(StandardMidiFile::track_type track, uint64_t& timestamp, Sequence::iterator& it) {
+void copy_track(StandardMidiFile::track_type track, uint64_t& timestamp, TimedEvents::iterator& it) {
     for (auto& pair : track) {
         timestamp += pair.first;
         it->event = std::move(pair.second);
@@ -420,12 +420,12 @@ auto relaxed_upper_bound(IteratorT first, IteratorT last, Args&& ... args) {
     return it;
 }
 
-auto before_timestamp(const std::vector<Clock::TempoItem>& items, timestamp_t timestamp) {
+auto before_timestamp(const Clock::TempoItems& items, timestamp_t timestamp) {
     return relaxed_upper_bound(items.begin(), items.end(), timestamp, [](timestamp_t t, const Clock::TempoItem& item) { return t < item.timestamp; });
 }
 
 template<typename DurationT>
-auto before_duration(const std::vector<Clock::TempoItem>& items, const DurationT& duration) {
+auto before_duration(const Clock::TempoItems& items, const DurationT& duration) {
     return relaxed_upper_bound(items.begin(), items.end(), duration, [](const DurationT& d, const Clock::TempoItem& item) { return d < item.duration; });
 }
 
@@ -441,6 +441,11 @@ bool merge_event(ItemT& item, const Event& event, timestamp_t timestamp) {
     return false;
 }
 
+auto with_track(Event event, track_t track) {
+    event.set_track(track);
+    return event;
+}
+
 }
 
 //=======
@@ -449,24 +454,6 @@ bool merge_event(ItemT& item, const Event& event, timestamp_t timestamp) {
 
 Clock::Clock(ppqn_t ppqn) : m_ppqn{ppqn} {
     reset();
-}
-
-ppqn_t Clock::ppqn() const {
-    return m_ppqn;
-}
-
-Clock::duration_type Clock::base_time(const Event& tempo_event) const {
-    assert(tempo_event.is(family_t::tempo));
-    /// @todo check negative values of first byte of ppqn
-    return duration_type{extraction_ns::get_meta_int(tempo_event) / static_cast<double>(m_ppqn)};
-}
-
-const Event& Clock::last_tempo(timestamp_t timestamp) const {
-    return before_timestamp(m_tempo, timestamp)->event;
-}
-
-const Event& Clock::last_time_signature(timestamp_t timestamp) const {
-    return relaxed_upper_bound(m_time_signature.begin(), m_time_signature.end(), timestamp)->event;
 }
 
 void Clock::reset() {
@@ -495,8 +482,26 @@ void Clock::push_duration(const Event& event, const duration_type& duration) {
     }
 }
 
+Clock::duration_type Clock::base_time(const Event& tempo_event) const {
+    assert(tempo_event.is(family_t::tempo));
+    /// @todo check negative values of first byte of ppqn
+    return duration_type{extraction_ns::get_meta_int(tempo_event) / static_cast<double>(m_ppqn)};
+}
+
+const Clock::TempoItem& Clock::last_tempo(timestamp_t timestamp) const {
+    return *before_timestamp(m_tempo, timestamp);
+}
+
+const TimedEvent& Clock::last_time_signature(timestamp_t timestamp) const {
+    return *relaxed_upper_bound(m_time_signature.begin(), m_time_signature.end(), timestamp);
+}
+
+Clock::duration_type Clock::last_base_time(timestamp_t timestamp) const {
+    return base_time(last_tempo(timestamp).event);
+}
+
 Clock::duration_type Clock::timestamp2time(timestamp_t timestamp) const {
-    return get_duration(*before_timestamp(m_tempo, timestamp), timestamp);
+    return get_duration(last_tempo(timestamp), timestamp);
 }
 
 timestamp_t Clock::time2timestamp(const duration_type& time) const {
@@ -578,7 +583,7 @@ void Sequence::update_clock() {
 
 // observers
 
-const Sequence::container_type& Sequence::events() const {
+const TimedEvents& Sequence::events() const {
     return m_events;
 }
 
@@ -591,6 +596,16 @@ std::set<track_t> Sequence::tracks() const {
     for (const auto& item : m_events)
         results.insert(item.event.track());
     return results;
+}
+
+range_t<uint32_t> Sequence::track_range() const {
+    range_t<uint32_t> result{default_track, default_track};
+    if (!m_events.empty()) {
+        const auto its = std::minmax_element(m_events.begin(), m_events.end(), [](const auto& lhs, const auto& rhs) { return lhs.event.track() < rhs.event.track(); });
+        result.min = static_cast<uint32_t>(its.first->event.track());
+        result.max = static_cast<uint32_t>(its.second->event.track()) + 1;
+    }
+    return result;
 }
 
 timestamp_t Sequence::first_timestamp() const {
@@ -624,6 +639,12 @@ void Sequence::insert_item(TimedEvent item) {
     m_events.emplace(it, std::move(item));
 }
 
+void Sequence::insert_items(const TimedEvents& items) {
+    const auto previous_size = static_cast<std::ptrdiff_t>(m_events.size());
+    m_events.insert(m_events.end(), items.begin(), items.end());
+    std::inplace_merge(m_events.begin(), m_events.begin() + previous_size, m_events.end());
+}
+
 // converters
 
 StandardMidiFile Sequence::to_file(const blacklist_type& list) const {
@@ -653,28 +674,38 @@ StandardMidiFile Sequence::to_file(const blacklist_type& list) const {
     return smf;
 }
 
-// iterators
-
-Sequence::iterator Sequence::begin() {
-    return m_events.begin();
-}
-
-Sequence::iterator Sequence::end() {
-    return m_events.end();
-}
-
-Sequence::const_iterator Sequence::begin() const {
-    return m_events.begin();
-}
-
-Sequence::const_iterator Sequence::end() const {
-    return m_events.end();
-}
-
-Sequence::const_reverse_iterator Sequence::rbegin() const {
-    return m_events.rbegin();
-}
-
-Sequence::const_reverse_iterator Sequence::rend() const {
-    return m_events.rend();
+TimedEvents Sequence::make_metronome(byte_t velocity) const {
+    TimedEvents result;
+    // Compute next track available
+    const auto range = track_range();
+    const auto track = range.max <= std::numeric_limits<track_t>::max() ? static_cast<track_t>(range.max) : default_track;
+    // Prepare metronome events
+    const auto click = with_track(Event::note_on(channels_t::drums(), drum_ns::metronome_click_drum, velocity), track);
+    const auto bell = with_track(Event::note_on(channels_t::drums(), drum_ns::metronome_bell_drum, velocity), track);
+    // There will be around 1 event per quarter note (24 MIDI clocks)
+    result.reserve(decay_value<size_t>(last_timestamp() / m_clock.ppqn()));
+    // Iterate over all time signature events
+    const auto last = m_clock.time_signature().end();
+    for (auto it = m_clock.time_signature().begin() ; it != last ; ++it) {
+        // Compute the timestamp of a single tick, which is basically the ppqn.
+        // We choose to ignore the given cc and bb values (view.min[2] and view.min[3])
+        // so that the metronome clicks for each true quarter note.
+        // Otherwise the tick base would be (cc/24)*ppqn
+        const auto view = extraction_ns::get_meta_cview(it->event);
+        const auto nn = view.min[0];
+        const auto tick_base = static_cast<timestamp_t>(m_clock.ppqn());
+        // compute the limit
+        const auto next_it = std::next(it);
+        const auto next_timestamp = next_it == last ? last_timestamp() : next_it->timestamp;
+        // fill quarter notes until the next time signature
+        for (uint32_t tick=0 ; ; ++tick) {
+            const auto timestamp = it->timestamp + tick * tick_base;
+            // stops if timestamp reaches next timestamp or if it is too close (half of the tick base)
+            if (timestamp + tick_base / 2 >= next_timestamp)
+                break;
+            // Every nn quarter notes, the bell is emitted, starting at the time signature timestamp
+            result.emplace_back(timestamp, (tick % nn == 0) ? bell : click);
+        }
+    }
+    return result;
 }

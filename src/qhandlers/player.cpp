@@ -166,10 +166,10 @@ void SequenceViewItem::setCodec(QTextCodec* codec) {
         setText(3, codec->toUnicode(mRawText));
 }
 
-void SequenceViewItem::updateVisibiliy(families_t families, channels_t channels, timestamp_t lower, timestamp_t upper) {
+void SequenceViewItem::updateVisibiliy(families_t families, channels_t channels, const range_t<timestamp_t>& limits) {
     const bool familiesVisible = mItem.event.is(families);
     const bool channelsVisible = !mItem.event.is(families_t::voice()) || mItem.event.channels().any(channels);
-    const bool boundsVisible = lower <= mItem.timestamp && mItem.timestamp <= upper;
+    const bool boundsVisible = limits.min <= mItem.timestamp && mItem.timestamp <= limits.max;
     setHidden(!(familiesVisible && channelsVisible && boundsVisible));
 }
 
@@ -294,7 +294,7 @@ bool SequenceView::eventFilter(QObject* watched, QEvent* event) {
     return QWidget::eventFilter(watched, event);
 }
 
-void SequenceView::setSequence(Sequence sequence, timestamp_t lower, timestamp_t upper) {
+void SequenceView::setSequence(Sequence sequence, const range_t<timestamp_t>& limits) {
 
     // prevent signals
     QSignalBlocker guard(this);
@@ -307,8 +307,7 @@ void SequenceView::setSequence(Sequence sequence, timestamp_t lower, timestamp_t
     mSequence = std::move(sequence);
 
     mDistordedClock.setClock(mSequence.clock());
-    mLower = lower;
-    mUpper = upper;
+    mLimits = limits;
 
     // reenable all tracks
     if (mTrackFilter)
@@ -362,12 +361,12 @@ void SequenceView::cleanSequence() {
 }
 
 void SequenceView::setLower(timestamp_t timestamp) {
-    mLower = timestamp;
+    mLimits.min = timestamp;
     updateItemsVisibility();
 }
 
 void SequenceView::setUpper(timestamp_t timestamp) {
-    mUpper = timestamp;
+    mLimits.max = timestamp;
     updateItemsVisibility();
 }
 
@@ -383,7 +382,7 @@ void SequenceView::updateItemsVisibility() {
 }
 
 void SequenceView::updateItemVisibility(SequenceViewItem* item) {
-    item->updateVisibiliy(mFamilySelector->families(), mChannelsSelector->channels(), mLower, mUpper);
+    item->updateVisibiliy(mFamilySelector->families(), mChannelsSelector->channels(), mLimits);
 }
 
 void SequenceView::onFamiliesChanged(families_t families) {
@@ -482,7 +481,7 @@ SequenceWriter* WriterItem::handler() {
 }
 
 NamedSequence WriterItem::loadSequence() {
-    return {mHandler->load_sequence(), {}};
+    return {mHandler->load_sequence(), handlerName(mHandler)};
 }
 
 PlaylistTable::PlaylistTable(QWidget* parent) : QTableWidget{0, 2, parent} {
@@ -1082,14 +1081,14 @@ MarkerKnob* Trackbar::addMarker(bool isCustom) {
     return knob;
 }
 
-void Trackbar::setSequence(const Sequence& sequence, timestamp_t lower, timestamp_t upper) {
-    timestamp_t lastTimestamp = sequence.last_timestamp();
+void Trackbar::setSequence(const Sequence& sequence, const range_t<timestamp_t>& limits) {
+    auto lastTimestamp = sequence.last_timestamp();
     if (lastTimestamp == 0.)
         lastTimestamp = 1.;
     // reinitialize editors
-    mLowerEdit->initialize(sequence.clock(), lower, lastTimestamp);
-    mUpperEdit->initialize(sequence.clock(), upper, lastTimestamp);
-    mPositionEdit->initialize(sequence.clock(), lower, lastTimestamp);
+    mLowerEdit->initialize(sequence.clock(), limits.min, lastTimestamp);
+    mUpperEdit->initialize(sequence.clock(), limits.max, lastTimestamp);
+    mPositionEdit->initialize(sequence.clock(), limits.min, lastTimestamp);
     mLastEdit->initialize(sequence.clock(), lastTimestamp, lastTimestamp);
     // reinitialize markers
     cleanMarkers();
@@ -1165,7 +1164,7 @@ void TempoView::clearTempo() {
 }
 
 void TempoView::updateTimestamp(timestamp_t timestamp) {
-    setTempo(mClock.last_tempo(timestamp));
+    setTempo(mClock.last_tempo(timestamp).event);
 }
 
 void TempoView::setClock(Clock clock) {
@@ -1356,12 +1355,12 @@ void Player::refreshPosition() {
 }
 
 void Player::setSequence(NamedSequence sequence) {
-    if(auto* systemTrayIcon = context()->systemTrayIcon())
+    if (auto* systemTrayIcon = context()->systemTrayIcon())
         systemTrayIcon->showMessage(handlerName(&mHandler), sequence.name, QIcon{":/data/media-play.svg"}, 2000);
     mHandler.set_sequence(std::move(sequence.sequence));
     mTempoView->setClock(mHandler.sequence().clock());
-    mSequenceView->setSequence(mHandler.sequence(), mHandler.lower(), mHandler.upper());
-    mTracker->setSequence(mHandler.sequence(), mHandler.lower(), mHandler.upper());
+    mSequenceView->setSequence(mHandler.sequence(), mHandler.limits());
+    mTracker->setSequence(mHandler.sequence(), mHandler.limits());
 }
 
 void Player::saveSequence() {

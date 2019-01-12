@@ -111,6 +111,7 @@ struct TimedEvent {
 
 };
 
+using TimedEvents = std::vector<TimedEvent>;
 
 //=======
 // Clock
@@ -141,23 +142,36 @@ public:
         Event event;
     };
 
+    using TempoItems = std::vector<TempoItem>;
+
     Clock(ppqn_t ppqn = default_ppqn);
 
-    ppqn_t ppqn() const;
+    // ---------
+    // accessors
+    // ---------
 
-    duration_type base_time(const Event& tempo_event) const; /*! time corresponding to 1 timestamp at the given tempo */
+    inline ppqn_t ppqn() const { return m_ppqn; }
+    inline const TempoItems& tempo() const { return m_tempo; }
+    inline const TimedEvents& time_signature() const { return m_time_signature; }
 
-    const Event& last_tempo(timestamp_t timestamp) const; /*!< returns the last tempo before or upon timestamp */
-    const Event& last_time_signature(timestamp_t timestamp) const; /*!< returns the last time signature before or upon timestamp */
-
-    // --------------
-    // cache mutators
-    // --------------
+    // --------
+    // mutators
+    // --------
 
     void reset();
 
     void push_timestamp(const Event& event, timestamp_t timestamp);
     void push_duration(const Event& event, const duration_type& duration);
+
+    // --------
+    // features
+    // --------
+
+    duration_type base_time(const Event& tempo_event) const; /*! time corresponding to 1 timestamp at the given tempo */
+
+    const TempoItem& last_tempo(timestamp_t timestamp) const; /*!< returns the last tempo before or upon timestamp */
+    const TimedEvent& last_time_signature(timestamp_t timestamp) const; /*!< returns the last time signature before or upon timestamp */
+    duration_type last_base_time(timestamp_t timestamp) const;
 
     // ----------------
     // time conversions
@@ -174,8 +188,8 @@ private:
 
 private:
     ppqn_t m_ppqn; /*!< number of pulses per quarter note */
-    std::vector<TempoItem> m_tempo;
-    std::vector<TimedEvent> m_time_signature;
+    TempoItems m_tempo;
+    TimedEvents m_time_signature;
 
 };
 
@@ -205,11 +219,6 @@ public:
     };
 
     using realtime_type = std::vector<RealtimeItem>;
-    using container_type = std::vector<TimedEvent>;
-    using value_type = typename container_type::value_type;
-    using iterator = typename container_type::iterator;
-    using const_iterator = typename container_type::const_iterator;
-    using const_reverse_iterator = typename container_type::const_reverse_iterator;
     using blacklist_type = blacklist_t<track_t>;
 
     // builders
@@ -223,9 +232,11 @@ public:
     void update_clock();
 
     // observers
-    const container_type& events() const; /*!< event accessor read only */
+    const TimedEvents& events() const; /*!< event accessor read only */
     bool empty() const;
+
     std::set<track_t> tracks() const; /*!< compute the tracks assigned to events */
+    range_t<uint32_t> track_range() const; /*!< get the tracks in use as a semi-open range, as uint32 to prevent overflows */
 
     timestamp_t first_timestamp() const; /*!< timestamp of the first event (expected to be 0) */
     timestamp_t last_timestamp() const; /*!< maximum event's timestamp in all the tracks */
@@ -235,20 +246,28 @@ public:
     void clear();
     void push_item(TimedEvent item); /*!< invalidate clock */
     void insert_item(TimedEvent item); /*!< invalidate clock */
+    void insert_items(const TimedEvents& items); /*!< invalidate clock */
 
     // converters
     StandardMidiFile to_file(const blacklist_type& list = blacklist_type{true}) const; /*!< convert given tracks to midi file */
+    TimedEvents make_metronome(byte_t velocity = 0x7f) const; /*!< creates a metronome track, track number is the next available track of this */
 
     // iterators
-    iterator begin();
-    iterator end();
-    const_iterator begin() const;
-    const_iterator end() const;
-    const_reverse_iterator rbegin() const;
-    const_reverse_iterator rend() const;
+    inline auto begin() noexcept { return m_events.begin(); }
+    inline auto end() noexcept { return m_events.end(); }
+    inline auto begin() const noexcept { return m_events.begin(); }
+    inline auto end() const noexcept { return m_events.end(); }
+    inline auto cbegin() const noexcept { return m_events.cbegin(); }
+    inline auto cend() const noexcept { return m_events.cend(); }
+    inline auto rbegin() noexcept { return m_events.rbegin(); }
+    inline auto rend() noexcept { return m_events.rend(); }
+    inline auto rbegin() const noexcept { return m_events.rbegin(); }
+    inline auto rend() const noexcept { return m_events.rend(); }
+    inline auto crbegin() const noexcept { return m_events.crbegin(); }
+    inline auto crend() const noexcept { return m_events.crend(); }
 
 private:
-    std::vector<TimedEvent> m_events; /*!< event container */
+    TimedEvents m_events; /*!< event container */
     Clock m_clock;
 
 };

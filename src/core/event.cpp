@@ -269,7 +269,7 @@ const char* family_name(family_t family) {
 }
 
 constexpr family_t meta_family(byte_t meta_type) {
-    switch(meta_type) {
+    switch (meta_type) {
     case 0x00: return family_t::sequence_number;
     case 0x01: return family_t::text;
     case 0x02: return family_t::copyright;

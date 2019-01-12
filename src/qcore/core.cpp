@@ -232,7 +232,7 @@ void HandlerProxy::sendCommand(Command command, State state) const {
             supportedState |= State::receive();
         // compute state considered active
         Handler::State activatedState;
-        switch(command) {
+        switch (command) {
         case Command::Open: activatedState = {}; break;
         case Command::Close: activatedState = State::duplex(); break;
         case Command::Toggle: activatedState = mHandler->state(); break;

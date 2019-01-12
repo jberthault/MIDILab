@@ -36,7 +36,7 @@ public:
     using clock_type = Clock::clock_type;
     using time_type = Clock::time_type;
 
-    using position_type = std::pair<Sequence::const_iterator, timestamp_t>;
+    using position_type = std::pair<TimedEvents::const_iterator, timestamp_t>;
 
     static const SystemExtension<void> toggle_ext; /*!< pause handler if playing else start */
     static const SystemExtension<void> pause_ext; /*!< like stop_event but don't generate a reset_event */
@@ -61,10 +61,8 @@ public:
     timestamp_t position() const; /*!< current timestamp of the current sequence */
     void set_position(timestamp_t timestamp);
 
-    timestamp_t lower() const;
+    range_t<timestamp_t> limits() const;
     void set_lower(timestamp_t timestamp);
-
-    timestamp_t upper() const;
     void set_upper(timestamp_t timestamp);
 
     bool start_playing(bool rewind); /*!< return false if already started */

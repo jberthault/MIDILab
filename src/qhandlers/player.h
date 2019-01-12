@@ -107,7 +107,7 @@ public:
 
     void setCodec(QTextCodec* codec);
 
-    void updateVisibiliy(families_t families, channels_t channels, timestamp_t lower, timestamp_t upper);
+    void updateVisibiliy(families_t families, channels_t channels, const range_t<timestamp_t>& limits);
 
     QVariant data(int column, int role) const override;
 
@@ -134,7 +134,7 @@ public:
     Handler* trackFilter();
     void setTrackFilter(Handler* handler);
 
-    void setSequence(Sequence sequence, timestamp_t lower, timestamp_t upper);
+    void setSequence(Sequence sequence, const range_t<timestamp_t>& limits);
     void cleanSequence();
 
     void setLower(timestamp_t timestamp);
@@ -177,13 +177,12 @@ private:
     QPushButton* mChannelSelectorButton;
     QTimer* mSequenceUpdater; /*!< timer filling sequence event asynchronously */
     Sequence mSequence;
-    Sequence::iterator mSequenceIt; /*!< iterator pointing to the next event to add */
+    TimedEvents::iterator mSequenceIt; /*!< iterator pointing to the next event to add */
     QTextCodec* mCodec {QTextCodec::codecForLocale()};
     Handler* mTrackFilter {nullptr};
     DistordedClock mDistordedClock;
     Qt::MouseButton mLastButton {Qt::NoButton};
-    timestamp_t mLower {0.};
-    timestamp_t mUpper {0.};
+    range_t<timestamp_t> mLimits {0., 0.};
 
 };
 
@@ -389,7 +388,7 @@ public:
 
 public slots:
     void updateTimestamp(timestamp_t timestamp); /*!< notify trackbar that position has changed */
-    void setSequence(const Sequence& sequence, timestamp_t lower, timestamp_t upper); /*!< notify trackbar that a new sequence is played */
+    void setSequence(const Sequence& sequence, const range_t<timestamp_t>& limits); /*!< notify trackbar that a new sequence is played */
     void setDistorsion(double distorsion); /*!< notify trackbar that distorsion has changed */
     void addCustomMarker(timestamp_t timestamp);
 
