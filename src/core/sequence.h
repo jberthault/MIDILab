@@ -221,19 +221,25 @@ public:
     using realtime_type = std::vector<RealtimeItem>;
     using blacklist_type = blacklist_t<track_t>;
 
+    // --------
     // builders
+    // --------
+
     static Sequence from_file(StandardMidiFile data);
     static Sequence from_realtime(const realtime_type& data, ppqn_t ppqn = default_ppqn);
 
+    // ---------
+    // structors
+    // ---------
+
     explicit Sequence(ppqn_t ppqn = default_ppqn);
 
-    // clock
-    const Clock& clock() const;
-    void update_clock();
-
+    // ---------
     // observers
-    const TimedEvents& events() const; /*!< event accessor read only */
-    bool empty() const;
+    // ---------
+
+    inline const auto& events() const { return m_events; }
+    inline const auto& clock() const { return m_clock; }
 
     std::set<track_t> tracks() const; /*!< compute the tracks assigned to events */
     range_t<uint32_t> track_range() const; /*!< get the tracks in use as a semi-open range, as uint32 to prevent overflows */
@@ -242,17 +248,33 @@ public:
     timestamp_t last_timestamp() const; /*!< maximum event's timestamp in all the tracks */
     timestamp_t last_timestamp(track_t track) const; /*!< maximum event's timestamp in the given track */
 
+    // --------
     // mutators
+    // --------
+
     void clear();
     void push_item(TimedEvent item); /*!< invalidate clock */
     void insert_item(TimedEvent item); /*!< invalidate clock */
     void insert_items(const TimedEvents& items); /*!< invalidate clock */
+    void update_clock();
 
+    // ----------
     // converters
+    // ----------
+
     StandardMidiFile to_file(const blacklist_type& list = blacklist_type{true}) const; /*!< convert given tracks to midi file */
     TimedEvents make_metronome(byte_t velocity = 0x7f) const; /*!< creates a metronome track, track number is the next available track of this */
 
-    // iterators
+    // ----------------
+    // vector interface
+    // ----------------
+
+    inline bool empty() const noexcept { return m_events.empty(); }
+    inline auto size() const noexcept { return m_events.size(); }
+
+    inline const auto& operator[](size_t pos) const noexcept { return m_events[pos]; }
+    inline auto& operator[](size_t pos) noexcept { return m_events[pos]; }
+
     inline auto begin() noexcept { return m_events.begin(); }
     inline auto end() noexcept { return m_events.end(); }
     inline auto begin() const noexcept { return m_events.begin(); }
@@ -267,7 +289,7 @@ public:
     inline auto crend() const noexcept { return m_events.crend(); }
 
 private:
-    TimedEvents m_events; /*!< event container */
+    TimedEvents m_events;
     Clock m_clock;
 
 };

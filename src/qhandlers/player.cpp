@@ -113,83 +113,106 @@ track_t SequenceViewTrackItem::track() const {
     return mTrack;
 }
 
+void SequenceViewTrackItem::setTrack(track_t track) {
+    mTrack = track;
+}
+
 SequenceView* SequenceViewTrackItem::view() const {
     return mView;
 }
 
-void SequenceViewTrackItem::setRawText(const QByteArray& text, QTextCodec* codec) {
-    mRawText = text;
-    setText(0, codec->toUnicode(mRawText));
-}
-
-void SequenceViewTrackItem::setCodec(QTextCodec* codec) {
-    if (!mRawText.isNull())
-        setText(0, codec->toUnicode(mRawText));
-}
-
-SequenceViewItem::SequenceViewItem(TimedEvent item, SequenceViewTrackItem *parent) :
-    QTreeWidgetItem{parent}, mItem{std::move(item)} {
-
-    // timestamp
-    setText(0, QString::number(decay_value<long>(mItem.timestamp)));
-    // channels
-    setText(1, ChannelsSelector::channelsToStringList(mItem.event.channels()).join(' '));
-    // type
-    setText(2, eventName(mItem.event));
-    // data
-    QByteArray rawText = QByteArray::fromStdString(mItem.event.description());  // Qt 5.4+ only
-    rawText.replace("\n", "\\n");
-    rawText.replace("\r", "\\r");
-    rawText.replace("\t", "\\t");
-    if (item.event.is(families_t::string())) {
-        mRawText = rawText;
-        setText(3, view()->codec()->toUnicode(mRawText));
+void SequenceViewTrackItem::setTrackNames(const QByteArrayList& names) {
+    auto trackFont = font(0);
+    if (names.isEmpty()) {
+        trackFont.setWeight(QFont::Normal);
+        trackFont.setItalic(true);
+        mRawText.clear();
+        setText(0, QString{"Track #%1"}.arg(mTrack+1));
     } else {
-        setText(3, rawText);
+        trackFont.setWeight(QFont::Bold);
+        trackFont.setItalic(false);
+        mRawText = names.join(" / ");
+        updateEncoding();
     }
+    setFont(0, trackFont);
+}
+
+void SequenceViewTrackItem::updateEncoding() {
+    if (!mRawText.isNull())
+        setText(0, view()->codec()->toUnicode(mRawText));
+}
+
+SequenceViewItem::SequenceViewItem(size_t index, SequenceViewTrackItem* parent) :
+    QTreeWidgetItem{parent}, mIndex{index} {
+
 }
 
 SequenceView* SequenceViewItem::view() const {
     return static_cast<SequenceViewTrackItem*>(parent())->view();
 }
 
-timestamp_t SequenceViewItem::timestamp() const {
-    return mItem.timestamp;
+size_t SequenceViewItem::index() const {
+    return mIndex;
 }
 
-const Event& SequenceViewItem::event() const {
-    return mItem.event;
+void SequenceViewItem::setIndex(size_t index) {
+    mIndex = index;
+    emitDataChanged();
 }
 
-void SequenceViewItem::setCodec(QTextCodec* codec) {
-    if (!mRawText.isNull())
-        setText(3, codec->toUnicode(mRawText));
+const TimedEvent& SequenceViewItem::item() const {
+    return view()->sequence()[mIndex];
+}
+
+void SequenceViewItem::updateEncoding() {
+    if (item().event.is(families_t::string()))
+        emitDataChanged();
 }
 
 void SequenceViewItem::updateVisibiliy(families_t families, channels_t channels, const range_t<timestamp_t>& limits) {
-    const bool familiesVisible = mItem.event.is(families);
-    const bool channelsVisible = !mItem.event.is(families_t::voice()) || mItem.event.channels().any(channels);
-    const bool boundsVisible = limits.min <= mItem.timestamp && mItem.timestamp <= limits.max;
+    const auto& item_ = item();
+    const bool familiesVisible = item_.event.is(families);
+    const bool channelsVisible = !item_.event.is(families_t::voice()) || item_.event.channels().any(channels);
+    const bool boundsVisible = limits.min <= item_.timestamp && item_.timestamp <= limits.max;
     setHidden(!(familiesVisible && channelsVisible && boundsVisible));
 }
 
 QVariant SequenceViewItem::data(int column, int role) const {
     if (column == 0 && role == Qt::ToolTipRole)
-        return view()->distordedClock().toString(mItem.timestamp);
+        return view()->distordedClock().toString(item().timestamp);
+    if (column == 0 && role == Qt::DisplayRole)
+        return QString::number(decay_value<long>(item().timestamp));
+    if (column == 1 && role == Qt::DisplayRole)
+        return ChannelsSelector::channelsToStringList(item().event.channels()).join(' ');
+    if (column == 2 && role == Qt::DisplayRole)
+        return eventName(item().event);
+    if (column == 3 && role == Qt::DisplayRole) {
+        QByteArray rawText = QByteArray::fromStdString(item().event.description());  // Qt 5.4+ only
+        rawText.replace("\n", "\\n");
+        rawText.replace("\r", "\\r");
+        rawText.replace("\t", "\\t");
+        if (item().event.is(families_t::string())) {
+            return view()->codec()->toUnicode(rawText);
+        } else {
+            return rawText;
+        }
+    }
     return QTreeWidgetItem::data(column, role);
 }
 
 SequenceView::SequenceView(QWidget *parent) : QWidget{parent} {
 
     mSequenceUpdater = new QTimer{this};
-    connect(mSequenceUpdater, &QTimer::timeout, this, &SequenceView::addNextEvents);
+    connect(mSequenceUpdater, &QTimer::timeout, this, &SequenceView::onSequenceUpdate);
 
     mTreeWidget = new QTreeWidget{this};
     mTreeWidget->setAlternatingRowColors(true);
-    mTreeWidget->setHeaderLabel({}); // clear the default "1" displayed
+    mTreeWidget->setHeaderLabels(QStringList{} << "Timestamp" << "Channel" << "Type" << "Data");
     mTreeWidget->header()->setDefaultAlignment(Qt::AlignCenter);
     mTreeWidget->setSelectionBehavior(QAbstractItemView::SelectItems);
     mTreeWidget->viewport()->installEventFilter(this);
+    mTreeWidget->setColumnWidth(0, 90); // ideal width for timestamp
+    mTreeWidget->setColumnWidth(1, 60); // ideal width for channel
     connect(mTreeWidget, &QTreeWidget::itemChanged, this, &SequenceView::onItemChange);
     connect(mTreeWidget, &QTreeWidget::itemDoubleClicked, this, &SequenceView::onItemDoubleClick);
 
@@ -217,8 +240,8 @@ SequenceView::SequenceView(QWidget *parent) : QWidget{parent} {
     codecSelector->setToolTip("Text Encoding");
     for (auto* codec : findCodecs())
         codecSelector->addItem(codec->name());
-    connect(codecSelector, SIGNAL(currentIndexChanged(QString)), this, SLOT(setCodecByName(QString)));
-    setCodecByName(codecSelector->currentText());
+    connect(codecSelector, SIGNAL(currentIndexChanged(QString)), this, SLOT(onCodecChange(QString)));
+    onCodecChange(codecSelector->currentText());
 
     auto* expandButton = new ExpandButton{mTreeWidget};
     auto* collapseButton = new CollapseButton{mTreeWidget};
@@ -226,40 +249,16 @@ SequenceView::SequenceView(QWidget *parent) : QWidget{parent} {
     setLayout(make_vbox(margin_tag{0}, mTreeWidget, make_hbox(stretch_tag{}, mChannelSelectorButton, mFamilySelectorButton, codecSelector, expandButton, collapseButton)));
 }
 
-DistordedClock& SequenceView::distordedClock() {
-    return mDistordedClock;
-}
-
-FamilySelector* SequenceView::familySelector() {
-    return mFamilySelector;
-}
-
-ChannelsSelector* SequenceView::channelsSelector() {
-    return mChannelsSelector;
-}
-
-ChannelEditor* SequenceView::channelEditor() {
-    return mChannelEditor;
-}
-
 void SequenceView::setChannelEditor(ChannelEditor* channelEditor) {
     /// @todo disconnect last
     mChannelEditor = channelEditor;
     mChannelsSelector->setChannelEditor(channelEditor);
     if (channelEditor)
-        connect(mChannelEditor, &ChannelEditor::colorChanged, this, &SequenceView::setChannelColor);
-}
-
-Handler* SequenceView::trackFilter() {
-    return mTrackFilter;
+        connect(mChannelEditor, &ChannelEditor::colorChanged, this, &SequenceView::onColorChange);
 }
 
 void SequenceView::setTrackFilter(Handler* handler) {
     mTrackFilter = handler;
-}
-
-QTextCodec* SequenceView::codec() {
-    return mCodec;
 }
 
 void SequenceView::setCodec(QTextCodec* codec) {
@@ -269,95 +268,62 @@ void SequenceView::setCodec(QTextCodec* codec) {
     QSignalBlocker guard{mTreeWidget};
     Q_UNUSED(guard);
     for (auto* trackItem : makeChildRange(mTreeWidget->invisibleRootItem())) {
-        static_cast<SequenceViewTrackItem*>(trackItem)->setCodec(codec);
+        static_cast<SequenceViewTrackItem*>(trackItem)->updateEncoding();
         for (auto* item : makeChildRange(trackItem))
-            static_cast<SequenceViewItem*>(item)->setCodec(mCodec);
+            static_cast<SequenceViewItem*>(item)->updateEncoding();
     }
 }
 
-void SequenceView::setCodecByName(const QString& name) {
-    setCodec(QTextCodec::codecForName(name.toLocal8Bit()));
-}
-
-SequenceViewTrackItem* SequenceView::itemForTrack(track_t track) const {
-    for (auto* item : makeChildRange(mTreeWidget->invisibleRootItem())) {
-        auto* trackItem = static_cast<SequenceViewTrackItem*>(item);
-        if (trackItem->track() == track)
-            return trackItem;
-    }
-    return nullptr;
-}
-
-bool SequenceView::eventFilter(QObject* watched, QEvent* event) {
-    if (event->type() == QEvent::MouseButtonRelease)
-        mLastButton = static_cast<QMouseEvent*>(event)->button();
-    return QWidget::eventFilter(watched, event);
-}
-
-void SequenceView::setSequence(Sequence sequence, const range_t<timestamp_t>& limits) {
-
+void SequenceView::setSequence(const Sequence& sequence, const range_t<timestamp_t>& limits) {
+    setUpdatesEnabled(false);
     // prevent signals
-    QSignalBlocker guard(this);
+    QSignalBlocker guard{this};
     Q_UNUSED(guard);
-
     // clean previous sequence
     cleanSequence();
-
     // register sequence
-    mSequence = std::move(sequence);
-
+    mSequence = sequence;
     mDistordedClock.setClock(mSequence.clock());
     mLimits = limits;
-
     // reenable all tracks
     if (mTrackFilter)
         mTrackFilter->send_message(TrackFilter::enable_all_ext());
-
-    QMap<track_t, channels_t> trackChannels;
-    QMap<track_t, QByteArrayList> trackNames;
+    // collect tracks data
+    std::unordered_map<track_t, channels_t> trackChannels;
+    std::unordered_map<track_t, QByteArrayList> trackNames;
     for (const auto& item : mSequence) {
         if (item.event.is(families_t::voice()))
             trackChannels[item.event.track()] |= item.event.channels();
         else if (item.event.is(family_t::track_name))
             trackNames[item.event.track()] << QByteArray::fromStdString(item.event.description());
     }
-
+    // make track items
     for (track_t track : mSequence.tracks()) {
-        auto* trackItem = new SequenceViewTrackItem{track, this, mTreeWidget};
+        auto* trackItem = makeTrackItem(track);
         trackItem->setFirstColumnSpanned(true);
         // track text
-        const QByteArrayList& names = trackNames.value(track);
-        QFont trackFont = trackItem->font(0);
-        if (names.isEmpty()) {
-            trackItem->setText(0, QString{"Track #%1"}.arg(track+1));
-            trackFont.setItalic(true);
-        } else {
-            trackItem->setRawText(names.join(" / "), mCodec);
-            trackFont.setWeight(QFont::Bold);
-        }
-        trackItem->setFont(0, trackFont);
+        trackItem->setTrackNames(trackNames[track]);
         // track filter enabled
         if (mTrackFilter)
             trackItem->setCheckState(0, Qt::Checked);
         // background name
-        const channels_t channels = trackChannels[track];
+        const auto channels = trackChannels[track];
         trackItem->setData(0, Qt::UserRole, channels.to_integral());
         setItemBackground(trackItem, channels);
     }
-
-    // ideal widths for timestamp & channel
-    mTreeWidget->setColumnWidth(0, 90);
-    mTreeWidget->setColumnWidth(1, 60);
     // start filling events
-    setUpdatesEnabled(false);
-    mSequenceIt = mSequence.begin();
     mSequenceUpdater->start();
 }
 
 void SequenceView::cleanSequence() {
-    mSequenceUpdater->stop();
-    mTreeWidget->clear();
-    mTreeWidget->setHeaderLabels(QStringList{} << "Timestamp" << "Channel" << "Type" << "Data");
+    mEventCount = 0;
+    auto trackItems = mTreeWidget->invisibleRootItem()->takeChildren();
+    for(auto* trackItem : trackItems) {
+        mTrackReserve.emplace_back(static_cast<SequenceViewTrackItem*>(trackItem));
+        auto eventItems = trackItem->takeChildren();
+        for(auto* eventItem : eventItems)
+            mEventReserve.emplace_back(static_cast<SequenceViewItem*>(eventItem));
+    }
 }
 
 void SequenceView::setLower(timestamp_t timestamp) {
@@ -370,19 +336,52 @@ void SequenceView::setUpper(timestamp_t timestamp) {
     updateItemsVisibility();
 }
 
-void SequenceView::setItemBackground(QTreeWidgetItem* item, channels_t channels) {
-    if (mChannelEditor)
-        item->setBackground(0, mChannelEditor->brush(channels, Qt::Horizontal));
+bool SequenceView::eventFilter(QObject* watched, QEvent* event) {
+    if (event->type() == QEvent::MouseButtonRelease)
+        mLastButton = static_cast<QMouseEvent*>(event)->button();
+    return QWidget::eventFilter(watched, event);
 }
 
-void SequenceView::updateItemsVisibility() {
-    for (auto* trackItem : makeChildRange(mTreeWidget->invisibleRootItem()))
-        for (auto* item : makeChildRange(trackItem))
-            updateItemVisibility(static_cast<SequenceViewItem*>(item));
+void SequenceView::onSequenceUpdate() {
+    const auto n = std::min(mEventCount + 64, mSequence.size());
+    while (mEventCount < n)
+        updateItemVisibility(makeEventItem(mEventCount++));
+    if (mEventCount == mSequence.size()) {
+        mSequenceUpdater->stop();
+        setUpdatesEnabled(true);
+    }
 }
 
-void SequenceView::updateItemVisibility(SequenceViewItem* item) {
-    item->updateVisibiliy(mFamilySelector->families(), mChannelsSelector->channels(), mLimits);
+void SequenceView::onColorChange(channel_t channel, const QColor& /*color*/) {
+    for (auto* trackItem : makeChildRange(mTreeWidget->invisibleRootItem())) {
+        const auto channels = channels_t::from_integral(trackItem->data(0, Qt::UserRole).toUInt());
+        if (channels.test(channel))
+            setItemBackground(trackItem, channels);
+    }
+}
+
+void SequenceView::onItemChange(QTreeWidgetItem* item, int /*column*/) {
+    // called when root checkbox is clicked
+    auto* trackItem = dynamic_cast<SequenceViewTrackItem*>(item);
+    if (trackItem && mTrackFilter) {
+        const auto track = trackItem->track();
+        const bool checked = item->checkState(0) == Qt::Checked;
+        mTrackFilter->send_message(checked ? TrackFilter::enable_ext(track) : TrackFilter::disable_ext(track));
+    }
+}
+
+void SequenceView::onItemDoubleClick(QTreeWidgetItem* item, int column) {
+    if (column == 0) // timestamp column
+        if (auto* eventItem = dynamic_cast<SequenceViewItem*>(item))
+            emit positionSelected(mSequence[eventItem->index()].timestamp, mLastButton);
+}
+
+void SequenceView::onFamilyFilterClick() {
+    mFamilySelector->setVisible(!mFamilySelector->isVisible());
+}
+
+void SequenceView::onChannelFilterClick() {
+    mChannelsSelector->setVisible(!mChannelsSelector->isVisible());
 }
 
 void SequenceView::onFamiliesChanged(families_t families) {
@@ -401,51 +400,55 @@ void SequenceView::onChannelsChanged(channels_t channels) {
     updateItemsVisibility();
 }
 
-void SequenceView::addNextEvents() {
-    const int n = std::min((int)std::distance(mSequenceIt, mSequence.end()), 32);
-    for (int i=0 ; i < n ; ++i)
-        addEvent(std::move(*mSequenceIt++));
-    if (mSequenceIt == mSequence.end()) {
-        mSequenceUpdater->stop();
-        setUpdatesEnabled(true);
+void SequenceView::onCodecChange(const QString& name) {
+    setCodec(QTextCodec::codecForName(name.toLocal8Bit()));
+}
+
+SequenceViewTrackItem* SequenceView::itemForTrack(track_t track) const {
+    for (auto* item : makeChildRange(mTreeWidget->invisibleRootItem())) {
+        auto* trackItem = static_cast<SequenceViewTrackItem*>(item);
+        if (trackItem->track() == track)
+            return trackItem;
     }
+    return nullptr;
 }
 
-void SequenceView::addEvent(TimedEvent item) {
-    if (auto* trackItem = itemForTrack(item.event.track()))
-        updateItemVisibility(new SequenceViewItem{std::move(item), trackItem});
+SequenceViewTrackItem* SequenceView::makeTrackItem(track_t track) {
+    if (mTrackReserve.empty())
+        return new SequenceViewTrackItem{track, this, mTreeWidget};
+    auto* result = mTrackReserve.back().release();
+    mTreeWidget->invisibleRootItem()->addChild(result);
+    result->setTrack(track);
+    mTrackReserve.pop_back();
+    return result;
 }
 
-void SequenceView::onItemChange(QTreeWidgetItem* item, int /*column*/) {
-    // called when root checkbox is clicked
-    auto* trackItem = dynamic_cast<SequenceViewTrackItem*>(item);
-    if (trackItem && mTrackFilter) {
-        const auto track = trackItem->track();
-        const bool checked = item->checkState(0) == Qt::Checked;
-        mTrackFilter->send_message(checked ? TrackFilter::enable_ext(track) : TrackFilter::disable_ext(track));
+SequenceViewItem* SequenceView::makeEventItem(size_t index) {
+    if (auto* trackItem = itemForTrack(mSequence[index].event.track())) {
+        if (mEventReserve.empty())
+            return new SequenceViewItem{index, trackItem};
+        auto* result = mEventReserve.back().release();
+        trackItem->addChild(result); // assuming index is always larger than the previous one
+        result->setIndex(index);
+        mEventReserve.pop_back();
+        return result;
     }
+    return nullptr;
 }
 
-void SequenceView::onItemDoubleClick(QTreeWidgetItem* item, int column) {
-    if (column == 0) // timestamp column
-        if (auto* eventItem = dynamic_cast<SequenceViewItem*>(item))
-            emit positionSelected(eventItem->timestamp(), mLastButton);
+void SequenceView::updateItemsVisibility() {
+    for (auto* trackItem : makeChildRange(mTreeWidget->invisibleRootItem()))
+        for (auto* item : makeChildRange(trackItem))
+            updateItemVisibility(static_cast<SequenceViewItem*>(item));
 }
 
-void SequenceView::onFamilyFilterClick() {
-    mFamilySelector->setVisible(!mFamilySelector->isVisible());
+void SequenceView::updateItemVisibility(SequenceViewItem* item) {
+    item->updateVisibiliy(mFamilySelector->families(), mChannelsSelector->channels(), mLimits);
 }
 
-void SequenceView::onChannelFilterClick() {
-    mChannelsSelector->setVisible(!mChannelsSelector->isVisible());
-}
-
-void SequenceView::setChannelColor(channel_t channel, const QColor& /*color*/) {
-    for (auto* trackItem : makeChildRange(mTreeWidget->invisibleRootItem())) {
-        const auto channels = channels_t::from_integral(trackItem->data(0, Qt::UserRole).toUInt());
-        if (channels.test(channel))
-            setItemBackground(trackItem, channels);
-    }
+void SequenceView::setItemBackground(QTreeWidgetItem* item, channels_t channels) {
+    if (mChannelEditor)
+        item->setBackground(0, mChannelEditor->brush(channels, Qt::Horizontal));
 }
 
 //===============

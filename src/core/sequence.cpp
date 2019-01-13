@@ -564,28 +564,6 @@ Sequence::Sequence(ppqn_t ppqn) : m_clock{ppqn} {
 
 }
 
-// clock
-
-const Clock& Sequence::clock() const {
-    return m_clock;
-}
-
-void Sequence::update_clock() {
-    m_clock.reset();
-    for (const auto& item : m_events)
-        m_clock.push_timestamp(item.event, item.timestamp);
-}
-
-// observers
-
-const TimedEvents& Sequence::events() const {
-    return m_events;
-}
-
-bool Sequence::empty() const {
-    return m_events.empty();
-}
-
 std::set<track_t> Sequence::tracks() const {
     std::set<track_t> results;
     for (const auto& item : m_events)
@@ -618,8 +596,6 @@ timestamp_t Sequence::last_timestamp(track_t track) const {
     return 0.;
 }
 
-// mutators
-
 void Sequence::clear() {
     m_events.clear();
     m_clock.reset();
@@ -640,7 +616,11 @@ void Sequence::insert_items(const TimedEvents& items) {
     std::inplace_merge(m_events.begin(), m_events.begin() + previous_size, m_events.end());
 }
 
-// converters
+void Sequence::update_clock() {
+    m_clock.reset();
+    for (const auto& item : m_events)
+        m_clock.push_timestamp(item.event, item.timestamp);
+}
 
 StandardMidiFile Sequence::to_file(const blacklist_type& list) const {
     /// @todo check here non standard events

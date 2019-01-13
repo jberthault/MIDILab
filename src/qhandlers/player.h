@@ -82,11 +82,12 @@ public:
     explicit SequenceViewTrackItem(track_t track, SequenceView* view, QTreeWidget* parent);
 
     track_t track() const;
+    void setTrack(track_t track);
 
     SequenceView* view() const;
 
-    void setRawText(const QByteArray& text, QTextCodec* codec);
-    void setCodec(QTextCodec* codec);
+    void setTrackNames(const QByteArrayList& names);
+    void updateEncoding();
 
 private:
     track_t mTrack;
@@ -98,22 +99,22 @@ private:
 class SequenceViewItem : public QTreeWidgetItem {
 
 public:
-    explicit SequenceViewItem(TimedEvent item, SequenceViewTrackItem* parent);
+    explicit SequenceViewItem(size_t index, SequenceViewTrackItem* parent);
 
     SequenceView* view() const;
 
-    timestamp_t timestamp() const;
-    const Event& event() const;
+    size_t index() const;
+    void setIndex(size_t index);
 
-    void setCodec(QTextCodec* codec);
+    const TimedEvent& item() const;
 
+    void updateEncoding();
     void updateVisibiliy(families_t families, channels_t channels, const range_t<timestamp_t>& limits);
 
     QVariant data(int column, int role) const override;
 
 private:
-    TimedEvent mItem;
-    QByteArray mRawText;
+    size_t mIndex;
 
 };
 
@@ -124,49 +125,48 @@ class SequenceView : public QWidget {
 public:
     explicit SequenceView(QWidget* parent);
 
-    DistordedClock& distordedClock();
-    FamilySelector* familySelector();
-    ChannelsSelector* channelsSelector();
+    inline DistordedClock& distordedClock() { return mDistordedClock; }
+    inline FamilySelector* familySelector() { return mFamilySelector; }
+    inline ChannelsSelector* channelsSelector() { return mChannelsSelector; }
 
-    ChannelEditor* channelEditor();
+    inline ChannelEditor* channelEditor() { return mChannelEditor; }
+    inline Handler* trackFilter() { return mTrackFilter; }
+    inline QTextCodec* codec() { return mCodec; }
+    inline const Sequence& sequence() { return mSequence; }
+
     void setChannelEditor(ChannelEditor* channelEditor);
-
-    Handler* trackFilter();
     void setTrackFilter(Handler* handler);
-
-    void setSequence(Sequence sequence, const range_t<timestamp_t>& limits);
+    void setCodec(QTextCodec* codec); /*!< codec used to decode event description (model does not take ownership) */
+    void setSequence(const Sequence& sequence, const range_t<timestamp_t>& limits);
     void cleanSequence();
 
     void setLower(timestamp_t timestamp);
     void setUpper(timestamp_t timestamp);
 
-    SequenceViewTrackItem* itemForTrack(track_t track) const;
-
-    QTextCodec* codec();
-
-public slots:
-    void setCodec(QTextCodec* codec); /*!< codec used to decode event description (model does not take ownership) */
-    void setCodecByName(const QString& name);
+signals:
+    void positionSelected(timestamp_t timestamp, Qt::MouseButton);
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private slots:
-    void addNextEvents();
-    void addEvent(TimedEvent item);
-    void setChannelColor(channel_t channel, const QColor& color);
+    void onSequenceUpdate();
+    void onColorChange(channel_t channel, const QColor& color);
     void onItemChange(QTreeWidgetItem* item, int column);
     void onItemDoubleClick(QTreeWidgetItem* item, int column);
     void onFamilyFilterClick();
     void onChannelFilterClick();
-    void setItemBackground(QTreeWidgetItem* item, channels_t channels);
-    void updateItemsVisibility();
-    void updateItemVisibility(SequenceViewItem* item);
     void onFamiliesChanged(families_t families);
     void onChannelsChanged(channels_t channels);
+    void onCodecChange(const QString& name);
 
-signals:
-    void positionSelected(timestamp_t timestamp, Qt::MouseButton);
+private:
+    SequenceViewTrackItem* itemForTrack(track_t track) const;
+    SequenceViewTrackItem* makeTrackItem(track_t track);
+    SequenceViewItem* makeEventItem(size_t index);
+    void updateItemsVisibility();
+    void updateItemVisibility(SequenceViewItem* item);
+    void setItemBackground(QTreeWidgetItem* item, channels_t channels);
 
 private:
     QTreeWidget* mTreeWidget;
@@ -177,12 +177,15 @@ private:
     QPushButton* mChannelSelectorButton;
     QTimer* mSequenceUpdater; /*!< timer filling sequence event asynchronously */
     Sequence mSequence;
-    TimedEvents::iterator mSequenceIt; /*!< iterator pointing to the next event to add */
+    size_t mEventCount {0}; /*!< the number of event items properly initialized */
     QTextCodec* mCodec {QTextCodec::codecForLocale()};
     Handler* mTrackFilter {nullptr};
     DistordedClock mDistordedClock;
     Qt::MouseButton mLastButton {Qt::NoButton};
     range_t<timestamp_t> mLimits {0., 0.};
+    std::vector<std::unique_ptr<SequenceViewTrackItem>> mTrackReserve;
+    std::vector<std::unique_ptr<SequenceViewItem>> mEventReserve;
+
 
 };
 
