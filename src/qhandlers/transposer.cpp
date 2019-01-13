@@ -37,7 +37,7 @@ MetaHandler* makeMetaTransposer(QObject* parent) {
     meta->addParameter({"orientation", "orientation of the slider", "Horizontal", MetaHandler::MetaParameter::Visibility::basic});
     meta->addParameter({"expanded", "display one knob per channel", "false", MetaHandler::MetaParameter::Visibility::basic});
     meta->addParameter({"selection", "bitmask of selected channels", serial::serializeChannels(channels_t::melodic()), MetaHandler::MetaParameter::Visibility::advanced});
-    meta->addParameter({"visibility", "bitmask of visible channels", serial::serializeChannels(channels_t::full()), MetaHandler::MetaParameter::Visibility::basic});
+    meta->addParameter({"visibility", "bitmask of visible channels", serial::serializeChannels(channels_t::full()), MetaHandler::MetaParameter::Visibility::advanced});
     meta->setFactory(new OpenProxyFactory<TransposerEditor>);
     return meta;
 }

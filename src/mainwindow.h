@@ -116,7 +116,7 @@ protected:
 
 private:
     Manager* mManager;
-    ManagerEditor* mManagerEditor;
+    HandlerGraphEditor* mGraphEditor;
     QMenu* mConfigMenu;
 
 };

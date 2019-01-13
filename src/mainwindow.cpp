@@ -47,6 +47,10 @@ auto getConfigs() {
     return settings.value("config").toStringList();
 }
 
+auto* addShowAction(QMenu* menu, QWidget* widget) {
+    return menu->addAction(widget->windowIcon(), widget->windowTitle(), widget, SLOT(show()));
+}
+
 }
 
 // ============
@@ -113,7 +117,9 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow{parent} {
 
     // configure windows
 
-    mManagerEditor = new ManagerEditor{mManager, this};
+    mGraphEditor = new HandlerGraphEditor{mManager, this};
+    auto* listEditor = new HandlerListEditor{mManager, this};
+    auto* catalogEditor = new HandlerCatalogEditor{mManager, this};
     auto* programEditor = new ProgramEditor{mManager, this};
 
     setCentralWidget(new MultiDisplayer{Qt::Horizontal, this});
@@ -147,15 +153,20 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow{parent} {
 
     // configure handler menu
 
-    handlersMenu->addAction(mManagerEditor->windowIcon(), "Handlers", mManagerEditor, SLOT(show()));
-    handlersMenu->addAction(programEditor->windowIcon(), "Programs", programEditor, SLOT(show()));
+    handlersMenu->setToolTipsVisible(true);
+    addShowAction(handlersMenu, listEditor)->setToolTip("Edit existing handlers");
+    addShowAction(handlersMenu, mGraphEditor)->setToolTip("Edit how handlers communicate");
+    addShowAction(handlersMenu, catalogEditor)->setToolTip("Create new handlers");
+    handlersMenu->addSeparator();
+    addShowAction(handlersMenu, programEditor)->setToolTip("Edit programs set on each handler");
     handlersMenu->addSeparator();
     auto* panicAction = handlersMenu->addAction(QIcon{":/data/target.svg"}, "Panic", this, SLOT(panic()));
+    panicAction->setToolTip("Close all handlers");
     menuToolBar->addAction(panicAction);
 
     // configure interface menu
 
-    interfaceMenu->addAction(mManager->channelEditor()->windowIcon(), mManager->channelEditor()->windowTitle(), mManager->channelEditor(), SLOT(show()));
+    addShowAction(interfaceMenu, mManager->channelEditor());
     // interfaceMenu->addAction(QIcon{":/data/cog.svg"}, "Settings", this, SLOT(unimplemented()));
 
     auto* lockAction = new MultiStateAction{this};
@@ -243,7 +254,7 @@ void MainWindow::readConfig(const QString& fileName, bool raise, bool select, bo
     // set the new configuration
     mManager->setConfiguration(config);
     // redo the layout
-    mManagerEditor->graphEditor()->graph()->doLayout();
+    mGraphEditor->graph()->doLayout();
     // update config order and retriever
     if (raise)
         raiseConfig(fileName);

@@ -117,6 +117,11 @@ void EdgeWrapper::contextMenuEvent(QGraphicsSceneContextMenuEvent* event) {
 //====================
 
 HandlerGraphEditor::HandlerGraphEditor(Manager* manager, QWidget* parent) : QWidget{parent}, mManager{manager} {
+
+    setWindowTitle("Handlers Connections");
+    setWindowIcon(QIcon{":/data/fork.svg"});
+    setWindowFlags(Qt::Dialog);
+
     // graph ! @warning graph removal must be called before selector removal
     mGraph = new Graph{this};
     connect(mGraph, &Graph::edgeCreation, this, &HandlerGraphEditor::forwardEdgeCreation);
@@ -310,8 +315,6 @@ void HandlerGraphEditor::updateEdgesVisibility() {
 // HandlerListEditor
 //===================
 
-/// @todo use meta parameters for custom editors, visibility (user, advanced, private, ...)
-
 namespace {
 
 constexpr int nameColumn = 0;
@@ -374,6 +377,10 @@ auto metaParameterDescription(const MetaHandler::MetaParameter& metaParameter) {
 }
 
 HandlerListEditor::HandlerListEditor(Manager* manager, QWidget* parent) : QWidget{parent}, mManager{manager} {
+
+    setWindowTitle("Handlers Configuration");
+    setWindowIcon(QIcon{":/data/wrench.svg"});
+    setWindowFlags(Qt::Dialog);
 
     mTree = new QTreeWidget{this};
     mTree->setAlternatingRowColors(true);
@@ -592,13 +599,20 @@ std::set<Handler*> HandlerListEditor::selectedHandlers() {
 //======================
 
 HandlerCatalogEditor::HandlerCatalogEditor(Manager* manager, QWidget* parent) : QTreeWidget{parent}, mManager{manager} {
+
+    setWindowTitle("Handlers Catalog");
+    setWindowIcon(QIcon{":/data/book.svg"});
+    setWindowFlags(Qt::Dialog);
+
     setHeaderHidden(true);
     setColumnCount(1);
     setSelectionMode(QAbstractItemView::SingleSelection);
     setAlternatingRowColors(true);
     setContextMenuPolicy(Qt::CustomContextMenu);
+
     connect(this, &HandlerCatalogEditor::customContextMenuRequested, this, &HandlerCatalogEditor::showMenu);
     connect(this, &HandlerCatalogEditor::itemDoubleClicked, this, &HandlerCatalogEditor::onDoubleClick);
+
     for (auto* metaHandler : manager->metaHandlerPool()->metaHandlers()) {
         auto* item = new QTreeWidgetItem{invisibleRootItem()};
         item->setText(0, metaHandlerName(metaHandler));
@@ -667,35 +681,4 @@ void HandlerCatalogEditor::createHandler(MetaHandler* metaHandler, const QString
 
 MetaHandler* HandlerCatalogEditor::metaHandlerForItem(QTreeWidgetItem* item) {
     return item->data(0, Qt::UserRole).value<MetaHandler*>();
-}
-
-//===============
-// ManagerEditor
-//===============
-
-ManagerEditor::ManagerEditor(Manager* manager, QWidget* parent) : QTabWidget{parent} {
-    setWindowFlags(Qt::Dialog);
-    setWindowTitle("Handlers");
-    setWindowIcon(QIcon{":/data/wrench.svg"});
-    mListEditor = new HandlerListEditor{manager, this};
-    mGraphEditor = new HandlerGraphEditor{manager, this};
-    mCatalogEditor = new HandlerCatalogEditor{manager, this};
-    addTab(mListEditor, QIcon{":/data/list.svg"}, "List");
-    addTab(mGraphEditor, QIcon{":/data/fork.svg"}, "Graph");
-    addTab(mCatalogEditor, QIcon{":/data/book.svg"}, "Catalog");
-    setTabToolTip(0, "Edit handlers : rename, delete, mute, ...");
-    setTabToolTip(1, "Edit connections");
-    setTabToolTip(2, "See & create new handlers");
-}
-
-HandlerListEditor* ManagerEditor::listEditor() {
-    return mListEditor;
-}
-
-HandlerGraphEditor* ManagerEditor::graphEditor() {
-    return mGraphEditor;
-}
-
-HandlerCatalogEditor* ManagerEditor::catalogEditor() {
-    return mCatalogEditor;
 }

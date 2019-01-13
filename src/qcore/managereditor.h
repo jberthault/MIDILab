@@ -199,26 +199,4 @@ private:
 
 };
 
-//===============
-// ManagerEditor
-//===============
-
-class ManagerEditor : public QTabWidget {
-
-    Q_OBJECT
-
-public:
-    explicit ManagerEditor(Manager* manager, QWidget* parent);
-
-    HandlerListEditor* listEditor();
-    HandlerGraphEditor* graphEditor();
-    HandlerCatalogEditor* catalogEditor();
-
-private:
-    HandlerGraphEditor* mGraphEditor;
-    HandlerListEditor* mListEditor;
-    HandlerCatalogEditor* mCatalogEditor;
-
-};
-
 #endif // QCORE_MANAGER_EDITOR_H
