@@ -24,6 +24,10 @@ QTreeView, QTableView {
     alternate-background-color: #f3f3f3;
 }
 
+HandlerCatalogEditor > QTreeView::item::selected {
+    background-color: #f09020;
+}
+
 Graph, QTreeView, QTableView, QToolBar {
     border: none;
 }

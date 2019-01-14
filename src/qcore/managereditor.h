@@ -178,23 +178,27 @@ private:
 // HandlerCatalogEditor
 //======================
 
-class HandlerCatalogEditor : public QTreeWidget {
+class HandlerCatalogEditor : public QWidget {
 
     Q_OBJECT
 
 public:
     explicit HandlerCatalogEditor(Manager* manager, QWidget* parent);
 
-protected slots:
+private slots:
     void showMenu(const QPoint& point);
+    void onLineReturn();
     void onDoubleClick(QTreeWidgetItem* item, int column);
 
     void refreshMeta(QTreeWidgetItem* item, const QStringList& instantiables);
     void createHandler(MetaHandler* metaHandler, const QString& fixedName);
 
+private:
     MetaHandler* metaHandlerForItem(QTreeWidgetItem* item);
 
 private:
+    QTreeWidget* mTreeWidget;
+    QLineEdit* mLineEdit;
     Manager* mManager;
 
 };

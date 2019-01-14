@@ -598,23 +598,32 @@ std::set<Handler*> HandlerListEditor::selectedHandlers() {
 // HandlerCatalogEditor
 //======================
 
-HandlerCatalogEditor::HandlerCatalogEditor(Manager* manager, QWidget* parent) : QTreeWidget{parent}, mManager{manager} {
+HandlerCatalogEditor::HandlerCatalogEditor(Manager* manager, QWidget* parent) : QWidget{parent}, mManager{manager} {
 
     setWindowTitle("Handlers Catalog");
     setWindowIcon(QIcon{":/data/book.svg"});
     setWindowFlags(Qt::Dialog);
 
-    setHeaderHidden(true);
-    setColumnCount(1);
-    setSelectionMode(QAbstractItemView::SingleSelection);
-    setAlternatingRowColors(true);
     setContextMenuPolicy(Qt::CustomContextMenu);
-
     connect(this, &HandlerCatalogEditor::customContextMenuRequested, this, &HandlerCatalogEditor::showMenu);
-    connect(this, &HandlerCatalogEditor::itemDoubleClicked, this, &HandlerCatalogEditor::onDoubleClick);
+
+    mTreeWidget = new QTreeWidget{this};
+    mTreeWidget->setHeaderHidden(true);
+    mTreeWidget->setColumnCount(1);
+    mTreeWidget->setSelectionMode(QAbstractItemView::SingleSelection);
+    mTreeWidget->setAlternatingRowColors(true);
+    connect(mTreeWidget, &QTreeWidget::itemDoubleClicked, this, &HandlerCatalogEditor::onDoubleClick);
+
+    auto* label = new QLabel{this};
+    label->setPixmap(QIcon{":/data/bookmark.svg"}.pixmap(20, 20));
+
+    mLineEdit = new QLineEdit{this};
+    mLineEdit->setToolTip("Select by name");
+    connect(mLineEdit, &QLineEdit::textEdited, mTreeWidget, &QTreeWidget::keyboardSearch);
+    connect(mLineEdit, &QLineEdit::returnPressed, this, &HandlerCatalogEditor::onLineReturn);
 
     for (auto* metaHandler : manager->metaHandlerPool()->metaHandlers()) {
-        auto* item = new QTreeWidgetItem{invisibleRootItem()};
+        auto* item = new QTreeWidgetItem{mTreeWidget->invisibleRootItem()};
         item->setText(0, metaHandlerName(metaHandler));
         item->setToolTip(0, metaHandler->description());
         item->setData(0, Qt::UserRole, qVariantFromValue(metaHandler));
@@ -622,10 +631,12 @@ HandlerCatalogEditor::HandlerCatalogEditor(Manager* manager, QWidget* parent) : 
         if (auto* factory = dynamic_cast<ClosedProxyFactory*>(metaHandler->factory()))
             refreshMeta(item, factory->instantiables());
     }
+
+    setLayout(make_vbox(margin_tag{0}, mTreeWidget, make_hbox(margin_tag{0}, spacing_tag{0}, label, mLineEdit)));
 }
 
 void HandlerCatalogEditor::showMenu(const QPoint& point) {
-    if (auto* item = itemAt(point)) {
+    if (auto* item = mTreeWidget->itemAt(point)) {
         if (auto* metaHandler = metaHandlerForItem(item)) {
             if (auto* factory = dynamic_cast<ClosedProxyFactory*>(metaHandler->factory())) {
                 QMenu menu;
@@ -635,6 +646,13 @@ void HandlerCatalogEditor::showMenu(const QPoint& point) {
             }
         }
     }
+}
+
+void HandlerCatalogEditor::onLineReturn() {
+    mLineEdit->clear();
+    auto items = mTreeWidget->selectedItems();
+    if (items.size() == 1)
+        onDoubleClick(items.front(), 0);
 }
 
 void HandlerCatalogEditor::onDoubleClick(QTreeWidgetItem* item, int column) {

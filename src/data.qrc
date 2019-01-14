@@ -76,5 +76,6 @@
         <file>data/modes/receive_open_forward_open.png</file>
         <file>data/flash.svg</file>
         <file>data/hide.svg</file>
+        <file>data/bookmark.svg</file>
     </qresource>
 </RCC>
