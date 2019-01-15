@@ -292,17 +292,8 @@ size_t write_status(byte_t status, std::ostream& stream, byte_t* running_status)
 }
 
 size_t write_variable(uint32_t value, std::ostream& stream) {
-    size_t bytes = 0;
-    if (value >> 28)
-        throw std::out_of_range{"wrong variable value"};
-    if (const auto v3 = value >> 21)
-        bytes += write_byte(0x80 | to_data_byte(v3), stream);
-    if (const auto v2 = value >> 14)
-        bytes += write_byte(0x80 | to_data_byte(v2), stream);
-    if (const auto v1 = value >> 7)
-        bytes += write_byte(0x80 | to_data_byte(v1), stream);
-    bytes += write_byte(to_data_byte(value), stream);
-    return bytes;
+    const auto encoded_value = encode_variable(value);
+    return write_buf(make_view(encoded_value), stream);
 }
 
 size_t write_raw_event(const Event& event, std::ostream& stream) {

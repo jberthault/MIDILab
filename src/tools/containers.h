@@ -27,8 +27,7 @@ template <typename ... Args>
 class blacklist_t final {
 
 public:
-
-    blacklist_t(bool blacklist) : elements(), is_blacklist(blacklist) {
+    blacklist_t(bool blacklist) : is_blacklist{blacklist} {
 
     }
 
@@ -39,6 +38,39 @@ public:
 
     std::unordered_set<Args...> elements;
     bool is_blacklist;
+
+};
+
+template<typename T, size_t N>
+class vararray_t final {
+
+public:
+    auto* data() noexcept { return m_array.data(); }
+    const auto* data() const noexcept { return m_array.data(); }
+
+    constexpr auto empty() const noexcept { return m_size == 0; }
+    constexpr auto size() const noexcept { return m_size; }
+    constexpr auto max_size() const noexcept { return N; }
+
+    constexpr void clear() noexcept { m_size = 0; }
+    constexpr void resize(size_t size) noexcept { m_size = size; }
+
+    const auto& operator[](size_t pos) const noexcept { return m_array[pos]; }
+    auto& operator[](size_t pos) noexcept { return m_array[pos]; }
+
+    template<typename U>
+    void push_back(U&& value) {
+        m_array[m_size++] = std::forward<U>(value);
+    }
+
+    auto begin() noexcept { return m_array.begin(); }
+    auto end() noexcept { return m_array.begin() + m_size; }
+    auto begin() const noexcept { return m_array.begin(); }
+    auto end() const noexcept { return m_array.begin() + m_size; }
+
+private:
+    std::array<T, N> m_array;
+    size_t m_size {0};
 
 };
 

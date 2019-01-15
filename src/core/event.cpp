@@ -37,6 +37,20 @@ byte_cview make_view(const std::string& string) {
     return make_view(string.data(), string.size());
 }
 
+vararray_t<byte_t, 4> encode_variable(uint32_t size) {
+    vararray_t<byte_t, 4> result;
+    if (size >> 28)
+        throw std::out_of_range{"wrong variable value"};
+    if (const auto v3 = size >> 21)
+        result.push_back(0x80 | to_data_byte(v3));
+    if (const auto v2 = size >> 14)
+        result.push_back(0x80 | to_data_byte(v2));
+    if (const auto v1 = size >> 7)
+        result.push_back(0x80 | to_data_byte(v1));
+    result.push_back(to_data_byte(size));
+    return result;
+}
+
 //=========
 // Channel
 //=========
@@ -650,8 +664,13 @@ public:
 
     static auto dynamic_event(family_t family, channels_t channels, byte_cview data1, byte_cview data2) {
         auto event = dynamic_event(family, channels, static_cast<size_t>(span(data1) + span(data2)));
-        auto pos = std::copy(data1.min, data1.max, event.dynamic_data());
-        std::copy(data2.min, data2.max, pos);
+        std::copy(data2.min, data2.max, std::copy(data1.min, data1.max, event.dynamic_data()));
+        return event;
+    }
+
+    static auto dynamic_event(family_t family, channels_t channels, byte_cview data1, byte_cview data2, byte_cview data3) {
+        auto event = dynamic_event(family, channels, static_cast<size_t>(span(data1) + span(data2) + span(data3)));
+        std::copy(data3.min, data3.max, std::copy(data2.min, data2.max, std::copy(data1.min, data1.max, event.dynamic_data())));
         return event;
     }
 
@@ -767,6 +786,12 @@ Event Event::tempo(double bpm) {
     const auto tempo = decay_value<uint32_t>(60000000. / bpm);
     const byte_t data[] = {0xff, 0x51, 0x03, to_byte(tempo >> 16), to_byte(tempo >> 8), to_byte(tempo)};
     return EventPrivate::dynamic_event(family_t::tempo, {}, make_view(data));
+}
+
+Event Event::track_name(byte_cview data) {
+    const byte_t prefix[] = {0xff, 0x03};
+    auto encoded_size = encode_variable(static_cast<uint32_t>(span(data)));
+    return EventPrivate::dynamic_event(family_t::track_name, {}, make_view(prefix), make_view(encoded_size), data);
 }
 
 Event Event::time_signature(byte_t nn, byte_t dd, byte_t cc, byte_t bb) {

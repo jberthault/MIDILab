@@ -28,6 +28,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "note.h"
 #include "tools/bytes.h"
 #include "tools/flags.h"
+#include "tools/containers.h"
 
 //======
 // View
@@ -45,6 +46,13 @@ template<size_t N>
 byte_cview make_view(const byte_t (& array)[N]) {
     return {array, array + N};
 }
+
+template<size_t N>
+byte_cview make_view(const vararray_t<byte_t, N>& array) {
+    return {array.data(), array.data() + array.size()};
+}
+
+vararray_t<byte_t, 4> encode_variable(uint32_t size);
 
 //=======
 // Track
@@ -609,6 +617,7 @@ public:
     static Event reset() noexcept;
     static Event meta(byte_cview data); /*!< data should contain meta type, meta size and the rest if data, but not the status */
     static Event tempo(double bpm);
+    static Event track_name(byte_cview data);
     static Event time_signature(byte_t nn, byte_t dd, byte_t cc, byte_t bb);
     static Event end_of_track();
 
