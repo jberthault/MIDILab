@@ -494,12 +494,28 @@ timestamp_t Clock::time2timestamp(const duration_type& time) const {
     return get_timestamp(*before_duration(m_tempo, time), time);
 }
 
-timestamp_t Clock::beat2timestamp(double beat) const {
-    return beat * m_ppqn / 4.;
+double Clock::timestamp2beat(timestamp_t timestamp) const {
+    return 4. * timestamp2qn(timestamp);
 }
 
-double Clock::timestamp2beat(timestamp_t timestamp) const {
-    return 4. * timestamp / m_ppqn;
+timestamp_t Clock::beat2timestamp(double beat) const {
+    return qn2timestamp(beat / 4.);
+}
+
+double Clock::timestamp2clock(timestamp_t timestamp) const {
+    return 24. * timestamp2qn(timestamp);
+}
+
+timestamp_t Clock::clock2timestamp(double clock) const {
+    return qn2timestamp(clock / 24.);
+}
+
+double Clock::timestamp2qn(timestamp_t timestamp) const {
+    return timestamp / m_ppqn;
+}
+
+timestamp_t Clock::qn2timestamp(double qn) const {
+    return qn * m_ppqn;
 }
 
 Clock::duration_type Clock::get_duration(const TempoItem& item, timestamp_t timestamp) const {

@@ -122,6 +122,8 @@ using TimedEvents = std::vector<TimedEvent>;
  * The clock is the main object responsible for dealing with time.
  * It is able to convert timestamp from/to real durations
  *
+ * 1 quarter-note <-> 4 beats <-> 24 clocks <-> (ppqn) timestamp
+ *
  */
 
 class Clock {
@@ -179,8 +181,15 @@ public:
 
     duration_type timestamp2time(timestamp_t timestamp) const;
     timestamp_t time2timestamp(const duration_type& time) const;
-    timestamp_t beat2timestamp(double beat) const;
+
     double timestamp2beat(timestamp_t timestamp) const;
+    timestamp_t beat2timestamp(double beat) const;
+
+    double timestamp2clock(timestamp_t timestamp) const;
+    timestamp_t clock2timestamp(double clock) const;
+
+    double timestamp2qn(timestamp_t timestamp) const;
+    timestamp_t qn2timestamp(double qn) const;
 
 private:
     duration_type get_duration(const TempoItem& item, timestamp_t timestamp) const;

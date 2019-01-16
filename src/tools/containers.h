@@ -21,7 +21,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef TOOLS_CONTAINERS_H
 #define TOOLS_CONTAINERS_H
 
+#include <array>
 #include <unordered_set>
+
+// ===========
+// blacklist_t
+// ===========
 
 template <typename ... Args>
 class blacklist_t final {
@@ -40,6 +45,10 @@ public:
     bool is_blacklist;
 
 };
+
+// ==========
+// vararray_t
+// ==========
 
 template<typename T, size_t N>
 class vararray_t final {
@@ -75,4 +84,3 @@ private:
 };
 
 #endif // TOOLS_CONTAINERS_H
-
