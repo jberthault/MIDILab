@@ -98,6 +98,7 @@ size_t write_file(const StandardMidiFile& file, const std::string& filename, boo
 struct TimedEvent {
 
     TimedEvent() noexcept = default;
+    TimedEvent(timestamp_t timestamp) noexcept : timestamp{timestamp} {}
 
     template<typename EventT>
     TimedEvent(timestamp_t timestamp, EventT&& event) : timestamp{timestamp}, event{std::forward<EventT>(event)} {}

@@ -46,58 +46,47 @@ auto findCodecs() {
     return codecs;
 }
 
+bool isValid(const SharedSequence& sequence) {
+    return sequence && !sequence->empty();
 }
 
-//===============
-// DistordedClock
-//===============
-
-const QString DistordedClock::timeFormat{"mm:ss.zzz"};
-
-DistordedClock::DistordedClock(Clock clock, double distorsion) :
-    mClock{std::move(clock)}, mDistorsion{distorsion} {
-
+const auto& clockFromSequence(const SharedSequence& sequence) {
+    static const Clock defaultClock;
+    return sequence ? sequence->clock() : defaultClock;
 }
 
-const Clock& DistordedClock::clock() const {
-    return mClock;
+const auto& itemFromSequence(const SharedSequence& sequence, size_t index) {
+    static const TimedEvent defaultItem{0.};
+    return sequence ? (*sequence)[index] : defaultItem;
 }
 
-void DistordedClock::setClock(Clock clock) {
-    mClock = std::move(clock);
-}
-
-double DistordedClock::distorsion() const {
-    return mDistorsion;
-}
-
-void DistordedClock::setDistorsion(double distorsion) {
-    mDistorsion = distorsion;
-}
-
-QString DistordedClock::toString(timestamp_t timestamp) const {
-    return toTime(timestamp).toString(timeFormat);
-}
-
-QTime DistordedClock::toTime(timestamp_t t0, timestamp_t t1) const {
-    return durationCast(mClock.timestamp2time(t1) - mClock.timestamp2time(t0));
-}
-
-QTime DistordedClock::toTime(timestamp_t timestamp) const {
-    return durationCast(mClock.timestamp2time(timestamp));
-}
-
-timestamp_t DistordedClock::toTimestamp(const QTime& t0, const QTime& t1) const {
-    return mClock.time2timestamp(Clock::duration_type{(double)t0.msecsTo(t1) * 1.e3 * mDistorsion});
-}
-
-timestamp_t DistordedClock::toTimestamp(const QTime& time) const {
-    return toTimestamp(QTime{0, 0}, time);
-}
-
-QTime DistordedClock::durationCast(const Clock::duration_type& time) const {
+auto qtimeFromDuration(const Clock::duration_type& time, double distorsion) {
     /// @note no std::duration_cast to avoid rounding errors
-    return mDistorsion != 0. ? QTime{0, 0}.addMSecs(decay_value<int>(time.count() * 1.e-3 / mDistorsion)) : QTime{};
+    return distorsion != 0. ? QTime{0, 0}.addMSecs(decay_value<int>(time.count() * 1.e-3 / distorsion)) : QTime{};
+}
+
+auto qtimeFromTimestamp(timestamp_t timestamp, const SharedSequence& sequence, double distorsion) {
+    return qtimeFromDuration(clockFromSequence(sequence).timestamp2time(timestamp), distorsion);
+}
+
+auto qtimeFromTimestampRange(const range_t<timestamp_t>& ts, const SharedSequence& sequence, double distorsion) {
+    return qtimeFromDuration(clockFromSequence(sequence).timestamp2time(ts.max) - clockFromSequence(sequence).timestamp2time(ts.min), distorsion);
+}
+
+auto qtimeRangeToTimestamp(const range_t<QTime>& ts, const SharedSequence& sequence, double distorsion) {
+    return clockFromSequence(sequence).time2timestamp(Clock::duration_type{static_cast<double>(ts.min.msecsTo(ts.max)) * 1.e3 * distorsion});
+}
+
+auto qtimeToTimestamp(const QTime& time, const SharedSequence& sequence, double distorsion) {
+    return qtimeRangeToTimestamp({QTime{0, 0}, time}, sequence, distorsion);
+}
+
+const QString timeFormat{"mm:ss.zzz"};
+
+auto qstringFromTimestamp(timestamp_t timestamp, const SharedSequence& sequence, double distorsion) {
+    return qtimeFromTimestamp(timestamp, sequence, distorsion).toString(timeFormat);
+}
+
 }
 
 //==============
@@ -160,38 +149,35 @@ void SequenceViewItem::setIndex(size_t index) {
     emitDataChanged();
 }
 
-const TimedEvent& SequenceViewItem::item() const {
-    return view()->sequence()[mIndex];
-}
-
 void SequenceViewItem::updateEncoding() {
-    if (item().event.is(families_t::string()))
+    if (view()->timedEvent(mIndex).event.is(families_t::string()))
         emitDataChanged();
 }
 
 void SequenceViewItem::updateVisibiliy(families_t families, channels_t channels, const range_t<timestamp_t>& limits) {
-    const auto& item_ = item();
-    const bool familiesVisible = item_.event.is(families);
-    const bool channelsVisible = !item_.event.is(families_t::voice()) || item_.event.channels().any(channels);
-    const bool boundsVisible = limits.min <= item_.timestamp && item_.timestamp <= limits.max;
+    const auto& item = view()->timedEvent(mIndex);
+    const bool familiesVisible = item.event.is(families);
+    const bool channelsVisible = !item.event.is(families_t::voice()) || item.event.channels().any(channels);
+    const bool boundsVisible = limits.min <= item.timestamp && item.timestamp <= limits.max;
     setHidden(!(familiesVisible && channelsVisible && boundsVisible));
 }
 
 QVariant SequenceViewItem::data(int column, int role) const {
+    const auto& item = view()->timedEvent(mIndex);
     if (column == 0 && role == Qt::ToolTipRole)
-        return view()->distordedClock().toString(item().timestamp);
+        return qstringFromTimestamp(item.timestamp, view()->sequence(), view()->distorsion());
     if (column == 0 && role == Qt::DisplayRole)
-        return QString::number(decay_value<long>(item().timestamp));
+        return QString::number(decay_value<long>(item.timestamp));
     if (column == 1 && role == Qt::DisplayRole)
-        return ChannelsSelector::channelsToStringList(item().event.channels()).join(' ');
+        return ChannelsSelector::channelsToStringList(item.event.channels()).join(' ');
     if (column == 2 && role == Qt::DisplayRole)
-        return eventName(item().event);
+        return eventName(item.event);
     if (column == 3 && role == Qt::DisplayRole) {
-        QByteArray rawText = QByteArray::fromStdString(item().event.description());  // Qt 5.4+ only
+        QByteArray rawText = QByteArray::fromStdString(item.event.description());  // Qt 5.4+ only
         rawText.replace("\n", "\\n");
         rawText.replace("\r", "\\r");
         rawText.replace("\t", "\\t");
-        if (item().event.is(families_t::string())) {
+        if (item.event.is(families_t::string())) {
             return view()->codec()->toUnicode(rawText);
         } else {
             return rawText;
@@ -249,6 +235,10 @@ SequenceView::SequenceView(QWidget *parent) : QWidget{parent} {
     setLayout(make_vbox(margin_tag{0}, mTreeWidget, make_hbox(stretch_tag{}, mChannelSelectorButton, mFamilySelectorButton, codecSelector, expandButton, collapseButton)));
 }
 
+const TimedEvent& SequenceView::timedEvent(size_t index) const {
+    return itemFromSequence(mSequence, index);
+}
+
 void SequenceView::setChannelEditor(ChannelEditor* channelEditor) {
     /// @todo disconnect last
     mChannelEditor = channelEditor;
@@ -274,7 +264,8 @@ void SequenceView::setCodec(QTextCodec* codec) {
     }
 }
 
-void SequenceView::setSequence(const Sequence& sequence, const range_t<timestamp_t>& limits) {
+void SequenceView::setSequence(const SharedSequence& sequence) {
+    Q_ASSERT(sequence);
     setUpdatesEnabled(false);
     // prevent signals
     QSignalBlocker guard{this};
@@ -283,22 +274,21 @@ void SequenceView::setSequence(const Sequence& sequence, const range_t<timestamp
     cleanSequence();
     // register sequence
     mSequence = sequence;
-    mDistordedClock.setClock(mSequence.clock());
-    mLimits = limits;
+    mLimits = {0, sequence->last_timestamp()};
     // reenable all tracks
     if (mTrackFilter)
         mTrackFilter->send_message(TrackFilter::enable_all_ext());
     // collect tracks data
     std::unordered_map<track_t, channels_t> trackChannels;
     std::unordered_map<track_t, QByteArrayList> trackNames;
-    for (const auto& item : mSequence) {
+    for (const auto& item : *mSequence) {
         if (item.event.is(families_t::voice()))
             trackChannels[item.event.track()] |= item.event.channels();
         else if (item.event.is(family_t::track_name))
             trackNames[item.event.track()] << QByteArray::fromStdString(item.event.description());
     }
     // make track items
-    for (track_t track : mSequence.tracks()) {
+    for (track_t track : mSequence->tracks()) {
         auto* trackItem = makeTrackItem(track);
         trackItem->setFirstColumnSpanned(true);
         // track text
@@ -324,6 +314,7 @@ void SequenceView::cleanSequence() {
         for(auto* eventItem : eventItems)
             mEventReserve.emplace_back(static_cast<SequenceViewItem*>(eventItem));
     }
+    mSequence.reset();
 }
 
 void SequenceView::setLower(timestamp_t timestamp) {
@@ -343,10 +334,11 @@ bool SequenceView::eventFilter(QObject* watched, QEvent* event) {
 }
 
 void SequenceView::onSequenceUpdate() {
-    const auto n = std::min(mEventCount + 64, mSequence.size());
+    Q_ASSERT(mSequence);
+    const auto n = std::min(mEventCount + 64, mSequence->size());
     while (mEventCount < n)
         updateItemVisibility(makeEventItem(mEventCount++));
-    if (mEventCount == mSequence.size()) {
+    if (mEventCount == mSequence->size()) {
         mSequenceUpdater->stop();
         setUpdatesEnabled(true);
     }
@@ -373,7 +365,7 @@ void SequenceView::onItemChange(QTreeWidgetItem* item, int /*column*/) {
 void SequenceView::onItemDoubleClick(QTreeWidgetItem* item, int column) {
     if (column == 0) // timestamp column
         if (auto* eventItem = dynamic_cast<SequenceViewItem*>(item))
-            emit positionSelected(mSequence[eventItem->index()].timestamp, mLastButton);
+            emit positionSelected(timedEvent(eventItem->index()).timestamp, mLastButton);
 }
 
 void SequenceView::onFamilyFilterClick() {
@@ -424,7 +416,7 @@ SequenceViewTrackItem* SequenceView::makeTrackItem(track_t track) {
 }
 
 SequenceViewItem* SequenceView::makeEventItem(size_t index) {
-    if (auto* trackItem = itemForTrack(mSequence[index].event.track())) {
+    if (auto* trackItem = itemForTrack(timedEvent(index).event.track())) {
         if (mEventReserve.empty())
             return new SequenceViewItem{index, trackItem};
         auto* result = mEventReserve.back().release();
@@ -467,7 +459,7 @@ const QFileInfo& FileItem::fileInfo() const {
 
 NamedSequence FileItem::loadSequence() {
     auto file = dumping::read_file(mFileInfo.absoluteFilePath().toLocal8Bit().constData());
-    return {Sequence::from_file(std::move(file)), text()};
+    return {std::make_shared<Sequence>(Sequence::from_file(std::move(file))), text()};
 }
 
 WriterItem::WriterItem(SequenceWriter* handler) : PlaylistItem{}, mHandler{handler} {
@@ -484,7 +476,7 @@ SequenceWriter* WriterItem::handler() {
 }
 
 NamedSequence WriterItem::loadSequence() {
-    return {mHandler->load_sequence(), handlerName(mHandler)};
+    return {std::make_shared<Sequence>(mHandler->load_sequence()), handlerName(mHandler)};
 }
 
 PlaylistTable::PlaylistTable(QWidget* parent) : QTableWidget{0, 2, parent} {
@@ -598,12 +590,12 @@ NamedSequence PlaylistTable::loadRow(int row) {
     NamedSequence namedSequence;
     if (auto* playlistItem = dynamic_cast<PlaylistItem*>(item(row, 0))) {
         namedSequence = playlistItem->loadSequence();
-        if (!namedSequence.sequence.empty()) {
+        if (isValid(namedSequence.sequence)) {
             // change status
             setCurrentStatus(NO_STATUS);
             mCurrentItem = playlistItem;
             // set duration
-            item(row, 1)->setText(DistordedClock{namedSequence.sequence.clock()}.toString(namedSequence.sequence.last_timestamp()));
+            item(row, 1)->setText(qstringFromTimestamp(namedSequence.sequence->last_timestamp(), namedSequence.sequence, 1.));
             // ensure line is visible
             scrollToItem(playlistItem);
         } else {
@@ -620,13 +612,13 @@ NamedSequence PlaylistTable::loadRelative(int offset, bool wrap) {
     if (wrap) { // with wrapping, we check all available rows (the current one may be reloaded)
         for (int i=0 ; i < rows ; ++i, row += offset) {
             namedSequence = loadRow(safe_modulo(row, rows));
-            if (!namedSequence.sequence.empty())
+            if (isValid(namedSequence.sequence))
                 break;
         }
     } else { // without wrapping, we continue until the row is no longer valid
         for ( ; 0 <= row && row < rows ; row += offset) {
             namedSequence = loadRow(row);
-            if (!namedSequence.sequence.empty())
+            if (isValid(namedSequence.sequence))
                 break;
         }
     }
@@ -864,13 +856,13 @@ void TrackedKnob::updateTimestamp(timestamp_t timestamp) {
 }
 
 void TrackedKnob::setDistorsion(double distorsion) {
-    mDistordedClock.setDistorsion(distorsion);
+    mDistorsion = distorsion;
     updateMaximumTime();
     updateTime();
 }
 
-void TrackedKnob::initialize(Clock clock, timestamp_t timestamp, timestamp_t maxTimestamp) {
-    mDistordedClock.setClock(std::move(clock));
+void TrackedKnob::initialize(const SharedSequence& sequence, timestamp_t timestamp, timestamp_t maxTimestamp) {
+    mSequence = sequence;
     mMaxTimestamp = maxTimestamp;
     mTimestamp = timestamp;
     updateMaximumTime();
@@ -880,14 +872,14 @@ void TrackedKnob::initialize(Clock clock, timestamp_t timestamp, timestamp_t max
 
 QTime TrackedKnob::toTime(timestamp_t timestamp) const {
     if (mIsReversed)
-        return mDistordedClock.toTime(timestamp, mMaxTimestamp);
-    return mDistordedClock.toTime(timestamp);
+        return qtimeFromTimestampRange({timestamp, mMaxTimestamp}, mSequence, mDistorsion);
+    return qtimeFromTimestamp(timestamp, mSequence, mDistorsion);
 }
 
 timestamp_t TrackedKnob::toTimestamp(const QTime& time) const {
     if (mIsReversed)
-        return mDistordedClock.toTimestamp(time, maximumTime());
-    return mDistordedClock.toTimestamp(time);
+        return qtimeRangeToTimestamp({time, maximumTime()}, mSequence, mDistorsion);
+    return qtimeToTimestamp(time, mSequence, mDistorsion);
 }
 
 void TrackedKnob::onMove(qreal xvalue, qreal /*yvalue*/) {
@@ -931,7 +923,7 @@ void TrackedKnob::updateTime() {
 
 void TrackedKnob::updateMaximumTime() {
     QSignalBlocker guard{this};
-    setMaximumTime(mDistordedClock.toTime(mMaxTimestamp));
+    setMaximumTime(qtimeFromTimestamp(mMaxTimestamp, mSequence, mDistorsion));
 }
 
 void TrackedKnob::updateHandle() {
@@ -947,7 +939,7 @@ Trackbar::Trackbar(QWidget* parent) : QWidget{parent} {
     mPositionKnob = new ParticleKnob{7.};
     mPositionKnob->setZValue(1.);
     mPositionEdit = new TrackedKnob{this};
-    mPositionEdit->setDisplayFormat(DistordedClock::timeFormat);
+    mPositionEdit->setDisplayFormat(timeFormat);
     mPositionEdit->setToolTip("Position");
     mPositionEdit->setKnob(mPositionKnob);
     connect(mPositionEdit, &TrackedKnob::leftClicked, this, &Trackbar::onPositionLeftClick);
@@ -957,7 +949,7 @@ Trackbar::Trackbar(QWidget* parent) : QWidget{parent} {
     // Lower Position
     mLowerKnob = new BracketKnob{QBoxLayout::LeftToRight};
     mLowerEdit = new TrackedKnob{this};
-    mLowerEdit->setDisplayFormat("[ " + DistordedClock::timeFormat);
+    mLowerEdit->setDisplayFormat("[ " + timeFormat);
     mLowerEdit->setToolTip("Lower Limit");
     mLowerEdit->setKnob(mLowerKnob);
     connect(mLowerEdit, &TrackedKnob::leftClicked, this, &Trackbar::onLowerLeftClick);
@@ -967,7 +959,7 @@ Trackbar::Trackbar(QWidget* parent) : QWidget{parent} {
     // Upper position
     mUpperKnob = new BracketKnob{QBoxLayout::RightToLeft};
     mUpperEdit= new TrackedKnob{this};
-    mUpperEdit->setDisplayFormat(DistordedClock::timeFormat + " ]");
+    mUpperEdit->setDisplayFormat(timeFormat + " ]");
     mUpperEdit->setToolTip("Upper Limit");
     mUpperEdit->setKnob(mUpperKnob);
     mUpperKnob->xScale().value = 1.;
@@ -980,7 +972,7 @@ Trackbar::Trackbar(QWidget* parent) : QWidget{parent} {
     mLastEdit->setReadOnly(true);
     mLastEdit->setAlignment(Qt::AlignHCenter);
     mLastEdit->setButtonSymbols(QAbstractSpinBox::NoButtons);
-    mLastEdit->setDisplayFormat(DistordedClock::timeFormat);
+    mLastEdit->setDisplayFormat(timeFormat);
     mLastEdit->setToolTip("Duration");
 
     // View
@@ -1084,18 +1076,19 @@ MarkerKnob* Trackbar::addMarker(bool isCustom) {
     return knob;
 }
 
-void Trackbar::setSequence(const Sequence& sequence, const range_t<timestamp_t>& limits) {
-    auto lastTimestamp = sequence.last_timestamp();
+void Trackbar::setSequence(const SharedSequence& sequence) {
+    Q_ASSERT(sequence);
+    auto lastTimestamp = sequence->last_timestamp();
     if (lastTimestamp == 0.)
         lastTimestamp = 1.;
     // reinitialize editors
-    mLowerEdit->initialize(sequence.clock(), limits.min, lastTimestamp);
-    mUpperEdit->initialize(sequence.clock(), limits.max, lastTimestamp);
-    mPositionEdit->initialize(sequence.clock(), limits.min, lastTimestamp);
-    mLastEdit->initialize(sequence.clock(), lastTimestamp, lastTimestamp);
+    mLowerEdit->initialize(sequence, 0., lastTimestamp);
+    mUpperEdit->initialize(sequence, lastTimestamp, lastTimestamp);
+    mPositionEdit->initialize(sequence, 0., lastTimestamp);
+    mLastEdit->initialize(sequence, lastTimestamp, lastTimestamp);
     // reinitialize markers
     cleanMarkers();
-    for (const auto& item : sequence)
+    for (const auto& item : *sequence)
         if (item.event.is(family_t::marker))
             addMarker(item.timestamp, QString::fromStdString(item.event.description()), false);
 }
@@ -1163,15 +1156,18 @@ TempoView::TempoView(QWidget* parent) : QWidget{parent} {
 }
 
 void TempoView::clearTempo() {
-    setTempo({});
+    updateBpm(0., -1.);
 }
 
 void TempoView::updateTimestamp(timestamp_t timestamp) {
-    setTempo(mClock.last_tempo(timestamp).event);
+    const auto& item = clockFromSequence(mSequence).last_tempo(timestamp);
+    if (item.timestamp != mLastTempoTimestamp)
+        updateBpm(extraction_ns::get_bpm(item.event), item.timestamp);
 }
 
-void TempoView::setClock(Clock clock) {
-    mClock = std::move(clock);
+void TempoView::setSequence(const SharedSequence& sequence) {
+    mSequence = sequence;
+    clearTempo();
 }
 
 double TempoView::distorsion() const {
@@ -1182,11 +1178,8 @@ void TempoView::setDistorsion(double distorsion) {
     mDistorsionSlider->setClampedValue(distorsion);
 }
 
-void TempoView::setTempo(const Event& event) {
-    if (Event::equivalent(event, mLastTempo))
-        return;
-    mLastTempo = event;
-    const auto bpm = event.is(family_t::tempo) ? extraction_ns::get_bpm(event) : 0.;
+void TempoView::updateBpm(double bpm, timestamp_t timestamp) {
+    mLastTempoTimestamp = timestamp;
     mTempoSpin->setValue(bpm);
     updateDistorted(distorsion());
 }
@@ -1300,7 +1293,7 @@ void Player::updateContext(Context* context) {
 void Player::changePosition(timestamp_t timestamp) {
     // event comes from trackbar
     mHandler.set_position(timestamp);
-    mTempoView->clearTempo();
+    mTempoView->updateTimestamp(timestamp);
 }
 
 void Player::changeLower(timestamp_t timestamp) {
@@ -1319,7 +1312,7 @@ void Player::changeDistorsion(double distorsion) {
     // event comes from tempoview, don't need to update
     mHandler.set_distorsion(distorsion);
     mTracker->setDistorsion(distorsion);
-    mSequenceView->distordedClock().setDistorsion(distorsion);
+    mSequenceView->setDistorsion(distorsion);
 }
 
 void Player::setTrackFilter(Handler* handler) {
@@ -1331,7 +1324,7 @@ bool Player::setNextSequence(int offset) {
     if (isSingle() && mPlaylist->isLoaded())
         return isLooping();
     auto namedSequence = mPlaylist->loadRelative(offset, isLooping());
-    if (namedSequence.sequence.empty())
+    if (!isValid(namedSequence.sequence))
         return false;
     setSequence(std::move(namedSequence));
     return true;
@@ -1360,10 +1353,10 @@ void Player::refreshPosition() {
 void Player::setSequence(NamedSequence sequence) {
     if (auto* systemTrayIcon = context()->systemTrayIcon())
         systemTrayIcon->showMessage(handlerName(&mHandler), sequence.name, QIcon{":/data/media-play.svg"}, 2000);
-    mHandler.set_sequence(std::move(sequence.sequence));
-    mTempoView->setClock(mHandler.sequence().clock());
-    mSequenceView->setSequence(mHandler.sequence(), mHandler.limits());
-    mTracker->setSequence(mHandler.sequence(), mHandler.limits());
+    mHandler.set_sequence(*sequence.sequence);
+    mTempoView->setSequence(sequence.sequence);
+    mSequenceView->setSequence(sequence.sequence);
+    mTracker->setSequence(sequence.sequence);
 }
 
 void Player::saveSequence() {
@@ -1385,7 +1378,7 @@ void Player::saveSequence() {
 
 void Player::launch(QTableWidgetItem* item) {
     auto namedSequence = mPlaylist->loadRow(item->row());
-    if (!namedSequence.sequence.empty()) {
+    if (isValid(namedSequence.sequence)) {
         resetSequence();
         setSequence(std::move(namedSequence));
         playCurrentSequence();

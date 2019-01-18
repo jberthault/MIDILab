@@ -460,10 +460,8 @@ void Clock::push_timestamp(const Event& event, timestamp_t timestamp) {
 
 void Clock::push_duration(const Event& event, const duration_type& duration) {
     if (event.is(family_t::tempo)) {
-        assert(duration > m_tempo.back().duration);
         m_tempo.push_back({get_timestamp(m_tempo.back(), duration), duration, event});
     } else if (event.is(family_t::time_signature)) {
-        assert(duration > m_time_signature.back().duration);
         m_time_signature.emplace_back(get_timestamp(m_tempo.back(), duration), event);
     }
 }

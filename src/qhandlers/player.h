@@ -32,42 +32,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "qhandlers/common.h"
 #include "qtools/misc.h"
 
+using SharedSequence = std::shared_ptr<const Sequence>;
+
 struct NamedSequence {
-    Sequence sequence;
+    SharedSequence sequence;
     QString name;
-};
-
-//================
-// DistordedClock
-//================
-
-class DistordedClock {
-
-public:
-    static const QString timeFormat; /*!< preferred format displayed by QTimeEdit */
-
-    DistordedClock(Clock clock = {}, double distorsion = 1.);
-
-    const Clock& clock() const;
-    void setClock(Clock clock);
-
-    double distorsion() const;
-    void setDistorsion(double distorsion);
-
-    QString toString(timestamp_t timestamp) const;
-
-    QTime toTime(timestamp_t t0, timestamp_t t1) const;
-    QTime toTime(timestamp_t timestamp) const;
-    timestamp_t toTimestamp(const QTime& t0, const QTime& t1) const;
-    timestamp_t toTimestamp(const QTime& time) const;
-
-protected:
-    QTime durationCast(const Clock::duration_type& time) const;
-
-private:
-    Clock mClock;
-    double mDistorsion;
-
 };
 
 //==============
@@ -106,8 +75,6 @@ public:
     size_t index() const;
     void setIndex(size_t index);
 
-    const TimedEvent& item() const;
-
     void updateEncoding();
     void updateVisibiliy(families_t families, channels_t channels, const range_t<timestamp_t>& limits);
 
@@ -125,19 +92,23 @@ class SequenceView : public QWidget {
 public:
     explicit SequenceView(QWidget* parent);
 
-    inline DistordedClock& distordedClock() { return mDistordedClock; }
     inline FamilySelector* familySelector() { return mFamilySelector; }
     inline ChannelsSelector* channelsSelector() { return mChannelsSelector; }
 
     inline ChannelEditor* channelEditor() { return mChannelEditor; }
     inline Handler* trackFilter() { return mTrackFilter; }
     inline QTextCodec* codec() { return mCodec; }
-    inline const Sequence& sequence() { return mSequence; }
+
+    inline const SharedSequence& sequence() { return mSequence; }
+    const TimedEvent& timedEvent(size_t index) const;
+
+    inline double distorsion() const { return mDistorsion; }
+    inline void setDistorsion(double distorsion) { mDistorsion = distorsion; }
 
     void setChannelEditor(ChannelEditor* channelEditor);
     void setTrackFilter(Handler* handler);
     void setCodec(QTextCodec* codec); /*!< codec used to decode event description (model does not take ownership) */
-    void setSequence(const Sequence& sequence, const range_t<timestamp_t>& limits);
+    void setSequence(const SharedSequence& sequence);
     void cleanSequence();
 
     void setLower(timestamp_t timestamp);
@@ -176,11 +147,11 @@ private:
     QPushButton* mFamilySelectorButton;
     QPushButton* mChannelSelectorButton;
     QTimer* mSequenceUpdater; /*!< timer filling sequence event asynchronously */
-    Sequence mSequence;
+    SharedSequence mSequence;
     size_t mEventCount {0}; /*!< the number of event items properly initialized */
     QTextCodec* mCodec {QTextCodec::codecForLocale()};
     Handler* mTrackFilter {nullptr};
-    DistordedClock mDistordedClock;
+    double mDistorsion {1.};
     Qt::MouseButton mLastButton {Qt::NoButton};
     range_t<timestamp_t> mLimits {0., 0.};
     std::vector<std::unique_ptr<SequenceViewTrackItem>> mTrackReserve;
@@ -335,7 +306,7 @@ public:
     void updateTimestamp(timestamp_t timestamp); /*!< like setTimestamp but does not send timestampChanged */
 
     void setDistorsion(double distorsion);
-    void initialize(Clock clock, timestamp_t timestamp, timestamp_t maxTimestamp);
+    void initialize(const SharedSequence& sequence, timestamp_t timestamp, timestamp_t maxTimestamp);
 
 protected:
     QTime toTime(timestamp_t timestamp) const;
@@ -361,7 +332,8 @@ private:
     Knob* mKnob {nullptr};
     timestamp_t mTimestamp {0.};
     timestamp_t mMaxTimestamp {1.};
-    DistordedClock mDistordedClock;
+    SharedSequence mSequence;
+    double mDistorsion {1.};
     bool mIsTracking {false};
     bool mIsReversed {false};
 
@@ -391,7 +363,7 @@ public:
 
 public slots:
     void updateTimestamp(timestamp_t timestamp); /*!< notify trackbar that position has changed */
-    void setSequence(const Sequence& sequence, const range_t<timestamp_t>& limits); /*!< notify trackbar that a new sequence is played */
+    void setSequence(const SharedSequence& sequence); /*!< notify trackbar that a new sequence is played */
     void setDistorsion(double distorsion); /*!< notify trackbar that distorsion has changed */
     void addCustomMarker(timestamp_t timestamp);
 
@@ -440,24 +412,24 @@ public:
 public slots:
     void clearTempo();
     void updateTimestamp(timestamp_t timestamp);
-    void setClock(Clock clock);
+    void setSequence(const SharedSequence& sequence);
 
     double distorsion() const;
     void setDistorsion(double distorsion);
 
-private slots:
+private:
+    void updateBpm(double bpm, timestamp_t timestamp);
     void updateDistorted(double distorsion);
-    void setTempo(const Event& event);
 
 signals:
     void distorsionChanged(double distorsion);
 
 private:
-    Event mLastTempo;
+    timestamp_t mLastTempoTimestamp {-1.};
     QDoubleSpinBox* mTempoSpin;
     QDoubleSpinBox* mDistortedTempoSpin;
     ContinuousSlider* mDistorsionSlider;
-    Clock mClock;
+    SharedSequence mSequence;
 
 };
 
@@ -490,7 +462,6 @@ protected:
     void updateContext(Context* context) override;
 
 protected slots:
-
     void saveSequence();
 
     void launch(QTableWidgetItem *item);
@@ -514,7 +485,6 @@ protected slots:
     void refreshPosition();
 
 private:
-
     Trackbar* mTracker;
     TempoView* mTempoView;
     SequenceView* mSequenceView;
