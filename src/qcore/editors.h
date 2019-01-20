@@ -269,6 +269,7 @@ signals:
 
 private slots:
     void onItemChange(QTreeWidgetItem* item, int column);
+    void onItemClick(QTreeWidgetItem* item, int column);
     void updateAncestors(QTreeWidgetItem* item);
     void updateChildren(QTreeWidgetItem* item, Qt::CheckState checkState);
     void setItemState(QTreeWidgetItem* item, Qt::CheckState checkState); // no signal

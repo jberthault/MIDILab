@@ -1370,13 +1370,15 @@ bool Player::setSequence(NamedSequence sequence) {
 }
 
 void Player::saveSequence() {
+    const auto seq = sequence();
+    if (!isValid(seq)) {
+        QMessageBox::critical(this, {}, "No sequence to save");
+        return;
+    }
     const auto filename = context()->pathRetrieverPool()->get("midi")->getWriteFile(this);
     if (filename.isNull())
         return;
-    const auto seq = sequence();
-    if (!isValid(seq))
-        QMessageBox::critical(this, {}, "Empty sequence");
-    else if (dumping::write_file(seq->to_file(), filename.toStdString()) == 0)
+    if (dumping::write_file(seq->to_file(), filename.toStdString()) == 0)
         QMessageBox::critical(this, {}, "Unable to write sequence");
     else
         QMessageBox::information(this, {}, "Sequence saved");

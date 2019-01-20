@@ -536,6 +536,7 @@ FamilySelector::FamilySelector(QWidget* parent) : QTreeWidget{parent} {
     makeLeaves(makeNode(systemItem, families_t::standard_system_realtime(), "System Realtime Events"), families_t::standard_system_realtime());
     makeLeaves(makeNode(midiItem, families_t::standard_meta(), "Meta Events"), families_t::standard_meta());
     connect(this, &QTreeWidget::itemChanged, this, &FamilySelector::onItemChange);
+    connect(this, &QTreeWidget::itemDoubleClicked, this, &FamilySelector::onItemClick);
     updateFamilies();
     midiItem->setExpanded(true);
     voiceItem->setExpanded(true);
@@ -549,6 +550,11 @@ void FamilySelector::onItemChange(QTreeWidgetItem* item, int /*column*/) {
     updateChildren(item, checkState);
     updateFamilies();
     emit familiesChanged(mFamilies);
+}
+
+void FamilySelector::onItemClick(QTreeWidgetItem* item, int column) {
+    if (item->childCount() == 0)
+        item->setCheckState(column, item->checkState(column) == Qt::Unchecked ? Qt::Checked : Qt::Unchecked);
 }
 
 void FamilySelector::setItemState(QTreeWidgetItem* item, Qt::CheckState checkState) {
