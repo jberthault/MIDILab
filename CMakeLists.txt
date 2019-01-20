@@ -37,7 +37,7 @@ endif()
 
 file(GLOB_RECURSE SRC_FILES "src/*.cpp" "src/*.h")
 set(QRC_FILES "src/data.qrc")
-set(TXT_FILES "README.md" "ROADMAP.md" "LICENSE")
+set(TXT_FILES "README.md" "ROADMAP.md" "LICENSE" "CREDITS")
 
 add_executable(${PROJECT_NAME} ${SRC_FILES} ${QRC_FILES} ${TXT_FILES})
 

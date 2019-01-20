@@ -663,7 +663,7 @@ TimedEvents Sequence::make_metronome(byte_t velocity) const {
     const auto click = Event::note_on(channels_t::drums(), drum_ns::metronome_click_drum, velocity).with_track(track);
     const auto bell = Event::note_on(channels_t::drums(), drum_ns::metronome_bell_drum, velocity).with_track(track);
     // There will be around 1 event per quarter note (24 MIDI clocks)
-    result.reserve(decay_value<size_t>(last_timestamp() / m_clock.ppqn()));
+    result.reserve(decay_value<size_t>(m_clock.timestamp2qn(last_timestamp())));
     // Iterate over all time signature events
     const auto last = m_clock.time_signature().end();
     for (auto it = m_clock.time_signature().begin() ; it != last ; ++it) {

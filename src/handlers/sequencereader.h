@@ -47,6 +47,7 @@ public:
 
     const Sequence& sequence() const; /*!< returns current sequence */
     void set_sequence(Sequence sequence); /*!< set sequence to play */
+    void replace_sequence(Sequence sequence); /*!< replace sequence and continues playing it at the same position */
 
     const std::map<byte_t, Sequence>& sequences() const; /*!< all loaded sequences */
     void load_sequence(byte_t id, Sequence sequence); /*!< set sequence available, for song_select events */

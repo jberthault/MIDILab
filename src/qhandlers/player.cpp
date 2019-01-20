@@ -1234,6 +1234,10 @@ Player::Player() : HandlerEditor{} {
     connect(makeAction(QIcon{":/data/media-step-forward.svg"}, "Play Next", this), &QAction::triggered, this, &Player::playNextSequence);
     connect(makeAction(QIcon{":/data/chevron-right.svg"}, "Play Step", this), &QAction::triggered, this, &Player::stepForward);
     makeSeparator(this);
+    mMetronomeAction = makeAction(QIcon{":/data/metronome.svg"}, "Metronome", this);
+    mMetronomeAction->setCheckable(true);
+    connect(mMetronomeAction, &QAction::toggled, this, &Player::setMetronome);
+    makeSeparator(this);
     mLoopAction = new MultiStateAction{this};
     mLoopAction->addState(QIcon{":/data/move-down.svg"}, "No Loop"); /// @todo get a thinner arrow
     mLoopAction->addState(QIcon{":/data/loop-square.svg"}, "Loop");
@@ -1246,6 +1250,10 @@ Player::Player() : HandlerEditor{} {
     connect(makeAction(QIcon{":/data/save.svg"}, "Save Current Sequence", this), &QAction::triggered, this, &Player::saveSequence);
 
     setLayout(make_vbox(margin_tag{0}, mTracker, mTempoView, tab));
+}
+
+const SharedSequence& Player::sequence() const {
+    return mSequenceView->sequence();
 }
 
 bool Player::isSingle() const {
@@ -1323,11 +1331,7 @@ bool Player::setNextSequence(int offset) {
     resetSequence();
     if (isSingle() && mPlaylist->isLoaded())
         return isLooping();
-    auto namedSequence = mPlaylist->loadRelative(offset, isLooping());
-    if (!isValid(namedSequence.sequence))
-        return false;
-    setSequence(std::move(namedSequence));
-    return true;
+    return setSequence(mPlaylist->loadRelative(offset, isLooping()));
 }
 
 void Player::updatePosition() {
@@ -1350,29 +1354,40 @@ void Player::refreshPosition() {
     }
 }
 
-void Player::setSequence(NamedSequence sequence) {
+bool Player::setSequence(NamedSequence sequence) {
+    if (!isValid(sequence.sequence))
+        return false;
     if (auto* systemTrayIcon = context()->systemTrayIcon())
         systemTrayIcon->showMessage(handlerName(&mHandler), sequence.name, QIcon{":/data/media-play.svg"}, 2000);
-    mHandler.set_sequence(*sequence.sequence);
     mTempoView->setSequence(sequence.sequence);
     mSequenceView->setSequence(sequence.sequence);
     mTracker->setSequence(sequence.sequence);
+    auto seq{*sequence.sequence};
+    if (mMetronomeAction->isChecked())
+        seq.insert_items(seq.make_metronome());
+    mHandler.set_sequence(std::move(seq));
+    return true;
 }
 
 void Player::saveSequence() {
     const auto filename = context()->pathRetrieverPool()->get("midi")->getWriteFile(this);
     if (filename.isNull())
         return;
-    const auto sequence = mHandler.sequence();
-    if (sequence.empty()) {
+    const auto seq = sequence();
+    if (!isValid(seq))
         QMessageBox::critical(this, {}, "Empty sequence");
-    } else {
-        const size_t bytes = dumping::write_file(sequence.to_file(), filename.toStdString());
-        if (bytes == 0) {
-            QMessageBox::critical(this, {}, "Unable to write sequence");
-        } else {
-            QMessageBox::information(this, {}, "Sequence saved");
-        }
+    else if (dumping::write_file(seq->to_file(), filename.toStdString()) == 0)
+        QMessageBox::critical(this, {}, "Unable to write sequence");
+    else
+        QMessageBox::information(this, {}, "Sequence saved");
+}
+
+void Player::setMetronome(bool enabled) {
+    if (isValid(sequence())) {
+        auto seq{*sequence()};
+        if (enabled)
+            seq.insert_items(seq.make_metronome());
+        mHandler.replace_sequence(std::move(seq));
     }
 }
 

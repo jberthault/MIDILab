@@ -446,11 +446,13 @@ class Player : public HandlerEditor {
 public:
     explicit Player();
 
+    const SharedSequence& sequence() const;
+
     bool isSingle() const; /*!< end the playlist after the current one */
     bool isLooping() const; /*!< restart from begining when playlist os over */
 
     bool setNextSequence(int offset); /*!< returns true if a sequence has been set */
-    void setSequence(NamedSequence sequence);
+    bool setSequence(NamedSequence sequence); /*!< returns true if the sequence has been set */
     void setTrackFilter(Handler* handler);
 
     Parameters getParameters() const override;
@@ -463,6 +465,7 @@ protected:
 
 protected slots:
     void saveSequence();
+    void setMetronome(bool enabled);
 
     void launch(QTableWidgetItem *item);
     void onPositionSelected(timestamp_t timestamp, Qt::MouseButton button);
@@ -492,6 +495,7 @@ private:
     QTimer* mRefreshTimer;
     MultiStateAction* mModeAction;
     MultiStateAction* mLoopAction;
+    QAction* mMetronomeAction;
 
     SequenceReader mHandler;
 

@@ -65,6 +65,14 @@ void SequenceReader::set_sequence(Sequence sequence) {
     m_limits.max = make_upper(m_sequence);
 }
 
+void SequenceReader::replace_sequence(Sequence sequence) {
+    std::lock_guard<std::mutex> guard{m_mutex};
+    m_sequence = std::move(sequence);
+    m_position = make_lower(m_sequence, m_position.second);
+    m_limits.min = make_lower(m_sequence, m_limits.min.second);
+    m_limits.max = make_upper(m_sequence, m_limits.max.second);
+}
+
 const std::map<byte_t, Sequence>& SequenceReader::sequences() const {
     return m_sequences;
 }

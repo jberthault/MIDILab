@@ -45,7 +45,6 @@
         <file>data/cog.svg</file>
         <file>data/power-standby.svg</file>
         <file>data/question-mark.svg</file>
-        <file>data/trumpet.png</file>
         <file>data/plus.svg</file>
         <file>data/transfer.svg</file>
         <file>data/elevator.svg</file>
@@ -77,5 +76,7 @@
         <file>data/flash.svg</file>
         <file>data/hide.svg</file>
         <file>data/bookmark.svg</file>
+        <file>data/metronome.svg</file>
+        <file>data/trumpet.svg</file>
     </qresource>
 </RCC>

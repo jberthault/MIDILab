@@ -232,7 +232,7 @@ void ProgramModel::updateColor(channel_t channel, const QColor& color) {
 ProgramEditor::ProgramEditor(Manager* manager, QWidget* parent) : QWidget{parent} {
 
     setWindowTitle("Programs");
-    setWindowIcon(QIcon{":/data/trumpet.png"});
+    setWindowIcon(QIcon{":/data/trumpet.svg"});
     setWindowFlags(Qt::Dialog);
 
     /// Read patches from file
