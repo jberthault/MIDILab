@@ -31,9 +31,6 @@ Adding a basic support of "Guitar Pro" files or an equivalent could solve this p
 
 The **pianoroll** is a common feature providing a good overview of notes played in addition to beeing a good editor.
 
-The **metronome** is the tool every musician needs. There should be one in the player handling all time sigatures.
-One could also be able to configure it with no running playback.
-
 Improve the algorithm behind the playback. By making transactions of multiple events, playing notes close in time, ...
 
 Many MIDI files embed lyrics. Adding a **karaoke** feature will take adavantage of it.
