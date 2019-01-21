@@ -18,6 +18,8 @@ option(ENABLE_LOG_WARNING "allows 'warning' messages to appear on the standard o
 option(ENABLE_LOG_ERROR "allows 'error' messages to appear on the standard output" ON)
 option(ENABLE_LOG_TIMING "embed time measurements for debugging purposes")
 
+option(WITH_FLUIDSYNTH "build the SoundFont plugin using libfluidsynth" ON)
+
 # -------------------
 # target dependencies
 # -------------------
@@ -26,7 +28,9 @@ find_package(Qt5Widgets REQUIRED)
 find_package(Qt5Xml REQUIRED)
 find_package(Qt5XmlPatterns REQUIRED)
 find_package(Boost REQUIRED)
-find_package(FluidSynth)
+if (WITH_FLUIDSYNTH)
+    find_package(FluidSynth REQUIRED)
+endif()
 if (UNIX)
     find_package(ALSA REQUIRED)
 endif()
@@ -60,9 +64,12 @@ endforeach()
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_relaxed_constexpr) # triggers >= c++14
 target_include_directories(${PROJECT_NAME} PUBLIC "src")
-target_link_libraries(${PROJECT_NAME} Boost::boost Qt5::Widgets Qt5::Xml Qt5::XmlPatterns)
+target_link_libraries(${PROJECT_NAME} Qt5::Widgets Qt5::Xml Qt5::XmlPatterns)
 
-if (FluidSynth_FOUND)
+target_link_libraries(${PROJECT_NAME} ${BOOST_LIBRARIES})
+target_include_directories(${PROJECT_NAME} PUBLIC ${BOOST_INCLUDE_DIRS})
+
+if (WITH_FLUIDSYNTH)
     target_link_libraries(${PROJECT_NAME} FluidSynth::FluidSynth)
     target_compile_definitions(${PROJECT_NAME} PUBLIC "-DMIDILAB_FLUIDSYNTH_VERSION=${FluidSynth_VERSION}")
 endif()

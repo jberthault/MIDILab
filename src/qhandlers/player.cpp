@@ -87,6 +87,14 @@ auto qstringFromTimestamp(timestamp_t timestamp, const SharedSequence& sequence,
     return qtimeFromTimestamp(timestamp, sequence, distorsion).toString(timeFormat);
 }
 
+void showSystemTrayMessage(QSystemTrayIcon* systemTrayIcon, const QString& title, const QString& msg, const QIcon& icon, int msecs) {
+#if QT_VERSION_MAJOR > 5 || (QT_VERSION_MAJOR == 5 && QT_VERSION_MINOR >= 9)
+        systemTrayIcon->showMessage(title, msg, icon, msecs);
+#else
+        systemTrayIcon->showMessage(title, msg, QSystemTrayIcon::Information, msecs);
+#endif
+}
+
 }
 
 //==============
@@ -1358,7 +1366,7 @@ bool Player::setSequence(NamedSequence sequence) {
     if (!isValid(sequence.sequence))
         return false;
     if (auto* systemTrayIcon = context()->systemTrayIcon())
-        systemTrayIcon->showMessage(handlerName(&mHandler), sequence.name, QIcon{":/data/media-play.svg"}, 2000);
+        showSystemTrayMessage(systemTrayIcon, handlerName(&mHandler), sequence.name, QIcon{":/data/media-play.svg"}, 2000);
     mTempoView->setSequence(sequence.sequence);
     mSequenceView->setSequence(sequence.sequence);
     mTracker->setSequence(sequence.sequence);
