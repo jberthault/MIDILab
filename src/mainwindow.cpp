@@ -1,7 +1,7 @@
 /*
 
 MIDILab | A Versatile MIDI Controller
-Copyright (C) 2017-2018 Julien Berthault
+Copyright (C) 2017-2019 Julien Berthault
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -77,7 +77,7 @@ static const QString aboutText =
     " <li><a href=\"http://www.fluidsynth.org\">FluidSynth</a> (version " MIDILAB_FLUIDSYNTH_VERSION_STRING ")</li>"
     " <li><a href=\"https://github.com/iconic/open-iconic\">Open Iconic</a> (version 1.1.1)</li>"
     "</ul>"
-    "<p>Copyright \u00a9 2017-2018 Julien Berthault</p>"
+    "<p>Copyright \u00a9 2017-2019 Julien Berthault</p>"
     "<p><i> " MIDILAB_MODE " " MIDILAB_PLATFORM " " MIDILAB_SIZE " </i></p>";
 
 AboutWindow::AboutWindow(QWidget* parent) :
