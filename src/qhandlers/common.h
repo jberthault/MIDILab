@@ -145,6 +145,9 @@ public:
     byte_t velocity() const;
     void setVelocity(byte_t velocity);
 
+    channels_t receivedChannels() const;
+    void setReceivedChannels(channels_t channels);
+
 protected:
     Result handle_close(State state) final;
     Result handle_message(const Message& message) final;
@@ -163,6 +166,7 @@ protected:
 
 private:
     byte_t mVelocity {0x7f};
+    channels_t mReceivedChannels {channels_t::melodic()};
 
 };
 

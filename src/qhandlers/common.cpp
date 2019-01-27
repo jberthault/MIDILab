@@ -215,6 +215,7 @@ void GraphicalHandler::generate(Event event) {
 MetaHandler* makeMetaInstrument(QObject* parent) {
     auto* meta = makeMetaGraphicalHandler(parent);
     meta->addParameter({"velocity", "velocity of note event generated while pressing keys in range [0, 0x80[, values out of range are coerced", "0x7f", MetaHandler::MetaParameter::Visibility::basic});
+    meta->addParameter({"channels", "bitmask of visible channels", serial::serializeChannels(channels_t::melodic()), MetaHandler::MetaParameter::Visibility::advanced});
     return meta;
 }
 
@@ -231,7 +232,8 @@ Handler::Result Instrument::handle_close(State state) {
 Handler::Result Instrument::handle_message(const Message& message) {
     switch (message.event.family()) {
     case family_t::note_on:
-        receiveNoteOn(message.event.channels(), extraction_ns::get_note(message.event));
+        if (const auto channels = message.event.channels() & mReceivedChannels)
+            receiveNoteOn(channels, extraction_ns::get_note(message.event));
         return Result::success;
     case family_t::note_off:
         receiveNoteOff(message.event.channels(), extraction_ns::get_note(message.event));
@@ -251,11 +253,13 @@ Handler::Result Instrument::handle_message(const Message& message) {
 HandlerView::Parameters Instrument::getParameters() const {
     auto result = GraphicalHandler::getParameters();
     SERIALIZE("velocity", serial::serializeByte, mVelocity, result);
+    SERIALIZE("channels", serial::serializeChannels, mReceivedChannels, result);
     return result;
 }
 
 size_t Instrument::setParameter(const Parameter& parameter) {
     UNSERIALIZE("velocity", serial::parseByte, setVelocity, parameter);
+    UNSERIALIZE("channels", serial::parseChannels, setReceivedChannels, parameter);
     return GraphicalHandler::setParameter(parameter);
 }
 
@@ -265,6 +269,14 @@ byte_t Instrument::velocity() const {
 
 void Instrument::setVelocity(byte_t velocity) {
     mVelocity = to_data_byte(velocity);
+}
+
+channels_t Instrument::receivedChannels() const {
+    return mReceivedChannels;
+}
+
+void Instrument::setReceivedChannels(channels_t channels) {
+    mReceivedChannels = channels;
 }
 
 void Instrument::receiveClose() {
