@@ -23,6 +23,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <random>
 #include <QDoubleSpinBox>
+#include <QMenu>
 #include <QTableWidget>
 #include <QTextCodec>
 #include <QTimeEdit>
@@ -221,8 +222,12 @@ public:
     QStringList paths() const;
     size_t addPaths(const QStringList& paths);
     size_t addPaths(QList<QUrl> urls);
-    size_t addPath(const QString& path);
+
     size_t addPath(const QUrl& url);
+    size_t addPath(const QString& path);
+    size_t addPath(const QFileInfo& fileInfo);
+    size_t addFile(const QFileInfo& fileInfo);
+    size_t addDir(const QFileInfo& fileInfo, bool recurse = false);
 
     void setCurrentStatus(SequenceStatus status);
 
@@ -234,6 +239,9 @@ public:
 
 public slots:
     void browseFiles();
+    void browseDirsShallow();
+    void browseDirsDeep();
+    void browseDirs(bool recursive);
     void browseRecorders();
     void shuffle();
     void sortAscending();
@@ -244,6 +252,7 @@ public slots:
 protected slots:
     void renameHandler(Handler* handler);
     void removeHandler(Handler* handler);
+    void showMenu(const QPoint& point);
 
 protected:
     QStringList mimeTypes() const override;
@@ -260,6 +269,7 @@ private:
     Context* mContext {nullptr};
     PlaylistItem* mCurrentItem {nullptr};
     std::default_random_engine mRandomEngine;
+    QMenu* mMenu;
 
 };
 

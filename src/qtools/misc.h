@@ -174,6 +174,7 @@ public:
     void setSelection(const QString& selection); /*!< save dir from selection */
 
     QString getReadFile(QWidget* parent, const QString& path = {});
+    QString getReadDir(QWidget* parent, const QString& path = {});
     QString getWriteFile(QWidget* parent, const QString& path = {});
     QStringList getReadFiles(QWidget* parent, const QString& path = {});
 

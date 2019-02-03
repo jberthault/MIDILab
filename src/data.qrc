@@ -78,5 +78,7 @@
         <file>data/bookmark.svg</file>
         <file>data/metronome.svg</file>
         <file>data/trumpet.svg</file>
+        <file>data/magnifying-glass.svg</file>
+        <file>data/briefcase.svg</file>
     </qresource>
 </RCC>

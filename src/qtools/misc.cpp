@@ -110,6 +110,13 @@ QString PathRetriever::getReadFile(QWidget* parent, const QString& path) {
     return selection;
 }
 
+QString PathRetriever::getReadDir(QWidget* parent, const QString& path) {
+    auto selection = QFileDialog::getExistingDirectory(parent, mCaption, firstNonEmpty(path, mDir));
+    if (!selection.isNull())
+        mDir = selection;
+    return selection;
+}
+
 QString PathRetriever::getWriteFile(QWidget* parent, const QString& path) {
     auto selection = QFileDialog::getSaveFileName(parent, mCaption, firstNonEmpty(path, mDir), mFilter);
     setSelection(selection);
@@ -544,10 +551,13 @@ void SignalNotifier::handleTerm() {
 // ===================
 
 bool MenuDefaultTrigger::eventFilter(QObject* watched, QEvent* event) {
-    if (event->type() == QEvent::MouseButtonDblClick)
-        if (static_cast<QMouseEvent*>(event)->button() == Qt::LeftButton)
+    if (event->type() == QEvent::MouseButtonRelease) {
+        auto* mouseEvent = static_cast<QMouseEvent*>(event);
+        if (mouseEvent->button() == Qt::LeftButton)
             if (auto* menu = dynamic_cast<QMenu*>(watched))
-                if (auto* action = menu->defaultAction())
-                    action->trigger();
+                if (!menu->actionAt(mouseEvent->pos()))
+                    if (auto* action = menu->defaultAction())
+                        action->trigger();
+    }
     return false;
 }

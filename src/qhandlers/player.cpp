@@ -504,16 +504,25 @@ PlaylistTable::PlaylistTable(QWidget* parent) : QTableWidget{0, 2, parent} {
     setDragDropMode(QTableWidget::DragDrop);
     setDragDropOverwriteMode(false);
 
-    setContextMenuPolicy(Qt::ActionsContextMenu);
-    connect(makeAction(QIcon{":/data/folder.svg"}, "Browse Files", this), &QAction::triggered, this, &PlaylistTable::browseFiles);
-    connect(makeAction(QIcon{":/data/media-record.svg"}, "Browse Recorders", this), &QAction::triggered, this, &PlaylistTable::browseRecorders);
-    makeSeparator(this);
-    connect(makeAction(QIcon{":/data/random.svg"}, "Shuffle", this), &QAction::triggered, this, &PlaylistTable::shuffle);
-    connect(makeAction(QIcon{":/data/sort-ascending.svg"}, "Sort Ascdending", this), &QAction::triggered, this, &PlaylistTable::sortAscending);
-    connect(makeAction(QIcon{":/data/sort-descending.svg"}, "Sort Descending", this), &QAction::triggered, this, &PlaylistTable::sortDescending);
-    makeSeparator(this);
-    connect(makeAction(QIcon{":/data/delete.svg"}, "Discard", this), &QAction::triggered, this, &PlaylistTable::removeSelection);
-    connect(makeAction(QIcon{":/data/trash.svg"}, "Discard All", this), &QAction::triggered, this, &PlaylistTable::removeAllRows);
+    setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(this, &PlaylistTable::customContextMenuRequested, this, &PlaylistTable::showMenu);
+    auto* trigger = new MenuDefaultTrigger{this};
+    mMenu = new QMenu{this};
+    mMenu->setToolTipsVisible(true);
+    auto* browseMenu = mMenu->addMenu(QIcon{":/data/magnifying-glass.svg"}, "Browse");
+    auto* browseFilesAction = browseMenu->addAction(QIcon{":/data/file.svg"}, "Files", this, SLOT(browseFiles()));
+    browseMenu->addAction(QIcon{":/data/folder.svg"}, "Dirs", this, SLOT(browseDirsShallow()));
+    browseMenu->addAction(QIcon{":/data/briefcase.svg"}, "Dirs (Recursive)", this, SLOT(browseDirsDeep()));
+    browseMenu->setDefaultAction(browseFilesAction);
+    browseMenu->installEventFilter(trigger);
+    mMenu->addAction(QIcon{":/data/media-record.svg"}, "Import Recorder", this, SLOT(browseRecorders()));
+    mMenu->addSeparator();
+    mMenu->addAction(QIcon{":/data/random.svg"}, "Shuffle", this, SLOT(shuffle()));
+    mMenu->addAction(QIcon{":/data/sort-ascending.svg"}, "Sort Ascending", this, SLOT(sortAscending()));
+    mMenu->addAction(QIcon{":/data/sort-descending.svg"}, "Sort Descending", this, SLOT(sortDescending()));
+    mMenu->addSeparator();
+    mMenu->addAction(QIcon{":/data/delete.svg"}, "Discard", this, SLOT(removeSelection()));
+    mMenu->addAction(QIcon{":/data/trash.svg"}, "Discard All", this, SLOT(removeAllRows()));
 
 }
 
@@ -555,28 +564,38 @@ size_t PlaylistTable::addPaths(QList<QUrl> urls) {
     return count;
 }
 
-size_t PlaylistTable::addPath(const QString& path) {
-    static const auto suffixes = QStringList{} << "mid" << "midi" << "kar";
-    size_t count = 0;
-    const QFileInfo info{path};
-    if (!info.exists()) {
-        TRACE_WARNING("can't find file " << path);
-    } else if (info.isDir()) {
-        for (const QFileInfo& child : QDir{path}.entryInfoList(QDir::Files)) {
-            if (suffixes.contains(child.suffix())) {
-                insertItem(new FileItem{child});
-                ++count;
-            }
-        }
-    } else {
-        insertItem(new FileItem{info});
-        ++count;
-    }
-    return count;
-}
-
 size_t PlaylistTable::addPath(const QUrl& url) {
     return addPath(url.toLocalFile());
+}
+
+size_t PlaylistTable::addPath(const QString& path) {
+    return addPath(QFileInfo{path});
+}
+
+size_t PlaylistTable::addPath(const QFileInfo& fileInfo) {
+    if (fileInfo.isDir())
+        return addDir(fileInfo);
+    if (fileInfo.isFile())
+        return addFile(fileInfo);
+    TRACE_WARNING("can't find file " << fileInfo.absoluteFilePath());
+    return 0;
+}
+
+size_t PlaylistTable::addFile(const QFileInfo& fileInfo) {
+    insertItem(new FileItem{fileInfo});
+    return 1;
+}
+
+size_t PlaylistTable::addDir(const QFileInfo& fileInfo, bool recurse) {
+    static const auto nameFilters = QStringList{} << "*.mid" << "*.midi" << "*.kar";
+    QDir dir{fileInfo.filePath()};
+    size_t count = 0;
+    for(const auto& info : dir.entryInfoList(nameFilters, QDir::Files))
+        count += addFile(info);
+    if (recurse)
+        for(const auto& info : dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot))
+            count += addDir(info, true);
+    return count;
 }
 
 void PlaylistTable::setCurrentStatus(SequenceStatus status) {
@@ -642,6 +661,22 @@ void PlaylistTable::setContext(Context* context) {
 void PlaylistTable::browseFiles() {
     if (addPaths(mContext->pathRetrieverPool()->get("midi")->getReadFiles(this)))
         scrollToBottom();
+}
+
+void PlaylistTable::browseDirsShallow() {
+    browseDirs(false);
+}
+
+void PlaylistTable::browseDirsDeep() {
+    browseDirs(true);
+}
+
+void PlaylistTable::browseDirs(bool recursive) {
+    const auto dir = mContext->pathRetrieverPool()->get("midi")->getReadDir(this);
+    setUpdatesEnabled(false);
+    if (!dir.isNull() && addDir(QFileInfo{dir}, recursive) != 0)
+        scrollToBottom();
+    setUpdatesEnabled(true);
 }
 
 void PlaylistTable::browseRecorders() {
@@ -720,6 +755,10 @@ void PlaylistTable::removeHandler(Handler* handler) {
         else
             ++row;
     }
+}
+
+void PlaylistTable::showMenu(const QPoint& point) {
+    mMenu->exec(mapToGlobal(point));
 }
 
 QStringList PlaylistTable::mimeTypes() const {
