@@ -18,6 +18,11 @@ QPushButton {
     background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #616161, stop: 0.5 #505050, stop: 0.6 #434343, stop:1 #656565);
     border-radius: 4px;
     padding: 4px 8px 4px 8px;
+    border: 2px solid #434343;
+}
+
+QPushButton:default {
+    border-color: #f09020;
 }
 
 QTreeView, QTableView {
@@ -58,14 +63,13 @@ QTabBar::tab, QHeaderView::section, QTableCornerButton::section, QMenuBar, Chann
 }
 
 QTabBar::tab {
-    padding: 3px;
+    padding: 3px 12px 3px 12px;
     border-top-left-radius: 4px;
     border-top-right-radius: 4px;
 }
 
 QTabBar::tab:selected, QPushButton:pressed {
     background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop: 0 #616161, stop: 0.6 #505050, stop:1 #888888);
-    border-color: #888888;
 }
 
 QMenuBar::item {

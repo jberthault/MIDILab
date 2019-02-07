@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include <QApplication>
+#include <QKeySequence>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
@@ -49,6 +50,18 @@ auto getConfigs() {
 
 auto* addShowAction(QMenu* menu, QWidget* widget) {
     return menu->addAction(widget->windowIcon(), widget->windowTitle(), widget, SLOT(show()));
+}
+
+auto* addShowAction(QMenu* menu, QWidget* widget, const QKeySequence& keySequence) {
+    auto* action = menu->addAction(widget->windowIcon(), widget->windowTitle());
+    QObject::connect(action, &QAction::triggered, widget, [=] {
+        widget->setVisible(!widget->isVisible());
+        if (widget->isVisible())
+            widget->raise();
+    });
+    action->setShortcut(keySequence);
+    action->setShortcutContext(Qt::ApplicationShortcut);
+    return action;
 }
 
 }
@@ -149,18 +162,20 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow{parent} {
     connect(mConfigMenu, &QMenu::triggered, this, &MainWindow::onConfigSelection);
     updateMenu(getConfigs()); // add recent config / midi files loaded
     fileMenu->addSeparator();
-    fileMenu->addAction(QIcon{":/data/power-standby.svg"}, "Exit", this, SLOT(close()));
+    auto* exitAction = fileMenu->addAction(QIcon{":/data/power-standby.svg"}, "Exit", this, SLOT(closeRequest()), Qt::ALT | Qt::Key_Q);
+    exitAction->setShortcutContext(Qt::ApplicationShortcut);
 
     // configure handler menu
 
     handlersMenu->setToolTipsVisible(true);
-    addShowAction(handlersMenu, listEditor)->setToolTip("Edit existing handlers");
-    addShowAction(handlersMenu, mGraphEditor)->setToolTip("Edit how handlers communicate");
-    addShowAction(handlersMenu, catalogEditor)->setToolTip("Create new handlers");
+    addShowAction(handlersMenu, listEditor, Qt::ALT | Qt::Key_V)->setToolTip("Edit existing handlers");
+    addShowAction(handlersMenu, mGraphEditor, Qt::ALT | Qt::Key_C)->setToolTip("Edit how handlers communicate");
+    addShowAction(handlersMenu, catalogEditor, Qt::ALT | Qt::Key_N)->setToolTip("Create new handlers");
     handlersMenu->addSeparator();
-    addShowAction(handlersMenu, programEditor)->setToolTip("Edit programs set on each handler");
+    addShowAction(handlersMenu, programEditor, Qt::ALT | Qt::Key_B)->setToolTip("Edit programs set on each handler");
     handlersMenu->addSeparator();
-    auto* panicAction = handlersMenu->addAction(QIcon{":/data/target.svg"}, "Panic", this, SLOT(panic()));
+    auto* panicAction = handlersMenu->addAction(QIcon{":/data/target.svg"}, "Panic", this, SLOT(panic()), Qt::ALT | Qt::Key_X);
+    panicAction->setShortcutContext(Qt::ApplicationShortcut);
     panicAction->setToolTip("Close all handlers");
     menuToolBar->addAction(panicAction);
 
@@ -388,6 +403,11 @@ void MainWindow::restoreAll() {
     for (auto* displayer : MultiDisplayer::topLevelDisplayers())
         displayer->showNormal();
     showNormal();
+}
+
+void MainWindow::closeRequest() {
+    if (QMessageBox::question(this, {}, "Do you want to exit the application ?") == QMessageBox::Yes)
+        close();
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {

@@ -110,6 +110,7 @@ private slots:
     void onLockStateChange(int state);
     void minimizeAll();
     void restoreAll();
+    void closeRequest();
 
 protected:
     void closeEvent(QCloseEvent* event) override;

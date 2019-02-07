@@ -442,6 +442,10 @@ HandlerListEditor::HandlerListEditor(Manager* manager, QWidget* parent) : QWidge
     setLayout(make_vbox(margin_tag{0}, mTree, make_hbox(stretch_tag{}, mVisibilityBox, expandButton, collapseButton)));
 }
 
+QSize HandlerListEditor::sizeHint() const {
+    return {250, 400};
+}
+
 void HandlerListEditor::insertHandler(Handler* handler) {
     QSignalBlocker sb{mTree};
     auto proxy = getProxy(mManager->handlerProxies(), handler);
@@ -633,6 +637,10 @@ HandlerCatalogEditor::HandlerCatalogEditor(Manager* manager, QWidget* parent) : 
     }
 
     setLayout(make_vbox(margin_tag{0}, mTreeWidget, make_hbox(margin_tag{0}, spacing_tag{0}, label, mLineEdit)));
+}
+
+QSize HandlerCatalogEditor::sizeHint() const {
+    return {250, 400};
 }
 
 void HandlerCatalogEditor::showMenu(const QPoint& point) {

@@ -141,6 +141,8 @@ class HandlerListEditor : public QWidget {
 public:
     explicit HandlerListEditor(Manager* manager, QWidget* parent);
 
+    QSize sizeHint() const override;
+
 private slots:
     void insertHandler(Handler* handler);
     void renameHandler(Handler* handler);
@@ -184,6 +186,8 @@ class HandlerCatalogEditor : public QWidget {
 
 public:
     explicit HandlerCatalogEditor(Manager* manager, QWidget* parent);
+
+    QSize sizeHint() const override;
 
 private slots:
     void showMenu(const QPoint& point);
